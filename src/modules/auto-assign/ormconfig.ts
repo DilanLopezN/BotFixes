@@ -1,0 +1,1 @@
+export const AUTO_ASSIGN_CONNECTION = 'auto_assign'

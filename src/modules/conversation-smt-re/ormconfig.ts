@@ -1,0 +1,1 @@
+export const CONVERSATION_SMT_RE_CONNECTION_NAME = 'conversation-smt-re';

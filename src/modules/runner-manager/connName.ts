@@ -1,0 +1,1 @@
+export const RUNNER_MANAGER_CONNECTION_NAME = 'runner-manager';

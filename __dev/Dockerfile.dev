@@ -1,0 +1,13 @@
+FROM node:18.17.1-alpine
+
+WORKDIR /bd__api
+RUN apk update && \
+    apk upgrade && \
+    apk add --no-cache git
+
+COPY package*.json .
+RUN npm i -f
+
+COPY . .
+
+CMD ["npm", "run", "start:dev"] 

@@ -1,0 +1,21 @@
+import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
+import { IContextFallbackMessage } from '../interfaces/context-fallback-message.interface';
+
+@Index(['workspaceId', 'createdAt'])
+@Entity('context_fallback_message')
+export class ContextFallbackMessage implements IContextFallbackMessage {
+    @PrimaryGeneratedColumn('uuid')
+    id: string;
+
+    @Column({ name: 'workspace_id', nullable: false, length: 24 })
+    workspaceId: string;
+
+    @Column({ name: 'bot_id', nullable: true, length: 24 })
+    botId?: string;
+
+    @Column({ name: 'context_id', nullable: false })
+    question: string;
+
+    @Column({ name: 'created_at', nullable: false, type: 'timestamp without time zone' })
+    createdAt: Date;
+}

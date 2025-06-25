@@ -1,0 +1,5 @@
+const ANALYTICS_CONNECTION = 'analytics';
+
+const ANALYTICS_READ_CONNECTION = 'analytics-read';
+
+export { ANALYTICS_CONNECTION, ANALYTICS_READ_CONNECTION };

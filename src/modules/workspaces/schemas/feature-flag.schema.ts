@@ -1,0 +1,36 @@
+import * as mongoose from 'mongoose';
+
+export const FeatureFlagSchema = new mongoose.Schema(
+    {
+        rating: Boolean,
+        enableChannelApi: Boolean,
+        dashboardNewVersion: Boolean,
+        enableModuleIntegrations: Boolean,
+        showMessageUserLimit: Boolean,
+        campaign: Boolean,
+        showHelpCenter: Boolean,
+        enableModuleBillings: Boolean,
+        disabledWorkspace: Boolean,
+        dashboardAppointments: Boolean,
+        categorizationDashboard: Boolean,
+        dashboardMessages: { type: Boolean, default: true },
+        createTemplateWhatsappOfficial: Boolean,
+        enableAutoAssign: Boolean,
+        enableConfirmation: Boolean,
+        enableReminder: Boolean,
+        enableNps: Boolean,
+        enableMedicalReport: Boolean,
+        showSubRolesInUser: Boolean,
+        enableIVR: Boolean,
+        enableScheduleNotification: Boolean,
+        enableRecoverLostSchedule: Boolean,
+        enableNpsScore: Boolean,
+        enableTelegram: Boolean,
+        enableAudioTranscription: Boolean,
+        enableBotAudioTranscription: Boolean,
+        enableUploadErpDocuments: Boolean,
+        enableConcatAgentNameInMessage: Boolean,
+        enableContactV2: Boolean,
+    },
+    { versionKey: false, _id: false, strict: false }, // com strict = false permite adicionar outras chaves que não estejam listadas no enum
+);

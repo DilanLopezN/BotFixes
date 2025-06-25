@@ -1,0 +1,69 @@
+app:
+  http:
+    replicaCount: 1
+    args:
+    - http
+    ingress:
+      host: "dev-api.botdesigner.io"
+    ingressinternal:
+      enabled: true
+      host: dev-api-internal.botdesigner.io
+    resources:
+      requests:
+        cpu: 0.2
+        memory: 400Mi
+      limits:
+        memory: "600Mi"
+        cpu: 0.3
+  batch:
+    replicaCount: 1
+    enabled: true
+  internal:
+    replicaCount: 1
+    enabled: true
+  envs:
+    NODE_ENV: "development"
+    APPLICATION_NAME: "kissbot-api"
+    APPLICATION_VERSION: "0.0.1"
+    SYNCHRONIZE: "false"
+    LOGGING: "true"
+    JWT_EXPIRATION_TOKEN: "10000 days"
+    MAILGUN_API_KEY: "123123"
+    MAILGUN_DOMAIN: "123123123"
+    MAINGUN_FROM: "no-reply@kissbot.com"
+    MAILGUN_WORKSPACE: "asdasd"
+    MAILGUN_USERNAME: "api"
+    EXPIRATION_TIMEOUT_TOKEN_FORGET_PASSWORD_VALUE: "86400"
+    REDIS_HOST: "redis-master.devops.svc.cluster.local"
+    REDIS_HOST_ELASTICACHE: "redis-eks.md7wqi.ng.0001.sae1.cache.amazonaws.com"
+    REDIS_PORT: "6379"
+    ENGINE_URI: "http://botdesigner-engine.quality.svc.cluster.local"
+    EVENT_EXCHANGE_NAME: "events-developer"
+    GRAYLOG_HOST: "graylog-udp.devops.svc.cluster.local"
+    GRAYLOG_PORT: "12222"
+    GRAYLOG_ENABLED: "no"
+    GRAYLOG_FACILITY: "api-development"
+    ELK_SERVER_URI: "https://vpc-botdesignerio-47zkoyk6beizt6dh7clmwsggk4.sa-east-1.es.amazonaws.com"
+    TZ: "America/Sao_Paulo"
+    INTEGRATIONS_URI: "http://botdesigner-integrations.developer.svc.cluster.local"
+    INTEGRATIONS_URL: "https://dev-integrations.botdesigner.io"
+    AWS_WORKSPACE_BUCKET_REGION_NAME: "sa-east-1"
+    AWS_WORKSPACE_BUCKET_NAME: "botdesigner-workspace-developer"
+    AWS_ATTACHMENTS_REGION_NAME : "sa-east-1"
+    AWS_ATTACHMENTS_BUCKET_NAME : "botdesignerio-activity-media-developer"
+    CHANNEL_EXCHANGE_NAME: "channels-developer"
+    COGNITO_POOL_ID: "sa-east-1_lZ65kuRKz"
+    COGNITO_POOL_CLIENT_ID: "10769r6ntig32p5nippmp3ucsv"
+    API_URI: "https://dev-api.botdesigner.io"
+    RATING_APP_URI: "http://dev-botdesigner-app-rating.s3-website-sa-east-1.amazonaws.com"
+    ASAAS_URI: "https://sandbox.asaas.com"
+    KAFKA_BROKERS: b-2.botdesignermsk.ez8kg4.c3.kafka.sa-east-1.amazonaws.com:9094,b-1.botdesignermsk.ez8kg4.c3.kafka.sa-east-1.amazonaws.com:9094
+    KAFKA_USERNAME: mzygerix
+    SENTRY_URI: ""
+    NOTIFICATION_EMAIL: ""
+    CHAT_SOCKET_URI: "https://dev-chat-socket.botdesigner.io"
+    AUTOMATIC_MESSAGE_URL: "http://botdesigner-automatic-message.developer.svc.cluster.local"
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 9091

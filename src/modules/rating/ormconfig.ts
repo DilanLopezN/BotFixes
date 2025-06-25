@@ -1,0 +1,3 @@
+const RATING_CONNECTION = 'rating';
+const RATING_READ_CONNECTION = 'rating-read';
+export { RATING_CONNECTION, RATING_READ_CONNECTION };

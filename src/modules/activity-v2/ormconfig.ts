@@ -1,0 +1,1 @@
+export const CONVERSATION_CONNECTION = 'conversation_connection';

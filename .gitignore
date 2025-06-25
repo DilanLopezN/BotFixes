@@ -1,0 +1,12 @@
+node_modules/
+.history/
+dist/
+data/
+.idea/
+*.error*
+.vscode/
+.env
+npm-debug.log
+pkg
+kissbot-api.log
+/coverage
