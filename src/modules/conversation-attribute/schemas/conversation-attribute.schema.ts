@@ -1,5 +1,6 @@
 import * as mongoose from 'mongoose';
 import { ConversationAttribute } from './../interfaces/conversation-attribute.interface';
+
 export const AttributeSchema = new mongoose.Schema(
     {
         name: String,

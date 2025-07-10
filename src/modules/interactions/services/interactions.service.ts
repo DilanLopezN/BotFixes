@@ -30,6 +30,13 @@ import {
     IResponseElementMedicalAppointment,
     IResponseElementBDMedicalAppointment,
     ElementType,
+    IResponseElementBDPatientIdentification,
+    IResponseElementBDReasonForNotScheduling,
+    IResponseElementBDMedicalScale,
+    IResponseElementBDAppointmentList,
+    IResponseElementBDPatientCreation,
+    IResponseElementBDPatientRecoverPassword,
+    IResponseElementBDCheckAccount,
 } from 'kissbot-core';
 import { isSystemUxAdmin } from '../../../common/utils/roles';
 import * as moment from 'moment';
@@ -904,7 +911,6 @@ export class InteractionsService extends MongooseAbstractionService<Interaction>
                                     if (!interactionExist) {
                                         addError(response._id);
                                     }
-                                    // add break
                                     break;
                                 }
                                 case ButtonType.postback: {
@@ -967,7 +973,6 @@ export class InteractionsService extends MongooseAbstractionService<Interaction>
                     }
                 } else if (
                     response.type === ResponseType.BOT_DESIGNER_CHECK_ACCOUNT ||
-                    response.type === ResponseType.BOT_DESIGNER_APPOINTMENT_RESCHEDULE ||
                     response.type === ResponseType.BOT_DESIGNER_RECOVER_PASSWORD ||
                     response.type === ResponseType.BOT_DESIGNER_PATIENT_CREATION ||
                     response.type === ResponseType.BOT_DESIGNER_APPOINTMENT_LIST ||
@@ -975,38 +980,56 @@ export class InteractionsService extends MongooseAbstractionService<Interaction>
                     response.type === ResponseType.BOT_DESIGNER_REASON_FOR_NOT_SCHEDULING ||
                     response.type === ResponseType.BOT_DESIGNER_PATIENT_IDENTIFICATION
                 ) {
-                    const gotoAttributes = [
-                        'isEmptyGoto',
-                        'isErrorGoto',
-                        'cannotDoActionGoto',
-                        'checkAccountGoto',
-                        'isAgendamentoNaoConfirmadoGoto',
-                        'onRejectAppointmentValueGoto',
-                        'onConfirmAppointmentValueGoto',
-                        'onEmptySearchRestartGoto',
-                        'accountExistsDataMismatchGoto',
-                        'accountMismatchGoto',
-                        'accountExistsGoto',
-                        'accountNotExistsGoto',
-                        'actionIgnoredGoto',
-                        'isSheduledGoto',
-                        'isRescheduledGoto',
-                        'accountCreatedGoto',
-                        'isAcceptedGoto',
-                        'isRejectedGoto',
-                    ] as const;
+                    const verifyResponses = {
+                        [ResponseType.BOT_DESIGNER_CHECK_ACCOUNT]: {
+                            isErrorGoto: '',
+                            accountExistsGoto: '',
+                            accountNotExistsGoto: '',
+                            accountMismatchGoto: '',
+                            accountExistsDataMismatchGoto: '',
+                        } as Partial<IResponseElementBDCheckAccount>,
+                        [ResponseType.BOT_DESIGNER_RECOVER_PASSWORD]: {
+                            isErrorGoto: '',
+                        } as Partial<IResponseElementBDPatientRecoverPassword>,
+                        [ResponseType.BOT_DESIGNER_PATIENT_CREATION]: {
+                            isEmptyGoto: '',
+                            isErrorGoto: '',
+                            accountCreatedGoto: '',
+                        } as Partial<IResponseElementBDPatientCreation>,
+                        [ResponseType.BOT_DESIGNER_APPOINTMENT_LIST]: {
+                            isEmptyGoto: '',
+                            isErrorGoto: '',
+                            isSheduledGoto: '',
+                            actionIgnoredGoto: '',
+                            isRescheduledGoto: '',
+                            cannotDoActionGoto: '',
+                            accountNotExistsGoto: '',
+                        } as Partial<IResponseElementBDAppointmentList>,
+                        [ResponseType.BOT_DESIGNER_MEDICAL_SCALE]: {
+                            isEmptyGoto: '',
+                            isErrorGoto: '',
+                        } as Partial<IResponseElementBDMedicalScale>,
+                        [ResponseType.BOT_DESIGNER_REASON_FOR_NOT_SCHEDULING]: {
+                            isEmptyGoto: '',
+                            isErrorGoto: '',
+                        } as Partial<IResponseElementBDReasonForNotScheduling>,
+                        [ResponseType.BOT_DESIGNER_PATIENT_IDENTIFICATION]: {
+                            isErrorGoto: '',
+                        } as Partial<IResponseElementBDPatientIdentification>,
+                    };
 
-                    for (const element of response.elements) {
-                        const ma = element as IResponseElementMedicalAppointment;
-
-                        for (const attr of gotoAttributes) {
-                            const gotoId = ma[attr];
-                            if (gotoId && gotoId !== '') {
-                                const interactionExist = !!interactions.find((currInteraction) =>
-                                    castObjectId(currInteraction._id)?.equals?.(castObjectId(gotoId)),
-                                );
-                                if (!interactionExist) {
-                                    addError(response._id);
+                    const validFieldResponse = verifyResponses?.[response.type];
+                    if (validFieldResponse) {
+                        for (const element of response.elements) {
+                            for (const field of Object.keys(validFieldResponse)) {
+                                const gotoId = element[field];
+                                if (gotoId && gotoId !== '') {
+                                    const interactionExist = !!interactions.find((currInteraction) =>
+                                        castObjectId(currInteraction._id)?.equals?.(castObjectId(gotoId)),
+                                    );
+                                    if (!interactionExist) {
+                                        addError(response._id);
+                                    }
                                 }
                             }
                         }

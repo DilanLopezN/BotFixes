@@ -33,7 +33,7 @@ import { AuthMiddleware } from '../auth/middleware/auth.middleware';
         }),
         TypeOrmModule.forFeature([FlowCategory, WhatsappFlowLibrary, Flow, FlowData], WHATSAPP_FLOW_CONNECTION),
     ],
-    exports: [FlowDataService],
+    exports: [],
 })
 export class WhatsappFlowModule {
     configure(consumer: MiddlewareConsumer) {

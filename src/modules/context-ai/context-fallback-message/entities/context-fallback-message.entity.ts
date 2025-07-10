@@ -13,8 +13,14 @@ export class ContextFallbackMessage implements IContextFallbackMessage {
     @Column({ name: 'bot_id', nullable: true, length: 24 })
     botId?: string;
 
-    @Column({ name: 'context_id', nullable: false })
+    @Column({ name: 'question', nullable: false })
     question: string;
+
+    @Column({ name: 'context', nullable: true })
+    context: string;
+
+    @Column({ name: 'training_ids', nullable: true, type: 'jsonb' })
+    trainingIds: string[];
 
     @Column({ name: 'created_at', nullable: false, type: 'timestamp without time zone' })
     createdAt: Date;

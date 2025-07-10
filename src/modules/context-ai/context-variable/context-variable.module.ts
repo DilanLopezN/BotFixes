@@ -6,9 +6,10 @@ import { ContextVariable } from './entities/context-variables.entity';
 import { ContextVariableService } from './context-variable.service';
 import { ContextVariableController } from './context-variable.controller';
 import { CacheModule } from '../../_core/cache/cache.module';
+import { AgentModule } from '../agent/agent.module';
 
 @Module({
-    imports: [TypeOrmModule.forFeature([ContextVariable], CONTEXT_AI), CacheModule],
+    imports: [TypeOrmModule.forFeature([ContextVariable], CONTEXT_AI), CacheModule, AgentModule],
     controllers: [ContextVariableController],
     providers: [ContextVariableService],
     exports: [ContextVariableService],

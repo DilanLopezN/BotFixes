@@ -40,6 +40,7 @@ export interface FeatureFlag {
     categorizationDashboard: boolean;
     enableUploadErpDocuments: boolean;
     enableConcatAgentNameInMessage: boolean;
+    enableConversationAttributeV2: boolean;
     enableContactV2: boolean;
 }
 

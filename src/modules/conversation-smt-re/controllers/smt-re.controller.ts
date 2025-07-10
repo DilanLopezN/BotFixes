@@ -1,10 +1,4 @@
-import {
-    Controller,
-    Get,
-    Param,
-    UseGuards,
-    NotFoundException,
-} from '@nestjs/common';
+import { Controller, Get, Param, UseGuards, NotFoundException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam } from '@nestjs/swagger';
 import { AuthGuard } from '../../auth/guard/auth.guard';
 import { RolesGuard } from '../../users/guards/roles.guard';
@@ -44,7 +38,14 @@ export class SmtReController {
         status: 401,
         description: 'Não autorizado',
     })
-    @RolesDecorator([PredefinedRoles.WORKSPACE_ADMIN, PredefinedRoles.SYSTEM_ADMIN])
+    @RolesDecorator([
+        PredefinedRoles.SYSTEM_ADMIN,
+        PredefinedRoles.SYSTEM_CS_ADMIN,
+        PredefinedRoles.SYSTEM_UX_ADMIN,
+        PredefinedRoles.WORKSPACE_ADMIN,
+        PredefinedRoles.WORKSPACE_AGENT,
+    ])
+    @UseGuards(AuthGuard, RolesGuard)
     async findOne(@Param('workspaceId') workspaceId: string, @Param('id') id: string): Promise<SmtRe> {
         const smtRe = await this.smtReService.findById(id);
         if (!smtRe || smtRe.workspaceId !== workspaceId) {

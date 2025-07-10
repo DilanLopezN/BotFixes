@@ -3,6 +3,8 @@ import { ReportsAuthMiddleware } from './middlewares/reports-auth.middleware';
 import { ReportsControler } from './controllers/reports.controller';
 import { ReportsService } from './services/reports.service';
 import { ExternalDataService } from './services/external-data.service';
+import { CsvExportService } from './services/csv-export.service';
+import { CsvExportCronService } from './services/csv-export-cron.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { REPORTS_CONNECTION_NAME } from './connName';
 
@@ -16,7 +18,7 @@ import { REPORTS_CONNECTION_NAME } from './connName';
         }),
     ],
     controllers: [ReportsControler],
-    providers: [ReportsService, ExternalDataService],
+    providers: [ReportsService, ExternalDataService, CsvExportService, CsvExportCronService],
 })
 export class ReportsModule {
     configure(consumer: MiddlewareConsumer) {

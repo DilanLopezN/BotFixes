@@ -166,6 +166,14 @@ const HealthIntegrationRules = new mongoose.Schema(
             type: Boolean,
             default: false,
         },
+        useReportProcessorAISpecialityAndProcedureDetection: {
+            type: Boolean,
+            default: false,
+        },
+        useReportProcessorAIProcedureDetection: {
+            type: Boolean,
+            default: false,
+        },
         useDoctorSuggestion: {
             type: Boolean,
             default: false,

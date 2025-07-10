@@ -9,6 +9,7 @@ import { ContextVariable } from './entities/context-variables.entity';
 import { CreateContextVariable } from './interfaces/create-context-variable.interface';
 import { UpdateContextVariable } from './interfaces/update-context-variable.interface';
 import { DeleteContextVariable } from './interfaces/delete-training-entry.interface';
+import { ListContextVariablesDto } from './dto/list-context-variables.dto';
 
 const defaultPermissionRoutes: RoleData[] = [
     PredefinedRoles.SYSTEM_ADMIN,
@@ -26,8 +27,12 @@ export class ContextVariableController {
     @Post('listContextVariables')
     @RolesDecorator(defaultPermissionRoutes)
     @UseGuards(AuthGuard, RolesGuard)
-    async listContextVariables(@Param('workspaceId') workspaceId: string): Promise<DefaultResponse<ContextVariable[]>> {
-        const results = await this.contextVariableService.listVariablesFromWorkspace({
+    async listContextVariables(
+        @Body(new ValidationPipe()) dto: ListContextVariablesDto,
+        @Param('workspaceId') workspaceId: string,
+    ): Promise<DefaultResponse<ContextVariable[]>> {
+        const results = await this.contextVariableService.listVariablesFromAgent({
+            ...dto,
             workspaceId,
         });
 
@@ -73,7 +78,7 @@ export class ContextVariableController {
     async deleteContextVariable(
         @Body(new ValidationPipe()) dto: DeleteContextVariable,
         @Param('workspaceId') workspaceId: string,
-    ): Promise<DefaultResponse<ContextVariable>> {
+    ): Promise<DefaultResponse<{ ok: boolean }>> {
         const result = await this.contextVariableService.deleteContextVariable(workspaceId, dto);
 
         return {

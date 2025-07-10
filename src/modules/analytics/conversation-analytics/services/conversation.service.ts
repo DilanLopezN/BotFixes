@@ -144,6 +144,7 @@ export class ConversationService {
             } else if (filter.conversationsWith == 'bot') {
                 query = query.andWhere(`conv.state = 'closed'`);
                 query = query.andWhere(`conv.closed_type <> 'agent'`);
+                query = query.andWhere(`NOT (conv.tags @> ARRAY['@remi.finaliza']::varchar[])`);
             } else if (filter.conversationsWith == 'not_closed') {
                 query = query.andWhere(`conv.state = 'open'`);
             }
@@ -186,6 +187,7 @@ export class ConversationService {
             } else if (filter.conversationsWith == 'bot') {
                 query = query.andWhere(`conv.state = 'closed'`);
                 query = query.andWhere(`conv.closed_type <> 'agent'`);
+                query = query.andWhere(`NOT (conv.tags @> ARRAY['@remi.finaliza']::varchar[])`);
             } else if (filter.conversationsWith == 'not_closed') {
                 query = query.andWhere(`conv.state = 'open'`);
             } else {
@@ -236,6 +238,7 @@ export class ConversationService {
             } else if (filter.conversationsWith == 'bot') {
                 query = query.andWhere(`conv.state = 'closed'`);
                 query = query.andWhere(`conv.closed_type <> 'agent'`);
+                query = query.andWhere(`NOT (conv.tags @> ARRAY['@remi.finaliza']::varchar[])`);
             } else if (filter.conversationsWith == 'not_closed') {
                 query = query.andWhere(`conv.state = 'open'`);
             } else {
@@ -418,7 +421,6 @@ export class ConversationService {
                 query = query.addSelect(`conv.${template.groupField} as agg_field`).addGroupBy('agg_field');
             }
         }
-        // console.log(query.getQueryAndParameters())
 
         const result = await query.execute();
         return result;

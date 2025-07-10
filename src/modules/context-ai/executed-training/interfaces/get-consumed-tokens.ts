@@ -1,6 +1,7 @@
 interface GetConsumedTokens {
     startDate: string;
     endDate: string;
+    agentId?: string;
 }
 
 interface GetConsumedTokensResponse {

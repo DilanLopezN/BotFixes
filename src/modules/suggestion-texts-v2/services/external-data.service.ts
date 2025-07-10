@@ -1,15 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
-import { OpenIaProviderService } from '../../context-ai/context-ai-executor/providers/openia.service';
+import { AiProviderService } from '../../context-ai/ai-provider/ai.service';
+import { AIProviderType } from '../../context-ai/ai-provider/interfaces';
 
 @Injectable()
 export class ExternalDataService {
-    private openIaProviderService: OpenIaProviderService;
+    private aiProviderService: AiProviderService;
 
     constructor(private readonly moduleRef: ModuleRef) {}
 
     async onApplicationBootstrap() {
-        this.openIaProviderService = this.moduleRef.get<OpenIaProviderService>(OpenIaProviderService, {
+        this.aiProviderService = this.moduleRef.get<AiProviderService>(AiProviderService, {
             strict: false,
         });
     }
@@ -21,6 +22,9 @@ export class ExternalDataService {
         maxTokens?: number;
         temperature?: number;
     }) {
-        return await this.openIaProviderService.sendMessage(messageOptions);
+        return await this.aiProviderService.sendMessage({
+            ...messageOptions,
+            provider: AIProviderType.openai,
+        });
     }
 }

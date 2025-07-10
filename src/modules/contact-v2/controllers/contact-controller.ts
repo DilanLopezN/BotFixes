@@ -28,8 +28,8 @@ export class ContactController {
         PredefinedRoles.WORKSPACE_AGENT,
     ])
     @UseGuards(RolesGuard)
-    async getContact(@Param('contactId') contactId: string) {
-        return await this.contactService.getOne(contactId);
+    async getContact(@Param('contactId') contactId: string, @Param('workspaceId') workspaceId: string) {
+        return await this.contactService.getOne(contactId, workspaceId);
     }
 
     @ApiParam({ type: String, required: true, name: 'contactId' })

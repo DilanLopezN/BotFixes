@@ -5,6 +5,8 @@ export enum DefaultContextVariables {
     maxCharacters = 'maxCharacters',
     temperature = 'temperature',
     historicMessagesLength = 'historicMessagesLength',
+    customPersonality = 'customPersonality',
+    customPrompt = 'customPrompt',
 
     // variáveis de fallback
     actionAfterFallback01 = 'action_after_fallback_01',
@@ -23,9 +25,11 @@ export enum DefaultContextVariables {
     btnFallback02 = 'btn_fallback_02',
     btnFallback03 = 'btn_fallback_03',
 
-    // variáveis de goto direto
+    // variáveis de goto direto, após resposta da ia para o paciente
+    // realiza redirect imediato, ou seja aqui contem um interactionId
     actionAfterResponse = 'action_after_response',
 
-    // variáveis de goto direto
+    // variáveis de goto direto, após falha na resposta da ia para o paciente
+    // realiza redirect imediato, ou seja aqui contem um interactionId
     actionAfterFallback = 'action_after_fallback',
 }

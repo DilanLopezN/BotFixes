@@ -69,7 +69,7 @@ export class ContactService extends MongooseAbstractionService<Contact> {
     private async isPostgresEnabled(workspaceId: string): Promise<boolean> {
         const workspace = await this.workspaceService.getModel().findOne({ _id: workspaceId });
 
-        return workspace.featureFlag.enableContactV2;
+        return workspace?.featureFlag?.enableContactV2;
     }
 
     public dispatch(event: { type: KissbotEventType; data: any }) {
@@ -81,7 +81,7 @@ export class ContactService extends MongooseAbstractionService<Contact> {
 
     public async getContact(workspaceId: string, contactId: string): Promise<IContact> {
         if (await this.isPostgresEnabled(workspaceId)) {
-            return await this.contactServiceV2.getOne(contactId);
+            return await this.contactServiceV2.getOne(contactId, workspaceId);
         }
 
         return this.parseModel(await this.getOne(contactId));
@@ -292,19 +292,9 @@ export class ContactService extends MongooseAbstractionService<Contact> {
         });
 
         const createdContact = await this.create(contactModel);
-        await this.vinculeContactToConversationMember(conversationId, member.id, createdContact);
 
         (contact as any).id = createdContact._id.toString();
-        const result = await this.contactServiceV2.createContact(contact, member, workspaceId, conversationId);
-
-        if (await this.isPostgresEnabled(workspaceId)) return result;
-
-        await this.eventsService.sendEvent({
-            data: createdContact,
-            dataType: KissbotEventDataType.CONTACT,
-            source: KissbotEventSource.KISSBOT_API,
-            type: KissbotEventType.CONTACT_CREATED,
-        });
+        await this.contactServiceV2.createContact(contact, member, workspaceId, conversationId);
 
         return createdContact;
     }
@@ -332,16 +322,18 @@ export class ContactService extends MongooseAbstractionService<Contact> {
             },
         );
 
-        const result = await this.contactServiceV2.vinculeConversationIdToExistingContact(
+        const updatedContact = await this.getOne(contactId);
+
+        await this.contactServiceV2.vinculeConversationToContact(
             contactId,
             conversationId,
-            memberId,
+            workspaceId,
+            updatedContact?.toJSON?.() as IContact,
         );
 
-        if (await this.isPostgresEnabled(workspaceId)) return result;
-
-        const updatedContact = await this.getOne(contactId);
         await this.vinculeContactToConversationMember(conversationId, memberId, updatedContact);
+
+        return updatedContact;
     }
 
     private async updateContact(contactId: string, conversationId: string, memberId: string, workspaceId: string) {
@@ -400,31 +392,13 @@ export class ContactService extends MongooseAbstractionService<Contact> {
             },
         );
 
-        const result = await this.contactServiceV2._update(contactId, partialContact, workspaceId, authUser);
-
-        if (await this.isPostgresEnabled(workspaceId)) return result;
-
-        const contactUpdated = await this.model.findById(contactId);
-
-        const conversationsWithMembersRefContactId = await this.conversationService.getModel().find({
-            'workspace._id': workspaceId,
-            'members.contactId': contactId,
-        });
-
-        if (conversationsWithMembersRefContactId?.length) {
-            await this.conversationService.updateMembersWithContactModel(
-                conversationsWithMembersRefContactId,
-                contactUpdated,
-                contactId,
-            );
+        try {
+            await this.contactServiceV2._update(contactId, partialContact, workspaceId, authUser);
+        } catch (error) {
+            console.log('Update Postgres error: ', error);
         }
 
-        await this.eventsService.sendEvent({
-            data: contactUpdated,
-            dataType: KissbotEventDataType.CONTACT,
-            source: KissbotEventSource.KISSBOT_API,
-            type: KissbotEventType.CONTACT_UPDATED,
-        });
+        const contactUpdated = await this.model.findById(contactId);
 
         return this.parseModel(contactUpdated);
     }
@@ -453,16 +427,7 @@ export class ContactService extends MongooseAbstractionService<Contact> {
         const createdContact = await this.create(contactModel);
 
         (contact as any).id = createdContact._id.toString();
-        const result = await this.contactServiceV2._create(contact, workspaceId);
-
-        if (await this.isPostgresEnabled(workspaceId)) return result;
-
-        await this.eventsService.sendEvent({
-            data: createdContact,
-            dataType: KissbotEventDataType.CONTACT,
-            source: KissbotEventSource.KISSBOT_API,
-            type: KissbotEventType.CONTACT_CREATED,
-        });
+        await this.contactServiceV2._create(contact, workspaceId);
 
         return createdContact;
     }
@@ -580,5 +545,16 @@ export class ContactService extends MongooseAbstractionService<Contact> {
         );
 
         await this.cacheService.remove(contactId);
+
+        await this.eventsService.sendEvent({
+            data: {
+                contactId: castObjectIdToString(contact._id),
+                workspaceId,
+                isBlocked: !isBlocked, // isBlocked representa o estado anterior
+            },
+            dataType: KissbotEventDataType.CONTACT,
+            source: KissbotEventSource.KISSBOT_API,
+            type: KissbotEventType.CONTACT_BLOCKED,
+        });
     }
 }

@@ -80,6 +80,18 @@ export class ContactEntity {
             let jsonString = JSON.stringify(this.name);
             jsonString = jsonString.replace(/\0/g, '');
             this.name = JSON.parse(jsonString);
+
+            if (this.name.length > 255) {
+                this.name = this.name.slice(0, 255);
+            }
+        }
+    }
+
+    @BeforeInsert()
+    @BeforeUpdate()
+    cleanEmailField() {
+        if (this.email && typeof this.email == 'string' && this.email.length > 255) {
+            this.email = this.email.slice(0, 255);
         }
     }
 

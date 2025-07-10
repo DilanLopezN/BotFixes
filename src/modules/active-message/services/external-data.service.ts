@@ -8,6 +8,7 @@ import { WhatsappSessionControlService } from '../../whatsapp-session-control/se
 import { BotsService } from '../../bots/bots.service';
 import { TemplateMessageService } from '../../template-message/services/template-message.service';
 import { TagsService } from '../../tags/tags.service';
+import { WorkspacesService } from '../../workspaces/services/workspaces.service';
 
 @Injectable()
 export class ExternalDataService {
@@ -18,6 +19,7 @@ export class ExternalDataService {
     private botsService: BotsService;
     private templateMessageService: TemplateMessageService;
     private tagsService: TagsService;
+    private workspacesService: WorkspacesService;
 
     constructor(private readonly moduleRef: ModuleRef) {}
 
@@ -34,6 +36,7 @@ export class ExternalDataService {
             strict: false,
         });
         this.tagsService = this.moduleRef.get<TagsService>(TagsService, { strict: false });
+        this.workspacesService = this.moduleRef.get<WorkspacesService>(WorkspacesService, { strict: false });
     }
     async getCanValidateLoggedInWrapperChannelConfig() {
         const result = await this.channelConfigService.getCanValidateLoggedInWrapperChannelConfig();
@@ -74,8 +77,8 @@ export class ExternalDataService {
         return result;
     }
 
-    async addAttributesToConversation(conversationId: string, attributes) {
-        await this.conversationService.addAttributesToConversation(conversationId, attributes);
+    async addAttributesToConversation(conversationId: string, attributes, workspaceId?: string) {
+        await this.conversationService.addAttributesToConversation(conversationId, attributes, workspaceId);
     }
 
     async addMember(conversationId: string, systemMember, sendActivity: boolean) {
@@ -130,6 +133,11 @@ export class ExternalDataService {
 
     async getWorkspaceTags(workspaceId) {
         const result = await this.tagsService.getWorkspaceTags(workspaceId);
+        return result;
+    }
+
+    async isWorkspaceRatingEnabled(workspaceId: string) {
+        const result = await this.workspacesService.isWorkspaceRatingEnabled(workspaceId);
         return result;
     }
 }

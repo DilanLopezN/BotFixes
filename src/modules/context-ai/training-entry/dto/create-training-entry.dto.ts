@@ -9,6 +9,10 @@ export class CreateTrainingEntryDto {
 
     @ApiProperty()
     @IsString()
+    agentId: string;
+
+    @ApiProperty()
+    @IsString()
     identifier: string;
 
     @ApiProperty()

@@ -21,6 +21,10 @@ export class UpdateContextVariableDto {
     botId?: string;
 
     @ApiProperty()
+    @IsString()
+    agentId: string;
+
+    @ApiProperty()
     @IsEnum(ContextVariableType)
     type: ContextVariableType;
 }

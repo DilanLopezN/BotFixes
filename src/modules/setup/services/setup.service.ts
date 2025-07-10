@@ -1,9 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { CatchError, Exceptions } from '../../auth/exceptions';
 import { CreateInitialSetup } from '../interfaces/create-initial-setup.interface';
-import { SetupSetting } from '../models/setup-setting.entity';
 import { SetupBillingService } from './setup-billing.service';
-import { SetupSettingService } from './setup-setting.service';
 import { SetupWorkspaceService } from './setup-workspace.service';
 
 @Injectable()
@@ -11,7 +9,6 @@ export class SetupService {
     constructor(
         private readonly setupBillingService: SetupBillingService,
         private readonly setupWorkspaceService: SetupWorkspaceService,
-        private readonly setupSettingService: SetupSettingService,
     ) {}
 
     @CatchError()
@@ -24,12 +21,12 @@ export class SetupService {
 
         if (body.accountData.gatewayClientId) {
             account = await this.setupBillingService.getAccountByGatewayClientId(body.accountData.gatewayClientId);
-            const newAccount = account ? 
-            {
-                ...account,
-                ...body.accountData,
-            } 
-            : body.accountData;
+            const newAccount = account
+                ? {
+                      ...account,
+                      ...body.accountData,
+                  }
+                : body.accountData;
             try {
                 account = await this.setupBillingService.createAccount(newAccount);
             } catch (e) {

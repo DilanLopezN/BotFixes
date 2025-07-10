@@ -81,7 +81,14 @@ export class ActivityUtilService {
 
         const activityId = new Types.ObjectId();
         if (activityRequest.from?.id) {
-            const from = conversation.members.find((mem) => mem.id === activityRequest.from.id);
+            let from = conversation.members.find((mem) => mem.id === activityRequest.from.id);
+
+            // Caso quem realizou a ação não esteja nos membros da conversa colocar o from da activityRequest;
+            // Assim como no caso onde o admin assina o atendimento para um agente especifico,
+            // onde o admin não entra no atendimento para fazer essa ação.
+            if (!from && activityRequest?.from) {
+                from = activityRequest.from;
+            }
 
             activityRequest.from = {
                 ...from,

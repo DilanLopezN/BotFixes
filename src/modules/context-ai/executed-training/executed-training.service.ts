@@ -25,10 +25,11 @@ export class ExecutedTrainingService {
 
     public async doTraining(
         workspaceId: string,
-        { forceAll, trainingEntryId }: DoTraining,
+        { forceAll, trainingEntryId, agentId }: DoTraining,
     ): Promise<DefaultResponse<{ success: number; total: number }>> {
-        const trainingEntries = await this.trainingEntryService.listTrainingEntriesByWorkspaceIdOrId(
+        const trainingEntries = await this.trainingEntryService.listTrainingEntriesByAgentIdIdOrId(
             workspaceId,
+            agentId,
             trainingEntryId,
             forceAll,
         );
@@ -65,11 +66,12 @@ export class ExecutedTrainingService {
                         trainingEntryId: trainingEntry.id,
                         workspaceId: trainingEntry.workspaceId,
                         totalTokens: tokens,
+                        agentId: trainingEntry.agentId,
                     });
 
+                    // Atualiza com dados da sincronização
                     await queryRunner.manager.save(TrainingEntry, {
                         id: trainingEntry.id,
-                        workspaceId,
                         pendingTraining: false,
                         updatedAt: new Date(),
                         executedTrainingAt: new Date(),
@@ -99,22 +101,28 @@ export class ExecutedTrainingService {
         return {
             data: {
                 success: successTraining,
-                total: trainingEntries.filter((t) => !t.deletedAt).length,
+                total: trainingEntries.filter((trainingEntry) => !trainingEntry.deletedAt).length,
             },
         };
     }
 
     public async getConsumedTokens(
         workspaceId: string,
-        { startDate, endDate }: GetConsumedTokens,
+        { startDate, endDate, agentId }: GetConsumedTokens,
     ): Promise<DefaultResponse<GetConsumedTokensResponse[]>> {
-        const result = await this.executedTrainingRepository
+        const query = this.executedTrainingRepository
             .createQueryBuilder()
             .where('workspace_id = :workspaceId', { workspaceId })
             .where('created_at::timestamp BETWEEN :startDate::timestamp AND :endDate::timestamp', {
                 startDate: moment(startDate).startOf('day').toISOString(),
                 endDate: moment(endDate).endOf('day').toISOString(),
-            })
+            });
+
+        if (agentId) {
+            query.where('agent_id = :agentId', { agentId });
+        }
+
+        const result = await query
             .select("DATE_TRUNC('day', created_at)", 'date')
             .addSelect('SUM(total_tokens)', 'totalTokens')
             .groupBy("DATE_TRUNC('day', created_at)")

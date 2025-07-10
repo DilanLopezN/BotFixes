@@ -3,7 +3,7 @@ import { CONTEXT_AI } from '../../ormconfig';
 import { Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { AudioTranscription } from '../models/audio-transcription.entity';
-import { clientOpenAI } from '../../helpers/open-ai.instance';
+import { clientOpenAI } from '../../ai-provider/helpers/open-ai.instance';
 import * as fs from 'fs';
 import axios from 'axios';
 import { Exceptions } from '../../../auth/exceptions';

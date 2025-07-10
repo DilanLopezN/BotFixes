@@ -17,6 +17,10 @@ export class CreateContextVariablesDto {
     botId?: string;
 
     @ApiProperty()
+    @IsString()
+    agentId: string;
+
+    @ApiProperty()
     @IsEnum(ContextVariableType)
     type: ContextVariableType;
 }

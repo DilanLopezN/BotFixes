@@ -1,8 +1,9 @@
 import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
+import { ITrainingEntry } from '../interfaces/training-entry.interface';
 
 @Index(['workspaceId', 'botId'])
 @Entity('training_entry')
-export class TrainingEntry {
+export class TrainingEntry implements ITrainingEntry {
     @PrimaryGeneratedColumn('uuid')
     id: string;
 
@@ -23,6 +24,9 @@ export class TrainingEntry {
 
     @Column({ name: 'executed_training_at', nullable: true, type: 'timestamp without time zone' })
     executedTrainingAt: Date;
+
+    @Column({ name: 'agent_id', nullable: false, length: 36 })
+    agentId: string;
 
     @Column({ name: 'created_at', nullable: false, type: 'timestamp without time zone' })
     createdAt: Date;

@@ -49,4 +49,13 @@ export class SmtReSetting {
 
     @Column({ name: 'deleted_at', nullable: true })
     deletedAt: Date;
+
+    @Column({ name: 'objective_id', type: 'numeric', nullable: true })
+    objectiveId?: number;
+
+    @Column({ name: 'outcome_id', type: 'numeric', nullable: true })
+    outcomeId?: number;
+
+    @Column({ name: 'active', type: 'boolean', default: true })
+    active: boolean;
 }

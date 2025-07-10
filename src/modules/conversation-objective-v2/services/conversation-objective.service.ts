@@ -79,6 +79,7 @@ export class ConversationObjectiveService {
 
         const conversationObjectives = await queryBuilder
             .orderBy('conversationObjective.deletedAt', 'ASC', 'NULLS FIRST')
+            .addOrderBy('LOWER(conversationObjective.name)', 'ASC')
             .getMany();
 
         return {

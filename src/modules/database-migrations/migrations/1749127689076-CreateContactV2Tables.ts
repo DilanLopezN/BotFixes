@@ -84,6 +84,8 @@ export class CreateContactV2Tables1749127689076 implements MigrationInterface {
               RETURNS trigger
               LANGUAGE plpgsql AS
             $func$
+            DECLARE
+              index_name text;
             BEGIN
               BEGIN
                 EXECUTE format('INSERT INTO "conversation"."contact_%s" SELECT $1.*', NEW.workspace_id)
@@ -91,6 +93,10 @@ export class CreateContactV2Tables1749127689076 implements MigrationInterface {
               EXCEPTION
                 WHEN undefined_table THEN
                   EXECUTE format('CREATE TABLE "conversation"."contact_%s" ( CHECK ( workspace_id = %s ), LIKE "conversation"."contact" INCLUDING INDEXES) INHERITS ("conversation"."contact")', NEW.workspace_id, quote_literal(NEW.workspace_id));
+
+                  -- Create index for whatsapp column
+                  index_name := 'idx_contact_whatsapp_' || NEW.workspace_id || '_trgm';
+                  EXECUTE format('CREATE INDEX IF NOT EXISTS %I ON "conversation"."contact_%s" USING gin (whatsapp gin_trgm_ops);', index_name, NEW.workspace_id);
 
                   EXECUTE format('INSERT INTO "conversation"."contact_%s" SELECT $1.*', NEW.workspace_id)
                   USING NEW;

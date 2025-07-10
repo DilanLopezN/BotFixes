@@ -5,4 +5,8 @@ export class DeleteContextVariableDto {
     @ApiProperty()
     @IsString()
     contextVariableId: string;
+
+    @ApiProperty()
+    @IsString()
+    agentId: string;
 }

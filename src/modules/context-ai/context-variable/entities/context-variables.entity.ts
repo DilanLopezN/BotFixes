@@ -1,11 +1,10 @@
 import { Column, Entity, Index, PrimaryGeneratedColumn, Unique } from 'typeorm';
-import { ContextVariableType } from '../interfaces/context-variables.interface';
+import { ContextVariableType, IContextVariable } from '../interfaces/context-variables.interface';
 
-@Index(['workspaceId', 'botId', 'contextId'])
-@Unique(['workspaceId', 'name'])
-@Unique(['workspaceId', 'contextId', 'name'])
+@Index(['workspaceId', 'agentId', 'botId', 'contextId'])
+@Unique(['workspaceId', 'agentId', 'name'])
 @Entity('context_variable')
-export class ContextVariable {
+export class ContextVariable implements IContextVariable {
     @PrimaryGeneratedColumn('uuid')
     id: string;
 
@@ -23,6 +22,9 @@ export class ContextVariable {
 
     @Column({ name: 'context_id', nullable: true, length: 24 })
     contextId?: string;
+
+    @Column({ name: 'agent_id', nullable: false, length: 36 })
+    agentId: string;
 
     @Column({ name: 'type', nullable: false, length: 24, enum: ContextVariableType })
     type: ContextVariableType;

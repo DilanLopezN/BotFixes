@@ -45,7 +45,7 @@ export class ScheduleController {
         @Query('limit') limit: string,
         @Query('skip') skip: string,
         @Param('workspaceId') workspaceId: string,
-        @Body(new ValidationPipe()) filter: ScheduleFilterListDto,
+        @Body() filter: ScheduleFilterListDto,
     ) {
         const requestData = {
             limit: Number(limit || 0),
@@ -64,7 +64,7 @@ export class ScheduleController {
                     error,
                 },
             });
-            throw error;
+            throw error?.response?.data || error;
         }
     }
 }

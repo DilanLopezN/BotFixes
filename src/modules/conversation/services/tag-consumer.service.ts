@@ -6,16 +6,13 @@ import { getQueueName } from '../../../common/utils/get-queue-name';
 
 @Injectable()
 export class TagConsumerService {
-
     private readonly logger = new Logger(TagConsumerService.name);
 
     constructor(private conversationService: ConversationService) {}
 
     @RabbitSubscribe({
         exchange: process.env.EVENT_EXCHANGE_NAME,
-        routingKey: [
-            KissbotEventType.CONVERSATION_TAGS_UPDATE_REQUEST,
-        ],
+        routingKey: [KissbotEventType.CONVERSATION_TAGS_UPDATE_REQUEST],
         queue: getQueueName('conversation-tags'),
         queueOptions: {
             durable: true,
@@ -52,17 +49,16 @@ export class TagConsumerService {
     }
 
     private async handleAddAttributeRequestEvent(ev: KissbotEvent) {
-        const { conversationId, data } = ev.data as any;
+        const { conversationId, data, workspaceId } = ev.data as any;
         if (conversationId && data?.length > 0) {
-            await this.conversationService.addAttributesToConversation(conversationId, data);
+            await this.conversationService.addAttributesToConversation(conversationId, data, workspaceId);
         }
     }
 
     private async handleRemoveAttributeRequestEvent(ev: KissbotEvent) {
-        const { conversationId, name } = ev.data as any;
+        const { conversationId, name, workspaceId } = ev.data as any;
         if (conversationId && name) {
-            await this.conversationService.removeAttributeFromConversation(conversationId, name);
+            await this.conversationService.removeAttributeFromConversation(conversationId, name, workspaceId);
         }
     }
-
 }

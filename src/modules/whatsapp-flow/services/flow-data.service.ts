@@ -1,11 +1,10 @@
-import { Global, Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { WHATSAPP_FLOW_CONNECTION } from '../ormconfig';
 import { FlowData } from '../models/flow-data.entity';
 import { Flow } from '../models/flow.entity';
 
-@Global()
 @Injectable()
 export class FlowDataService {
     private readonly logger = new Logger(FlowDataService.name);

@@ -312,6 +312,7 @@ export class ActivityService extends MongooseAbstractionService<Activity> {
     async dispatchActivity(activity: Activity, conversation: Conversation) {
         const conversationAttributes = await this.conversationAttributesService.getConversationAttributes(
             castObjectIdToString(conversation._id),
+            castObjectIdToString(conversation.workspace._id),
         );
 
         try {
@@ -321,6 +322,7 @@ export class ActivityService extends MongooseAbstractionService<Activity> {
                     conversation?.workspace?._id,
                     activity?.from?.id,
                 );
+                conversation = await this.conversationService.findOne({ _id: conversation._id });
             }
             if (
                 conversation?.stoppedSmtReId &&

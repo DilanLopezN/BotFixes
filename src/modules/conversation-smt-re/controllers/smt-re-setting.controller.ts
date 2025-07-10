@@ -23,7 +23,6 @@ import { SmtReSetting } from '../models/smt-re-setting.entity';
 
 @ApiTags('SMT-RE Settings')
 @Controller('workspaces')
-@UseGuards(AuthGuard, RolesGuard)
 export class SmtReSettingController {
     constructor(private readonly smtReSettingService: SmtReSettingService) {}
 
@@ -47,7 +46,14 @@ export class SmtReSettingController {
         status: 401,
         description: 'Não autorizado',
     })
-    @RolesDecorator([PredefinedRoles.WORKSPACE_ADMIN, PredefinedRoles.SYSTEM_ADMIN])
+    @RolesDecorator([
+        PredefinedRoles.SYSTEM_ADMIN,
+        PredefinedRoles.SYSTEM_CS_ADMIN,
+        PredefinedRoles.SYSTEM_UX_ADMIN,
+        PredefinedRoles.WORKSPACE_ADMIN,
+        PredefinedRoles.WORKSPACE_AGENT,
+    ])
+    @UseGuards(AuthGuard, RolesGuard)
     async create(
         @Param('workspaceId') workspaceId: string,
         @Body() createDto: CreateSmtReSettingDto,
@@ -75,7 +81,14 @@ export class SmtReSettingController {
         status: 401,
         description: 'Não autorizado',
     })
-    @RolesDecorator([PredefinedRoles.WORKSPACE_ADMIN, PredefinedRoles.SYSTEM_ADMIN])
+    @RolesDecorator([
+        PredefinedRoles.SYSTEM_ADMIN,
+        PredefinedRoles.SYSTEM_CS_ADMIN,
+        PredefinedRoles.SYSTEM_UX_ADMIN,
+        PredefinedRoles.WORKSPACE_ADMIN,
+        PredefinedRoles.WORKSPACE_AGENT,
+    ])
+    @UseGuards(AuthGuard, RolesGuard)
     async findAll(
         @Param('workspaceId') workspaceId: string,
         @Query('teamId') teamId?: string,
@@ -111,7 +124,14 @@ export class SmtReSettingController {
         status: 401,
         description: 'Não autorizado',
     })
-    @RolesDecorator([PredefinedRoles.WORKSPACE_ADMIN, PredefinedRoles.SYSTEM_ADMIN])
+    @RolesDecorator([
+        PredefinedRoles.SYSTEM_ADMIN,
+        PredefinedRoles.SYSTEM_CS_ADMIN,
+        PredefinedRoles.SYSTEM_UX_ADMIN,
+        PredefinedRoles.WORKSPACE_ADMIN,
+        PredefinedRoles.WORKSPACE_AGENT,
+    ])
+    @UseGuards(AuthGuard, RolesGuard)
     async findOne(@Param('workspaceId') workspaceId: string, @Param('id') id: string): Promise<SmtReSetting> {
         const setting = await this.smtReSettingService.findById(id);
         if (!setting || setting.workspaceId !== workspaceId) {
@@ -149,7 +169,14 @@ export class SmtReSettingController {
         status: 401,
         description: 'Não autorizado',
     })
-    @RolesDecorator([PredefinedRoles.WORKSPACE_ADMIN, PredefinedRoles.SYSTEM_ADMIN])
+    @RolesDecorator([
+        PredefinedRoles.SYSTEM_ADMIN,
+        PredefinedRoles.SYSTEM_CS_ADMIN,
+        PredefinedRoles.SYSTEM_UX_ADMIN,
+        PredefinedRoles.WORKSPACE_ADMIN,
+        PredefinedRoles.WORKSPACE_AGENT,
+    ])
+    @UseGuards(AuthGuard, RolesGuard)
     async update(
         @Param('workspaceId') workspaceId: string,
         @Param('id') id: string,
@@ -187,7 +214,14 @@ export class SmtReSettingController {
         status: 401,
         description: 'Não autorizado',
     })
-    @RolesDecorator([PredefinedRoles.WORKSPACE_ADMIN, PredefinedRoles.SYSTEM_ADMIN])
+    @RolesDecorator([
+        PredefinedRoles.SYSTEM_ADMIN,
+        PredefinedRoles.SYSTEM_CS_ADMIN,
+        PredefinedRoles.SYSTEM_UX_ADMIN,
+        PredefinedRoles.WORKSPACE_ADMIN,
+        PredefinedRoles.WORKSPACE_AGENT,
+    ])
+    @UseGuards(AuthGuard, RolesGuard)
     async remove(@Param('workspaceId') workspaceId: string, @Param('id') id: string): Promise<void> {
         return this.smtReSettingService.delete(id, workspaceId);
     }

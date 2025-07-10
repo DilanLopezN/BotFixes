@@ -82,10 +82,7 @@ async function bootstrap() {
                 },
             });
         });
-        await app
-            .listen(process.env.PORT || 9091)
-            .then(() => logger.log('SERVER STARTED'))
-            .catch((err) => console.error('ERROR', err));
+        await app.listen(process.env.PORT || 9091);
     } catch (e) {}
 }
 

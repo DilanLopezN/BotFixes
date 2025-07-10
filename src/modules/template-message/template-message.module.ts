@@ -11,7 +11,6 @@ import { PublicTemplateMessageController } from './controllers/public-template-m
 import { ExternalDataService } from './services/external-data.service';
 import { TemplateMessageHistorySchema } from './schema/template-message-history.schema';
 import { TemplateMessageHistoryService } from './services/template-message-history.service';
-import { WhatsappFlowModule } from '../whatsapp-flow/whatsapp-flow.module';
 
 @Module({
     imports: [
@@ -22,7 +21,6 @@ import { WhatsappFlowModule } from '../whatsapp-flow/whatsapp-flow.module';
         CacheModule,
         EventsModule,
         StorageModule,
-        WhatsappFlowModule,
     ],
     providers: [TemplateMessageService, TemplateMessageHistoryService, ExternalDataService],
     exports: [TemplateMessageService, TemplateMessageHistoryService],

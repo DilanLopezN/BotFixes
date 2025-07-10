@@ -22,7 +22,7 @@ export class BlockedContactService {
     private async isPostgresEnabled(workspaceId: string): Promise<boolean> {
         const workspace = await this.workspaceService.getModel().findOne({ _id: workspaceId });
 
-        return workspace.featureFlag.enableContactV2;
+        return workspace?.featureFlag?.enableContactV2;
     }
 
     public async getBlockedContactByWhatsapp(workspaceId: string, phone: string): Promise<IBlockedContact> {

@@ -1,11 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { CreateEmbedding } from './interfaces/create-embedding.interface';
 import { DeleteEmbedding } from './interfaces/delete-embedding.interface';
-import { clientOpenAI } from '../helpers/open-ai.instance';
+import { clientOpenAI } from '../ai-provider/helpers/open-ai.instance';
 import { Embeddings } from './interfaces/embeddings.interface';
 import { TrainingEntryService } from '../training-entry/training-entry.service';
 import { GetEmbeddingFromText } from './interfaces/embedding-from-text.interface';
 import { DatabaseService } from '../helpers/database.service';
+import { normalizeText } from './helpers/stop-words';
 
 @Injectable()
 export class EmbeddingsService {
@@ -17,8 +18,8 @@ export class EmbeddingsService {
         private readonly databaseService: DatabaseService,
     ) {}
 
-    public prepareTextToEmbedding(text: string) {
-        return text.trim().toLowerCase();
+    public prepareTextToEmbedding(text: string): string {
+        return normalizeText(text);
     }
 
     public async getEmbeddingFromText(content: string): Promise<GetEmbeddingFromText> {
@@ -77,7 +78,7 @@ export class EmbeddingsService {
                 new Date().toISOString(),
                 `[${embedding}]`,
                 null,
-                null,
+                new Date().toISOString(),
                 workspaceId,
                 totalTokens,
             ]);
@@ -99,9 +100,11 @@ export class EmbeddingsService {
     public async createEmbeddingsFromQuestion(question: string): Promise<number[]> {
         try {
             const openai = clientOpenAI();
+            const preparedQuestion = this.prepareTextToEmbedding(question);
+
             const responseData = await openai.embeddings.create({
                 model: this.embeddingModelName,
-                input: this.prepareTextToEmbedding(question),
+                input: preparedQuestion,
             });
 
             return responseData.data[0].embedding;
@@ -114,7 +117,7 @@ export class EmbeddingsService {
     public async listEmbeddingsByWorkspaceId(
         workspaceId: string,
         questionEmbedding: number[],
-    ): Promise<{ identifier: string; content: string }[]> {
+    ): Promise<{ identifier: string; content: string; id: string }[]> {
         const query = `
             SELECT training_entry_id AS "trainingEntryId",
                 embedding <=> $1::VECTOR AS similarity
@@ -127,8 +130,9 @@ export class EmbeddingsService {
         `;
 
         // Quanto mais próximo de 0, mais similar
-        const minimalSimilarity = 0.5;
-        const maxResults = 10;
+        // Pode ser uma variável customizada futuramente
+        const minimalSimilarity = 0.6;
+        const maxResults = 15;
 
         const result = await this.databaseService.execute<Embeddings[]>(query, [
             `[${questionEmbedding}]`,
@@ -136,6 +140,10 @@ export class EmbeddingsService {
             minimalSimilarity,
             maxResults,
         ]);
+
+        if (!result?.length) {
+            return [];
+        }
 
         return await this.trainingEntryService.listTrainingEntriesContent(
             workspaceId,

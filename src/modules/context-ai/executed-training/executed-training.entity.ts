@@ -19,6 +19,9 @@ export class ExecutedTraining {
     @Column({ name: 'training_entry_id', nullable: false })
     trainingEntryId: string;
 
+    @Column({ name: 'agent_id', nullable: false })
+    agentId: string;
+
     @Column({ name: 'total_tokens', nullable: false, type: 'int' })
     totalTokens: number;
 

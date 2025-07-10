@@ -80,6 +80,7 @@ export class ConversationOutcomeService {
 
         const conversationOutcomes = await queryBuilder
             .orderBy('conversationOutcome.deletedAt', 'ASC', 'NULLS FIRST')
+            .addOrderBy('LOWER(conversationOutcome.name)', 'ASC')
             .getMany();
 
         return {

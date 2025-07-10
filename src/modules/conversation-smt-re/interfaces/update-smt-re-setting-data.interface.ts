@@ -7,4 +7,7 @@ export interface UpdateSmtReSettingData {
     finalizationMessage?: string;
     name?: string;
     teamIds?: string[];
+    objectiveId?: number;
+    outcomeId?: number;
+    active?: boolean;
 }

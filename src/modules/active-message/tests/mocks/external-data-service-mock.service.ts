@@ -197,7 +197,7 @@ export class ExternalDataServiceMock {
         return ExternalDataServiceMock.conversations[userMember.id];
     }
 
-    async addAttributesToConversation(conversationId: string, attributes) {
+    async addAttributesToConversation(conversationId: string, attributes, workspaceId?: string) {
         const conv = Object.values(ExternalDataServiceMock.conversations).find((conv) => {
             return conv._id.equals(conversationId);
         });

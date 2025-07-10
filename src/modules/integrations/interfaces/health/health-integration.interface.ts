@@ -104,6 +104,8 @@ export enum IntegrationRules {
     patientNameCase = 'patientNameCase',
     allowStepBack = 'allowStepBack',
     useListInAllSteps = 'useListInAllSteps',
+    useReportProcessorAI = 'useReportProcessorAI',
+    useReportProcessorAIOnlyProcedureDetection = 'useReportProcessorAIOnlyProcedureDetection',
 }
 
 export enum IntegrationSyncType {

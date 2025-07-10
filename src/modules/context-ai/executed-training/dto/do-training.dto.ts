@@ -8,6 +8,10 @@ export class DoTrainingDto {
     trainingEntryId?: string;
 
     @ApiProperty()
+    @IsString()
+    agentId: string;
+
+    @ApiProperty()
     @IsBoolean()
     @IsOptional()
     forceAll?: boolean;

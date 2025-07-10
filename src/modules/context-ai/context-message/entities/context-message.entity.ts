@@ -11,11 +11,17 @@ export class ContextMessage implements IContextMessage {
     @Column({ name: 'content', nullable: false })
     content: string;
 
+    @Column({ name: 'next_step', nullable: true, type: 'jsonb' })
+    nextStep: Record<string, any> | null;
+
     @Column({ name: 'workspace_id', nullable: false, length: 24 })
     workspaceId: string;
 
     @Column({ name: 'bot_id', nullable: true, length: 24 })
     botId?: string;
+
+    @Column({ name: 'agent_id', nullable: false, length: 36 })
+    agentId: string;
 
     @Column({ name: 'context_id', nullable: false })
     contextId: string;

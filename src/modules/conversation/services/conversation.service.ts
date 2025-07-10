@@ -206,7 +206,11 @@ export class ConversationService extends MongooseAbstractionService<Conversation
             await Promise.all([
                 createPrivateConversationDataPromise,
                 this.create(conversation),
-                this.conversationAttributesService._create(conversation._id, conversationsAttributes),
+                this.conversationAttributesService._create(
+                    conversation._id,
+                    conversationsAttributes,
+                    conversation.workspace._id,
+                ),
             ]);
 
             const rawConversation = conversation.toJSON({ minimize: false });
@@ -416,7 +420,10 @@ export class ConversationService extends MongooseAbstractionService<Conversation
         }
         const leanConversation: any = conversation.toJSON({ minimize: false });
         const attachments = await this.attachmentService.getAttachmentsByConversationId(conversationId);
-        const attributes = await this.conversationAttributesService.getConversationAttributes(conversationId);
+        const attributes = await this.conversationAttributesService.getConversationAttributes(
+            conversationId,
+            workspaceId,
+        );
         const activities = await this.getConversationActivities(conversation, true);
         const audioTranscriptions = await this.externalDataService.getAudioTranscriptionsByConversationId(
             workspaceId,
@@ -1704,7 +1711,10 @@ export class ConversationService extends MongooseAbstractionService<Conversation
                 conversation = conversation.toJSON({ minimize: false });
 
                 const activities = await this.getConversationActivities(conversation);
-                const attributes = await this.conversationAttributesService.getConversationAttributes(conversation._id);
+                const attributes = await this.conversationAttributesService.getConversationAttributes(
+                    conversation._id,
+                    conversation.workspace._id,
+                );
                 const attachments = await this.attachmentService.getAttachmentsByConversationId(conversation._id);
                 conversation.activities = activities;
                 conversation.fileAttachments = (attachments || []).map((att) => ({
@@ -3037,7 +3047,7 @@ export class ConversationService extends MongooseAbstractionService<Conversation
             conversation = await this._create(conversationToSave);
         } else {
             if (attributes.length > 0) {
-                await this.addAttributesToConversation(conversation._id, attributes);
+                await this.addAttributesToConversation(conversation._id, attributes, workspaceId);
             }
         }
 
@@ -3113,10 +3123,18 @@ export class ConversationService extends MongooseAbstractionService<Conversation
     }
 
     @CatchError()
-    async addAttributesToConversation(conversationId: string, attributes: Attribute[]): Promise<void> {
+    async addAttributesToConversation(
+        conversationId: string,
+        attributes: Attribute[],
+        workspaceId?: string,
+    ): Promise<void> {
         const endTimer = rabbitMsgLatency.labels('updateWhatsappExpiration').startTimer();
 
-        const attributeGroup = await this.conversationAttributesService.addAttributes(conversationId, attributes);
+        const attributeGroup = await this.conversationAttributesService.addAttributes(
+            conversationId,
+            attributes,
+            workspaceId,
+        );
         if (!attributeGroup) {
             Sentry.captureEvent({
                 message: 'ConversationService.addAttributesToConversation not find attributeGroup',
@@ -3128,7 +3146,6 @@ export class ConversationService extends MongooseAbstractionService<Conversation
             return;
         }
         this.sendAttributesToSocket(conversationId, attributeGroup.data).then();
-        // await this.sendAttributesToSocket(conversationId, attributeGroup.data);
 
         const addedAttributes = attributeGroup.data.filter((attr) => {
             const currentAttr = attributes.find((receivedAttr) => receivedAttr.name === attr.name);
@@ -3157,10 +3174,17 @@ export class ConversationService extends MongooseAbstractionService<Conversation
     }
 
     @CatchError()
-    async removeAttributeFromConversation(conversationId: string, attributeName: string): Promise<void> {
-        const attributeGroup = await this.conversationAttributesService.removeAttribute(conversationId, attributeName);
+    async removeAttributeFromConversation(
+        conversationId: string,
+        attributeName: string,
+        workspaceId?: string,
+    ): Promise<void> {
+        const attributeGroup = await this.conversationAttributesService.removeAttribute(
+            conversationId,
+            attributeName,
+            workspaceId,
+        );
         this.sendAttributesToSocket(conversationId, attributeGroup.data).then();
-        // await this.sendAttributesToSocket(conversationId, attributeGroup.data);
 
         this.findOne({ _id: conversationId }).then((conversation) => {
             this.eventsService.sendEvent({
@@ -4694,7 +4718,8 @@ export class ConversationService extends MongooseAbstractionService<Conversation
             channelId: 'live-agent',
             type: IdentityType.agent,
         };
-        // loop para enviar mensagem de remoção de todos os agentes que estavam ativos no atendimento
+        // loop para enviar mensagem de remoção de todos os agentes que estavam ativos no atendimento;
+        // E desativar bot e system caso a ação aconteça durante o fluxo com bot;
         for (const member of conversation?.members) {
             if (
                 member.type === IdentityType.agent &&
@@ -4711,6 +4736,10 @@ export class ConversationService extends MongooseAbstractionService<Conversation
                     },
                 };
                 await this.activityService.handleActivity(activityRequestDto, castObjectIdToString(conversation._id));
+            } else if (member.type === IdentityType.bot && !member?.disabled) {
+                await this.disableBot(castObjectIdToString(conversation._id));
+            } else if (member.type === IdentityType.system && !member?.disabled) {
+                await this.disableSystem(castObjectIdToString(conversation._id));
             }
         }
 
@@ -4820,12 +4849,15 @@ export class ConversationService extends MongooseAbstractionService<Conversation
     ): Promise<{ success: boolean }> {
         try {
             // Verificar se a conversa existe
-            const conversation = await this.getOne(conversationId);
-            if (conversation.smtReId) {
-                return { success: false };
-            }
+            const conversation = await this.model.findById(conversationId);
             if (!conversation) {
                 throw Exceptions.CONVERSATION_NOT_FOUND;
+            }
+            if (conversation.state == ConversationStatus.closed) {
+                throw Exceptions.CONVERSATION_NOT_FOUND;
+            }
+            if (conversation.smtReId) {
+                return { success: false };
             }
 
             // Verificar se já tem smtReId setado
@@ -4862,7 +4894,9 @@ export class ConversationService extends MongooseAbstractionService<Conversation
             if (!conversation) {
                 throw Exceptions.CONVERSATION_NOT_FOUND;
             }
-
+            if (conversation.state == ConversationStatus.closed) {
+                throw Exceptions.CONVERSATION_NOT_FOUND;
+            }
             // Verificar se tem smtReId configurado
             if (!conversation.smtReId) {
                 throw Exceptions.CONVERSATION_SMT_RE_NOT_CONFIGURED;

@@ -91,4 +91,31 @@ export class UpdateSmtReSettingDto {
     @IsArray()
     @IsString({ each: true })
     teamIds?: string[];
+
+    @ApiProperty({
+        description: 'ID do objetivo para categorização automática',
+        example: 1,
+        required: false,
+    })
+    @IsOptional()
+    @IsNumber()
+    objectiveId?: number;
+
+    @ApiProperty({
+        description: 'ID do desfecho para categorização automática',
+        example: 2,
+        required: false,
+    })
+    @IsOptional()
+    @IsNumber()
+    outcomeId?: number;
+
+    @ApiProperty({
+        description: 'Se a configuração está ativa',
+        example: true,
+        required: false,
+    })
+    @IsOptional()
+    @IsBoolean()
+    active?: boolean;
 }

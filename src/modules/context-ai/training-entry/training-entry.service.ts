@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { CONTEXT_AI } from '../ormconfig';
 import { FindManyOptions, Repository } from 'typeorm';
 import { TrainingEntry } from './entities/training-entry.entity';
@@ -9,23 +9,32 @@ import { DeleteTrainingEntry } from './interfaces/delete-training-entry.interfac
 import { UpdateTrainingEntry } from './interfaces/update-training-entry.interface';
 import { Exceptions } from '../../auth/exceptions';
 import { GetTrainingEntry } from './interfaces/get-training-entry.interface';
+import { AgentService } from '../agent/services/agent.service';
 
 @Injectable()
 export class TrainingEntryService {
     constructor(
         @InjectRepository(TrainingEntry, CONTEXT_AI)
         public trainingEntryRepository: Repository<TrainingEntry>,
+        protected agentService: AgentService,
     ) {}
 
     public async createTrainingEntry(
         workspaceId: string,
         data: CreateTrainingEntry,
     ): Promise<DefaultResponse<TrainingEntry>> {
+        const agent = await this.agentService.findByWorkspaceIdAndId(data.agentId, workspaceId);
+
+        if (!agent) {
+            new BadRequestException('Agent not found', 'AGENT_NOT_FOUND');
+        }
+
         const result = await this.trainingEntryRepository.save({
             ...data,
             workspaceId,
             createdAt: new Date(),
             pendingTraining: true,
+            botId: agent.botId,
         });
 
         return {
@@ -51,7 +60,6 @@ export class TrainingEntryService {
             workspaceId,
             content: data.content,
             identifier: data.identifier,
-            botId: data.botId,
             pendingTraining: true,
             updatedAt: new Date(),
         });
@@ -119,14 +127,14 @@ export class TrainingEntryService {
     public async listTrainingEntriesContent(
         workspaceId: string,
         trainingEntryIds: string[],
-    ): Promise<Pick<TrainingEntry, 'identifier' | 'content'>[]> {
+    ): Promise<Pick<TrainingEntry, 'identifier' | 'content' | 'id'>[]> {
         if (!trainingEntryIds?.length) {
             return [];
         }
 
         const result = await this.trainingEntryRepository
             .createQueryBuilder('trainingEntry')
-            .select(['trainingEntry.content', 'trainingEntry.identifier'])
+            .select(['trainingEntry.content', 'trainingEntry.identifier', 'id'])
             .where('trainingEntry.workspaceId = :workspaceId', { workspaceId })
             .andWhere('trainingEntry.id IN(:...trainingEntryIds)', { trainingEntryIds })
             .andWhere('trainingEntry.deletedAt IS NULL')
@@ -135,17 +143,20 @@ export class TrainingEntryService {
         return result.map((result) => ({
             identifier: result.identifier,
             content: result.content,
+            id: result.id,
         }));
     }
 
-    public async listTrainingEntriesByWorkspaceIdOrId(
+    public async listTrainingEntriesByAgentIdIdOrId(
         workspaceId: string,
+        agentId: string,
         trainingEntryId?: string,
         force = false,
     ): Promise<TrainingEntry[]> {
         const query: FindManyOptions<TrainingEntry> = {
             where: {
                 workspaceId,
+                agentId,
                 ...(trainingEntryId ? { id: trainingEntryId } : {}),
             },
         };

@@ -1,15 +1,16 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { CONTEXT_AI } from '../ormconfig';
 import { FindManyOptions, IsNull, Repository } from 'typeorm';
 import { ContextVariable } from './entities/context-variables.entity';
-import { ListVariablesFromWorkspace } from './interfaces/list-variables-from-workspace.interface';
+import { ListVariablesFromWorkspaceAndAgent } from './interfaces/list-variables-from-workspace.interface';
 import { CreateContextVariable } from './interfaces/create-context-variable.interface';
 import { UpdateContextVariable } from './interfaces/update-context-variable.interface';
 import { DeleteContextVariable } from './interfaces/delete-training-entry.interface';
 import { Exceptions } from '../../auth/exceptions';
 import { CacheService } from '../../_core/cache/cache.service';
 import { ContextVariableType, IContextVariableResume } from './interfaces/context-variables.interface';
+import { AgentService } from '../agent/services/agent.service';
 
 @Injectable()
 export class ContextVariableService {
@@ -17,21 +18,24 @@ export class ContextVariableService {
         @InjectRepository(ContextVariable, CONTEXT_AI)
         public contextVariableRepository: Repository<ContextVariable>,
         private readonly cacheService: CacheService,
+        private readonly agentService: AgentService,
     ) {}
 
-    private contextVariablesCacheKey(workspaceId: string, botId?: string): string {
-        return `ctx_ai:variables:${workspaceId}`;
+    private contextVariablesCacheKey(workspaceId: string, agentId: string): string {
+        return `ctx_ai:var:${workspaceId}:a:${agentId}`;
     }
 
-    private async removeContextVariablesCache(workspaceId: string, botId?: string): Promise<void> {
-        const cacheKey = this.contextVariablesCacheKey(workspaceId);
+    private async removeContextVariablesCache(workspaceId: string, agentId: string): Promise<void> {
+        const cacheKey = this.contextVariablesCacheKey(workspaceId, agentId);
 
         const client = this.cacheService.getClient();
         await client.del(cacheKey);
     }
 
-    public async listVariablesFromWorkspaceResume(data: ListVariablesFromWorkspace): Promise<IContextVariableResume[]> {
-        const variables = await this.listVariablesFromWorkspace(data);
+    public async listVariablesFromAgentResume(
+        data: ListVariablesFromWorkspaceAndAgent,
+    ): Promise<IContextVariableResume[]> {
+        const variables = await this.listVariablesFromAgent(data);
         return variables
             .filter(({ type }) =>
                 [
@@ -47,9 +51,9 @@ export class ContextVariableService {
             }));
     }
 
-    public async listVariablesFromWorkspace(data: ListVariablesFromWorkspace): Promise<ContextVariable[]> {
+    public async listVariablesFromAgent(data: ListVariablesFromWorkspaceAndAgent): Promise<ContextVariable[]> {
         const client = this.cacheService.getClient();
-        const cacheKey = this.contextVariablesCacheKey(data.workspaceId);
+        const cacheKey = this.contextVariablesCacheKey(data.workspaceId, data.agentId);
 
         try {
             const variablesFromCache = await client.get(cacheKey);
@@ -58,7 +62,7 @@ export class ContextVariableService {
                 return JSON.parse(variablesFromCache);
             }
         } catch (error) {
-            console.error('ContextVariablesService.listVariablesFromWorkspace', error);
+            console.error('ContextVariablesService.listVariablesFromAgent', error);
         }
 
         const query: FindManyOptions<ContextVariable> = {
@@ -85,10 +89,17 @@ export class ContextVariableService {
             throw Exceptions.DUPLICATED_CONTEXT_VARIABLE;
         }
 
-        await this.removeContextVariablesCache(workspaceId);
+        const agent = await this.agentService.findByWorkspaceIdAndId(data.agentId, workspaceId);
+
+        if (!agent) {
+            new BadRequestException('Agent not found', 'AGENT_NOT_FOUND');
+        }
+
+        await this.removeContextVariablesCache(workspaceId, data.agentId);
         return await this.contextVariableRepository.save({
             workspaceId,
             contextId: null,
+            botId: agent.botId,
             createdAt: new Date(),
             ...data,
         });
@@ -105,7 +116,7 @@ export class ContextVariableService {
             throw Exceptions.NOT_FOUND;
         }
 
-        await this.removeContextVariablesCache(workspaceId);
+        await this.removeContextVariablesCache(workspaceId, data.agentId);
         return await this.contextVariableRepository.save({
             id: data.contextVariableId,
             workspaceId,
@@ -114,12 +125,16 @@ export class ContextVariableService {
         });
     }
 
-    public async deleteContextVariable(workspaceId: string, data: DeleteContextVariable): Promise<ContextVariable> {
-        await this.removeContextVariablesCache(workspaceId);
-        return await this.contextVariableRepository.save({
-            id: data.contextVariableId,
-            workspaceId,
-            deletedAt: new Date(),
-        });
+    public async deleteContextVariable(workspaceId: string, data: DeleteContextVariable): Promise<{ ok: boolean }> {
+        await this.removeContextVariablesCache(workspaceId, data.agentId);
+        const result = await this.contextVariableRepository.update(
+            { id: data.contextVariableId },
+            {
+                workspaceId,
+                deletedAt: new Date(),
+            },
+        );
+
+        return { ok: result.affected > 0 };
     }
 }

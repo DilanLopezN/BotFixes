@@ -38,7 +38,7 @@ export class ScheduleAnalyticsController {
     ])
     async getScheduleMetrics(
         @Param('workspaceId') workspaceId: string,
-        @Body(new ValidationPipe()) filter: ScheduleAnalyticsFiltersDto,
+        @Body() filter: ScheduleAnalyticsFiltersDto,
     ): Promise<any> {
         const requestData = {
             ...filter,
@@ -55,7 +55,7 @@ export class ScheduleAnalyticsController {
                     error,
                 },
             });
-            throw error;
+            throw error?.response?.data || error;
         }
     }
 
@@ -70,7 +70,7 @@ export class ScheduleAnalyticsController {
     ])
     async getScheduleMetricsCancelReason(
         @Param('workspaceId') workspaceId: string,
-        @Body(new ValidationPipe()) filter: ScheduleAnalyticsFiltersDto,
+        @Body() filter: ScheduleAnalyticsFiltersDto,
     ): Promise<any> {
         const requestData = {
             ...filter,
@@ -87,7 +87,7 @@ export class ScheduleAnalyticsController {
                     error,
                 },
             });
-            throw error;
+            throw error?.response?.data || error;
         }
     }
 
@@ -103,7 +103,7 @@ export class ScheduleAnalyticsController {
     @UseInterceptors(new TimeoutInterceptor(120000))
     async listSchedulesCsv(
         @Param('workspaceId') workspaceId: string,
-        @Body(new ValidationPipe()) filter: ScheduleFilterListDto,
+        @Body() filter: ScheduleFilterListDto,
         @Body('downloadType') downloadType: typeDownloadEnum,
         @Res() response,
     ): Promise<any> {
@@ -122,7 +122,7 @@ export class ScheduleAnalyticsController {
                     error,
                 },
             });
-            throw error;
+            throw error?.response?.data || error;
         }
     }
 
@@ -137,7 +137,7 @@ export class ScheduleAnalyticsController {
     ])
     async getScheduleMetricsNpsSchedule(
         @Param('workspaceId') workspaceId: string,
-        @Body(new ValidationPipe()) filter: ScheduleAnalyticsFiltersDto,
+        @Body() filter: ScheduleAnalyticsFiltersDto,
     ): Promise<any> {
         const requestData = {
             ...filter,
@@ -154,7 +154,7 @@ export class ScheduleAnalyticsController {
                     error,
                 },
             });
-            throw error;
+            throw error?.response?.data || error;
         }
     }
 }

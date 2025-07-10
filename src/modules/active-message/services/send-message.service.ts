@@ -510,7 +510,11 @@ export class SendMessageService {
             isCreatedConversation = true;
         } else {
             if (attributes.length > 0) {
-                await this.externalDataService.addAttributesToConversation(conversation._id, attributes);
+                await this.externalDataService.addAttributesToConversation(
+                    conversation._id,
+                    attributes,
+                    setting.workspaceId,
+                );
             }
         }
 

@@ -11,6 +11,7 @@ import { SmtReSettingService } from './smt-re-setting.service';
 import { Exceptions } from '../../auth/exceptions';
 import * as moment from 'moment-timezone';
 import * as Sentry from '@sentry/node';
+import { Conversation } from '../../conversation/interfaces/conversation.interface';
 @Injectable()
 export class SmtReService {
     private readonly logger = new Logger(SmtReService.name);
@@ -32,6 +33,11 @@ export class SmtReService {
 
         if (smtReSetting.workspaceId !== workspaceId) {
             throw new BadRequestException(`SMT-RE setting does not belong to workspace ${workspaceId}`);
+        }
+
+        // Validar se a configuração está ativa
+        if (!smtReSetting.active) {
+            throw new BadRequestException(`SMT-RE setting with id ${smtReSettingId} is not active`);
         }
 
         // Validar se o teamId da conversa está na lista de teams permitidos
@@ -73,7 +79,8 @@ export class SmtReService {
             .createQueryBuilder('smtRe')
             .leftJoinAndSelect('smtRe.smtReSetting', 'smtReSetting')
             .where('smtRe.finalizationMessageSent = :finalizationMessageSent', { finalizationMessageSent: false })
-            .andWhere('smtRe.stopped = :stopped', { stopped: false });
+            .andWhere('smtRe.stopped = :stopped', { stopped: false })
+            .andWhere('smtReSetting.active = :active', { active: true });
 
         return query.getMany();
     }
@@ -226,23 +233,36 @@ export class SmtReService {
             };
 
             // Dispatch message activity
-            await this.externalDataService.dispatchMessageActivity(conversation, activity);
-
             if (messageType === SmtReMessageType.INITIAL) {
                 await this.externalDataService.updateConversationIsWithSmtRe(smtRe.conversationId);
+                conversation.isWithSmtRe = !conversation.isWithSmtRe;
+                await this.externalDataService.dispatchMessageActivity(conversation, activity);
+            }
+            if (messageType === SmtReMessageType.AUTOMATIC) {
+                await this.externalDataService.dispatchMessageActivity(conversation, activity);
             }
             // Se for mensagem de finalização, enviar activity end_conversation
             if (messageType === SmtReMessageType.FINALIZATION) {
+                // Cria a categorização - try catch para impedir que o remi falhe na finalização caso de erro na criação da categorização
+
+                try {
+                    await this.createAutomaticCategorization(smtRe, conversation);
+                } catch (error) {
+                    this.logger.log(`Failed to create auto categorization ${smtReId}`);
+                }
+
+                await this.externalDataService.dispatchMessageActivity(conversation, activity);
+
                 await this.externalDataService.dispatchEndConversationActivity(smtRe.conversationId, sysMember, {
                     closeType: ConversationCloseType.bot_finished,
                 });
+
                 this.logger.log(`End conversation activity sent for smt-re: ${smtReId}`);
             }
 
             this.logger.log(`Message sent successfully for smt-re: ${smtReId}`);
         } catch (error) {
             this.logger.error(`Error sending message for smt-re ${smtRe.id}:`, error);
-            throw error;
         }
     }
 
@@ -254,11 +274,58 @@ export class SmtReService {
             await this.smtReRepository.update(smtRe.id, {
                 stopped: true,
                 stoppedAt: moment().toDate(),
-                stoppedByMemberId: memberId,
+                stoppedByMemberId: memberId?.toString ? memberId?.toString?.() : memberId,
             });
         } catch (error) {
             this.logger.error(`Error stopping automatic messages for conversation ${conversationId}:`, error);
-            throw error;
+        }
+    }
+
+    private async createAutomaticCategorization(smtRe: SmtRe, conversation: Conversation): Promise<void> {
+        try {
+            // Verificar se configuração tem objetivo e desfecho definidos
+            if (!smtRe.smtReSetting.objectiveId || !smtRe.smtReSetting.outcomeId) {
+                this.logger.debug(`SMT-RE setting ${smtRe.smtReSettingId} does not have objective/outcome configured`);
+                return;
+            }
+
+            // Buscar membro do sistema para usar como autor da categorização
+            let sysMember = conversation.members.find((member) => member.type === IdentityType.system);
+            if (!sysMember) {
+                sysMember = {
+                    channelId: 'system',
+                    id: systemMemberId,
+                    name: 'system',
+                    type: IdentityType.system,
+                };
+            }
+
+            // Criar categorização automática
+            const categorizationData = {
+                conversationId: smtRe.conversationId,
+                objectiveId: smtRe.smtReSetting.objectiveId,
+                outcomeId: smtRe.smtReSetting.outcomeId,
+                userId: sysMember.id,
+                teamId: conversation.assignedToTeamId,
+                description: 'Categorização automática via REMI',
+                conversationTags: conversation.tags?.map((tag) => tag.name) || [],
+            };
+
+            await this.externalDataService.createConversationCategorization(
+                conversation.workspace._id,
+                smtRe.conversationId,
+                sysMember.id,
+                categorizationData,
+            );
+
+            this.logger.log(`Automatic categorization created for conversation ${smtRe.conversationId} by REMI`);
+        } catch (error) {
+            console.log('ERRO DILAN REMI', error);
+            this.logger.error(
+                `Error creating automatic categorization for conversation ${smtRe.conversationId}:`,
+                error,
+            );
+            // Não faz throw do erro para não interromper o fluxo principal de finalização
         }
     }
 }

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { ServiceStatusService } from './service-status.service';
 import { ServiceRunnerService } from './service-runner.service';
@@ -7,6 +7,7 @@ import { shouldRunCron } from '../../../common/utils/bootstrapOptions';
 
 @Injectable()
 export class RunnerManagerStatusService {
+    private readonly logger = new Logger(RunnerManagerStatusService.name);
     constructor(
         private readonly serviceStatusService: ServiceStatusService,
         private readonly serviceRunnerService: ServiceRunnerService,
@@ -34,7 +35,7 @@ export class RunnerManagerStatusService {
                     });
                 }
             } catch (e) {
-                console.log('RunnerManagerStatusService.createRunnerStatusAndServiceStatus', e);
+                this.logger.log('createRunnerStatusAndServiceStatus' + e?.message);
             }
         }
     }

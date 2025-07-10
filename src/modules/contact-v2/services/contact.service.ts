@@ -126,7 +126,7 @@ export class ContactService {
                 return await this.createContact(contact, member, workspace._id, conversationId);
             }
 
-            await this.updateContact(member.contactId, conversationId, member.id);
+            await this.updateContact(member.contactId, conversationId, member.id, workspace._id);
         }
     }
 
@@ -203,13 +203,23 @@ export class ContactService {
             const existingContact = await this.getContactByWhatsapp(contact.phone, workspaceId);
 
             if (existingContact) {
-                return await this.vinculeConversationIdToExistingContact(existingContact.id, conversationId, member.id);
+                return await this.vinculeConversationIdToExistingContact(
+                    existingContact.id,
+                    conversationId,
+                    member.id,
+                    workspaceId,
+                );
             }
         } else if (member.channelId === ChannelIdConfig.telegram) {
             const existingContact = await this.getContactByTelegram(contact.telegram, workspaceId);
 
             if (existingContact) {
-                return await this.vinculeConversationIdToExistingContact(existingContact.id, conversationId, member.id);
+                return await this.vinculeConversationIdToExistingContact(
+                    existingContact.id,
+                    conversationId,
+                    member.id,
+                    workspaceId,
+                );
             }
         }
 
@@ -232,14 +242,23 @@ export class ContactService {
         return createdContact;
     }
 
-    /**
-     * Vincula conversa ao contato adicionando no array de conversas do contato
-     * @param contactId
-     * @param conversationId
-     * @param memberId
-     */
-    public async vinculeConversationIdToExistingContact(contactId: string, conversationId: string, memberId: string) {
-        const contact = await this.repository.findOne({ where: { id: castObjectIdToString(contactId) } });
+    // TODO: Remove this public method when migration to contact v2 is finished
+    public async vinculeConversationToContact(
+        contactId: string,
+        conversationId: string,
+        workspaceId: string,
+        mongoContact: IContact,
+    ) {
+        let contact: any = await this.repository.findOne({
+            where: {
+                id: castObjectIdToString(contactId),
+                workspaceId: castObjectIdToString(workspaceId),
+            },
+        });
+
+        if (!contact) {
+            contact = await this._create({ ...mongoContact, id: castObjectIdToString(mongoContact._id) }, workspaceId);
+        }
 
         if (
             contact &&
@@ -249,32 +268,87 @@ export class ContactService {
 
             contact.conversations.push(castObjectIdToString(conversationId));
 
-            await this.repository.save(contact);
+            await this.repository.update(
+                {
+                    id: castObjectIdToString(contactId),
+                    workspaceId: castObjectIdToString(workspaceId),
+                },
+                {
+                    conversations: contact.conversations,
+                },
+            );
         }
 
-        const updatedContact = await this.getOne(contactId);
+        return await this.getOne(contactId, workspaceId);
+    }
+
+    /**
+     * Vincula conversa ao contato adicionando no array de conversas do contato
+     * @param contactId
+     * @param conversationId
+     * @param memberId
+     */
+    private async vinculeConversationIdToExistingContact(
+        contactId: string,
+        conversationId: string,
+        memberId: string,
+        workspaceId: string,
+    ) {
+        const contact = await this.repository.findOne({
+            where: {
+                id: castObjectIdToString(contactId),
+                workspaceId: castObjectIdToString(workspaceId),
+            },
+        });
+
+        if (
+            contact &&
+            (!contact.conversations || !contact.conversations.includes(castObjectIdToString(conversationId)))
+        ) {
+            if (!contact.conversations) contact.conversations = [];
+
+            contact.conversations.push(castObjectIdToString(conversationId));
+
+            await this.repository.update(
+                {
+                    id: castObjectIdToString(contactId),
+                    workspaceId: castObjectIdToString(workspaceId),
+                },
+                {
+                    conversations: contact.conversations,
+                },
+            );
+        }
+
+        const updatedContact = await this.getOne(contactId, workspaceId);
 
         await this.vinculeContactToConversationMember(conversationId, memberId, updatedContact);
 
         return updatedContact;
     }
 
-    public async getOne(contactId: string): Promise<IContact> {
+    public async getOne(contactId: string, workspaceId: string): Promise<IContact> {
         contactId = castObjectIdToString(contactId);
+        workspaceId = castObjectIdToString(workspaceId);
 
         const cachedContact = await this.cacheService.get(contactId);
 
         if (cachedContact) return cachedContact;
 
-        const contact = await this.repository.findOne({ where: { id: contactId } });
+        const contact = await this.repository.findOne({
+            where: {
+                id: contactId,
+                workspaceId: workspaceId,
+            },
+        });
 
         if (contact) await this.cacheService.set(contact, contactId);
 
         return contact;
     }
 
-    private async updateContact(contactId: string, conversationId: string, memberId: string) {
-        return await this.vinculeConversationIdToExistingContact(contactId, conversationId, memberId);
+    private async updateContact(contactId: string, conversationId: string, memberId: string, workspaceId: string) {
+        return await this.vinculeConversationIdToExistingContact(contactId, conversationId, memberId, workspaceId);
     }
 
     /**
@@ -327,7 +401,10 @@ export class ContactService {
         );
 
         const contactUpdated = await this.repository.findOne({
-            where: { id: castObjectIdToString(contactId) },
+            where: {
+                id: castObjectIdToString(contactId),
+                workspaceId: castObjectIdToString(workspaceId),
+            },
         });
 
         const conversationsWithMembersRefContactId = await this.conversationService.getModel().find({
@@ -471,8 +548,28 @@ export class ContactService {
             if (!createdBlockedContact) throw Exceptions.CANNOT_CREATE_BLOCK_CONTACT;
         }
 
-        await this.repository.save(contact);
+        await this.repository.update(
+            {
+                id: castObjectIdToString(contactId),
+                workspaceId: castObjectIdToString(workspaceId),
+            },
+            {
+                blockedAt: contact.blockedAt,
+                blockedBy: contact.blockedBy,
+            },
+        );
 
         await this.cacheService.remove(castObjectIdToString(contactId));
+
+        await this.eventsService.sendEvent({
+            data: {
+                contactId: contact.id,
+                workspaceId: castObjectIdToString(workspaceId),
+                isBlocked: !isBlocked, // isBlocked representa o estado anterior
+            },
+            dataType: KissbotEventDataType.CONTACT,
+            source: KissbotEventSource.KISSBOT_API,
+            type: KissbotEventType.CONTACT_BLOCKED,
+        });
     }
 }

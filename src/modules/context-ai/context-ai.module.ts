@@ -16,6 +16,9 @@ import { ContextFallbackMessage } from './context-fallback-message/entities/cont
 import { TrainingEntryModule } from './training-entry/training-entry.module';
 import { AudioTranscriptionModule } from './audio-transcription/audio-transcription.module';
 import { AudioTranscription } from './audio-transcription/models/audio-transcription.entity';
+import { Agent } from './agent/entities/agent.entity';
+import { AgentModule } from './agent/agent.module';
+import { AiProviderModule } from './ai-provider/ai.module';
 
 @Module({
     imports: [
@@ -30,6 +33,7 @@ import { AudioTranscription } from './audio-transcription/models/audio-transcrip
                 ExecutedTraining,
                 ContextFallbackMessage,
                 AudioTranscription,
+                Agent,
             ],
             synchronize: synchronizePostgres,
             migrationsRun: false,
@@ -44,6 +48,8 @@ import { AudioTranscription } from './audio-transcription/models/audio-transcrip
         ContextVariableModule,
         ContextFallbackMessagesModule,
         AudioTranscriptionModule,
+        AgentModule,
+        AiProviderModule,
     ],
 })
 export class ContextAiModule {}
