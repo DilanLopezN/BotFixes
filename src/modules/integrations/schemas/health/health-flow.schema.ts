@@ -34,6 +34,7 @@ export const HealthFlowSchema = new mongoose.Schema(
         appointmentTypeId: [ObjectId],
         occupationAreaId: [ObjectId],
         organizationUnitLocationId: [ObjectId],
+        lateralityId: [ObjectId],
         reasonId: [ObjectId],
         integrationId: {
             type: ObjectId,
@@ -48,6 +49,10 @@ export const HealthFlowSchema = new mongoose.Schema(
             required: false,
         },
         step: {
+            type: [String],
+            enum: [...Object.values(HealthFlowSteps)],
+        },
+        opposeStep: {
             type: [String],
             enum: [...Object.values(HealthFlowSteps)],
         },

@@ -31,7 +31,7 @@ import { TeamModule } from './modules/team/team.module';
 import { WhatsappSessionControlModule } from './modules/whatsapp-session-control/whatsapp-session-control.module';
 import { WorkspaceAccessGroupModule } from './modules/workspace-access-group/workspace-access-group.module';
 import { AttachmentModule } from './modules/attachment/attachment.module';
-import { ConversationAttributeModule } from './modules/conversation-attribute/conversation-attribute.module';
+import { ConversationAttributeModuleV2 } from './modules/conversation-attribute-v2/conversation-attribute.module';
 import { PrivateConversationDataModule } from './modules/private-conversation-data/private-conversation-data.module';
 import { ChannelsModule } from './modules/channels/channels.module';
 import { FileUploaderModule } from './common/file-uploader/file-uploader.module';
@@ -64,11 +64,13 @@ import { ConversationObjectiveModule } from './modules/conversation-objective-v2
 import { ConversationCategorizationModule } from './modules/conversation-categorization-v2/conversation-categorization.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { SuggestionTextsModule } from './modules/suggestion-texts-v2/suggestion-texts.module';
+import { AgentStatusModule } from './modules/agent-status/agent-status.module';
 import { ConversationSmtReModule } from './modules/conversation-smt-re/conversation-smt-re.module';
 import { CheckWorkspaceDisabledGuard } from './modules/workspaces/guard/check-workspace-disabled.guard';
 import { APP_GUARD } from '@nestjs/core';
 import { WhatsappFlowModule } from './modules/whatsapp-flow/whatsapp-flow.module';
 import { DatabaseMigrationsModule } from './modules/database-migrations/database-migrations.module';
+import { ConversationAutomaticDistributionModule } from './modules/conversation-automatic-distribution/conversation-automatic-distribution.module';
 
 @Module({
     imports: [
@@ -115,7 +117,7 @@ import { DatabaseMigrationsModule } from './modules/database-migrations/database
         WhatsappSessionControlModule,
         WorkspaceAccessGroupModule,
         AttachmentModule,
-        ConversationAttributeModule,
+        ConversationAttributeModuleV2,
         PrivateConversationDataModule,
         ChannelsModule,
         FileUploaderModule,
@@ -158,9 +160,11 @@ import { DatabaseMigrationsModule } from './modules/database-migrations/database
         ConversationCategorizationModule,
         ReportsModule,
         SuggestionTextsModule,
+        AgentStatusModule,
         ConversationSmtReModule,
         DatabaseMigrationsModule,
         WhatsappFlowModule,
+        ConversationAutomaticDistributionModule,
     ],
     controllers: [AppController, PromMetricsController, AtendClinicController],
     providers: [

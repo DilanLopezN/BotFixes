@@ -6,6 +6,7 @@ import { BotsModule } from './../bots/bots.module';
 import { AuthMiddleware } from './../auth/middleware/auth.middleware';
 import { EventsModule } from '../events/events.module';
 import { CacheModule } from '../_core/cache/cache.module';
+import { TeamModule } from '../team-v2/team.module';
 
 @Module({
     imports: [
@@ -13,6 +14,7 @@ import { CacheModule } from '../_core/cache/cache.module';
         BotsModule,
         EventsModule,
         CacheModule,
+        TeamModule,
     ],
     providers: [WorkspaceUserService],
     controllers: [WorkspaceUserController],

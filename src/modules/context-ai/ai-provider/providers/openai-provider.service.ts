@@ -56,22 +56,41 @@ export class OpenIaProviderService implements AIProvider {
         ];
     }
 
-    public async execute({ messages, prompt }: AiExecute): Promise<AiExecuteData> {
+    public async execute({
+        messages,
+        prompt,
+        model = this.modelName,
+        maxTokens = 2056,
+        temperature = 0.25,
+        frequencyPenalty,
+        presencePenalty,
+    }: AiExecute): Promise<AiExecuteData> {
+        if (!prompt) {
+            return null;
+        }
+
         const openAI = clientOpenAI();
         const historicMessages = await this.getHistoryMessages(messages, prompt);
 
         try {
-            const response = await openAI.chat.completions.create(
-                {
-                    model: this.modelName,
-                    messages: historicMessages,
-                    max_tokens: 512,
-                    temperature: 0.25,
-                },
-                {
-                    timeout: 10_000,
-                },
-            );
+            const data: OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming = {
+                model: model,
+                messages: historicMessages,
+                max_tokens: Number(maxTokens),
+                temperature: Number(temperature),
+            };
+
+            if (frequencyPenalty) {
+                data.frequency_penalty = frequencyPenalty;
+            }
+
+            if (presencePenalty) {
+                data.presence_penalty = presencePenalty;
+            }
+
+            const response = await openAI.chat.completions.create(data, {
+                timeout: 10_000,
+            });
 
             let message = response.choices[0].message.content.trim();
 
@@ -102,9 +121,6 @@ export class OpenIaProviderService implements AIProvider {
         resultsLength?: number;
     }): Promise<any> {
         const openai = clientOpenAI();
-        const MAX_TOKENS_LIMIT = 4096;
-        const maxTokens = Math.min(messageOptions.maxTokens ?? messageOptions.message.length * 3, MAX_TOKENS_LIMIT);
-
         const messages = [{ role: 'user', content: messageOptions.message }] as ChatCompletionMessageParam[];
 
         if (messageOptions.prompt) {
@@ -118,7 +134,7 @@ export class OpenIaProviderService implements AIProvider {
             const response = await openai.chat.completions.create({
                 model: messageOptions.model ?? this.modelName,
                 messages,
-                max_tokens: maxTokens,
+                max_tokens: messageOptions.maxTokens || null,
                 temperature: messageOptions.temperature ?? 0.5,
                 n: messageOptions.resultsLength ?? 1,
             });

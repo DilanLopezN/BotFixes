@@ -18,6 +18,9 @@ import { ActiveMessageSettingService } from '../../active-message/services/activ
 import { ObjectiveType, TimeType } from '../../active-message/models/active-message-setting.entity';
 import { ConversationObjectiveService } from '../../conversation-objective-v2/services/conversation-objective.service';
 import { ConversationOutcomeService } from '../../conversation-outcome-v2/services/conversation-outcome.service';
+import { InteractionsService } from '../../interactions/services/interactions.service';
+import { FixedResponsesWelcome } from '../../interactions/interfaces/response.interface';
+import { BreakSettingService } from '../../agent-status/services/break-setting.service';
 
 @Injectable()
 export class ExternalDataService {
@@ -29,6 +32,9 @@ export class ExternalDataService {
     private activeMessageSettingService: ActiveMessageSettingService;
     private conversationObjectiveService: ConversationObjectiveService;
     private conversationOutcomeService: ConversationOutcomeService;
+    private interactionsService: InteractionsService;
+    private breakSettingService: BreakSettingService;
+
     constructor(private readonly moduleRef: ModuleRef) {}
 
     async onApplicationBootstrap() {
@@ -53,9 +59,11 @@ export class ExternalDataService {
             ConversationObjectiveService,
             { strict: false },
         );
-        this.conversationOutcomeService = this.moduleRef.get<ConversationOutcomeService>(ConversationOutcomeService,{
+        this.conversationOutcomeService = this.moduleRef.get<ConversationOutcomeService>(ConversationOutcomeService, {
             strict: false,
         });
+        this.interactionsService = this.moduleRef.get<InteractionsService>(InteractionsService, { strict: false });
+        this.breakSettingService = this.moduleRef.get<BreakSettingService>(BreakSettingService, { strict: false });
     }
 
     async updateWorkspaceName(workspaceId: string, name: string) {
@@ -454,5 +462,20 @@ export class ExternalDataService {
             return false;
         }
         return true;
+    }
+
+    async hasActiveBreakSettingByWorkspace(workspaceId: string): Promise<Boolean> {
+        const { data } = await this.breakSettingService.findAll({ workspaceId: workspaceId, enabled: true });
+        if (data?.length === 0) {
+            return false;
+        }
+        return true;
+    }
+
+    async updateInteractionWelcome(workspaceId: string) {
+        return await this.interactionsService.updateWelcomeInteractionWithFixedResponse(
+            workspaceId,
+            FixedResponsesWelcome.REASSIGN_CONVERSATION,
+        );
     }
 }

@@ -16,9 +16,15 @@ import { ContextFallbackMessage } from './context-fallback-message/entities/cont
 import { TrainingEntryModule } from './training-entry/training-entry.module';
 import { AudioTranscriptionModule } from './audio-transcription/audio-transcription.module';
 import { AudioTranscription } from './audio-transcription/models/audio-transcription.entity';
+import { AiUsageLoggerModule } from './ai-usage-logger/ai-usage-logger.module';
+import { AiUsageLoggerRepository } from './ai-usage-logger/ai-usage-logger.entity';
 import { Agent } from './agent/entities/agent.entity';
 import { AgentModule } from './agent/agent.module';
 import { AiProviderModule } from './ai-provider/ai.module';
+import { IntentDetection } from './intent-detection/entities/intent-detection.entity';
+import { IntentActions } from './intent-detection/entities/intent-actions.entity';
+import { IntentDetectionUserHistory } from './intent-detection/entities/intent-detection-user-history.entity';
+import { IntentDetectionModule } from './intent-detection/intent-detection.module';
 
 @Module({
     imports: [
@@ -33,12 +39,30 @@ import { AiProviderModule } from './ai-provider/ai.module';
                 ExecutedTraining,
                 ContextFallbackMessage,
                 AudioTranscription,
+                AiUsageLoggerRepository,
                 Agent,
+                IntentDetection,
+                IntentActions,
+                IntentDetectionUserHistory,
             ],
+            replication: {
+                master: {
+                    url: process.env.POSTGRESQL_URI,
+                },
+                slaves: [
+                    {
+                        url: process.env.POSTGRESQL_READ_URI,
+                    },
+                ],
+            },
             synchronize: synchronizePostgres,
             migrationsRun: false,
             migrations: [__dirname + '/migrations/**/*{.ts,.js}'],
             schema: CONTEXT_AI,
+            extra: {
+                min: 1,
+                max: 3,
+            },
         }),
         ContextMessagesModule,
         ContextAiImplementorModule,
@@ -48,8 +72,10 @@ import { AiProviderModule } from './ai-provider/ai.module';
         ContextVariableModule,
         ContextFallbackMessagesModule,
         AudioTranscriptionModule,
+        AiUsageLoggerModule,
         AgentModule,
         AiProviderModule,
+        IntentDetectionModule,
     ],
 })
 export class ContextAiModule {}

@@ -3,7 +3,6 @@ interface IContextVariable {
     name: string;
     value: string;
     workspaceId: string;
-    botId?: string;
     contextId?: string;
     agentId: string;
     type: ContextVariableType;

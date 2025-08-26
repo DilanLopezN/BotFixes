@@ -4,7 +4,6 @@ export type CreateContextMessage = Pick<
     IContextMessage,
     | 'content'
     | 'workspaceId'
-    | 'botId'
     | 'role'
     | 'referenceId'
     | 'completionTokens'

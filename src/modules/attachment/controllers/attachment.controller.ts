@@ -27,10 +27,12 @@ export class AttachmentController {
             file,
             conversationId,
             memberId,
-            undefined,
+            false,
             data.message || '',
             data.templateId,
             user,
+            data.hash,
+            data.type,
         );
     }
 

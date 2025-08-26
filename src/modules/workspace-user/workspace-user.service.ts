@@ -14,6 +14,7 @@ import * as moment from 'moment';
 import { Model, Types } from 'mongoose';
 import { isAnySystemAdmin, isSystemAdmin, isWorkspaceAdmin } from '../../common/utils/roles';
 import { castObjectId, castObjectIdToString } from '../../common/utils/utils';
+import { TeamService } from '../team-v2/services/team.service';
 import { CacheService } from '../_core/cache/cache.service';
 import { RoleDto, UserLanguage } from '../users/dtos/user.dto';
 import { CognitoIdentityService } from '../users/services/cognito-identity.service';
@@ -25,7 +26,6 @@ import { PermissionResources, Role, User, UserRoles } from './../users/interface
 import { PASSWORD_EXPIRATION, UsersService } from './../users/services/users.service';
 import { CreateUserRoleRequest } from './dtos/user-role.dto';
 import { User as IUser } from './interfaces/workspace-user.create.interface';
-import { MailResetRequestService } from '../users/services/mail-reset-request.service';
 
 @Injectable()
 export class WorkspaceUserService {
@@ -47,6 +47,7 @@ export class WorkspaceUserService {
         private readonly usersHistoryService: UsersHistoryService,
         private readonly cognitoIdentityService: CognitoIdentityService,
         public cacheService: CacheService,
+        private readonly teamService: TeamService,
     ) {}
 
     private readonly sendEvent: (data: User, operation: 'update' | 'create' | 'delete') => void;
@@ -710,5 +711,10 @@ export class WorkspaceUserService {
         }
 
         return countCreatedUser;
+    }
+
+    async getUserTeams(workspaceId: string, userId: string) {
+        const teams = await this.teamService.getUserTeams(userId, workspaceId);
+        return { data: teams };
     }
 }

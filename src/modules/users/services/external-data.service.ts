@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
 import { EmailSenderService } from '../../email-sender/services/email-sender.service';
-import { SendEmailDto } from 'src/modules/email-sender/dto/send-email.dto';
+import { SendEmailDto } from '../../email-sender/dto/send-email.dto';
 
 @Injectable()
 export class ExternalDataService {

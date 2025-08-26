@@ -3,6 +3,7 @@ import Redis, { RedisOptions } from 'ioredis';
 import { RedisService } from './redis.service';
 
 @Module({
+    imports: [],
     providers: [
         {
             provide: RedisService,
@@ -21,7 +22,7 @@ import { RedisService } from './redis.service';
                 const client = new Redis(redisConfig);
                 return new RedisService(client);
             },  
-        }
+        },
     ],
     exports: [RedisService]
 })

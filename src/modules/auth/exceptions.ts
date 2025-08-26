@@ -147,6 +147,23 @@ export const Exceptions = {
         'Campaign feature flag should be enabled to execute this action',
         'CAMPAIGN_FEATURE_FLAG_NOT_ENABLED',
     ),
+    AGENT_STATUS_FEATURE_FLAG_NOT_ENABLED: new CustomBadRequestException(
+        'Agent status feature flag should be enabled to execute this action',
+        'AGENT_STATUS_FEATURE_FLAG_NOT_ENABLED',
+    ),
+    AGENT_STATUS_NEEDED: new CustomBadRequestException(
+        'At least one workspace break setting are needed to enable the agent status feature',
+        'AGENT_STATUS_NEEDED',
+    ),
+    AGENT_STATUS_FEATURE_FLAG_FOR_AGENTS_NOT_ENABLED: new CustomBadRequestException(
+        'Agent status feature flag should be enabled to execute this action',
+        'AGENT_STATUS_FEATURE_FLAG_FOR_AGENTS_NOT_ENABLED',
+    ),
+    AGENT_STATUS_BREAK_ACTIVE: new CustomBadRequestException(
+        'Agent cannot perform this action because they are currently on a break.',
+        'AGENT_STATUS_BREAK_ACTIVE',
+    ),
+    NOT_FOUND_BREAK_SETTING: new CustomBadRequestException('Not found break setting.', 'NOT_FOUND_BREAK_SETTING'),
     CONFIRMATION_FEATURE_FLAG_NOT_ENABLED: new CustomBadRequestException(
         'Confirmation feature flag should be enabled to execute this action',
         'CONFIRMATION_FEATURE_FLAG_NOT_ENABLED',
@@ -495,6 +512,10 @@ export const Exceptions = {
         'template message length exceed',
         'TEMPLATE_MESSAGE_LENGTH_EXCEED',
     ),
+    TEMPLATE_FOOTER_MESSAGE_LENGTH_EXCEED: new CustomBadRequestException(
+        'template message length exceed',
+        'TEMPLATE_MESSAGE_LENGTH_EXCEED',
+    ),
     TEMPLATE_MESSAGE_MIN_LENGTH: new CustomBadRequestException(
         'template message length min 10 character',
         'TEMPLATE_MESSAGE_MIN_LENGTH',
@@ -800,6 +821,10 @@ export const Exceptions = {
     ERROR_PUBLISHED_FLOW: new CustomBadRequestException(
         `Flow cannot be published as it\'s not in DRAFT state`,
         'ERROR_PUBLISHED_FLOW',
+    ),
+    ALREADY_EXIST_GENERAL_BREAK_SETTING: new CustomBadRequestException(
+        'ALREADY_EXIST_GENERAL_BREAK_SETTING',
+        'ALREADY_EXIST_GENERAL_BREAK_SETTING',
     ),
     SMT_RE_TEAM_NOT_ALLOWED: new CustomBadRequestException(
         'Team is not allowed for this SMT-RE setting',

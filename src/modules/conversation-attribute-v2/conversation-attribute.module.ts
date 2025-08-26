@@ -12,12 +12,24 @@ import { EventsModule } from '../events/events.module';
         TypeOrmModule.forRoot({
             type: 'postgres',
             name: CONVERSATION_ATTRIBUTE,
-            url: process.env.POSTGRESQL_URI,
+            replication: {
+                master: {
+                    url: process.env.POSTGRESQL_URI,
+                },
+                slaves: [
+                    {
+                        url: process.env.POSTGRESQL_READ_URI,
+                    },
+                ],
+            },
             entities: [__dirname + '/entities/**/*.entity{.ts,.js}'],
             synchronize: false,
             migrationsRun: false,
             migrations: [__dirname + '/migrations/**/*{.ts,.js}'],
             schema: 'conversation',
+            extra: {
+                min: 3,
+            },
         }),
         TypeOrmModule.forFeature([ConversationAttributeEntity], CONVERSATION_ATTRIBUTE),
         EventsModule,

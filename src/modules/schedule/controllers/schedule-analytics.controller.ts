@@ -11,6 +11,8 @@ import { ScheduleAnalyticsFiltersDto } from '../dto/schedule-analytics-filters.d
 import axios, { AxiosInstance } from 'axios';
 import axiosRetry from 'axios-retry';
 import * as Sentry from '@sentry/node';
+// import { AgentStatusVerifyBreakGuard } from '../../agent-status/guards/agent-status-verify-break.guard';
+
 @Controller('workspaces/:workspaceId/schedule-analytics')
 @UseGuards(AuthGuard)
 export class ScheduleAnalyticsController {

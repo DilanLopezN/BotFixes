@@ -1,12 +1,15 @@
 import { ConversationCategorization } from '../models/conversation-categorization.entity';
 import { ConversationObjective } from '../../conversation-objective-v2/models/conversation-objective.entity';
 import { ConversationOutcome } from '../../conversation-outcome-v2/models/conversation-outcome.entity';
+import { CategorizationType } from './categorization-type';
 
 export interface GetConversationCategorizationParams {
     conversationCategorizationId?: number;
     objectiveIds?: string[];
     outcomeIds?: string[];
     conversationTags?: string[];
+
+    type?: CategorizationType;
     userIds?: string[];
     teamIds?: string[];
     description?: string;

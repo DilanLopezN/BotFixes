@@ -282,7 +282,7 @@ export class CampaignService {
                     apiToken: activeMessageSetting.apiToken,
                     phoneNumber: contact.phone,
                     contactName: contact.name,
-                    teamId: '',
+                    teamId: undefined,
                     action: campaign.action,
                     attributes: attr,
                     campaignId: campaign.id,

@@ -3,24 +3,36 @@ import { ConversationService } from './../../conversation/services/conversation.
 import { CatchError, Exceptions } from './../../auth/exceptions';
 import { ChannelIdConfig } from './../../channel-config/interfaces/channel-config.interface';
 import { IContact, IContactCreate, IContactUpdate } from './../interface/contact.interface';
-import { KissbotEventType, KissbotEventDataType, KissbotEventSource, convertPhoneNumber } from 'kissbot-core';
+import {
+    KissbotEventType,
+    KissbotEventDataType,
+    KissbotEventSource,
+    convertPhoneNumber,
+    getWithAndWithout9PhoneNumber,
+    ConversationCloseType,
+} from 'kissbot-core';
 import { InjectModel } from '@nestjs/mongoose';
 import { Injectable, Inject, forwardRef, Logger, BadRequestException } from '@nestjs/common';
 import { MongooseAbstractionService } from '../../../common/abstractions/mongooseAbstractionService.service';
 import { Contact } from '../interface/contact.interface';
 import { FilterQuery, Model, UpdateQuery } from 'mongoose';
-import { Identity, IdentityType } from '../../../modules/conversation/interfaces/conversation.interface';
+import {
+    ConversationStatus,
+    Identity,
+    IdentityType,
+} from '../../../modules/conversation/interfaces/conversation.interface';
 import { EventsService } from './../../events/events.service';
 import { CacheService } from '../../../modules/_core/cache/cache.service';
 import { ChannelConfigService } from '../../channel-config/channel-config.service';
 import * as moment from 'moment';
 import { BlockedContactService } from './blocked-contact.service';
-import { castObjectIdToString } from '../../../common/utils/utils';
+import { castObjectIdToString, getCompletePhone, systemMemberId } from '../../../common/utils/utils';
 import { isAnySystemAdmin } from '../../../common/utils/roles';
 import { User } from '../../../modules/users/interfaces/user.interface';
 import { ContactService as ContactServiceV2 } from '../../contact-v2/services/contact.service';
 import { WorkspacesService } from '../../workspaces/services/workspaces.service';
 import { ObjectID } from 'typeorm';
+import * as Sentry from '@sentry/node';
 
 @Injectable()
 export class ContactService extends MongooseAbstractionService<Contact> {
@@ -546,6 +558,13 @@ export class ContactService extends MongooseAbstractionService<Contact> {
 
         await this.cacheService.remove(contactId);
 
+        try {
+            // encerrar atendimentos/conversas antes de inicar processo de bloqueio
+            await this.closeAllConversationsForBlockedContact(contactId, workspaceId);
+        } catch (error) {
+            this.logger.error('Failed to close conversations', error);
+        }
+
         await this.eventsService.sendEvent({
             data: {
                 contactId: castObjectIdToString(contact._id),
@@ -556,5 +575,81 @@ export class ContactService extends MongooseAbstractionService<Contact> {
             source: KissbotEventSource.KISSBOT_API,
             type: KissbotEventType.CONTACT_BLOCKED,
         });
+    }
+
+    private async closeAllConversationsForBlockedContact(contactId: string, workspaceId: string): Promise<boolean> {
+        try {
+            const contact = await this.model.findById(contactId);
+
+            if (!contact || !contact.phone) {
+                this.logger.warn(`Contato não encontrado ou sem telefone: contactId=${contactId}`);
+                return;
+            }
+
+            const phones = getWithAndWithout9PhoneNumber(getCompletePhone(contact.phone, contact.ddi));
+
+            if (!phones?.length) {
+                return;
+            }
+
+            // Buscar todas as conversas abertas com esse contato
+            const openConversations = await this.conversationService.getAll({
+                'workspace._id': workspaceId,
+                state: ConversationStatus.open,
+                $or: phones.map((phone) => ({
+                    'members.id': phone,
+                    'members.type': IdentityType.user,
+                })),
+            });
+
+            // Fechar cada conversa encontrada
+            const closePromises = openConversations.map(async (conversation) => {
+                try {
+                    // Encontrar ou criar membro system
+                    let systemMember = conversation.members.find((m) => m.type === IdentityType.system);
+
+                    if (!systemMember) {
+                        systemMember = {
+                            channelId: 'system',
+                            id: systemMemberId,
+                            name: 'system',
+                            type: IdentityType.system,
+                        };
+
+                        await this.conversationService.addMember(
+                            castObjectIdToString(conversation._id),
+                            systemMember,
+                            false,
+                        );
+                    }
+
+                    // finaliza os atendimentos.
+                    await this.conversationService.dispatchEndConversationActivity(
+                        castObjectIdToString(conversation._id),
+                        systemMember,
+                        { closeType: ConversationCloseType.bot_finished },
+                    );
+                } catch (error) {
+                    Sentry.captureException(error, {
+                        extra: {
+                            conversationId: conversation._id,
+                            contactId,
+                            workspaceId,
+                        },
+                    });
+                }
+            });
+
+            // garante esperar todas conversas encerrar, dificilmente terá mais de 2
+            await Promise.all(closePromises);
+        } catch (error) {
+            this.logger.error('Erro no método closeAllConversationsForBlockedContact:', error);
+            Sentry.captureException(error, {
+                extra: {
+                    contactId,
+                    workspaceId,
+                },
+            });
+        }
     }
 }

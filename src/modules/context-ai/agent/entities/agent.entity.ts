@@ -1,5 +1,11 @@
 import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
-import { IAgent } from '../interfaces/agent.interface';
+import { AgentMode, IAgent } from '../interfaces/agent.interface';
+
+export enum AgentType {
+    REPORT_PROCESSOR_DETECTION = 'report_processor_detection',
+    RAG = 'rag',
+    ENTITIES_DETECTION = 'entities_detection',
+}
 
 @Index(['workspaceId', 'botId'])
 @Entity({ name: 'agent' })
@@ -30,6 +36,26 @@ export class Agent implements IAgent {
 
     @Column({ name: 'is_active', default: true })
     isActive: boolean;
+
+    @Column({
+        name: 'agent_type',
+        type: 'enum',
+        enum: AgentType,
+        default: AgentType.RAG,
+    })
+    agentType: AgentType;
+
+    @Column({
+        name: 'agent_mode',
+        type: 'enum',
+        enum: AgentMode,
+        default: AgentMode.RAG_ONLY,
+        nullable: true,
+    })
+    agentMode: AgentMode;
+
+    @Column({ name: 'model_name', nullable: true })
+    modelName: string;
 
     @Column({ name: 'created_at', type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
     createdAt: Date;

@@ -22,6 +22,9 @@ import { ANALYTICS_CONNECTION, ANALYTICS_READ_CONNECTION } from '../ormconfig';
 import { DashboardTemplateModule } from '../dashboard-template/dashboard-template.module';
 import { AnalyticsReadHealthCheckService } from './services/analytics-read-health-check.service';
 import { AnalyticsHealthCheckService } from './services/analytics-health-check.service';
+import { AgentConversationMetricsService } from './services/agent-conversation-metrics.service';
+import { ExternalDataService } from './services/external-data.service';
+import { AgentStatusMiddleware } from '../../agent-status/middleware/agent-status.middleware';
 
 @Module({
     providers: [
@@ -32,6 +35,8 @@ import { AnalyticsHealthCheckService } from './services/analytics-health-check.s
         MemberService,
         AnalyticsReadHealthCheckService,
         AnalyticsHealthCheckService,
+        AgentConversationMetricsService,
+        ExternalDataService,
     ],
     controllers: [AnalyticsController],
     imports: [

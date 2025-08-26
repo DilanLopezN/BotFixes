@@ -1,4 +1,4 @@
-import { MiddlewareConsumer, Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, RequestMethod } from '@nestjs/common';
 import { AuthMiddleware } from '../auth/middleware/auth.middleware';
 import { CampaignController } from './controllers/campaign-controller';
 import { CampaignService } from './services/campaign.service';
@@ -18,6 +18,7 @@ import { CacheModule } from '../_core/cache/cache.module';
 import { CampaignAttributeService } from './services/campaign-attribute.service';
 import { CampaignAttribute } from '../campaign/models/campaign-attributes.entity';
 import { CampaignMessageStatusConsumerService } from './services/message-status-consumer.service';
+import { AgentStatusMiddleware } from '../agent-status/middleware/agent-status.middleware';
 
 @Module({
     providers: [
@@ -52,6 +53,6 @@ import { CampaignMessageStatusConsumerService } from './services/message-status-
 })
 export class CampaignModule {
     configure(consumer: MiddlewareConsumer) {
-        consumer.apply(AuthMiddleware).forRoutes(CampaignController);
+        consumer.apply(AuthMiddleware, AgentStatusMiddleware).forRoutes(CampaignController);
     }
 }

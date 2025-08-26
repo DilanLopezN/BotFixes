@@ -10,6 +10,7 @@ import { UpdateTrainingEntry } from './interfaces/update-training-entry.interfac
 import { Exceptions } from '../../auth/exceptions';
 import { GetTrainingEntry } from './interfaces/get-training-entry.interface';
 import { AgentService } from '../agent/services/agent.service';
+import * as XLSX from 'xlsx';
 
 @Injectable()
 export class TrainingEntryService {
@@ -34,7 +35,6 @@ export class TrainingEntryService {
             workspaceId,
             createdAt: new Date(),
             pendingTraining: true,
-            botId: agent.botId,
         });
 
         return {
@@ -94,10 +94,11 @@ export class TrainingEntryService {
         };
     }
 
-    public async listTrainingEntries(workspaceId: string): Promise<DefaultResponse<TrainingEntry[]>> {
+    public async listTrainingEntries(workspaceId: string, agentId: string): Promise<DefaultResponse<TrainingEntry[]>> {
         const result = await this.trainingEntryRepository.find({
             where: {
                 workspaceId,
+                agentId,
                 deletedAt: null,
             },
         });
@@ -175,5 +176,120 @@ export class TrainingEntryService {
             pendingTraining: false,
             updatedAt: new Date(),
         });
+    }
+
+    public async bulkUploadTrainingEntries(
+        workspaceId: string,
+        agentId: string,
+        fileBuffer: Buffer,
+        filename: string,
+    ): Promise<DefaultResponse<{ created: number; errors: string[] }>> {
+        const agent = await this.agentService.findByWorkspaceIdAndId(agentId, workspaceId);
+        if (!agent) {
+            throw new BadRequestException('Agent not found', 'AGENT_NOT_FOUND');
+        }
+
+        let rows: any[] = [];
+        const errors: string[] = [];
+
+        try {
+            const fileExtension = filename.split('.').pop()?.toLowerCase();
+
+            if (fileExtension === 'csv') {
+                const csvContent = fileBuffer.toString('utf-8');
+                const lines = csvContent.split('\n');
+
+                for (let i = 1; i < lines.length; i++) {
+                    const line = lines[i].trim();
+                    if (line) {
+                        const columns = this.parseCsvLine(line);
+                        if (columns.length >= 2) {
+                            rows.push({
+                                identifier: columns[0]?.trim(),
+                                content: columns[1]?.trim(),
+                            });
+                        }
+                    }
+                }
+            } else if (fileExtension === 'xlsx' || fileExtension === 'xls') {
+                const workbook = XLSX.read(fileBuffer, { type: 'buffer' });
+                const sheetName = workbook.SheetNames[0];
+                const sheet = workbook.Sheets[sheetName];
+                const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+                for (let i = 1; i < jsonData.length; i++) {
+                    const row = jsonData[i] as any[];
+                    if (row && row.length >= 2) {
+                        rows.push({
+                            identifier: row[0]?.toString()?.trim(),
+                            content: row[1]?.toString()?.trim(),
+                        });
+                    }
+                }
+            } else {
+                throw new BadRequestException('Unsupported file format. Only CSV and Excel files are supported.');
+            }
+
+            const validRows = rows.filter((row, index) => {
+                if (!row.identifier || !row.content) {
+                    errors.push(`Row ${index + 2}: Missing identifier or content`);
+                    return false;
+                }
+                if (row.identifier.length > 180) {
+                    errors.push(`Row ${index + 2}: Identifier too long (max 180 characters)`);
+                    return false;
+                }
+                if (row.content.length > 1000) {
+                    errors.push(`Row ${index + 2}: Content too long (max 1000 characters)`);
+                    return false;
+                }
+                return true;
+            });
+
+            const trainingEntries = validRows.map((row) => ({
+                identifier: row.identifier,
+                content: row.content,
+                workspaceId,
+                agentId,
+                pendingTraining: true,
+                createdAt: new Date(),
+            }));
+
+            if (trainingEntries.length > 0) {
+                await this.trainingEntryRepository.save(trainingEntries);
+            }
+
+            return {
+                data: {
+                    created: trainingEntries.length,
+                    errors,
+                },
+            };
+        } catch (error) {
+            console.error('Error processing bulk upload:', error);
+            throw new BadRequestException('Error processing file: ' + error.message);
+        }
+    }
+
+    private parseCsvLine(line: string): string[] {
+        const result: string[] = [];
+        let current = '';
+        let inQuotes = false;
+
+        for (let i = 0; i < line.length; i++) {
+            const char = line[i];
+
+            if (char === '"') {
+                inQuotes = !inQuotes;
+            } else if (char === ',' && !inQuotes) {
+                result.push(current);
+                current = '';
+            } else {
+                current += char;
+            }
+        }
+
+        result.push(current);
+        return result;
     }
 }

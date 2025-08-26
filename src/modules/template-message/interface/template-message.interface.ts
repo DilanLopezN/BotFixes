@@ -38,6 +38,7 @@ export interface TemplateMessage extends Document {
     message: string;
     name: string;
     isHsm: boolean;
+    footerMessage?: string;
     active?: boolean;
     canEdit?: boolean;
     userId: string;

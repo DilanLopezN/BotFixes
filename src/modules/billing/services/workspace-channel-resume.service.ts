@@ -47,6 +47,7 @@ export class WorkspaceChannelResumeService {
             ChannelIdConfig.recover_lost_schedule,
             ChannelIdConfig.nps_score,
             ChannelIdConfig.documents_request,
+            ChannelIdConfig.active_mkt,
         ];
         const month = moment().startOf('month').toDate();
         const lastMonth = moment().subtract(1, 'month').startOf('month').toDate();

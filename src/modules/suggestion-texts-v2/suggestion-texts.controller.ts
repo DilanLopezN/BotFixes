@@ -1,4 +1,4 @@
-import { Body, Controller, Param, Post, UseGuards, ValidationPipe } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, UseGuards, ValidationPipe } from '@nestjs/common';
 import { ApiBody, ApiParam } from '@nestjs/swagger';
 import { SuggestionTextsService } from './services/suggestion-texts.service';
 import { DefaultRequest, DefaultResponse } from '../../common/interfaces/default';
@@ -43,21 +43,7 @@ export class SuggestionTextsController {
     async getTemplateMessageSuggestions(
         @Body(new ValidationPipe()) body: DefaultRequest<AgentSuggestionTextParamsDto>,
         @Param('workspaceId') workspaceId: string,
-    ): Promise<DefaultResponse<{ suggestions: string[] }>> {
+    ): Promise<DefaultResponse<{ messages: Record<string, any>[]; suggestions: string[]; remove: string[] }>> {
         return await this.suggestionTextsService.getTemplateMessageSuggestions(workspaceId, body.data);
-    }
-
-    @Post('getTemplateMessageMarketingInsights')
-    @UseGuards(AuthGuard, RolesGuard)
-    @ApiParam({ name: 'workspaceId', description: 'workspace id', type: String, required: true })
-    @ApiBody({
-        type: DefaultRequest<TemplateMarketingInsightParamsDto>,
-    })
-    @RolesDecorator([PredefinedRoles.SYSTEM_ADMIN, PredefinedRoles.SYSTEM_CS_ADMIN, PredefinedRoles.SYSTEM_UX_ADMIN])
-    async getTemplateMessageMarketingInsights(
-        @Body(new ValidationPipe()) body: DefaultRequest<TemplateMarketingInsightParamsDto>,
-        @Param('workspaceId') workspaceId: string,
-    ): Promise<DefaultResponse<{ insight: string }>> {
-        return await this.suggestionTextsService.getTemplateMessageMarketingInsights(workspaceId, body.data);
     }
 }

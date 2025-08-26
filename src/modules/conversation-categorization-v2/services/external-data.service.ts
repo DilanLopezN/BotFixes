@@ -7,6 +7,8 @@ import { Conversation } from '../../conversation/interfaces/conversation.interfa
 import { Workspace } from '../../workspaces/interfaces/workspace.interface';
 import { WorkspacesService } from '../../workspaces/services/workspaces.service';
 import { UsersService } from '../../users/services/users.service';
+import { SmtReSettingService } from '../../conversation-smt-re/services/smt-re-setting.service';
+import { SmtReSetting } from '../../conversation-smt-re/models/smt-re-setting.entity';
 
 @Injectable()
 export class ExternalDataService {
@@ -14,7 +16,7 @@ export class ExternalDataService {
     private conversationService: ConversationService;
     private workspaceService: WorkspacesService;
     private usersService: UsersService;
-
+    private smtReSettingService: SmtReSettingService;
     constructor(private readonly moduleRef: ModuleRef) {}
 
     async onApplicationBootstrap() {
@@ -22,6 +24,7 @@ export class ExternalDataService {
         this.conversationService = this.moduleRef.get<ConversationService>(ConversationService, { strict: false });
         this.workspaceService = this.moduleRef.get<WorkspacesService>(WorkspacesService, { strict: false });
         this.usersService = this.moduleRef.get<UsersService>(UsersService, { strict: false });
+        this.smtReSettingService = this.moduleRef.get<SmtReSettingService>(SmtReSettingService, { strict: false });
     }
 
     async getTeam(workspaceId: string, teamId: string): Promise<Team> {
@@ -39,5 +42,12 @@ export class ExternalDataService {
 
     async getUsersByIds(userIds: string[]) {
         return await this.usersService.getUsersByIds(userIds);
+    }
+
+    async getSmtReSettingsByIds(ids: string[]): Promise<SmtReSetting[]> {
+        if (!this.smtReSettingService) {
+            this.smtReSettingService = this.moduleRef.get<SmtReSettingService>(SmtReSettingService, { strict: false });
+        }
+        return await this.smtReSettingService.findByIds(ids);
     }
 }

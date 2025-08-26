@@ -18,6 +18,9 @@ import { ConversationHealthCheckService } from './services/conversation-health-c
             migrationsRun: false,
             migrations: [__dirname + '/migrations/**/*{.ts,.js}'],
             schema: 'conversation',
+            extra: {
+                min: 2,
+            },
         }),
         TypeOrmModule.forFeature([ConversationActivity, ActivityAck], CONVERSATION_CONNECTION),
     ],

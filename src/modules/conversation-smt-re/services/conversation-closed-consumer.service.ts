@@ -25,7 +25,7 @@ export class ConversationClosedConsumerService {
     private async dispatch(event: any) {
         if (typeof event !== 'object' || !event.data) return;
         if (event?.data?.smtReId && event?.data?._id) {
-            return await this.smtReService.stopSmtRe(event.data._id);
+            await this.smtReService.stopSmtRe(event.data._id);
         }
     }
 }

@@ -1,4 +1,12 @@
-import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
+import {
+    Column,
+    CreateDateColumn,
+    DeleteDateColumn,
+    Entity,
+    Index,
+    PrimaryGeneratedColumn,
+    UpdateDateColumn,
+} from 'typeorm';
 import { SuggestionMessageType } from '../interfaces/suggestion-texts.interface';
 
 @Entity()
@@ -6,12 +14,6 @@ import { SuggestionMessageType } from '../interfaces/suggestion-texts.interface'
 export class SuggestionTexts {
     @PrimaryGeneratedColumn()
     id: number;
-
-    @Column({ name: 'message', nullable: false })
-    message: string;
-
-    @Column('text', { array: true, name: 'suggestions', nullable: false })
-    suggestions: string[];
 
     @Column({ name: 'workspace_id', nullable: false })
     workspaceId: string;
@@ -22,6 +24,12 @@ export class SuggestionTexts {
     @Column({ name: 'completion_tokens', nullable: false, type: 'numeric' })
     completionTokens: number;
 
+    @Column({ name: 'prompt', nullable: true })
+    prompt: string;
+
+    @Column({ name: 'completion', nullable: true })
+    completion: string;
+
     @Column({ name: 'type', enum: SuggestionMessageType, nullable: false })
     type: SuggestionMessageType;
 
@@ -31,12 +39,12 @@ export class SuggestionTexts {
     @Column({ name: 'cost', nullable: false, type: 'decimal', precision: 10, scale: 5 })
     cost: number;
 
-    @Column({ type: 'bigint', name: 'created_at', nullable: false })
-    createdAt: number;
+    @CreateDateColumn({ name: 'created_at', nullable: false })
+    createdAt: Date;
 
-    @Column({ type: 'bigint', name: 'updated_at', nullable: true })
-    updatedAt?: number;
+    @UpdateDateColumn({ name: 'updated_at', nullable: true })
+    updatedAt?: Date;
 
-    @Column({ type: 'bigint', name: 'deleted_at', nullable: true })
-    deletedAt?: number;
+    @DeleteDateColumn({ name: 'deleted_at', nullable: true })
+    deletedAt?: Date;
 }

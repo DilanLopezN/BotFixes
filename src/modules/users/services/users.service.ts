@@ -675,6 +675,20 @@ export class UsersService extends MongooseAbstractionService<User> {
         });
     }
 
+    @CatchError()
+    async getAllActiveUsersAgentByWorkspaceId(workspaceId: string) {
+        return await this.model.find({
+            roles: {
+                $elemMatch: {
+                    role: {
+                        $in: ['WORKSPACE_AGENT'],
+                    },
+                    resourceId: workspaceId,
+                },
+            },
+        });
+    }
+
     async getUsers(
         usersId: string[],
         workspaceID: string,

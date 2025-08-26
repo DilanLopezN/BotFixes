@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsBoolean, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsObject, IsOptional, IsString } from 'class-validator';
 
 export class DoQuestionDto {
     @ApiProperty()
@@ -23,4 +23,9 @@ export class DoQuestionDto {
     @IsOptional()
     @IsString()
     botIdId?: string;
+
+    @ApiProperty()
+    @IsOptional()
+    @IsObject()
+    parameters?: Record<string, any>;
 }

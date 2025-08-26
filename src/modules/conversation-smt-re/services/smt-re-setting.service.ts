@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { IsNull, Repository } from 'typeorm';
+import { In, IsNull, Repository } from 'typeorm';
 import { SmtReSetting } from '../models/smt-re-setting.entity';
 import { CONVERSATION_SMT_RE_CONNECTION_NAME } from '../ormconfig';
 import { CreateSmtReSettingData } from '../interfaces/create-smt-re-setting-data.interface';
@@ -37,6 +37,18 @@ export class SmtReSettingService {
     async findById(id: string): Promise<SmtReSetting> {
         return this.smtReSettingRepository.findOne({
             where: { id, deletedAt: IsNull() },
+        });
+    }
+    async findByIds(ids: string[]): Promise<SmtReSetting[]> {
+        if (!ids || ids.length === 0) {
+            return [];
+        }
+
+        return this.smtReSettingRepository.find({
+            where: {
+                id: In(ids),
+                deletedAt: IsNull(),
+            },
         });
     }
 

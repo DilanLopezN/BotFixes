@@ -17,6 +17,8 @@ import {
 import { ConversationObjective } from '../../conversation-objective-v2/models/conversation-objective.entity';
 import { ConversationOutcome } from '../../conversation-outcome-v2/models/conversation-outcome.entity';
 import { castObjectIdToString } from '../../../common/utils/utils';
+import { CategorizationType } from '../interfaces/categorization-type';
+import { isValidObjectId } from 'mongoose';
 
 @Injectable()
 export class ConversationCategorizationService {
@@ -97,7 +99,7 @@ export class ConversationCategorizationService {
         const skip = query?.skip ?? 0;
         const limit = query?.limit ?? 10;
         const data = query.data;
-
+        const type = data.type || CategorizationType.USER;
         const q = this.conversationCategorizationRepository
             .createQueryBuilder('conversationCategorization')
             .where('conversationCategorization.workspaceId = :workspaceId', { workspaceId })
@@ -179,12 +181,10 @@ export class ConversationCategorizationService {
         const usersSet = new Set<string>();
         conversationCategorizations.forEach((item) => usersSet.add(item.userId));
 
-        const users = await this.externalDataService.getUsersByIds(Array.from(usersSet));
+        const users = await this.getUsers(usersSet, type); //await this.externalDataService.getUsersByIds(Array.from(usersSet));
         const usersMap = users.reduce((acc, user) => {
-            const userId = castObjectIdToString(user._id);
-
-            if (!acc[userId]) {
-                acc[userId] = { id: userId, name: user.name };
+            if (!acc[user?.id]) {
+                acc[user.id] = { id: user.id, name: user.name };
             }
 
             return acc;
@@ -202,6 +202,22 @@ export class ConversationCategorizationService {
                 limit,
             },
         };
+    }
+
+    async getUsers(usersSet: Set<string>, type: CategorizationType): Promise<Array<{ id: string; name: string }>> {
+        switch (type) {
+            case CategorizationType.REMI: {
+                const remiSettings = await this.externalDataService.getSmtReSettingsByIds(Array.from(usersSet));
+                return remiSettings.map((sett) => ({ id: sett.id, name: `REMI: ${sett.name}` }));
+            }
+            //Default é user
+            default: {
+                const users = await this.externalDataService.getUsersByIds(
+                    Array.from(usersSet).filter((userId) => isValidObjectId(userId)),
+                );
+                return users.map((user) => ({ id: castObjectIdToString(user._id), name: user.name }));
+            }
+        }
     }
 
     async updateConversationCategorization(

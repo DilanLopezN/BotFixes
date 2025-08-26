@@ -29,6 +29,7 @@ import {
     ConversationCloseType,
     IGupshupNumberDontExistsReceivedEvent,
     getWithAndWithout9PhoneNumber,
+    IConversationUpdatedConversationFlagsEvent,
 } from 'kissbot-core';
 import { User, UserRoles } from './../../users/interfaces/user.interface';
 import { UsersService } from './../../users/services/users.service';
@@ -53,7 +54,7 @@ import { SuspendConversationDto } from '../dto/suspend-conversation.dto';
 import { BotsService } from './../../bots/bots.service';
 import { CacheService } from './../../_core/cache/cache.service';
 import { AttachmentService } from './../../attachment/services/attachment.service';
-import { ConversationAttributeService } from './../../conversation-attribute/service/conversation-attribute.service';
+import { ConversationAttributeService } from './../../conversation-attribute-v2/services/conversation-attribute.service';
 import { PrivateConversationDataService } from './../../../modules/private-conversation-data/services/private-conversation-data.service';
 import {
     castObjectId,
@@ -65,7 +66,7 @@ import {
     tagSpamName,
 } from './../../../common/utils/utils';
 import * as Redis from 'ioredis';
-import { Attribute } from '../../../modules/conversation-attribute/interfaces/conversation-attribute.interface';
+import { Attribute } from '../../../modules/conversation-attribute-v2/interfaces/conversation-attribute.interface';
 import { isAnySystemAdmin, isWorkspaceAdmin } from '../../../common/utils/roles';
 import { ConversationQueryFilters } from '../interfaces/conversation-search.interface';
 import { ConversationSearchService } from '../../../modules/analytics/search/conversation-search/services/conversation-search.service';
@@ -90,6 +91,9 @@ import { CloseConversationWithCategorizationDto } from '../dto/close-conversatio
 import { isOnlyOneEmoji } from '../../../common/utils/isOnlyOneEmoji';
 import { Team } from '../../../modules/team-v2/interfaces/team.interface';
 import { TemplateButton } from '../../template-message/dto/template-message.dto';
+import { CategorizationType } from '../../conversation-categorization-v2/interfaces/categorization-type';
+import { SmtRe } from '../../conversation-smt-re/models/smt-re.entity';
+import axios from 'axios';
 
 export const createAgentConversationTopicName = `create_agent_conversation`;
 
@@ -207,9 +211,9 @@ export class ConversationService extends MongooseAbstractionService<Conversation
                 createPrivateConversationDataPromise,
                 this.create(conversation),
                 this.conversationAttributesService._create(
-                    conversation._id,
-                    conversationsAttributes,
                     conversation.workspace._id,
+                    conversation._id as string,
+                    conversationsAttributes,
                 ),
             ]);
 
@@ -421,8 +425,8 @@ export class ConversationService extends MongooseAbstractionService<Conversation
         const leanConversation: any = conversation.toJSON({ minimize: false });
         const attachments = await this.attachmentService.getAttachmentsByConversationId(conversationId);
         const attributes = await this.conversationAttributesService.getConversationAttributes(
-            conversationId,
             workspaceId,
+            conversationId,
         );
         const activities = await this.getConversationActivities(conversation, true);
         const audioTranscriptions = await this.externalDataService.getAudioTranscriptionsByConversationId(
@@ -597,18 +601,37 @@ export class ConversationService extends MongooseAbstractionService<Conversation
 
     @CatchError()
     public async dispatchAssignedToTeamActivity(conversation: Conversation, assign: IConversationAssignEvent) {
+        const now = new Date();
         const activityRequestDto: ActivityDto = {
             type: ActivityType.assigned_to_team,
             from: assign.assignedByMember,
+            timestamp: now.getTime(),
             data: {
                 teamId: assign.team._id,
             },
         };
-        await this.activityService.handleActivity(activityRequestDto, castObjectIdToString(conversation._id));
-        assign.conversation = {
-            members: conversation.members,
-            assignedToTeamId: conversation.assignedToTeamId,
-        };
+        const activity = await this.activityService.handleActivity(
+            activityRequestDto,
+            castObjectIdToString(conversation._id),
+        );
+        try {
+            assign.conversation = {
+                members: conversation.members,
+                assignedToTeamId: conversation.assignedToTeamId,
+                ...(conversation?.toJSON ? conversation?.toJSON() : conversation),
+            };
+            assign.activityId = (activity?._id?.toString ? activity?._id?.toString() : activity?._id) as string;
+            assign.activityFrom = activity?.from?.id;
+            assign.timestamp = now;
+            assign.workspaceId = conversation?.workspace?._id?.toString
+                ? conversation?.workspace?._id?.toString()
+                : conversation?.workspace?._id;
+        } catch (e) {
+            assign.conversation = {
+                members: conversation.members,
+                assignedToTeamId: conversation.assignedToTeamId,
+            };
+        }
 
         this.eventsService.sendEvent({
             data: assign as IConversationAssignEvent,
@@ -912,7 +935,15 @@ export class ConversationService extends MongooseAbstractionService<Conversation
 
         let activityAttachments = null;
         if (templateMessage?.buttons?.length) {
-            activityAttachments = this.transformActivityAttachmentsWithButtons(templateMessage.buttons, data.message);
+            activityAttachments = await this.transformActivityAttachmentsWithButtons(
+                castObjectIdToString(templateMessage._id),
+                templateMessage.buttons,
+                data.message,
+                undefined,
+                undefined,
+                templateMessage.footerMessage,
+                data?.attributes,
+            );
         }
 
         await this.attachmentService._create(
@@ -953,44 +984,92 @@ export class ConversationService extends MongooseAbstractionService<Conversation
         }, '');
         return text + textButtons;
     }
-    private transformActivityAttachmentsWithButtons(
+    private async transformActivityAttachmentsWithButtons(
+        templateId: string,
         buttons: TemplateButton[],
         text: string,
         title?: string,
         subtitle?: string,
+        footer?: string,
+        templateVariableValues?: string[],
     ) {
-        const buildAsFlow = !!(buttons.length === 1 && buttons[0].flowDataId);
-        const buildAsQuickReply = buttons.length > 0 && buttons.length <= 3 && !buildAsFlow;
-        const buildAsList = buttons.length > 3;
-        const buttonsFormated = buttons.map((button, index) => {
-            return {
-                index,
-                type:
-                    button.type === TemplateButtonType.URL
-                        ? 'openUrl'
-                        : button.type === TemplateButtonType.FLOW
-                        ? 'flow'
-                        : 'imBack',
-                title: button.text,
-                value: button?.url || button?.flowDataId || null,
-            };
-        });
+        try {
+            // pegar a posição das chaves para descobrir qual atributo do botão de url
+            const templateVariablesKeys = await this.templateMessageService.getTemplateVariableKeys(templateId);
 
-        const attachments = [
-            {
-                content: {
-                    buildAsQuickReply: buildAsQuickReply,
-                    buildAsList: buildAsList,
-                    buildAsFlow: buildAsFlow,
-                    buttons: buttonsFormated,
-                    text,
-                    title,
-                    subtitle,
+            const buildAsFlow = !!(buttons.length === 1 && buttons[0].flowDataId);
+            const buildAsQuickReply = buttons.length > 0 && buttons.length <= 3 && !buildAsFlow;
+            const buildAsList = buttons.length > 3;
+            const buttonsFormated = buttons.map((button, index) => {
+                let url;
+                if (button.type === TemplateButtonType.URL) {
+                    const key = `URL_${index}`;
+                    const indexAttrButton = templateVariablesKeys?.findIndex(
+                        (currAttr) => currAttr.toLocaleLowerCase() === key.toLocaleLowerCase(),
+                    );
+                    if (indexAttrButton > -1) {
+                        const path = templateVariableValues?.length
+                            ? templateVariableValues?.[indexAttrButton] || ''
+                            : '';
+                        url = button?.url?.replace('{{1}}', '') + path;
+                    } else {
+                        url = button?.url?.replace('{{1}}', '');
+                    }
+                }
+
+                return {
+                    index,
+                    type:
+                        button.type === TemplateButtonType.URL
+                            ? 'openUrl'
+                            : button.type === TemplateButtonType.FLOW
+                            ? 'flow'
+                            : 'imBack',
+                    title: button.text,
+                    value: url || button?.flowDataId || null,
+                };
+            });
+
+            const attachments = [
+                {
+                    content: {
+                        buildAsQuickReply: buildAsQuickReply,
+                        buildAsList: buildAsList,
+                        buildAsFlow: buildAsFlow,
+                        buttons: buttonsFormated,
+                        text,
+                        title,
+                        subtitle,
+                        footer,
+                    },
+                    contentType: 'application/vnd.microsoft.card.hero',
                 },
-                contentType: 'application/vnd.microsoft.card.hero',
-            },
-        ];
-        return attachments;
+            ];
+            return attachments;
+        } catch (error) {
+            Sentry.captureEvent({
+                message: `${ConversationService.name}.transformActivityAttachmentsWithButtons`,
+                extra: {
+                    error: error,
+                },
+            });
+
+            return [
+                {
+                    content: {
+                        buildAsQuickReply: false,
+                        buildAsList: false,
+                        buildAsFlow: false,
+                        buttons: [],
+                        text,
+                        title,
+                        subtitle,
+                        footer,
+                    },
+                    contentType: 'application/vnd.microsoft.card.hero',
+                },
+            ];
+        }
     }
     @CatchError()
     async dispatchMessageActivity(conversation: Conversation, activityDto: ActivityDto) {
@@ -1121,9 +1200,14 @@ export class ConversationService extends MongooseAbstractionService<Conversation
             }
 
             if (templateMessage?.buttons?.length) {
-                activity.attachments = this.transformActivityAttachmentsWithButtons(
+                activity.attachments = await this.transformActivityAttachmentsWithButtons(
+                    castObjectIdToString(templateMessage._id),
                     templateMessage.buttons,
                     activity.text,
+                    undefined,
+                    undefined,
+                    templateMessage?.footerMessage,
+                    activity?.data?.templateVariableValues,
                 );
             }
             if (!requireHsmTemplate && !!templateMessage?.isHsm) {
@@ -1220,6 +1304,7 @@ export class ConversationService extends MongooseAbstractionService<Conversation
         memberId: string,
         data: CloseConversationWithCategorizationDto,
         closeType?: ConversationCloseType,
+        feature?: string,
     ): Promise<void> {
         const isConversationClosedWithSuccess = await this.closeConversation(
             workspaceId,
@@ -1227,6 +1312,7 @@ export class ConversationService extends MongooseAbstractionService<Conversation
             memberId,
             { message: data.message },
             closeType,
+            feature,
         );
         if (!isConversationClosedWithSuccess) {
             return;
@@ -1237,6 +1323,7 @@ export class ConversationService extends MongooseAbstractionService<Conversation
                 conversationId,
                 userId: memberId,
                 objectiveId: data.objectiveId,
+                type: data.type ? data.type : CategorizationType.USER,
                 outcomeId: data.outcomeId,
             });
         }
@@ -1253,6 +1340,7 @@ export class ConversationService extends MongooseAbstractionService<Conversation
         memberId: string,
         closeConversationDto: CloseConversationDto,
         closeType?: ConversationCloseType,
+        feature?: string,
     ): Promise<boolean> {
         try {
             const conversation: Conversation = await this.model.findOne({ _id: conversationId });
@@ -1286,7 +1374,10 @@ export class ConversationService extends MongooseAbstractionService<Conversation
                 await new Promise((r) => setTimeout(r, 250));
             }
 
-            await this.dispatchEndConversationActivity(castObjectIdToString(conversation._id), member, { closeType });
+            await this.dispatchEndConversationActivity(castObjectIdToString(conversation._id), member, {
+                closeType,
+                feature,
+            });
             const { shouldRequestRating } = conversation;
 
             if (shouldRequestRating) {
@@ -1712,8 +1803,8 @@ export class ConversationService extends MongooseAbstractionService<Conversation
 
                 const activities = await this.getConversationActivities(conversation);
                 const attributes = await this.conversationAttributesService.getConversationAttributes(
-                    conversation._id,
                     conversation.workspace._id,
+                    conversation._id,
                 );
                 const attachments = await this.attachmentService.getAttachmentsByConversationId(conversation._id);
                 conversation.activities = activities;
@@ -2334,6 +2425,68 @@ export class ConversationService extends MongooseAbstractionService<Conversation
         return queries;
     }
 
+    async getUserConversationCounts(userIds: string[], workspaceId: string): Promise<Map<string, number>> {
+        const countsMap = new Map<string, number>();
+
+        try {
+            userIds.forEach((userId) => countsMap.set(userId, 0));
+
+            // Use aggregation to count conversations for each user in a single query
+            const pipeline = [
+                {
+                    $match: {
+                        state: ConversationStatus.open,
+                        'workspace._id': workspaceId,
+                        $or: [
+                            { isWithSmtRe: { $exists: false } },
+                            { isWithSmtRe: null },
+                            { isWithSmtRe: undefined },
+                            { isWithSmtRe: false },
+                        ],
+                        members: {
+                            $elemMatch: {
+                                id: { $in: userIds },
+                                disabled: false,
+                            },
+                        },
+                    },
+                },
+                {
+                    // Unwind members to process each member separately
+                    $unwind: '$members',
+                },
+                {
+                    // Keep only the member entries for our target users who are active agents
+                    $match: {
+                        'members.id': { $in: userIds },
+                        'members.disabled': false,
+                    },
+                },
+                {
+                    // Group by user ID and count conversations
+                    $group: {
+                        _id: '$members.id',
+                        count: { $sum: 1 },
+                    },
+                },
+            ];
+
+            const results = await this.model.aggregate(pipeline);
+
+            // Update counts map with results
+            results.forEach((result) => {
+                if (result._id && userIds.includes(result._id)) {
+                    countsMap.set(result._id, result.count);
+                }
+            });
+
+            return countsMap;
+        } catch (error) {
+            console.error('Error getting user conversation counts:', error);
+            return countsMap;
+        }
+    }
+
     @CatchError()
     public async getTabFilters(user: User, workspaceId: string, onlyCountTab?: boolean) {
         return await this.getTabFiltersNew(user, workspaceId, onlyCountTab);
@@ -2644,20 +2797,21 @@ export class ConversationService extends MongooseAbstractionService<Conversation
         }
 
         const phones = getWithAndWithout9PhoneNumber(getCompletePhone(contact.phone, contact?.ddi));
-        const phoneConditions = [...new Set(phones)].map((phone) => ({ phone }));
 
         const conversations = await this.getAll({
-            _id: { $in: [...contact.conversations] },
+            'workspace._id': channelConfig.workspaceId,
+            state: ConversationStatus.open,
+            token: channelConfig.token,
             members: {
                 $elemMatch: {
-                    $or: phoneConditions,
-                    channelId: channelConfig.channelId,
+                    $and: [
+                        { id: { $in: phones } },
+                        { type: IdentityType.user },
+                        { channelId: channelConfig.channelId },
+                    ],
                 },
             },
-            token: channelConfig.token,
-            state: ConversationStatus.open,
         });
-
         return conversations;
     }
 
@@ -3131,9 +3285,9 @@ export class ConversationService extends MongooseAbstractionService<Conversation
         const endTimer = rabbitMsgLatency.labels('updateWhatsappExpiration').startTimer();
 
         const attributeGroup = await this.conversationAttributesService.addAttributes(
+            workspaceId,
             conversationId,
             attributes,
-            workspaceId,
         );
         if (!attributeGroup) {
             Sentry.captureEvent({
@@ -3154,7 +3308,7 @@ export class ConversationService extends MongooseAbstractionService<Conversation
 
         const replacedAttributes = addedAttributes.map((attr: any) => ({
             ...(attr?.toJSON?.({ minimize: false }) ?? attr),
-            _id: attributeGroup._id as string,
+            _id: attributeGroup.conversationId as string,
         }));
 
         this.findOne({ _id: conversationId }).then((conversation) => {
@@ -3180,16 +3334,16 @@ export class ConversationService extends MongooseAbstractionService<Conversation
         workspaceId?: string,
     ): Promise<void> {
         const attributeGroup = await this.conversationAttributesService.removeAttribute(
+            workspaceId,
             conversationId,
             attributeName,
-            workspaceId,
         );
         this.sendAttributesToSocket(conversationId, attributeGroup.data).then();
 
         this.findOne({ _id: conversationId }).then((conversation) => {
             this.eventsService.sendEvent({
                 data: {
-                    _id: attributeGroup._id as string,
+                    _id: attributeGroup.conversationId as string,
                     name: attributeName,
                     workspaceId: conversation.workspace._id,
                     conversationId,
@@ -4776,6 +4930,51 @@ export class ConversationService extends MongooseAbstractionService<Conversation
         return { success: true };
     }
 
+    async transferConversationToAgentAutomaticDistribution(conversationId: string, agentId: string) {
+        const conversation = (await this.model.findOne({ _id: conversationId }))?.toJSON?.();
+        // Verifica se o agente já está na conversa
+        const targetAgentMember = conversation.members.find(
+            (member) => member.id === agentId && member.type === IdentityType.agent,
+        );
+
+        if (targetAgentMember) {
+            // Se já estiver, reativa
+            await this.updateRaw(
+                {
+                    _id: conversationId,
+                    'members.id': targetAgentMember.id,
+                },
+                {
+                    $set: {
+                        'members.$.disabled': false,
+                    },
+                },
+            );
+        } else {
+            const resultTargetUser = await this.userService.getOne(agentId);
+            const targetUser = resultTargetUser?.toJSON ? resultTargetUser.toJSON() : resultTargetUser;
+            // Se não estiver, adiciona como membro
+            await this.addMember(
+                castObjectIdToString(conversation._id),
+                {
+                    id: agentId,
+                    name: targetUser.name,
+                    avatar: targetUser.avatar,
+                    channelId: 'agent',
+                    type: IdentityType.agent,
+                    disabled: false,
+                    metrics: {
+                        assumedAt: +new Date(),
+                    },
+                },
+                false,
+            );
+        }
+
+        this.publishMemberUpdatedEvent(conversationId);
+        return { success: true };
+    }
+
     async updateDeliveredMessageInConversation(conversationId: string) {
         try {
             await this.updateRaw(
@@ -4831,6 +5030,7 @@ export class ConversationService extends MongooseAbstractionService<Conversation
             // Atualizar a conversa com o smtReId
             await this.model.updateOne({ _id: conversationId }, { smtReId: smtRe.id, stoppedSmtReId: null });
 
+            await this.sendStmReActivity(smtRe, ActivityType.smt_re_monitoring);
             return { success: true };
         } catch (e) {
             Sentry.captureEvent({
@@ -4846,6 +5046,7 @@ export class ConversationService extends MongooseAbstractionService<Conversation
         conversationId: string,
         workspaceId: string,
         smtReSettingId: string,
+        memberId?: string,
     ): Promise<{ success: boolean }> {
         try {
             // Verificar se a conversa existe
@@ -4876,10 +5077,48 @@ export class ConversationService extends MongooseAbstractionService<Conversation
             // Atualizar a conversa com o smtReId
             await this.model.updateOne({ _id: conversationId }, { smtReId: smtRe.id });
 
+            await this.sendStmReActivity(smtRe, ActivityType.smt_re_activated, memberId);
+
             return { success: true };
         } catch (e) {
             Sentry.captureEvent({
                 message: 'ConversationService.createSmtRe',
+                extra: {
+                    error: e,
+                },
+            });
+        }
+    }
+
+    async deactivateSmtRe(
+        conversationId: string,
+        workspaceId: string,
+        memberId: string,
+    ): Promise<{ success: boolean }> {
+        try {
+            // Verificar se a conversa existe
+            const conversation = await this.getOne(conversationId);
+            if (!conversation) {
+                throw Exceptions.CONVERSATION_NOT_FOUND;
+            }
+            if (conversation.state == ConversationStatus.closed) {
+                throw Exceptions.CONVERSATION_NOT_FOUND;
+            }
+
+            // Parar o smtRe
+            const stopped = await this.externalDataService.stopSmtRe(conversationId, memberId);
+
+            // Atualizar a conversa para setar smtReId como null e o stoppedSmtReId com o que estava no smtReId
+            await this.model.updateOne(
+                { _id: conversationId },
+                { smtReId: null, stoppedSmtReId: null, isWithSmtRe: false },
+            );
+
+            await this.sendStmReActivity(stopped, ActivityType.smt_re_deactivated);
+            return { success: true };
+        } catch (e) {
+            Sentry.captureEvent({
+                message: 'ConversationService.deactivateSmtRe',
                 extra: {
                     error: e,
                 },
@@ -4902,9 +5141,15 @@ export class ConversationService extends MongooseAbstractionService<Conversation
                 throw Exceptions.CONVERSATION_SMT_RE_NOT_CONFIGURED;
             }
 
+            const lastSmtRe = await this.externalDataService.findLastByConversationId(conversationId);
+
+            if (!lastSmtRe?.smtReSetting?.automaticReactivate) {
+                return await this.deactivateSmtRe(conversationId, workspaceId, memberId);
+            }
+
             const smtReId = conversation.smtReId;
             // Parar o smtRe
-            await this.externalDataService.stopSmtRe(conversationId, memberId);
+            const stopped = await this.externalDataService.stopSmtRe(conversationId, memberId);
 
             // Atualizar a conversa para setar smtReId como null e o stoppedSmtReId com o que estava no smtReId
             await this.model.updateOne(
@@ -4912,6 +5157,7 @@ export class ConversationService extends MongooseAbstractionService<Conversation
                 { smtReId: null, stoppedSmtReId: smtReId, isWithSmtRe: false },
             );
 
+            await this.sendStmReActivity(stopped, ActivityType.smt_re_stopped);
             return { success: true };
         } catch (e) {
             Sentry.captureEvent({
@@ -4923,8 +5169,231 @@ export class ConversationService extends MongooseAbstractionService<Conversation
         }
     }
 
+    async sendStmReActivity(smtRe: SmtRe, type: ActivityType, memberId?: string) {
+        try {
+            // Get conversation using external data service
+            const conversation = await this.getOne(smtRe.conversationId);
+            if (!conversation) return;
+            const member = memberId ? conversation.members.find((member) => member.id === memberId) : undefined;
+            let sendMember = member || conversation.members.find((member) => member.type === IdentityType.system);
+            if (!sendMember) {
+                const sysMember = {
+                    channelId: 'system',
+                    id: systemMemberId,
+                    name: 'system',
+                    type: IdentityType.system,
+                };
+                await this.addMember(smtRe.conversationId, sysMember);
+                sendMember = sysMember;
+            }
+            const activity: any = {
+                type,
+                from: sendMember,
+                data: {
+                    omitSocket: false,
+                    smtReSettingId: smtRe.smtReSettingId,
+                },
+                conversationId: smtRe.conversationId,
+            };
+            await this.dispatchMessageActivity(conversation, activity);
+        } catch (e) {
+            Sentry.captureEvent({
+                message: 'ConversationService.sendStmReActivity',
+                extra: {
+                    error: e,
+                    smtRe,
+                    type,
+                    memberId,
+                },
+            });
+        }
+    }
+
     async updateConversationIsWithSmtRe(conversationId: string) {
         const conversation = await this.getOne(conversationId);
         return await this.model.updateOne({ _id: conversationId }, { isWithSmtRe: !conversation?.isWithSmtRe });
+    }
+
+    /**
+     * Processa mídia do bot criando attachment adequado
+     */
+    async processMediaForBot(activity: Activity, conversation: Conversation): Promise<Activity> {
+        try {
+            // Se não tem mídia, retornar sem alterações
+            if (!activity?.attachmentFile?.contentUrl) {
+                return activity;
+            }
+
+            // Remove attachments se for um attachment com arquivo pois já possui attachmentFile
+            if (activity?.attachmentFile && activity.attachments?.[0]?.contentUrl) {
+                delete activity.attachments;
+            }
+
+            // Verificar se já existe attachment com este ID
+            if (activity.attachmentFile?.id && activity.attachmentFile.id.length === 24) {
+                try {
+                    const existingAttachment = await this.attachmentService.findOne({
+                        _id: activity.attachmentFile.id,
+                        conversationId: conversation._id,
+                    });
+
+                    if (existingAttachment) {
+                        return activity;
+                    }
+                } catch (error) {
+                    // Attachment não existe, continuar
+                }
+            }
+
+            const mediaUrl = activity.attachmentFile.contentUrl;
+            const contentType = activity.attachmentFile?.contentType || 'application/octet-stream';
+            const fileName = activity.attachmentFile?.name || this.generateFileName(contentType);
+
+            // Verificar se é URL externa
+            const isExternalUrl =
+                !mediaUrl.startsWith(process.env.API_URI || 'http://localhost:9091') &&
+                !mediaUrl.includes('localhost') &&
+                !mediaUrl.includes('bd__api');
+
+            let s3Key: string = null;
+            let fileSize: number = 0;
+
+            // Para URLs externas, baixar e fazer upload
+            if (isExternalUrl) {
+                try {
+                    const response = await axios.get(mediaUrl, {
+                        responseType: 'arraybuffer',
+                        timeout: 30000,
+                        maxContentLength: 50 * 1024 * 1024, // 50MB
+                        headers: {
+                            'User-Agent': 'Mozilla/5.0 BotDesigner/1.0',
+                        },
+                    });
+
+                    const fileBuffer = Buffer.from(response.data);
+                    fileSize = fileBuffer.length;
+
+                    // Gerar key S3
+                    s3Key = await this.attachmentService.getAttachmentKey(conversation, fileName);
+
+                    // Fazer upload para S3
+                    await this.externalDataService.uploadToS3Service({
+                        buffer: fileBuffer,
+                        originalname: s3Key,
+                        mimetype: contentType,
+                        size: fileSize,
+                        encoding: '',
+                    });
+                } catch (error) {
+                    this.logger.error('Error downloading external media', {
+                        url: mediaUrl,
+                        error: error.message,
+                    });
+
+                    // Se falhar, ainda criar attachment mas sem S3
+                    s3Key = null;
+                    fileSize = 0;
+                }
+            }
+
+            // Encontrar membro bot
+            const botMember = conversation.members.find((m) => m.type === 'bot');
+            if (!botMember) {
+                return activity;
+            }
+
+            // Criar attachment no banco
+            const attachment = await this.attachmentService._create(
+                conversation,
+                botMember,
+                fileName,
+                contentType,
+                null, // quoted
+                null, // attachmentLocation - será gerado automaticamente
+                s3Key, // key S3 ou null
+                activity.hash || activity.id?.toString(),
+                true, // isStartActivity = true para não criar activity duplicada
+                fileSize || undefined,
+                activity.text,
+                !!activity.isHsm,
+                activity.data,
+            );
+
+            // Atualizar activity com attachment criado
+            activity.type = ActivityType.member_upload_attachment;
+            activity.attachmentFile = {
+                contentType: attachment.mimeType,
+                contentUrl: attachment.attachmentLocation,
+                name: attachment.name,
+                key: attachment.key || s3Key,
+                id: attachment._id.toString(),
+            };
+
+            return activity;
+        } catch (error) {
+            this.logger.error('Error processing bot media', {
+                error: error.message,
+                stack: error.stack,
+                activityId: activity.id,
+            });
+
+            // Em caso de erro, retornar activity original
+            return activity;
+        }
+    }
+    private generateFileName(contentType: string): string {
+        const extension = this.getExtensionFromMimeType(contentType);
+        const timestamp = Date.now();
+        const random = Math.random().toString(36).substring(7);
+        return `bot_media_${timestamp}_${random}${extension}`;
+    }
+
+    private getExtensionFromMimeType(mimeType: string): string {
+        const mimeToExt: { [key: string]: string } = {
+            'image/jpeg': '.jpg',
+            'image/jpg': '.jpg',
+            'image/png': '.png',
+            'image/gif': '.gif',
+            'image/webp': '.webp',
+            'video/mp4': '.mp4',
+            'video/3gpp': '.3gp',
+            'audio/mpeg': '.mp3',
+            'audio/ogg': '.ogg',
+            'audio/wav': '.wav',
+            'application/pdf': '.pdf',
+            'application/msword': '.doc',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
+            'application/vnd.ms-excel': '.xls',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': '.xlsx',
+        };
+
+        return mimeToExt[mimeType] || '.bin';
+    }
+
+    @CatchError()
+    async updateFlagHasUserFollowupByConversationId(conversationId: string, workspaceId: string) {
+        if (conversationId) {
+            await this.updateRaw(
+                {
+                    _id: conversationId,
+                },
+                {
+                    'conversationFlags.hasUserFollowup': true,
+                },
+            );
+
+            const conversation = await this.model.findById(conversationId);
+
+            this.eventsService.sendEvent({
+                data: {
+                    conversationId: conversationId,
+                    workspaceId: workspaceId,
+                    conversationFlags: conversation.conversationFlags,
+                } as IConversationUpdatedConversationFlagsEvent,
+                dataType: KissbotEventDataType.CONVERSATION,
+                source: KissbotEventSource.KISSBOT_API,
+                type: KissbotEventType.CONVERSATION_FLAGS_UPDATED,
+            });
+        }
     }
 }

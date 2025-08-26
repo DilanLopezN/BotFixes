@@ -22,9 +22,13 @@ export class ExternalDataService {
         maxTokens?: number;
         temperature?: number;
     }) {
+        const MAX_TOKENS_LIMIT = 4096;
+        const maxTokens = Math.min(messageOptions.maxTokens ?? messageOptions.message.length * 3, MAX_TOKENS_LIMIT);
+
         return await this.aiProviderService.sendMessage({
             ...messageOptions,
             provider: AIProviderType.openai,
+            maxTokens,
         });
     }
 }

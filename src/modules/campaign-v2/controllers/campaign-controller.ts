@@ -14,8 +14,10 @@ import { ListCampaignParams } from '../interfaces/list-campaign.interface';
 import { GetCampaignParams, GetCampaignResponse } from '../interfaces/get-campaign.interface';
 import { CampaignContactService } from '../services/campaign-contact.service';
 import { CloneCampaignParams } from '../interfaces/clone-campaign.interface';
+// import { AgentStatusVerifyBreakGuard } from '../../agent-status/guards/agent-status-verify-break.guard';
 
 @Controller('workspaces/:workspaceId/campaigns')
+@UseGuards()
 export class CampaignController {
     constructor(
         private readonly campaignService: CampaignService,

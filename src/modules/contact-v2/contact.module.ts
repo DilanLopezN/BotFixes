@@ -24,6 +24,9 @@ import { ContactController } from './controllers/contact-controller';
             migrationsRun: false,
             migrations: [__dirname + '/migrations/**/*{.ts,.js}'],
             schema: 'conversation',
+            extra: {
+                min: 1,
+            },
         }),
         TypeOrmModule.forFeature([ContactEntity, BlockedContactEntity], CONTACT_CONNECTION),
         EventsModule,

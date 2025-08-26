@@ -64,7 +64,7 @@ export class TemplateMessageController {
         return await this.templateMessageService._create(
             {
                 ...data,
-                userId: authUser._id,
+                user: authUser,
                 workspaceId,
             },
             allowTemplateCategoryChange,
@@ -329,7 +329,7 @@ export class TemplateMessageController {
     ) {
         return this.templateMessageService.createDefaultTemplateHsm(
             workspaceId,
-            castObjectIdToString(authUser._id),
+            authUser,
             data.channelConfigId,
             data.clientName,
         );

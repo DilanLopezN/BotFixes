@@ -40,7 +40,6 @@ export interface FeatureFlag {
     categorizationDashboard: boolean;
     enableUploadErpDocuments: boolean;
     enableConcatAgentNameInMessage: boolean;
-    enableConversationAttributeV2: boolean;
     enableContactV2: boolean;
 }
 
@@ -59,6 +58,8 @@ export interface GeneralConfigs {
     enableIndividualCancelInConfirmation: boolean;
     enableAutoCompleteTemplateVariables: boolean;
     enableAgentsTeamHistoryAccess: boolean;
+    enableAgentStatusForAgents: boolean;
+    ignoreUserFollowupConversation: boolean;
 }
 
 export interface CustomerXSettings {
@@ -71,6 +72,10 @@ export interface UserFeatureFlag {
     enableRemi: boolean;
 }
 
+export interface AdvancedModuleFeatures {
+    enableAgentStatus?: boolean;
+}
+
 export interface Workspace extends Document {
     name: string;
     description: string;
@@ -80,6 +85,7 @@ export interface Workspace extends Document {
     featureFlag: FeatureFlag;
     generalConfigs: GeneralConfigs;
     customerXSettings?: CustomerXSettings;
-    userFeatureFlag: UserFeatureFlag;
+    userFeatureFlag?: UserFeatureFlag;
+    advancedModuleFeatures?: AdvancedModuleFeatures;
     analyticsRanges?: Record<string, any>;
 }

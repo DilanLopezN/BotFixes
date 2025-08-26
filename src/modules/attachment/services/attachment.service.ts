@@ -10,7 +10,7 @@ import { FileUploaderService } from './../../../common/file-uploader/file-upload
 import { CacheService } from './../../_core/cache/cache.service';
 import * as moment from 'moment';
 import { MongooseAbstractionService } from './../../../common/abstractions/mongooseAbstractionService.service';
-import { ActivityType } from 'kissbot-core';
+import { AckType, ActivityType } from 'kissbot-core';
 import { ActivityService } from './../../activity/services/activity.service';
 import axios from 'axios';
 import { TemplateMessageService } from '../../template-message/services/template-message.service';
@@ -67,6 +67,7 @@ export class AttachmentService extends MongooseAbstractionService<Attachment> {
         templateId?: string,
         user?: User,
         hash?: string,
+        type?: string,
     ) {
         const conversation: Conversation = await this.conversationService.findOne({ _id: conversationId });
         if (!conversation) {
@@ -81,9 +82,10 @@ export class AttachmentService extends MongooseAbstractionService<Attachment> {
             }
         } catch (e) {
             Sentry.captureEvent({
-                message: 'AttachmentService.createAndUpload', extra: {
-                    error: e
-                }
+                message: 'AttachmentService.createAndUpload',
+                extra: {
+                    error: e,
+                },
             });
             memberUploader = conversation.members.find((member) => member.id == memberId);
         }
@@ -153,12 +155,16 @@ export class AttachmentService extends MongooseAbstractionService<Attachment> {
             isStartActivity,
             file.buffer.byteLength,
             textFile,
+            undefined,
+            undefined,
+            undefined,
+            type,
         );
 
         this.cacheService.setObject(file.buffer.toString('hex'), created._id + ':content', 30);
 
         return {
-            ...(created.toJSON ? created.toJSON({minimize: false}) : created),
+            ...(created.toJSON ? created.toJSON({ minimize: false }) : created),
             id: created._id,
         } as Attachment;
     }
@@ -191,6 +197,7 @@ export class AttachmentService extends MongooseAbstractionService<Attachment> {
         isHsm?: boolean,
         data?: any,
         activityAttachments?: any,
+        type?: string,
     ) {
         const attachment = new this.model({
             conversationId: castObjectId(conversation._id),
@@ -214,7 +221,8 @@ export class AttachmentService extends MongooseAbstractionService<Attachment> {
         if (!isStartActivity) {
             const activity = {
                 from: memberUploader,
-                type: ActivityType.member_upload_attachment,
+                type: type && type === 'comment' ? ActivityType.comment : ActivityType.member_upload_attachment,
+                ack: type && type === 'comment' ? AckType.DeliveryAck : AckType.Pending,
                 attachmentFile: {
                     contentType: mimeType,
                     contentUrl: attachment.attachmentLocation,
@@ -234,18 +242,20 @@ export class AttachmentService extends MongooseAbstractionService<Attachment> {
             }
 
             try {
-                if(!activity?.text && !activity?.attachmentFile) {
+                if (!activity?.text && !activity?.attachmentFile) {
                     Sentry.captureEvent({
-                        message: 'DEBUG AttachmentService: empty message', extra: {
+                        message: 'DEBUG AttachmentService: empty message',
+                        extra: {
                             activity,
-                        }
+                        },
                     });
                 }
             } catch (e) {
                 Sentry.captureEvent({
-                    message: 'DEBUG AttachmentService: empty message catch', extra: {
+                    message: 'DEBUG AttachmentService: empty message catch',
+                    extra: {
                         e,
-                    }
+                    },
                 });
             }
 

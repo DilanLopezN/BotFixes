@@ -17,11 +17,6 @@ export class UpdateContextVariableDto {
 
     @ApiProperty()
     @IsString()
-    @IsOptional()
-    botId?: string;
-
-    @ApiProperty()
-    @IsString()
     agentId: string;
 
     @ApiProperty()

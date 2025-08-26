@@ -20,6 +20,11 @@ export enum feedbackEnum {
     noFeedback = 'noFeedback',
 }
 
+export enum RecepientTypeEnum {
+    email = 'email',
+    whatsapp = 'whatsapp',
+}
+
 export class ScheduleFilterListDto {
     @ApiProperty()
     @IsDateString()
@@ -112,6 +117,11 @@ export class ScheduleFilterListDto {
     @IsOptional()
     @IsEnum(feedbackEnum)
     feedback?: feedbackEnum;
+
+    @ApiProperty({ enum: RecepientTypeEnum, required: false })
+    @IsOptional()
+    @IsEnum(RecepientTypeEnum)
+    recipientType?: RecepientTypeEnum;
 
     workspaceId: string;
 }

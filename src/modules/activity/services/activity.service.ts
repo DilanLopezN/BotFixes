@@ -30,7 +30,7 @@ import { ConversationService } from './../../conversation/services/conversation.
 import * as md5 from 'md5';
 import { castObjectIdToString, tagSpamName } from './../../../common/utils/utils';
 import * as moment from 'moment';
-import { ConversationAttributeService } from './../../conversation-attribute/service/conversation-attribute.service';
+import { ConversationAttributeService } from './../../conversation-attribute-v2/services/conversation-attribute.service';
 import { ActivityUtilService } from './activity-util.service';
 import { ActivityReceivedType } from '../interfaces/activity-event.interface';
 import { ActivitySearchService } from '../../../modules/analytics/search/activity-search/activity-search.service';
@@ -162,7 +162,11 @@ export class ActivityService extends MongooseAbstractionService<Activity> {
                 return false;
             }
             // Quando a conversa estiver fechada e for uma mensagem de bot, então deve bloquear o envio desta mensagem do bot para não entrar mensagem fora de contexto.
-            if (activityRequest?.from?.type === IdentityType.bot && conversation?.state === ConversationStatus.closed) {
+            if (
+                activityRequest?.from?.type === IdentityType.bot &&
+                conversation?.state === ConversationStatus.closed &&
+                activityRequest.type === ActivityType.message
+            ) {
                 return false;
             }
 
@@ -223,7 +227,7 @@ export class ActivityService extends MongooseAbstractionService<Activity> {
             return;
         }
 
-        const activity: Activity = await this.activityUtilService.getCompleteActivityObject(
+        let activity: Activity = await this.activityUtilService.getCompleteActivityObject(
             activityRequest,
             (conversation.toJSON?.({ minimize: false }) ?? conversation) as Conversation,
         );
@@ -246,6 +250,16 @@ export class ActivityService extends MongooseAbstractionService<Activity> {
             if (!activityRequest.hash) {
                 activityRequest.hash = crypto.randomBytes(10).toString('hex').toUpperCase();
             }*/
+
+            // só vai processar se a activity vir de um bot e tiver um atacchment, não atrapalha o fluxo das outras activity
+            if (activity.from.type === 'bot' && activity?.attachmentFile) {
+                try {
+                    const newActivity = await this.conversationService.processMediaForBot(activity, conversation);
+                    activity = newActivity;
+                } catch (error) {
+                    this.logger.error('Failed to process medias in bot', error);
+                }
+            }
 
             await this.dispatchActivity(activity, conversation);
             await this.setConversationIdByActivityHash(activity.hash, castObjectIdToString(conversation._id));
@@ -311,8 +325,8 @@ export class ActivityService extends MongooseAbstractionService<Activity> {
 
     async dispatchActivity(activity: Activity, conversation: Conversation) {
         const conversationAttributes = await this.conversationAttributesService.getConversationAttributes(
-            castObjectIdToString(conversation._id),
             castObjectIdToString(conversation.workspace._id),
+            castObjectIdToString(conversation._id),
         );
 
         try {
@@ -756,6 +770,7 @@ export class ActivityService extends MongooseAbstractionService<Activity> {
         if (activity.type == ActivityType.end_conversation) {
             const conversationClosed = await this.conversationService.findOne({ _id: conversation._id });
             let team = null;
+            const workspace = await this.externalDataService.getWorkspaceById(conversation.workspace._id);
             if (conversation.assignedToTeamId) {
                 team = await this.teamService.getOne(conversation.assignedToTeamId);
             }
@@ -766,6 +781,7 @@ export class ActivityService extends MongooseAbstractionService<Activity> {
                         : conversationClosed),
                     closeType: activity?.data?.closeType,
                     team,
+                    ignoreUserFollowupConversation: workspace?.generalConfigs?.ignoreUserFollowupConversation,
                 },
                 dataType: KissbotEventDataType.CONVERSATION,
                 source: KissbotEventSource.KISSBOT_API,

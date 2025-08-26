@@ -1,4 +1,4 @@
-import { ConversationTemplate } from "../../dashboard-template/interfaces/conversation-template.interface";
+import { ConversationTemplate } from '../../dashboard-template/interfaces/conversation-template.interface';
 
 export enum AnalyticsInterval {
     '1m' = '1m',
@@ -18,8 +18,17 @@ export interface ConversationQueryFilterDto {
     teamId?: string;
     teamIds?: string[];
     channelId?: string;
-    conversationsWith?: 'bot' | 'agent' | 'not_closed' |'all';
-    groupBy?: 'user' | 'tags' | 'team' | 'team-resume' | 'total' | 'user-resume' | 'attendance-date-avg' | 'awaiting-working-time-avg' | 'user-resume-avg';
+    conversationsWith?: 'bot' | 'agent' | 'not_closed' | 'all';
+    groupBy?:
+        | 'user'
+        | 'tags'
+        | 'team'
+        | 'team-resume'
+        | 'total'
+        | 'user-resume'
+        | 'attendance-date-avg'
+        | 'awaiting-working-time-avg'
+        | 'user-resume-avg';
     closedBy?: string[];
     workspaceId: string;
     omitInvalidNumber?: boolean;
@@ -32,4 +41,21 @@ export interface ConversationQueryFilter extends ConversationQueryFilterDto {
 
 export interface ActivityQueryFilter extends ConversationQueryFilterDto {
     isHsm?: boolean;
+}
+
+export enum AnalyticsAgentConversationMetricsInterval {
+    DAY = 'day',
+    WEEK = 'week',
+    MONTH = 'month',
+    YEAR = 'year',
+}
+
+export interface AgentConversationMetricsQueryFilterDto {
+    interval: AnalyticsAgentConversationMetricsInterval;
+    workspaceId: string;
+    startDate: string;
+    endDate: string;
+    timezone?: string;
+    teamId?: string;
+    userId?: string;
 }

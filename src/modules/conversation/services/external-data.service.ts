@@ -10,6 +10,8 @@ import { CreateConversationCategorizationParams } from '../../conversation-categ
 import { DefaultResponse } from '../../../common/interfaces/default';
 import { SmtReService } from '../../conversation-smt-re/services/smt-re.service';
 import { SmtRe } from '../../conversation-smt-re/models/smt-re.entity';
+import { FileUploaderService } from '../../../common/file-uploader/file-uploader.service';
+import { FileToUpload } from '../../../common/file-uploader/interfaces/file-to-upload.interface';
 
 @Injectable()
 export class ExternalDataService {
@@ -19,6 +21,7 @@ export class ExternalDataService {
     private blockedContactService: BlockedContactService;
     private conversationCategorizationService: ConversationCategorizationService;
     private smtReService: SmtReService;
+    private fileUploaderService: FileUploaderService;
 
     constructor(private readonly moduleRef: ModuleRef) {}
 
@@ -39,6 +42,7 @@ export class ExternalDataService {
             { strict: false },
         );
         this.smtReService = this.moduleRef.get<SmtReService>(SmtReService, { strict: false });
+        this.fileUploaderService = this.moduleRef.get<FileUploaderService>(FileUploaderService, { strict: false });
     }
 
     async setAcceptedPrivacyPolicy(
@@ -101,7 +105,15 @@ export class ExternalDataService {
         return await this.smtReService.findById(id);
     }
 
-    async stopSmtRe(conversationId: string, memberId: string): Promise<void> {
+    async findLastByConversationId(conversationId: string): Promise<SmtRe> {
+        return await this.smtReService.findLastByConversationId(conversationId);
+    }
+
+    async stopSmtRe(conversationId: string, memberId: string): Promise<SmtRe> {
         return await this.smtReService.stopSmtRe(conversationId, memberId);
+    }
+
+    async uploadToS3Service(uploadData: FileToUpload) {
+        return await this.fileUploaderService.upload(uploadData);
     }
 }

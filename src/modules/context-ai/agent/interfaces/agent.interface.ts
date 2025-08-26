@@ -1,3 +1,12 @@
+import { AgentType } from '../entities/agent.entity';
+
+export { AgentType };
+
+export enum AgentMode {
+    FREE = 'free', // pode gerar respostas livremente
+    RAG_ONLY = 'rag_only', // usa apenas o conteúdo do RAG
+}
+
 export interface IAgent {
     id: string;
     name: string;
@@ -8,6 +17,9 @@ export interface IAgent {
     botId: string;
     isDefault: boolean;
     isActive: boolean;
+    agentMode: AgentMode;
+    modelName: string;
+    agentType: AgentType;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -20,6 +32,7 @@ export interface CreateAgentData {
     workspaceId: string;
     botId: string;
     isDefault?: boolean;
+    agentType?: AgentType;
 }
 
 export interface UpdateAgentData {
@@ -30,6 +43,7 @@ export interface UpdateAgentData {
     prompt?: string;
     isDefault?: boolean;
     isActive?: boolean;
+    agentType?: AgentType;
 }
 
 export interface DeleteAgentData {
@@ -40,4 +54,5 @@ export interface ListAgentsFilter {
     workspaceId: string;
     botId?: string;
     isActive?: boolean;
+    agentType?: AgentType;
 }

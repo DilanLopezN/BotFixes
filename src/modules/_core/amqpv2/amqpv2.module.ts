@@ -24,6 +24,8 @@ import { shouldStartRabbit } from '../../../common/utils/bootstrapOptions';
 import { MetricsCustomerXConsumerService } from '../../customer-x/services/metrics-consumer.service';
 import { CampaignMessageStatusConsumerService } from '../../campaign-v2/services/message-status-consumer.service';
 import { ConversationClosedConsumerService } from '../../conversation-smt-re/services/conversation-closed-consumer.service';
+import { ConversationAutomaticDistributionService } from '../../conversation-automatic-distribution/services/conversation-automatic-distribution.service';
+import { AgentStatusConsumerService } from '../../agent-status/services/agent-status-consumer.service';
 
 @Module({
     imports: [
@@ -117,7 +119,13 @@ import { ConversationClosedConsumerService } from '../../conversation-smt-re/ser
                 },
                 [ConversationClosedConsumerService.name]: {
                     prefetchCount: 10,
-                }
+                },
+                [ConversationAutomaticDistributionService.name]: {
+                    prefetchCount: 10,
+                },
+                [AgentStatusConsumerService.name]: {
+                    prefetchCount: 10,
+                },
             },
         }),
     ],

@@ -851,14 +851,6 @@ export class InteractionsService extends MongooseAbstractionService<Interaction>
                                 addError(response._id);
                             }
                         }
-                        if (ma.transferToHumanGoto && ma.transferToHumanGoto !== '') {
-                            const interactionExist = !!interactions.find((currInteraction) =>
-                                castObjectId(currInteraction._id)?.equals?.(castObjectId(ma.transferToHumanGoto)),
-                            );
-                            if (!interactionExist) {
-                                addError(response._id);
-                            }
-                        }
                         if (ma.checkAccountGoto && ma.checkAccountGoto !== '') {
                             const interactionExist = !!interactions.find((currInteraction) =>
                                 castObjectId(currInteraction._id)?.equals?.(castObjectId(ma.checkAccountGoto)),
@@ -1375,38 +1367,36 @@ export class InteractionsService extends MongooseAbstractionService<Interaction>
             throw Exceptions.INTERACTION_NOT_FOUND;
         }
 
-        for (const _devInteraction of devInteractions) {
-            const triggers: { [key: string]: string[] } = this.getTriggers([_devInteraction]);
-            try {
-                await this.validateInteractionResponses(_devInteraction, triggers, workspaceId, botId, devInteractions);
-            } catch (e) {
-                if (!_devInteraction?.deletedAt) {
-                    if (e?.message?.length) {
-                        e?.message?.map((ob) => {
-                            const existing = failedInteractionNames.find(
-                                (e) => e._id === castObjectIdToString(_devInteraction._id),
-                            );
-                            if (!existing) {
-                                failedInteractionNames.push({
-                                    _id: castObjectIdToString(ob?._id) || castObjectIdToString(devInteraction._id),
-                                    name: ob?.name || devInteraction.name || devInteraction.type,
-                                    responses: ob?.responses,
-                                });
-                            } else {
-                                existing.responses.push(...ob?.responses);
-                            }
-                        });
-                    } else {
+        const triggers: { [key: string]: string[] } = this.getTriggers([devInteraction]);
+        try {
+            await this.validateInteractionResponses(devInteraction, triggers, workspaceId, botId, devInteractions);
+        } catch (e) {
+            if (!devInteraction?.deletedAt) {
+                if (e?.message?.length) {
+                    e?.message?.map((ob) => {
                         const existing = failedInteractionNames.find(
                             (e) => e._id === castObjectIdToString(devInteraction._id),
                         );
                         if (!existing) {
                             failedInteractionNames.push({
-                                _id: castObjectIdToString(devInteraction._id),
-                                name: devInteraction.name || devInteraction.type,
-                                responses: [],
+                                _id: castObjectIdToString(ob?._id) || castObjectIdToString(devInteraction._id),
+                                name: ob?.name || devInteraction.name || devInteraction.type,
+                                responses: ob?.responses,
                             });
+                        } else {
+                            existing.responses.push(...ob?.responses);
                         }
+                    });
+                } else {
+                    const existing = failedInteractionNames.find(
+                        (e) => e._id === castObjectIdToString(devInteraction._id),
+                    );
+                    if (!existing) {
+                        failedInteractionNames.push({
+                            _id: castObjectIdToString(devInteraction._id),
+                            name: devInteraction.name || devInteraction.type,
+                            responses: [],
+                        });
                     }
                 }
             }

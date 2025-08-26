@@ -1,15 +1,18 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { v4 } from 'uuid';
 import { DefaultResponse } from '../../../../common/interfaces/default';
-import { DoQuestion } from '../interfaces/do-question.interface';
+import { DoQuestion, DoQuestionParameters } from '../interfaces/do-question.interface';
 import { ContextMessageService } from '../../context-message/context-message.service';
 import { ListMessagesByContext } from '../../context-message/interfaces/list-messages-by-context.interface';
 import { ContextMessage } from '../../context-message/entities/context-message.entity';
-import { ContextMessageRole, IContextMessage } from '../../context-message/interfaces/context-message.interface';
+import {
+    ContextMessageRole,
+    ContextMessageType,
+    IContextMessage,
+} from '../../context-message/interfaces/context-message.interface';
 import { EmbeddingsService } from '../../embeddings/embeddings.service';
 import { ContextVariableService } from '../../context-variable/context-variable.service';
 import { ExecuteResponse } from '../interfaces/context-execute.interface';
-import { QuestionFiltersValidatorService } from '../validators/question-filters.service';
 import { ContextFallbackMessageService } from '../../context-fallback-message/context-fallback-message.service';
 import { ContextAiBuilderService } from './context-ai-builder.service';
 import { ContextAiHistoricService } from './context-ai-historic.service';
@@ -18,6 +21,10 @@ import { AiProviderError } from '../interfaces/ai-provider.interface';
 import { AgentService } from '../../agent/services/agent.service';
 import { AiProviderService } from '../../ai-provider/ai.service';
 import { AiMessage, AIProviderType } from '../../ai-provider/interfaces';
+import { AgentType } from '../../agent/entities/agent.entity';
+import { AgentMode, IAgent } from '../../agent/interfaces/agent.interface';
+import { ContextAiRewriteQuestionService } from './context-ai.rewrite-question.service';
+import { IntentDetectionService } from '../../intent-detection/services/intent-detection.service';
 
 @Injectable()
 export class ContextAiImplementorService {
@@ -28,11 +35,12 @@ export class ContextAiImplementorService {
         private readonly contextMessageService: ContextMessageService,
         private readonly embeddingsService: EmbeddingsService,
         private readonly contextVariableService: ContextVariableService,
-        private readonly questionFiltersValidatorService: QuestionFiltersValidatorService,
         private readonly contextFallbackMessageService: ContextFallbackMessageService,
         private readonly contextAiBuilderService: ContextAiBuilderService,
         private readonly contextAiHistoricService: ContextAiHistoricService,
         private readonly agentService: AgentService,
+        private readonly contextAiRewriteQuestionService: ContextAiRewriteQuestionService,
+        private readonly intentDetectionService: IntentDetectionService,
     ) {}
 
     private async createContextMessageAndCaching(newMessage: CreateContextMessage): Promise<IContextMessage> {
@@ -54,13 +62,21 @@ export class ContextAiImplementorService {
         };
     }
 
-    private async getHistoryMessages(contextId: string, usePreviousMessages: boolean): Promise<AiMessage[]> {
-        const previousMessages: IContextMessage[] = [];
+    private async getHistoryMessages(agent: IAgent, contextId: string): Promise<AiMessage[]> {
+        const variables = await this.contextVariableService.listVariablesFromAgent({
+            workspaceId: agent.workspaceId,
+            agentId: agent.id,
+        });
 
-        if (usePreviousMessages) {
-            const messages = await this.contextAiHistoricService.listContextMessages(contextId);
-            previousMessages.push(...(messages || []));
-        }
+        const historicMessagesLength = this.contextVariableService.getVariableValue(
+            variables,
+            'historicMessagesLength',
+        );
+
+        const previousMessages: IContextMessage[] = await this.contextAiHistoricService.listContextMessages(
+            contextId,
+            historicMessagesLength,
+        );
 
         return [
             ...(previousMessages || [])?.map((message) => ({
@@ -71,30 +87,32 @@ export class ContextAiImplementorService {
     }
 
     private async getNextPrompt(
-        workspaceId: string,
-        agentId: string,
+        agent: IAgent,
         question: { text: string; embedding: number[] },
+        parameters: DoQuestionParameters = {},
     ): Promise<{ prompt: string; context: string; trainingIds: string[] }> {
-        const content = await this.embeddingsService.listEmbeddingsByWorkspaceId(workspaceId, question.embedding);
+        const content = await this.embeddingsService.listEmbeddingsByWorkspaceId(agent.workspaceId, question.embedding);
 
-        if (!content?.length) {
+        if (!content?.length && agent.agentMode === AgentMode.RAG_ONLY) {
             return { prompt: null, context: null, trainingIds: [] };
         }
 
-        const context = content.map(({ content }) => `${content}`).join('\n\n');
+        const context = content
+            .map(({ identifier, content }) => `Pergunta: ${identifier}\n Resposta: ${content}`)
+            .join('\n---\n');
 
         const result = await this.contextAiBuilderService.buildMessageTemplate({
-            workspaceId,
-            agentId,
+            agent,
             question: question.text,
             context,
+            parameters,
         });
 
         return { prompt: result, context: context, trainingIds: content.map((item) => item.id) };
     }
 
     public async doQuestion(workspaceId: string, data: DoQuestion): Promise<DefaultResponse<ExecuteResponse>> {
-        const activeAgents = await this.agentService.existsActiveAgents(workspaceId, data.botId);
+        const activeAgents = await this.agentService.existsActiveAgents(workspaceId, AgentType.RAG);
 
         if (!activeAgents) {
             return {
@@ -108,7 +126,7 @@ export class ContextAiImplementorService {
             };
         }
 
-        const { contextId, question, useHistoricMessages: usePreviousMessages, fromInteractionId, botId } = data;
+        const { contextId, question, fromInteractionId, parameters } = data;
         const defaultResponse: DefaultResponse<ExecuteResponse> = {
             data: {
                 message: null,
@@ -119,7 +137,7 @@ export class ContextAiImplementorService {
 
         // inicialmente trabalhando com um agente fixo, todas as entidades foram preparadas para uma estrutura de múltiplos
         // porém para facilitar os testes e evolução deixado fixo um, e para funcionar no cliente deve ter um agente do tipo isDefault ativo
-        const agent = await this.agentService.getDefaultAgent(workspaceId);
+        const agent = await this.agentService.getDefaultAgent(workspaceId, AgentType.RAG);
         const referenceId: string = v4();
 
         let newQuestion: string = question;
@@ -129,30 +147,52 @@ export class ContextAiImplementorService {
             agentId: agent.id,
         });
 
+        const defaultModelName = agent.modelName || 'gpt-4o-mini';
+        const defaultProps: CreateContextMessage = {
+            fromInteractionId,
+            workspaceId,
+            referenceId,
+            contextId,
+            nextStep: null,
+            content: null,
+            role: null,
+            completionTokens: 0,
+            promptTokens: 0,
+            agentId: agent.id,
+            isFallback: false,
+            modelName: defaultModelName,
+            type: ContextMessageType.message,
+        };
+
         try {
-            newQuestion = this.questionFiltersValidatorService.isValidQuestion(question);
+            newQuestion = await this.contextAiRewriteQuestionService.rewriteQuestion({
+                agent,
+                contextId,
+                question,
+                referenceId,
+            });
         } catch (error) {
             const { isFallback, message } = await this.contextAiBuilderService.handleMessage(
-                workspaceId,
-                agent.id,
+                agent,
                 null,
                 AiProviderError.InvalidQuestion,
                 true,
             );
-            const createdMessage = await this.createContextMessageAndCaching({
-                fromInteractionId,
-                workspaceId,
-                botId,
-                referenceId,
-                contextId,
-                nextStep: null,
-                content: message,
-                role: ContextMessageRole.system,
-                completionTokens: 0,
-                promptTokens: 0,
-                isFallback,
-                agentId: agent.id,
-            });
+
+            const [createdMessage] = await Promise.all([
+                this.createContextMessageAndCaching({
+                    ...defaultProps,
+                    content: message,
+                    role: ContextMessageRole.system,
+                    isFallback,
+                }),
+                this.createContextMessageAndCaching({
+                    ...defaultProps,
+                    content: newQuestion,
+                    role: ContextMessageRole.user,
+                    isFallback,
+                }),
+            ]);
 
             defaultResponse.data.message = createdMessage;
             defaultResponse.data.variables = contextVariables;
@@ -162,36 +202,39 @@ export class ContextAiImplementorService {
 
         try {
             const { embedding, tokens } = await this.embeddingsService.getEmbeddingFromText(newQuestion);
-            const historicMessages = await this.getHistoryMessages(contextId, usePreviousMessages);
+            const historicMessages = await this.getHistoryMessages(agent, contextId);
 
-            const { prompt, context, trainingIds } = await this.getNextPrompt(workspaceId, agent.id, {
-                text: newQuestion,
-                embedding,
-            });
+            const { prompt, context, trainingIds } = await this.getNextPrompt(
+                agent,
+                {
+                    text: newQuestion,
+                    embedding,
+                },
+                parameters,
+            );
 
             if (!context) {
                 const { message, isFallback } = await this.contextAiBuilderService.handleMessage(
-                    workspaceId,
-                    agent.id,
+                    agent,
                     null,
                     AiProviderError.ContextNotFound,
                     true,
                 );
 
-                const createdMessage = await this.createContextMessageAndCaching({
-                    fromInteractionId,
-                    workspaceId,
-                    botId,
-                    referenceId,
-                    contextId,
-                    nextStep: null,
-                    content: message,
-                    role: ContextMessageRole.system,
-                    completionTokens: 0,
-                    promptTokens: 0,
-                    isFallback,
-                    agentId: agent.id,
-                });
+                const [createdMessage] = await Promise.all([
+                    this.createContextMessageAndCaching({
+                        ...defaultProps,
+                        content: message,
+                        role: ContextMessageRole.system,
+                        isFallback,
+                    }),
+                    this.createContextMessageAndCaching({
+                        ...defaultProps,
+                        content: newQuestion,
+                        role: ContextMessageRole.user,
+                        isFallback,
+                    }),
+                ]);
 
                 defaultResponse.data.message = createdMessage;
                 defaultResponse.data.variables = contextVariables;
@@ -201,21 +244,31 @@ export class ContextAiImplementorService {
                     workspaceId,
                     context,
                     trainingIds,
-                    botId,
+                    agentId: agent.id,
                 });
 
                 return defaultResponse;
             }
 
+            const variables = await this.contextVariableService.listVariablesFromAgent({
+                workspaceId,
+                agentId: agent.id,
+            });
+            const temperature = this.contextVariableService.getVariableValue(variables, 'temperature') || 0.3;
+
             const aiResponse = await this.aiProviderService.execute({
                 provider: AIProviderType.openai,
                 messages: historicMessages,
                 prompt,
+                maxTokens: 2056,
+                temperature: Number(temperature),
+                model: defaultModelName,
+                frequencyPenalty: 0.5,
+                presencePenalty: 0.3,
             });
 
             const { message, isFallback, nextStep } = await this.contextAiBuilderService.handleMessage(
-                workspaceId,
-                agent.id,
+                agent,
                 aiResponse.message,
             );
 
@@ -228,7 +281,7 @@ export class ContextAiImplementorService {
                     workspaceId,
                     context,
                     trainingIds,
-                    botId,
+                    agentId: agent.id,
                 });
 
                 return defaultResponse;
@@ -238,32 +291,22 @@ export class ContextAiImplementorService {
 
             const [createdMessage] = await Promise.all([
                 this.createContextMessageAndCaching({
-                    fromInteractionId,
-                    workspaceId,
-                    botId,
-                    referenceId,
-                    contextId,
+                    ...defaultProps,
                     nextStep,
                     content: message,
                     role: ContextMessageRole.system,
                     completionTokens,
                     promptTokens,
                     isFallback,
-                    agentId: agent.id,
                 }),
                 this.createContextMessageAndCaching({
-                    fromInteractionId,
-                    workspaceId,
-                    botId,
-                    referenceId,
-                    contextId,
+                    ...defaultProps,
                     content: newQuestion,
                     nextStep: null,
                     role: ContextMessageRole.user,
                     completionTokens: 0,
                     promptTokens: tokens,
                     isFallback,
-                    agentId: agent.id,
                 }),
             ]);
 
@@ -273,12 +316,23 @@ export class ContextAiImplementorService {
                     workspaceId,
                     context,
                     trainingIds,
-                    botId,
+                    agentId: agent.id,
                 });
             }
 
             defaultResponse.data.message = createdMessage;
             defaultResponse.data.variables = contextVariables;
+
+            const { actions, detectedIntent, interaction } = await this.intentDetectionService.getIntentDetectionById(
+                nextStep?.intent,
+                agent.id,
+            );
+
+            defaultResponse.data.intent = {
+                actions,
+                detectedIntent: detectedIntent || null,
+                interaction: interaction || null,
+            };
 
             return defaultResponse;
         } catch (error) {

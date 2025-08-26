@@ -6,6 +6,7 @@ import { transformArrayIntoPostgresInClause } from '../../../common/utils/utils'
 import { CatchError } from '../../auth/exceptions';
 import { CreateActivityData } from '../interfaces/create-activity.interface';
 import { CONVERSATION_CONNECTION } from '../ormconfig';
+import * as Sentry from '@sentry/node';
 
 @Injectable()
 export class ActivityV2Service {
@@ -27,38 +28,64 @@ export class ActivityV2Service {
             data = JSON.parse(a);
             return data;
         } catch (e) {
+            let errorJson = '';
+            try {
+                errorJson = JSON.stringify(e);
+            } catch (e) {}
             this.logger.error(e);
+            Sentry.captureEvent({
+                message: 'ERROR SAVING ACTIVITY ActivityV2Service.replaceInvalidChars',
+                extra: {
+                    errorJson,
+                    data: data,
+                },
+            });
         }
         return data;
     }
 
     @CatchError()
     async createActivity(data: CreateActivityData) {
-        data = await this.replaceInvalidChars(data);
-        return await this.conversationActivityRepository.insert({
-            id: data._id,
-            ack: data.ack,
-            attachmentFile: data.attachmentFile,
-            attachments: data.attachments,
-            conversationId: data.conversationId,
-            createdAt: data.createdAt,
-            fromChannel: data.fromChannel,
-            fromId: data.fromId,
-            fromName: data.fromName,
-            fromType: data.fromType,
-            hash: data.hash,
-            isHsm: data.isHsm,
-            name: data.name,
-            recognizerResult: data.recognizerResult,
-            text: data.text,
-            timestamp: data.timestamp,
-            type: data.type,
-            workspaceId: data.workspaceId,
-            data: data.data,
-            quoted: data.quoted,
-            templateId: data.templateId,
-            referralSourceId: data.referralSourceId,
-        });
+        try {
+            data = await this.replaceInvalidChars(data);
+            return await this.conversationActivityRepository.insert({
+                id: data._id,
+                ack: data.ack,
+                attachmentFile: data.attachmentFile,
+                attachments: data.attachments,
+                conversationId: data.conversationId,
+                createdAt: data.createdAt,
+                fromChannel: data.fromChannel,
+                fromId: data.fromId,
+                fromName: data.fromName,
+                fromType: data.fromType,
+                hash: data.hash,
+                isHsm: data.isHsm,
+                name: data.name,
+                recognizerResult: data.recognizerResult,
+                text: data.text,
+                timestamp: data.timestamp,
+                type: data.type,
+                workspaceId: data.workspaceId,
+                data: data.data,
+                quoted: data.quoted,
+                templateId: data.templateId,
+                referralSourceId: data.referralSourceId,
+            });
+        } catch (e) {
+            let errorJson = '';
+            try {
+                errorJson = JSON.stringify(e);
+            } catch (e) {}
+            this.logger.error(e);
+            Sentry.captureEvent({
+                message: 'ERROR SAVING ACTIVITY ActivityV2Service.createActivity',
+                extra: {
+                    errorJson,
+                    data: data,
+                },
+            });
+        }
     }
 
     @CatchError()

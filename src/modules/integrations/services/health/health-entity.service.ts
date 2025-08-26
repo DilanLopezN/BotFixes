@@ -82,7 +82,7 @@ export class HealthEntityService extends MongooseAbstractionService<HealthEntity
                     name: { $regex: `.*${regexSearch}.*`, $options: 'i' },
                 },
                 {
-                    code: { $regex: `.*${regexSearch}.*` },
+                    code: { $regex: `.*${regexSearch}.*`, $options: 'i' },
                 },
                 {
                     friendlyName: { $regex: `.*${regexSearch}.*`, $options: 'i' },
@@ -467,6 +467,7 @@ export class HealthEntityService extends MongooseAbstractionService<HealthEntity
                             occupationArea: date,
                             organizationUnitLocation: date,
                             typeOfService: date,
+                            laterality: date,
                         },
                     },
                 },

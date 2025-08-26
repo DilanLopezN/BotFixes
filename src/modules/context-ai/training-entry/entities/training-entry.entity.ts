@@ -1,7 +1,7 @@
 import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 import { ITrainingEntry } from '../interfaces/training-entry.interface';
 
-@Index(['workspaceId', 'botId'])
+@Index(['workspaceId', 'agentId'])
 @Entity('training_entry')
 export class TrainingEntry implements ITrainingEntry {
     @PrimaryGeneratedColumn('uuid')
@@ -15,9 +15,6 @@ export class TrainingEntry implements ITrainingEntry {
 
     @Column({ name: 'workspace_id', nullable: false, length: 24 })
     workspaceId: string;
-
-    @Column({ name: 'bot_id', nullable: true, length: 24 })
-    botId?: string;
 
     @Column({ name: 'pending_training', nullable: true })
     pendingTraining: boolean;

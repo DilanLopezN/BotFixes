@@ -8,11 +8,6 @@ export class UpdateTrainingEntryDto {
 
     @ApiProperty()
     @IsString()
-    @IsOptional()
-    botId?: string;
-
-    @ApiProperty()
-    @IsString()
     agentId: string;
 
     @ApiProperty()

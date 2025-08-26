@@ -25,7 +25,6 @@ import { HealthIntegrationStatusController } from './controllers/health/health-i
 import { HealthIntegrationMessagesService } from './services/health/health-integration-messages.service';
 import { HealthIntegrationMessagesSchema } from './schemas/health/health-integration-messages.schema';
 import { HealthIntegrationMessagesController } from './controllers/health/health-integration-messages.controller';
-import { WorkspacesModule } from '../workspaces/workspaces.module';
 
 @Module({
     controllers: [

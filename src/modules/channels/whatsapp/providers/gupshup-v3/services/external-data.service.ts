@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, OnApplicationBootstrap } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
 import { FileUploaderService } from '../../../../../../common/file-uploader/file-uploader.service';
 import { FlowService } from '../../../../../whatsapp-flow/services/flow.service';
@@ -12,12 +12,20 @@ import {
 } from '../../../../../conversation/services/create-conversation.service';
 import { ConversationService } from '../../../../../conversation/services/conversation.service';
 import { ChannelConfigService } from '../../../../../channel-config/channel-config.service';
-import { IConversationWhatsappExpirationUpdated } from 'kissbot-core';
+import {
+    IConversationWhatsappExpirationUpdated,
+    TemplateCategory,
+    TemplateRejectionReason,
+    TemplateStatus,
+} from 'kissbot-core';
 import { Conversation } from './../../../../../conversation/interfaces/conversation.interface';
 import { FlowDataService } from '../../../../../whatsapp-flow/services/flow-data.service';
+import { AttachmentService } from '../../../../../attachment/services/attachment.service';
+import { WhatsappIdHashService } from '../../../services/whatsapp-id-hash.service';
+import { TemplateMessageService } from '../../../../../template-message/services/template-message.service';
 
 @Injectable()
-export class ExternalDataService {
+export class ExternalDataService implements OnApplicationBootstrap {
     private fileUploaderService: FileUploaderService;
     private flowService: FlowService;
     private flowDataService: FlowDataService;
@@ -28,25 +36,45 @@ export class ExternalDataService {
     private createConversationService: CreateConversationService;
     private conversationService: ConversationService;
     private channelConfigService: ChannelConfigService;
+    private attachmentService: AttachmentService;
+    private whatsappIdHashService: WhatsappIdHashService;
+    private templateMessageService: TemplateMessageService;
     constructor(private readonly moduleRef: ModuleRef) {}
 
     async onApplicationBootstrap() {
-        this.fileUploaderService = this.moduleRef.get<FileUploaderService>(FileUploaderService, { strict: false });
-        this.flowService = this.moduleRef.get<FlowService>(FlowService, { strict: false });
-        this.flowDataService = this.moduleRef.get<FlowDataService>(FlowDataService, { strict: false });
-        this.gupshupIdHashService = this.moduleRef.get<GupshupIdHashService>(GupshupIdHashService, { strict: false });
-        this.activityService = this.moduleRef.get<ActivityService>(ActivityService, { strict: false });
-        this.activeMessageService = this.moduleRef.get<ActiveMessageService>(ActiveMessageService, { strict: false });
-        this.mismatchWaidService = this.moduleRef.get<MismatchWaidService>(MismatchWaidService, { strict: false });
-        this.createConversationService = this.moduleRef.get<CreateConversationService>(CreateConversationService, {
-            strict: false,
-        });
-        this.conversationService = this.moduleRef.get<ConversationService>(ConversationService, {
-            strict: false,
-        });
-        this.channelConfigService = this.moduleRef.get<ChannelConfigService>(ChannelConfigService, {
-            strict: false,
-        });
+        try {
+            this.fileUploaderService = this.moduleRef.get<FileUploaderService>(FileUploaderService, { strict: false });
+            this.flowService = this.moduleRef.get<FlowService>(FlowService, { strict: false });
+            this.flowDataService = this.moduleRef.get<FlowDataService>(FlowDataService, { strict: false });
+            this.gupshupIdHashService = this.moduleRef.get<GupshupIdHashService>(GupshupIdHashService, {
+                strict: false,
+            });
+            this.activityService = this.moduleRef.get<ActivityService>(ActivityService, { strict: false });
+            this.activeMessageService = this.moduleRef.get<ActiveMessageService>(ActiveMessageService, {
+                strict: false,
+            });
+            this.mismatchWaidService = this.moduleRef.get<MismatchWaidService>(MismatchWaidService, { strict: false });
+            this.createConversationService = this.moduleRef.get<CreateConversationService>(CreateConversationService, {
+                strict: false,
+            });
+            this.conversationService = this.moduleRef.get<ConversationService>(ConversationService, {
+                strict: false,
+            });
+            this.channelConfigService = this.moduleRef.get<ChannelConfigService>(ChannelConfigService, {
+                strict: false,
+            });
+            this.attachmentService = this.moduleRef.get<AttachmentService>(AttachmentService, { strict: false });
+            this.whatsappIdHashService = this.moduleRef.get<WhatsappIdHashService>(WhatsappIdHashService, {
+                strict: false,
+            });
+            this.templateMessageService = this.moduleRef.get<TemplateMessageService>(TemplateMessageService, {
+                strict: false,
+            });
+
+            console.log('ExternalDataService initialized successfully');
+        } catch (error) {
+            console.error('Error initializing ExternalDataService:', error);
+        }
     }
 
     async getAuthUrl(fileKey: string, options?: any) {
@@ -176,6 +204,116 @@ export class ExternalDataService {
             return await this.channelConfigService.getOneBtIdOrToken(idOrToken);
         } catch (e) {
             return null;
+        }
+    }
+
+    async createAndUpload(
+        fileToUpload,
+        conversationId,
+        memberId,
+        isStartActivity,
+        messageText?,
+        tempalteId?,
+        user?,
+        hash?,
+    ) {
+        return await this.attachmentService.createAndUpload(
+            fileToUpload,
+            conversationId,
+            memberId,
+            isStartActivity,
+            messageText,
+            tempalteId,
+            user,
+            hash,
+        );
+    }
+
+    async checkMissingReceived(phoneNumber, channelConfigToken, error?) {
+        return await this.activeMessageService.checkMissingReceived(phoneNumber, channelConfigToken, error);
+    }
+
+    async getConversationIdByActivityHash(hash) {
+        return await this.activityService.getConversationIdByActivityHash(hash);
+    }
+
+    async findHashByWppId(wppId) {
+        return await this.whatsappIdHashService.findHashByWppId(wppId);
+    }
+
+    async findByHash(hash) {
+        return await this.whatsappIdHashService.findByHash(hash);
+    }
+
+    async getOneConversation(conversationId) {
+        return await this.conversationService.getOne(conversationId);
+    }
+
+    async updateDeliveredMessageInConversation(conversationId) {
+        return await this.conversationService.updateDeliveredMessageInConversation(conversationId);
+    }
+
+    async updateConversationInvalidNumber(conversationId, workspaceId) {
+        return await this.conversationService.updateConversationInvalidNumber(conversationId, workspaceId);
+    }
+
+    async checkMissingRead(phoneNumber, channelConfigToken) {
+        return await this.activeMessageService.checkMissingRead(phoneNumber, channelConfigToken);
+    }
+
+    async updateTemplateApprovalStatusAndWhatsappId(
+        channelConfigToken: string,
+        templateId: string,
+        whatsappTemplateId: string,
+        status: TemplateStatus,
+        rejectedReason?: TemplateRejectionReason,
+        category?: TemplateCategory,
+    ) {
+        try {
+            console.log('Updating template approval status:', { templateId, whatsappTemplateId, status });
+            if (!this.templateMessageService) {
+                console.error('TemplateMessageService not initialized');
+                return;
+            }
+            if (!this.templateMessageService.updateTemplateApprovalStatusAndWhatsappId) {
+                console.error('updateTemplateApprovalStatusAndWhatsappId method not found on TemplateMessageService');
+                return;
+            }
+            await this.templateMessageService.updateTemplateApprovalStatusAndWhatsappId(
+                channelConfigToken,
+                templateId,
+                whatsappTemplateId,
+                status,
+                rejectedReason,
+                category,
+            );
+            console.log('Template approval status updated successfully');
+        } catch (e) {
+            console.error('Error updating template approval status:', e);
+        }
+    }
+
+    async updateTemplateCategory(channelConfigToken: string, templateId: string, category: TemplateCategory) {
+        try {
+            console.log('Updating template category:', { templateId, category });
+            if (!this.templateMessageService) {
+                console.error('TemplateMessageService not initialized');
+                return;
+            }
+            if (!this.templateMessageService.updateCategoryTemplate) {
+                console.error('updateCategoryTemplate method not found on TemplateMessageService');
+                return;
+            }
+            const channelConfig = await this.channelConfigService.getOneByToken(channelConfigToken);
+            const result = await this.templateMessageService.updateCategoryTemplate(
+                channelConfig,
+                templateId,
+                category,
+            );
+            console.log('Template category updated successfully');
+            return result;
+        } catch (e) {
+            console.error('Error updating template category:', e);
         }
     }
 }

@@ -268,6 +268,10 @@ export class PartnerApiService {
         js['enableSample'] = true;
         js['allowTemplateCategoryChange'] = allowTemplateCategoryChange;
 
+        if (template?.footerMessage) {
+            js['footer'] = template.footerMessage;
+        }
+
         const { context_message, example_message } = this.onHandleBarsCompileMessage(
             template.message,
             template.variables || [],

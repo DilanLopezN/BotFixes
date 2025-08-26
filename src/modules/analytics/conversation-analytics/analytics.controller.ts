@@ -1,7 +1,7 @@
 import { Body, Controller, Param, Post, Res, UseGuards, UseInterceptors } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { AuthGuard } from '../../auth/guard/auth.guard';
-import { ActivityQueryFilter, ConversationQueryFilter } from './interfaces/analytics.interface';
+import { ActivityQueryFilter, AgentConversationMetricsQueryFilterDto, ConversationQueryFilter } from './interfaces/analytics.interface';
 import { ActivityService } from './services/activity.service';
 import { ConversationService } from './services/conversation.service';
 import { PredefinedRoles } from './../../../common/utils/utils';
@@ -10,6 +10,7 @@ import { RolesGuard } from './../../users/guards/roles.guard';
 import { downloadFileType, typeDownloadEnum } from '../../../common/utils/downloadFileType';
 import { TimeoutInterceptor } from '../../../common/interceptors/timeout.interceptor';
 import { Exceptions } from '../../../modules/auth/exceptions';
+import { AgentConversationMetricsService } from './services/agent-conversation-metrics.service';
 
 @ApiTags('Analytics')
 @Controller('workspaces')
@@ -18,6 +19,7 @@ export class AnalyticsController {
     constructor(
         private readonly activityV2Service: ActivityService,
         private readonly conversationV2Service: ConversationService,
+        private readonly agentConversationMetricsService: AgentConversationMetricsService,
     ) {}
     @Post(':workspaceId/analytics/activities')
     @RolesDecorator([
@@ -59,6 +61,72 @@ export class AnalyticsController {
             queryFilter.omitInvalidNumber = true;
         }
         return await this.conversationV2Service.getConversationData(queryFilter);
+    }
+
+    @Post(':workspaceId/analytics/team-conversation-metrics')
+    @RolesDecorator([
+        PredefinedRoles.SYSTEM_ADMIN,
+        PredefinedRoles.SYSTEM_CS_ADMIN,
+        PredefinedRoles.SYSTEM_UX_ADMIN,
+        PredefinedRoles.WORKSPACE_ADMIN,
+        PredefinedRoles.DASHBOARD_ADMIN,
+    ])
+    @UseGuards(RolesGuard)
+    @UseInterceptors(new TimeoutInterceptor(120000))
+    async getTeamConversationProductivity(
+        @Param('workspaceId') workspaceId: string,
+        @Body() queryFilterDto: AgentConversationMetricsQueryFilterDto,
+    ) {
+        let queryFilter: AgentConversationMetricsQueryFilterDto = {
+            ...queryFilterDto,
+            workspaceId,
+        };
+
+        return await this.agentConversationMetricsService.getTeamConversationProductivity(queryFilter);
+    }
+
+    @Post(':workspaceId/analytics/agent-conversation-metrics/top')
+    @RolesDecorator([
+        PredefinedRoles.SYSTEM_ADMIN,
+        PredefinedRoles.SYSTEM_CS_ADMIN,
+        PredefinedRoles.SYSTEM_UX_ADMIN,
+        PredefinedRoles.WORKSPACE_ADMIN,
+        PredefinedRoles.DASHBOARD_ADMIN,
+    ])
+    @UseGuards(RolesGuard)
+    @UseInterceptors(new TimeoutInterceptor(120000))
+    async getTopAgentConversationProductivity(
+        @Param('workspaceId') workspaceId: string,
+        @Body() queryFilterDto: AgentConversationMetricsQueryFilterDto,
+    ) {
+        let queryFilter: AgentConversationMetricsQueryFilterDto = {
+            ...queryFilterDto,
+            workspaceId,
+        };
+
+        return await this.agentConversationMetricsService.getTopAgentConversationProductivity(queryFilter);
+    }
+
+    @Post(':workspaceId/analytics/agent-conversation-metrics/total')
+    @RolesDecorator([
+        PredefinedRoles.SYSTEM_ADMIN,
+        PredefinedRoles.SYSTEM_CS_ADMIN,
+        PredefinedRoles.SYSTEM_UX_ADMIN,
+        PredefinedRoles.WORKSPACE_ADMIN,
+        PredefinedRoles.DASHBOARD_ADMIN,
+    ])
+    @UseGuards(RolesGuard)
+    @UseInterceptors(new TimeoutInterceptor(120000))
+    async getTotalAgentConversationProductivity(
+        @Param('workspaceId') workspaceId: string,
+        @Body() queryFilterDto: AgentConversationMetricsQueryFilterDto,
+    ) {
+        let queryFilter: AgentConversationMetricsQueryFilterDto = {
+            ...queryFilterDto,
+            workspaceId,
+        };
+
+        return await this.agentConversationMetricsService.getTotalAgentConversationProductivity(queryFilter);
     }
 
     @Post('/:workspaceId/analytics/conversations/user-resume-avg/exportCSV')

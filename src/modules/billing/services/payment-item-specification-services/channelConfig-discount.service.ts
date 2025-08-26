@@ -72,6 +72,11 @@ export class ChannelConfigDiscountService implements IPaymentItemSpecificationSe
                 itemDescription = 'Desconto referente a envios de solicitação de documentos';
                 break;
             }
+            case PaymentItemTypes.active_mkt_discount: {
+                channelConfig = ChannelIdConfig.active_mkt;
+                itemDescription = 'Desconto referente a envios de marketing ativo';
+                break;
+            }
             default: {
                 channelConfig = null;
                 break;

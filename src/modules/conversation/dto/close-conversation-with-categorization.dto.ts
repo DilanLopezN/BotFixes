@@ -1,5 +1,6 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsArray, IsNumber, IsOptional, IsString, MaxLength } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsArray, IsEnum, IsNumber, IsOptional, IsString, MaxLength } from 'class-validator';
+import { CategorizationType } from '../../conversation-categorization-v2/interfaces/categorization-type';
 
 export class CloseConversationWithCategorizationDto {
     @ApiPropertyOptional()
@@ -16,6 +17,14 @@ export class CloseConversationWithCategorizationDto {
     @IsOptional()
     @IsString()
     description?: string;
+
+    @ApiProperty({
+        enum: CategorizationType,
+        description: 'Tipo de categorização: USER, REMI, SYSTEM',
+        default: CategorizationType.USER,
+    })
+    @IsEnum(CategorizationType)
+    type: CategorizationType = CategorizationType.USER;
 
     @ApiPropertyOptional()
     @IsOptional()

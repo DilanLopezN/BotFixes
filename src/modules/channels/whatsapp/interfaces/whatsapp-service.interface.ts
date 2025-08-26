@@ -104,6 +104,9 @@ export interface WhatsappInterfaceService {
         category: TemplateCategory,
         template: any,
         fileData?: any,
+        file?: UploadingFile,
+        templateType?: any,
+        allowTemplateCategoryChange?: boolean,
     ): Promise<void>;
 }
 

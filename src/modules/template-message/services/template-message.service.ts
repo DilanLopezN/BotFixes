@@ -1,7 +1,7 @@
 import { CacheService } from '../../_core/cache/cache.service';
 import { User } from '../../users/interfaces/user.interface';
 import { InjectModel } from '@nestjs/mongoose';
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnprocessableEntityException } from '@nestjs/common';
 import { MongooseAbstractionService } from '../../../common/abstractions/mongooseAbstractionService.service';
 import { isObjectIdOrHexString, Model } from 'mongoose';
 import { TemplateMessage, WabaResultType } from '../interface/template-message.interface';
@@ -29,14 +29,27 @@ import * as Sentry from '@sentry/node';
 import { hasChangedFields } from '../../../common/utils/changeTracker';
 import { TemplateMessageHistoryService } from './template-message-history.service';
 import { ChannelConfig } from '../../channel-config/interfaces/channel-config.interface';
+import { SuggestionTextsService } from '../../../modules/suggestion-texts-v2/services/suggestion-texts.service';
 
 const MAX_LENGTH_MESSAGE_HSM = 1024;
 const MAX_LENGTH_MESSAGE_WITH_FILE = 1024;
 const MAX_LENGTH_MESSAGE = 4096;
 const MIN_LENGTH_MESSAGE = 10;
+const MAX_LENGTH_FOOTER_MESSAGE = 60;
 // link document whatsapp media - https://developers.facebook.com/docs/whatsapp/on-premises/reference/media/
 const VALID_FILE_IMAGE_TEMPLATE_HSM = ['image/jpeg', 'image/png'];
 const VALID_FILE_VIDEO_TEMPLATE_HSM = ['video/mp4', 'video/3gpp'];
+const VALID_FILE_AUDIO_TEMPLATE_HSM = ['audio/aac', 'audio/amr', 'audio/mpeg', 'audio/mp4', 'audio/ogg'];
+const VALID_FILE_DOCUMENT_TEMPLATE_HSM = [
+    'text/plain',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-powerpoint',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'application/pdf',
+];
 const MAX_SIZE_FILE_IMAGE_TEMPLATE_HSM = 5000000; // 5 MB
 const MAX_SIZE_FILE_VIDEO_TEMPLATE_HSM = 16000000; // 16 MB
 const MAX_SIZE_FILE_AUDIO_TEMPLATE_HSM = 16000000; // 16 MB
@@ -53,6 +66,7 @@ export class TemplateMessageService extends MongooseAbstractionService<TemplateM
     constructor(
         @InjectModel('TemplateMessage') protected readonly model: Model<TemplateMessage>,
         private readonly templateMessageHistoryService: TemplateMessageHistoryService,
+        private readonly suggestionTextsService: SuggestionTextsService,
         cacheService: CacheService,
         private readonly storageService: StorageService,
         private readonly externalDataService: ExternalDataService,
@@ -235,7 +249,7 @@ export class TemplateMessageService extends MongooseAbstractionService<TemplateM
                 }
                 type = TemplateTypeGupshup.VIDEO;
             }
-            if (file.mimetype?.startsWith?.('audio')) {
+            if (file.mimetype?.startsWith?.('audio') && VALID_FILE_AUDIO_TEMPLATE_HSM.includes(file.mimetype)) {
                 if (file.size > MAX_SIZE_FILE_AUDIO_TEMPLATE_HSM) {
                     throw Exceptions.ERROR_IN_FILE_SIZE_EXCEEDS_LIMIT;
                 }
@@ -247,8 +261,14 @@ export class TemplateMessageService extends MongooseAbstractionService<TemplateM
                 }
                 type = TemplateTypeGupshup.IMAGE;
             }
-            if (file.size > MAX_SIZE_FILE_DOCUMENT_TEMPLATE_HSM) {
-                throw Exceptions.ERROR_IN_FILE_SIZE_EXCEEDS_LIMIT;
+            if (
+                (file.mimetype?.startsWith?.('application') || file.mimetype?.startsWith?.('text')) &&
+                VALID_FILE_DOCUMENT_TEMPLATE_HSM.includes(file.mimetype)
+            ) {
+                if (file.size > MAX_SIZE_FILE_DOCUMENT_TEMPLATE_HSM) {
+                    throw Exceptions.ERROR_IN_FILE_SIZE_EXCEEDS_LIMIT;
+                }
+                type = TemplateTypeGupshup.DOCUMENT;
             }
             return type;
         }
@@ -311,7 +331,7 @@ export class TemplateMessageService extends MongooseAbstractionService<TemplateM
 
     public async _create(
         data: TemplateMessageDto & {
-            userId: string;
+            user: User;
             workspaceId: string;
         },
         allowTemplateCategoryChange?: boolean,
@@ -372,6 +392,10 @@ export class TemplateMessageService extends MongooseAbstractionService<TemplateM
                 throw Exceptions.TEMPLATE_MESSAGE_LENGTH_EXCEED;
             }
 
+            if (data?.footerMessage?.trim()?.length > MAX_LENGTH_FOOTER_MESSAGE) {
+                throw Exceptions.TEMPLATE_FOOTER_MESSAGE_LENGTH_EXCEED;
+            }
+
             if (!validMessageTemplate) {
                 throw Exceptions.TEMPLATE_MESSAGE_INVALID;
             }
@@ -401,6 +425,10 @@ export class TemplateMessageService extends MongooseAbstractionService<TemplateM
                 throw Exceptions.TEMPLATE_MESSAGE_LENGTH_EXCEED;
             }
 
+            if (data?.footerMessage?.trim()?.length > MAX_LENGTH_FOOTER_MESSAGE) {
+                throw Exceptions.TEMPLATE_FOOTER_MESSAGE_LENGTH_EXCEED;
+            }
+
             if (variableEmpty) {
                 throw Exceptions.TEMPLATE_VARIABLES_INVALID;
             }
@@ -412,6 +440,16 @@ export class TemplateMessageService extends MongooseAbstractionService<TemplateM
         }
 
         templateType = this.checkValidTemplateFile(file);
+
+        if (isAnySystemAdmin(data.user) && data.isHsm && !data.aiSuggestion) {
+            const { data: dataSuggestion } = await this.suggestionTextsService.getTemplateMessageSuggestions(
+                data.workspaceId,
+                { message: data.message, buttons: data.buttons },
+            );
+            if (dataSuggestion.remove.length) {
+                throw new UnprocessableEntityException(dataSuggestion);
+            }
+        }
 
         const template = await this.create({
             ...data,
@@ -427,7 +465,7 @@ export class TemplateMessageService extends MongooseAbstractionService<TemplateM
         if (file) {
             let filePreviewUrl = await this.uploadFileTemplate(
                 template.workspaceId,
-                data.userId,
+                data.user._id as string,
                 castObjectIdToString(template._id),
                 file,
             );
@@ -452,6 +490,9 @@ export class TemplateMessageService extends MongooseAbstractionService<TemplateM
                             templateCategory,
                             template,
                             fileData,
+                            file,
+                            templateType,
+                            allowTemplateCategoryChange,
                         );
                     } catch (error) {
                         console.log('ERROR CREATE TEMPLATE GUPSHUP: ', error);
@@ -532,7 +573,17 @@ export class TemplateMessageService extends MongooseAbstractionService<TemplateM
                 }
                 channelResult.push(String(currTemplateGupshup.channelConfigId));
 
-                if (currTemplateGupshup.status === 'success') {
+                if (currTemplateGupshup.status === 'approved') {
+                    active = true;
+                    wabaResult[currTemplateGupshup.channelConfigId] = {
+                        channelConfigId: currTemplateGupshup.channelConfigId,
+                        appName: currTemplateGupshup?.appName,
+                        status: TemplateStatus.APPROVED,
+                        elementName: castObjectIdToString(template._id),
+                        wabaTemplateId: currTemplateGupshup.external_id,
+                        category: currTemplateGupshup?.category || templateCategory,
+                    };
+                } else if (currTemplateGupshup.status === 'success') {
                     wabaResult[currTemplateGupshup.channelConfigId] = {
                         channelConfigId: currTemplateGupshup.channelConfigId,
                         appName: currTemplateGupshup.appName,
@@ -1673,7 +1724,7 @@ export class TemplateMessageService extends MongooseAbstractionService<TemplateM
     }
 
     @CatchError()
-    async createDefaultTemplateHsm(workspaceId: string, userId: string, channelConfigId: string, clientName: string) {
+    async createDefaultTemplateHsm(workspaceId: string, user: User, channelConfigId: string, clientName: string) {
         const partialTemplate = [
             {
                 name: 'podemos conversar',
@@ -1731,7 +1782,7 @@ export class TemplateMessageService extends MongooseAbstractionService<TemplateM
             teams: [],
             channels: [castObjectId(channelConfigId)],
             variables: [],
-            userId: castObjectId(userId),
+            userId: castObjectId(user._id),
             workspaceId: castObjectId(workspaceId),
             category: TemplateCategory.UTILITY,
             buttons: [],
@@ -1745,7 +1796,7 @@ export class TemplateMessageService extends MongooseAbstractionService<TemplateM
         });
 
         for (const template of templatesToCreate) {
-            await this._create(template, false);
+            await this._create({ ...template, user }, false);
         }
 
         return { ok: true };

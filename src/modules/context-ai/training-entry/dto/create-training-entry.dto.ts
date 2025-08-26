@@ -4,11 +4,6 @@ import { IsOptional, IsString, MaxLength } from 'class-validator';
 export class CreateTrainingEntryDto {
     @ApiProperty()
     @IsString()
-    @IsOptional()
-    botId?: string;
-
-    @ApiProperty()
-    @IsString()
     agentId: string;
 
     @ApiProperty()

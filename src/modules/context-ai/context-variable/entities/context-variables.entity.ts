@@ -1,7 +1,7 @@
 import { Column, Entity, Index, PrimaryGeneratedColumn, Unique } from 'typeorm';
 import { ContextVariableType, IContextVariable } from '../interfaces/context-variables.interface';
 
-@Index(['workspaceId', 'agentId', 'botId', 'contextId'])
+@Index(['workspaceId', 'agentId', 'contextId'])
 @Unique(['workspaceId', 'agentId', 'name'])
 @Entity('context_variable')
 export class ContextVariable implements IContextVariable {
@@ -16,9 +16,6 @@ export class ContextVariable implements IContextVariable {
 
     @Column({ name: 'workspace_id', nullable: false, length: 24 })
     workspaceId: string;
-
-    @Column({ name: 'bot_id', nullable: true, length: 24 })
-    botId?: string;
 
     @Column({ name: 'context_id', nullable: true, length: 24 })
     contextId?: string;

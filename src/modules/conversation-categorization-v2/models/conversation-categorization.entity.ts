@@ -1,7 +1,16 @@
 import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 
 @Entity()
-@Index(['conversationId', 'objectiveId', 'outcomeId', 'userId', 'teamId', 'description', 'conversationTags', 'createdAt'])
+@Index([
+    'conversationId',
+    'objectiveId',
+    'outcomeId',
+    'userId',
+    'teamId',
+    'description',
+    'conversationTags',
+    'createdAt',
+])
 export class ConversationCategorization {
     @PrimaryGeneratedColumn()
     id: number;
@@ -23,6 +32,9 @@ export class ConversationCategorization {
 
     @Column({ name: 'user_id', nullable: false })
     userId: string;
+
+    @Column({ name: 'type', nullable: false, default: 'USER' })
+    type: string;
 
     @Column({ name: 'team_id', nullable: false })
     teamId: string;

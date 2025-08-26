@@ -6,6 +6,7 @@ export enum DefaultContextVariables {
     temperature = 'temperature',
     historicMessagesLength = 'historicMessagesLength',
     customPersonality = 'customPersonality',
+    time = 'time',
     customPrompt = 'customPrompt',
 
     // variáveis de fallback

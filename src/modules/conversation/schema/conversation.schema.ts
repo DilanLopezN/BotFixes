@@ -219,6 +219,10 @@ export const ConversationSchema = new mongoose.Schema(
             type: String,
             required: false,
         },
+        conversationFlags: {
+            type: mongoose.Schema.Types.Mixed,
+            required: false,
+        },
     },
     { versionKey: false, collection: 'conversations_api', strictQuery: true },
 );

@@ -1,5 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsBoolean, IsNotEmpty, IsOptional, IsString, IsUUID } from 'class-validator';
+import { IsBoolean, IsNotEmpty, IsOptional, IsString, IsUUID, IsEnum } from 'class-validator';
+import { AgentType } from '../entities/agent.entity';
+import { AgentMode } from '../interfaces/agent.interface';
 
 export class CreateAgentDto {
     @ApiProperty()
@@ -14,12 +16,10 @@ export class CreateAgentDto {
 
     @ApiProperty()
     @IsString()
-    @IsNotEmpty()
     personality: string;
 
     @ApiProperty()
     @IsString()
-    @IsNotEmpty()
     @IsOptional()
     prompt?: string;
 
@@ -31,6 +31,21 @@ export class CreateAgentDto {
     @IsBoolean()
     @IsOptional()
     isDefault?: boolean;
+
+    @ApiProperty({ required: false, enum: AgentType })
+    @IsEnum(AgentType)
+    @IsOptional()
+    agentType?: AgentType;
+
+    @ApiProperty({ required: false, enum: AgentMode })
+    @IsEnum(AgentMode)
+    @IsOptional()
+    agentMode?: AgentMode;
+
+    @ApiProperty()
+    @IsString()
+    @IsOptional()
+    modelName?: string;
 }
 
 export class UpdateAgentDto {
@@ -68,6 +83,11 @@ export class UpdateAgentDto {
     @IsBoolean()
     @IsOptional()
     isActive?: boolean;
+
+    @ApiProperty({ required: false, enum: AgentType })
+    @IsEnum(AgentType)
+    @IsOptional()
+    agentType?: AgentType;
 }
 
 export class DeleteAgentDto {
@@ -94,4 +114,9 @@ export class ListAgentsFilterDto {
     @IsBoolean()
     @IsOptional()
     isActive?: boolean;
+
+    @ApiProperty({ required: false, enum: AgentType })
+    @IsEnum(AgentType)
+    @IsOptional()
+    agentType?: AgentType;
 }

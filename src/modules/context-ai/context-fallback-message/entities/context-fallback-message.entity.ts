@@ -10,8 +10,8 @@ export class ContextFallbackMessage implements IContextFallbackMessage {
     @Column({ name: 'workspace_id', nullable: false, length: 24 })
     workspaceId: string;
 
-    @Column({ name: 'bot_id', nullable: true, length: 24 })
-    botId?: string;
+    @Column({ name: 'agent_id', nullable: true, length: 36 })
+    agentId: string;
 
     @Column({ name: 'question', nullable: false })
     question: string;

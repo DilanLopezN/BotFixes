@@ -12,6 +12,7 @@ import { Exceptions } from '../../auth/exceptions';
 import * as moment from 'moment-timezone';
 import * as Sentry from '@sentry/node';
 import { Conversation } from '../../conversation/interfaces/conversation.interface';
+import { CategorizationType } from '../../conversation-categorization-v2/interfaces/categorization-type';
 @Injectable()
 export class SmtReService {
     private readonly logger = new Logger(SmtReService.name);
@@ -54,12 +55,12 @@ export class SmtReService {
             createdAt: new Date(),
         });
 
-        return this.smtReRepository.save(smtRe);
+        return await this.smtReRepository.save(smtRe);
     }
 
-    async findLastNonStoopedByConversationId(conversationId: string): Promise<SmtRe> {
+    async findLastByConversationId(conversationId: string): Promise<SmtRe> {
         return this.smtReRepository.findOne({
-            where: { conversationId, stopped: false },
+            where: { conversationId },
             relations: ['smtReSetting'],
             order: {
                 createdAt: 'DESC',
@@ -134,6 +135,7 @@ export class SmtReService {
                         );
 
                         if (now.valueOf() >= initialSendTime.valueOf()) {
+                            await this.externalDataService.sendStmReActivity(pendingSmtRe, ActivityType.smt_re_assumed);
                             await this.sendMessage(pendingSmtRe, SmtReMessageType.INITIAL);
                             await this.externalDataService.addTags(pendingSmtRe.conversationId, [
                                 { color: '#678f78', name: '@remi.assume' },
@@ -228,6 +230,7 @@ export class SmtReService {
                 text: messageText,
                 data: {
                     omitSocket: false,
+                    feature: 'remi',
                 },
                 conversationId: smtRe.conversationId,
             };
@@ -243,19 +246,13 @@ export class SmtReService {
             }
             // Se for mensagem de finalização, enviar activity end_conversation
             if (messageType === SmtReMessageType.FINALIZATION) {
+                await this.externalDataService.dispatchMessageActivity(conversation, activity);
                 // Cria a categorização - try catch para impedir que o remi falhe na finalização caso de erro na criação da categorização
-
                 try {
-                    await this.createAutomaticCategorization(smtRe, conversation);
+                    await this.finishConversation(smtRe, conversation);
                 } catch (error) {
                     this.logger.log(`Failed to create auto categorization ${smtReId}`);
                 }
-
-                await this.externalDataService.dispatchMessageActivity(conversation, activity);
-
-                await this.externalDataService.dispatchEndConversationActivity(smtRe.conversationId, sysMember, {
-                    closeType: ConversationCloseType.bot_finished,
-                });
 
                 this.logger.log(`End conversation activity sent for smt-re: ${smtReId}`);
             }
@@ -266,29 +263,24 @@ export class SmtReService {
         }
     }
 
-    async stopSmtRe(conversationId: string, memberId?: string): Promise<void> {
+    async stopSmtRe(conversationId: string, memberId?: string): Promise<SmtRe> {
         try {
-            const smtRe = await this.findLastNonStoopedByConversationId(conversationId);
+            const smtRe = await this.findLastByConversationId(conversationId);
             if (!smtRe) return;
-            if (smtRe.stopped) return;
+            if (smtRe.stopped) return smtRe;
             await this.smtReRepository.update(smtRe.id, {
                 stopped: true,
                 stoppedAt: moment().toDate(),
                 stoppedByMemberId: memberId?.toString ? memberId?.toString?.() : memberId,
             });
+            return await this.findById(smtRe.id);
         } catch (error) {
             this.logger.error(`Error stopping automatic messages for conversation ${conversationId}:`, error);
         }
     }
 
-    private async createAutomaticCategorization(smtRe: SmtRe, conversation: Conversation): Promise<void> {
+    private async finishConversation(smtRe: SmtRe, conversation: Conversation): Promise<void> {
         try {
-            // Verificar se configuração tem objetivo e desfecho definidos
-            if (!smtRe.smtReSetting.objectiveId || !smtRe.smtReSetting.outcomeId) {
-                this.logger.debug(`SMT-RE setting ${smtRe.smtReSettingId} does not have objective/outcome configured`);
-                return;
-            }
-
             // Buscar membro do sistema para usar como autor da categorização
             let sysMember = conversation.members.find((member) => member.type === IdentityType.system);
             if (!sysMember) {
@@ -300,12 +292,22 @@ export class SmtReService {
                 };
             }
 
+            // Verificar se configuração tem objetivo e desfecho definidos
+            if (!smtRe.smtReSetting.objectiveId || !smtRe.smtReSetting.outcomeId) {
+                await this.externalDataService.dispatchEndConversationActivity(smtRe.conversationId, sysMember, {
+                    closeType: ConversationCloseType.bot_finished,
+                });
+                return;
+            }
+
             // Criar categorização automática
             const categorizationData = {
                 conversationId: smtRe.conversationId,
                 objectiveId: smtRe.smtReSetting.objectiveId,
                 outcomeId: smtRe.smtReSetting.outcomeId,
-                userId: sysMember.id,
+
+                type: 'REMI' as CategorizationType,
+                userId: smtRe.smtReSetting.id, // ID da configuração especifica daquele Remi
                 teamId: conversation.assignedToTeamId,
                 description: 'Categorização automática via REMI',
                 conversationTags: conversation.tags?.map((tag) => tag.name) || [],
@@ -316,6 +318,8 @@ export class SmtReService {
                 smtRe.conversationId,
                 sysMember.id,
                 categorizationData,
+                ConversationCloseType.bot_finished,
+                'remi',
             );
 
             this.logger.log(`Automatic categorization created for conversation ${smtRe.conversationId} by REMI`);

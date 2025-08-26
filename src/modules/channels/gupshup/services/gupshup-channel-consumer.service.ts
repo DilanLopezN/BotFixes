@@ -75,14 +75,14 @@ export class GupshupChannelConsumer {
                     if (activity.isHsm && activity.data?.wabaTemplateId) {
                         response = await this.sendTemplateMessage(activity);
                     } else if (
-                        activity.attachments?.[0].content.buttons.length === 1 &&
-                        activity.attachments?.[0].content?.buttons?.[0]?.type === 'flow'
+                        activity.attachments?.[0]?.content?.buttons.length === 1 &&
+                        activity.attachments?.[0]?.content?.buttons?.[0]?.type === 'flow'
                     ) {
                         const channelConfig = await this.externalDataService.getChannelConfig(conversation.token);
                         response = await this.externalDataService.sendFlowMessage(activity, channelConfig);
                     } else if (
-                        activity.attachments?.[0].content.buttons.length === 1 &&
-                        activity.attachments?.[0].content?.buttons?.[0]?.type === 'openUrl'
+                        activity.attachments?.[0]?.content?.buttons.length === 1 &&
+                        activity.attachments?.[0]?.content?.buttons?.[0]?.type === 'openUrl'
                     ) {
                         response = await this.sendCtaURLMessageToGupshup(conversation, activity);
                     } else if (
@@ -147,7 +147,6 @@ export class GupshupChannelConsumer {
 
                 await this.gupshupUtilService.setGupshupIdHash(response.messageId, activity.hash);
                 await this.gupshupIdHashService.create({
-                    channelConfigToken: conversation.token,
                     gsId: response.messageId,
                     hash: activity.hash,
                     conversationId: castObjectIdToString(conversation._id),
@@ -212,7 +211,10 @@ export class GupshupChannelConsumer {
         if (!activity.text) {
             console.log('ERROR UNDEFINED TEXT', JSON.stringify(activity));
         }
-        const gupshupData = await this.getGupshupAccountInfos(castObjectIdToString(conversation._id), conversation.token);
+        const gupshupData = await this.getGupshupAccountInfos(
+            castObjectIdToString(conversation._id),
+            conversation.token,
+        );
         const destination = activity.to.id;
         const message: any = {
             isHSM: `${!!activity.isHsm}`,
@@ -272,7 +274,10 @@ export class GupshupChannelConsumer {
                     gsId = resultGsId;
                 }
             }
-            const gupshupData = await this.getGupshupAccountInfos(castObjectIdToString(conversation._id), conversation.token);
+            const gupshupData = await this.getGupshupAccountInfos(
+                castObjectIdToString(conversation._id),
+                conversation.token,
+            );
             const destination = activity.to.id;
             const message = {
                 type: 'reaction',
@@ -291,7 +296,10 @@ export class GupshupChannelConsumer {
     }
 
     private async sendQuickReplyMessageToGupshup(conversation: Conversation, activity: Activity) {
-        const gupshupData = await this.getGupshupAccountInfos(castObjectIdToString(conversation._id), conversation.token);
+        const gupshupData = await this.getGupshupAccountInfos(
+            castObjectIdToString(conversation._id),
+            conversation.token,
+        );
         const destination = activity.to.id;
         const attach = activity.attachments[0];
 
@@ -311,8 +319,8 @@ export class GupshupChannelConsumer {
         }
 
         try {
-            if (conversation?.createdByChannel === ChannelIdConfig.recover_lost_schedule) {
-                content.caption = 'Desenvolvido por Botdesigner';
+            if (attach.content?.footer) {
+                content.caption = attach?.content?.footer;
             }
         } catch (e) {
             console.log('ERRO BUILD CAPTION ON QUICK_REPLY', e);
@@ -341,7 +349,10 @@ export class GupshupChannelConsumer {
     }
 
     private async sendListMessageToGupshup(conversation: Conversation, activity: Activity) {
-        const gupshupData = await this.getGupshupAccountInfos(castObjectIdToString(conversation._id), conversation.token);
+        const gupshupData = await this.getGupshupAccountInfos(
+            castObjectIdToString(conversation._id),
+            conversation.token,
+        );
         const destination = activity.to.id;
         const attach = activity.attachments[0];
 
@@ -355,7 +366,7 @@ export class GupshupChannelConsumer {
             };
         });
 
-        const message = {
+        let message: any = {
             type: 'list',
             title: attach.content?.title || '',
             body: `${attach.content?.subtitle ? attach.content?.subtitle : ''}\n${
@@ -365,6 +376,15 @@ export class GupshupChannelConsumer {
             globalButtons: [{ type: 'text', title: attach?.content?.titleButtonList || 'Ver opções' }],
             items: [{ options }],
         };
+
+        try {
+            if (attach.content?.footer) {
+                message.footer = attach?.content?.footer;
+            }
+        } catch (e) {
+            console.log('ERRO BUILD CAPTION ON LIST', e);
+        }
+
         const source = await this.getSource(gupshupData?.phoneNumber);
         const serializedBody: string = `channel=whatsapp&source=${source}&destination=${destination}&message=${encodeURIComponent(
             JSON.stringify(message),
@@ -403,7 +423,10 @@ export class GupshupChannelConsumer {
 
     private async sendCtaURLMessageToGupshup(conversation: Conversation, activity: Activity) {
         try {
-            const gupshupData = await this.getGupshupAccountInfos(castObjectIdToString(conversation._id), conversation.token);
+            const gupshupData = await this.getGupshupAccountInfos(
+                castObjectIdToString(conversation._id),
+                conversation.token,
+            );
             const destination = activity.to.id;
             const attach = activity.attachments[0];
             const button = attach.content.buttons[0];
@@ -417,7 +440,7 @@ export class GupshupChannelConsumer {
                 };
             }
 
-            const message = {
+            let message: any = {
                 type: 'cta_url',
                 header,
                 body: `${attach.content?.title ? `*${attach.content?.title}*\n\n` : ''}${
@@ -426,6 +449,15 @@ export class GupshupChannelConsumer {
                 display_text: button?.title?.slice?.(0, 20) || 'Clique aqui!',
                 url: button?.value || '',
             };
+
+            try {
+                if (attach.content?.footer) {
+                    message.footer = attach?.content?.footer;
+                }
+            } catch (e) {
+                console.log('ERRO BUILD FOOTER ON CTA_URL', e);
+            }
+
             const source = await this.getSource(gupshupData?.phoneNumber);
             const serializedBody: string = `channel=whatsapp&source=${source}&destination=${destination}&message=${encodeURIComponent(
                 JSON.stringify(message),
@@ -509,7 +541,10 @@ export class GupshupChannelConsumer {
             );
         }
 
-        const gupshupData = await this.getGupshupAccountInfos(castObjectIdToString(conversation._id), conversation.token);
+        const gupshupData = await this.getGupshupAccountInfos(
+            castObjectIdToString(conversation._id),
+            conversation.token,
+        );
 
         if (activity.isHsm) {
             if (activity.data?.wabaTemplateId) {

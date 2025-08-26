@@ -5,7 +5,7 @@ interface IContextFallbackMessage {
     trainingIds: string[];
     createdAt: Date;
     workspaceId: string;
-    botId?: string;
+    agentId: string;
 }
 
 export { IContextFallbackMessage };

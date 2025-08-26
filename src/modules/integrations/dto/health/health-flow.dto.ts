@@ -52,6 +52,10 @@ export class CreateHealthFlowDto {
 
     @IsString({ each: true })
     @IsOptional()
+    lateralityId?: string[];
+
+    @IsString({ each: true })
+    @IsOptional()
     reasonId?: string[];
 
     @IsString()
@@ -67,6 +71,10 @@ export class CreateHealthFlowDto {
     @IsString({ each: true })
     @IsOptional()
     step?: HealthFlowSteps[];
+
+    @IsString({ each: true })
+    @IsOptional()
+    opposeStep?: HealthFlowSteps[];
 
     @IsBoolean()
     @IsOptional()

@@ -1,8 +1,11 @@
+import { IAgent } from '../../agent/interfaces/agent.interface';
+import { DoQuestionParameters } from './do-question.interface';
+
 interface BuildMessageTemplate {
-    workspaceId: string;
     question: string;
     context: string;
-    agentId: string;
+    agent: IAgent;
+    parameters?: DoQuestionParameters;
 }
 
 export type { BuildMessageTemplate };

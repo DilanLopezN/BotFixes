@@ -5,6 +5,8 @@ import { Identity } from '../../conversation/interfaces/conversation.interface';
 import { WorkspacesService } from '../../workspaces/services/workspaces.service';
 import { ConversationCategorizationService } from '../../conversation-categorization-v2/services/conversation-categorization.service';
 import { CreateConversationCategorizationParams } from '../../conversation-categorization-v2/interfaces/create-conversation-categorization.interface';
+import { SmtRe } from '../models/smt-re.entity';
+import { ActivityType, ConversationCloseType } from 'kissbot-core';
 
 @Injectable()
 export class ExternalDataService {
@@ -35,6 +37,10 @@ export class ExternalDataService {
         await this.conversationService.addMember(conversationId, member);
     }
 
+    async sendStmReActivity(smtRe: SmtRe, type: ActivityType) {
+        await this.conversationService.sendStmReActivity(smtRe, type);
+    }
+
     async dispatchEndConversationActivity(conversationId: string, botMember: Identity, data: any) {
         await this.conversationService.dispatchEndConversationActivity(conversationId, botMember, data);
     }
@@ -48,14 +54,16 @@ export class ExternalDataService {
         conversationId: string,
         memberId: string,
         data: CreateConversationCategorizationParams,
-        closeType?: string,
+        closeType?: ConversationCloseType,
+        feature?: string,
     ) {
         return await this.conversationService.closeConversationWithCategorization(
             workspaceId,
             conversationId,
             memberId,
             data,
-            closeType as any, // Cast to ConversationCloseType if type is not imported, or import and use as ConversationCloseType
+            closeType,
+            feature,
         );
     }
 

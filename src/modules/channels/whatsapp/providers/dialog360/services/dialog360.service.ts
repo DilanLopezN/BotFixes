@@ -24,12 +24,14 @@ import {
     MetaWhatsappOutcomingVideoMessage,
     MetaWhatsappOutcomingDocumentMessage,
     MetaWhatsappOutcomingTemplateContent,
+    MetaWhatsappOutcomingInteractiveMessage,
+    InteractiveFooter,
 } from '../interfaces/meta-whatsapp-outcoming.interface';
 import { MetaWhatsappIncomingTemplateEvent, MetaWhatsappWebhookEvent } from 'kissbot-core';
 import { ExternalDataService } from './external-data.service';
 import { CompleteChannelConfig } from '../../../../../channel-config/channel-config.service';
 import { Dialog360IncomingService } from './dialog360.incoming.service';
-import { TemplateCategory } from 'src/modules/template-message/schema/template-message.schema';
+import { TemplateCategory } from '../../../../../template-message/schema/template-message.schema';
 
 interface AppData {
     token: string;
@@ -108,6 +110,7 @@ export class Dialog360Service implements WhatsappInterfaceService {
         const attach = activity.attachments[0];
 
         let header: MetaWhatsappOutcomingInteractiveHeader = null;
+        let footer: InteractiveFooter = null;
 
         let { mediaUrl, fileType, fileName } = await this.dialog360UtilService.getFileDetails(activity);
         if (mediaUrl && fileName && fileType) {
@@ -123,6 +126,11 @@ export class Dialog360Service implements WhatsappInterfaceService {
                 text: attach.content?.title,
             };
         }
+        if (attach?.content?.footer) {
+            footer = {
+                text: attach?.content?.footer,
+            };
+        }
 
         const payload: MetaWhatsappOutcomingInteractiveContent = {
             type: 'button',
@@ -132,6 +140,7 @@ export class Dialog360Service implements WhatsappInterfaceService {
                     attach.content?.text ? attach.content?.text : ''
                 }`,
             },
+            footer,
             action: {
                 buttons: (attach.content.buttons || []).map((btn, index) => ({
                     type: 'reply',
@@ -187,6 +196,11 @@ export class Dialog360Service implements WhatsappInterfaceService {
             payload.header = {
                 type: 'text',
                 text: attach?.content?.title,
+            };
+        }
+        if (attach?.content?.footer) {
+            payload.footer = {
+                text: attach?.content?.footer,
             };
         }
 

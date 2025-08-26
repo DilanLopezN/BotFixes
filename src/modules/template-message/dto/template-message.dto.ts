@@ -105,6 +105,12 @@ export class TemplateMessageDto {
     @ApiProperty()
     isHsm: boolean;
 
+    @IsString()
+    @MaxLength(60)
+    @ApiProperty()
+    @IsOptional()
+    footerMessage?: string;
+
     @IsBoolean()
     @ApiProperty()
     active?: boolean;
@@ -170,4 +176,9 @@ export class TemplateMessageDto {
     @IsOptional()
     @IsString()
     action?: string;
+
+    @ApiProperty()
+    @IsOptional()
+    @IsBoolean()
+    aiSuggestion?: string;
 }

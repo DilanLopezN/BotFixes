@@ -27,7 +27,7 @@ export class ContextAiHistoricService {
             const results = await client.hgetall(key);
 
             return Object.values(results)
-                .slice(0, size)
+                .slice(0, Number(size))
                 .map((value) => JSON.parse(value));
         } catch (error) {
             this.logger.error('ContextAiHistoricService.listContextMessages', error);

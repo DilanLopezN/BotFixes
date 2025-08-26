@@ -24,6 +24,7 @@ export interface AttachmentFile {
     contentUrl?: string;
     name?: string;
     key?: string;
+    id?: string;
 }
 
 export interface Attachment {
@@ -32,6 +33,7 @@ export interface Attachment {
     content?: any;
     name?: string;
     thumbnailUrl?: string;
+    id?: string;
 }
 
 export interface Activity extends Document {

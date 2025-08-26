@@ -18,6 +18,7 @@ export enum ObjectiveType {
     'schedule_notification' = ChannelIdConfig.schedule_notification,
     'recover_lost_schedule' = ChannelIdConfig.recover_lost_schedule,
     'documents_request' = ChannelIdConfig.documents_request,
+    'active_mkt' = ChannelIdConfig.active_mkt,
 }
 
 @Entity()

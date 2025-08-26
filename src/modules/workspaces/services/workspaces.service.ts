@@ -1,24 +1,24 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { Workspace } from '../interfaces/workspace.interface';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { MongooseAbstractionService } from '../../../common/abstractions/mongooseAbstractionService.service';
-import { Model } from 'mongoose';
-import { DialogFlowService } from '../../_core/dialogFlow/dialogFlow.service';
-import { WorkspaceModel } from '../schemas/workspace.schema';
-import { WorkspaceDto } from '../dtos/workspace.dto';
-import { CacheService } from '../../_core/cache/cache.service';
-import { User, PermissionResources, UserRoles } from '../../users/interfaces/user.interface';
-import { EventsService } from './../../events/events.service';
 import { KissbotEventDataType, KissbotEventSource, KissbotEventType } from 'kissbot-core';
+import { omit } from 'lodash';
+import * as moment from 'moment';
+import { Model } from 'mongoose';
+import { MongooseAbstractionService } from '../../../common/abstractions/mongooseAbstractionService.service';
+import { isAnySystemAdmin, isSystemAdmin } from '../../../common/utils/roles';
+import { castObjectId } from '../../../common/utils/utils';
+import { CacheService } from '../../_core/cache/cache.service';
+import { DialogFlowService } from '../../_core/dialogFlow/dialogFlow.service';
+import { PermissionResources, User, UserRoles } from '../../users/interfaces/user.interface';
+import { matchIp } from '../../workspace-access-group/middleware/ip.middleware';
+import { WorkspaceAccessGroupService } from '../../workspace-access-group/services/workspace-access-group.service';
+import { UpdateWorkspaceAdvancedModuleFeaturesDto, UpdateWorkspaceFlagsDto, WorkspaceDto } from '../dtos/workspace.dto';
+import { Workspace } from '../interfaces/workspace.interface';
+import { WorkspaceModel } from '../schemas/workspace.schema';
 import { QueryStringFilter } from './../../../common/abstractions/queryStringFilter.interface';
 import { CatchError, Exceptions } from './../../auth/exceptions';
-import { WorkspaceAccessGroupService } from '../../workspace-access-group/services/workspace-access-group.service';
-import { matchIp } from '../../workspace-access-group/middleware/ip.middleware';
-import { isAnySystemAdmin, isSystemAdmin } from '../../../common/utils/roles';
-import * as moment from 'moment';
-import { omit } from 'lodash';
+import { EventsService } from './../../events/events.service';
 import { ExternalDataService } from './external-data.service';
-import { castObjectId } from '../../../common/utils/utils';
 
 @Injectable()
 export class WorkspacesService extends MongooseAbstractionService<Workspace> {
@@ -62,10 +62,15 @@ export class WorkspacesService extends MongooseAbstractionService<Workspace> {
 
     async _update(workspaceId, workspaceDto: WorkspaceDto, user?: User) {
         let canChangeWorkspaceName = user && isSystemAdmin(user) ? true : false;
+        const isAnySystem = isAnySystemAdmin(user);
 
         const updateWorkspace = new WorkspaceModel();
         Object.assign(updateWorkspace, canChangeWorkspaceName ? workspaceDto : omit(workspaceDto, ['name']));
-        if (updateWorkspace.featureFlag?.campaign) {
+        if (!isAnySystem) {
+            Object.assign(updateWorkspace, omit(workspaceDto, ['featureFlag']));
+        }
+
+        if (updateWorkspace?.featureFlag?.campaign) {
             updateWorkspace.featureFlag.activeMessage = true;
             await this.externalDataService.createDefaultActiveMessages(workspaceId);
         }
@@ -75,13 +80,24 @@ export class WorkspacesService extends MongooseAbstractionService<Workspace> {
         ) {
             throw Exceptions.CONVERSATION_OBJECTIVE_AND_OUTCOME_NEEDED;
         }
+
+        if (updateWorkspace?.generalConfigs?.enableAgentStatusForAgents) {
+            if (!(await this.externalDataService.hasActiveBreakSettingByWorkspace(workspaceId))) {
+                throw Exceptions.AGENT_STATUS_NEEDED;
+            }
+        }
+
+        if (updateWorkspace?.generalConfigs?.ignoreUserFollowupConversation) {
+            await this.externalDataService.updateInteractionWelcome(workspaceId);
+        }
+
         await this.update(workspaceId, updateWorkspace);
-        if (updateWorkspace.featureFlag?.disabledWorkspace) {
+        if (updateWorkspace?.featureFlag?.disabledWorkspace) {
             await this.disableWorkspace(workspaceId);
         } else {
             await this.enableWorkspace(workspaceId);
         }
-        if (updateWorkspace.featureFlag?.dashboardNewVersion) {
+        if (updateWorkspace?.featureFlag?.dashboardNewVersion) {
             await this.externalDataService.createDefaultConversationTemplates(workspaceId);
         }
         this.eventsService.sendEvent({
@@ -91,6 +107,75 @@ export class WorkspacesService extends MongooseAbstractionService<Workspace> {
             type: KissbotEventType.WORKSPACE_UPDATED,
         });
         return updateWorkspace;
+    }
+
+    async updateAdvancedModuleFeatures(
+        workspaceId: string,
+        data: UpdateWorkspaceAdvancedModuleFeaturesDto,
+        user?: User,
+    ) {
+        const workspace = await this.findOne({ _id: castObjectId(workspaceId) });
+
+        if (workspace) {
+            const updateWorkspace = workspace;
+            Object.assign(updateWorkspace, {
+                advancedModuleFeatures: {
+                    ...(workspace?.advancedModuleFeatures || {}),
+                    ...(data?.advancedModuleFeatures || {}),
+                },
+            });
+            await this.update(workspaceId, updateWorkspace);
+
+            this.eventsService.sendEvent({
+                data: updateWorkspace,
+                dataType: KissbotEventDataType.WORKSPACE,
+                source: KissbotEventSource.KISSBOT_API,
+                type: KissbotEventType.WORKSPACE_UPDATED,
+            });
+            return updateWorkspace;
+        }
+    }
+
+    async updateFlagsAndConfigs(workspaceId: string, dto: UpdateWorkspaceFlagsDto, user?: User): Promise<Workspace> {
+        const updatePayload = { $set: {} };
+
+        if (dto.featureFlag) {
+            if (!isAnySystemAdmin(user)) {
+                throw new ForbiddenException('Você não tem permissão para atualizar featureFlag.');
+            }
+            for (const key in dto.featureFlag) {
+                if (Object.prototype.hasOwnProperty.call(dto.featureFlag, key)) {
+                    updatePayload.$set[`featureFlag.${key}`] = dto.featureFlag[key];
+                }
+            }
+        }
+
+        if (dto.generalConfigs) {
+            for (const key in dto.generalConfigs) {
+                if (Object.prototype.hasOwnProperty.call(dto.generalConfigs, key)) {
+                    updatePayload.$set[`generalConfigs.${key}`] = dto.generalConfigs[key];
+                }
+            }
+        }
+
+        if (Object.keys(updatePayload.$set).length === 0) {
+            return this.getOne(workspaceId);
+        }
+
+        const updatedWorkspace = await this.model.findByIdAndUpdate(workspaceId, updatePayload, { new: true }).exec();
+
+        if (!updatedWorkspace) {
+            throw new NotFoundException(`Workspace com ID "${workspaceId}" não encontrado ao tentar atualizar.`);
+        }
+
+        this.eventsService.sendEvent({
+            data: updatedWorkspace,
+            dataType: KissbotEventDataType.WORKSPACE,
+            source: KissbotEventSource.KISSBOT_API,
+            type: KissbotEventType.WORKSPACE_UPDATED,
+        });
+
+        return updatedWorkspace;
     }
 
     @CatchError()

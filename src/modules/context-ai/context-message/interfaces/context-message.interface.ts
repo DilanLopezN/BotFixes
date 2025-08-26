@@ -8,11 +8,17 @@ interface IContextMessage {
     referenceId: string;
     fromInteractionId?: string;
     workspaceId: string;
-    botId?: string;
     agentId: string;
     completionTokens: number;
     promptTokens: number;
+    modelName: string;
     isFallback: boolean;
+    type: ContextMessageType;
+}
+
+enum ContextMessageType {
+    message = 'message',
+    rewrite = 'rewrite',
 }
 
 enum ContextMessageRole {
@@ -20,4 +26,4 @@ enum ContextMessageRole {
     'system' = 'system',
 }
 
-export { IContextMessage, ContextMessageRole };
+export { IContextMessage, ContextMessageRole, ContextMessageType };

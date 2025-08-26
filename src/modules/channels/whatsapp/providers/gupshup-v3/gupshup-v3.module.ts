@@ -6,6 +6,8 @@ import { ExternalDataService } from './services/external-data.service';
 import { GupshupV3IncomingMessageConsumer } from './services/gupshup-v3-incoming-message-consumer.service';
 import { GupshupV3IncomingService } from './services/gupshup-v3.incoming.service';
 import { EventsModule } from '../../../../events/events.module';
+import { KafkaModule } from '../../../../_core/kafka/kafka.module';
+import { FileUploaderModule } from '../../../../../common/file-uploader/file-uploader.module';
 
 @Module({
     controllers: [],
@@ -16,6 +18,6 @@ import { EventsModule } from '../../../../events/events.module';
         GupshupV3IncomingMessageConsumer,
         GupshupV3IncomingService,
     ],
-    imports: [CacheModule, EventsModule],
+    imports: [CacheModule, EventsModule, KafkaModule, FileUploaderModule],
 })
 export class Gupshupv3Module {}

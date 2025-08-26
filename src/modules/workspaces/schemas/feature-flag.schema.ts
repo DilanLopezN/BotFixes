@@ -26,11 +26,10 @@ export const FeatureFlagSchema = new mongoose.Schema(
         enableRecoverLostSchedule: Boolean,
         enableNpsScore: Boolean,
         enableTelegram: Boolean,
-        enableAudioTranscription: Boolean,
+        enableAudioTranscription: { type: Boolean, default: true },
         enableBotAudioTranscription: Boolean,
         enableUploadErpDocuments: Boolean,
         enableConcatAgentNameInMessage: Boolean,
-        enableConversationAttributeV2: Boolean,
         enableContactV2: Boolean,
     },
     { versionKey: false, _id: false, strict: false }, // com strict = false permite adicionar outras chaves que não estejam listadas no enum

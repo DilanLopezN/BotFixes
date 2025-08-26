@@ -134,6 +134,9 @@ export class ExternalDataService {
         category: TemplateCategory,
         template: any,
         fileData?: any,
+        file?: UploadingFile,
+        templateType?: any,
+        allowTemplateCategoryChange?: boolean,
     ) {
         const completeChannelConfig = await this.channelConfigService.getOneBtIdOrToken(channelConfig.token);
         return await this.whatsappBridgeService.createTemplateMetaWhatsapp(
@@ -142,6 +145,9 @@ export class ExternalDataService {
             category,
             template,
             fileData,
+            file,
+            templateType,
+            allowTemplateCategoryChange,
         );
     }
 }

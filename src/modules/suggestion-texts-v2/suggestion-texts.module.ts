@@ -19,6 +19,20 @@ import { ExternalDataService } from './services/external-data.service';
             migrationsRun: false,
             migrations: [__dirname + '/migrations/**/*{.ts,.js}'],
             schema: 'context_ai',
+            replication: {
+                master: {
+                    url: process.env.POSTGRESQL_URI,
+                },
+                slaves: [
+                    {
+                        url: process.env.POSTGRESQL_READ_URI,
+                    },
+                ],
+            },
+            extra: {
+                min: 1,
+                max: 3,
+            },
         }),
         TypeOrmModule.forFeature([SuggestionTexts], SUGGESTION_TEXTS_CONNECTION),
     ],

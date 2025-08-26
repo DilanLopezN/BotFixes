@@ -66,6 +66,9 @@ import { ExternalDataService } from './services/external-data.service';
             migrationsRun: false,
             migrations: [__dirname + '/migrations/**/*{.ts,.js}'],
             schema: 'gupshup',
+            extra: {
+                min: 2,
+            },
         }),
         TypeOrmModule.forFeature([GupshupBillingEvent, GupshupIdHash, MismatchWaid, Referral], GUPSHUP_CONNECTION),
         AttachmentModule,

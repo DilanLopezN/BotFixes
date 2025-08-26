@@ -1,5 +1,4 @@
-import { GupshupMessageType } from "kissbot-core";
-import { Column, Entity, Index, PrimaryColumn, PrimaryGeneratedColumn } from "typeorm";
+import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 
 @Entity()
 export class GupshupIdHash {
@@ -12,15 +11,12 @@ export class GupshupIdHash {
     @Column({ name: 'workspace_id', nullable: true })
     workspaceId?: string;
 
-    @Column({ name: 'channel_config_token' })
-    channelConfigToken: string;
-
     @Column({ name: 'hash' })
-    @Index({unique: true})
+    @Index({ unique: true })
     hash: string;
 
     @Column({ name: 'gs_id' })
-    @Index({unique: true})
+    @Index({ unique: true })
     gsId: string;
 
     @Column({ type: 'bigint', name: 'created_at' })

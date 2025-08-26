@@ -12,6 +12,7 @@ export enum OmitEventByChannels {
     recover_lost_schedule = ChannelIdConfig.recover_lost_schedule,
     nps_score = ChannelIdConfig.nps_score,
     documents_request = ChannelIdConfig.documents_request,
+    active_mkt = ChannelIdConfig.active_mkt,
 }
 
 // Não enviar evento socket para canais de envio automatico EX: (confirmation, reminder, npm, medical_report)

@@ -68,7 +68,7 @@ export class ContextVariableService {
         const query: FindManyOptions<ContextVariable> = {
             where: {
                 workspaceId: data.workspaceId,
-                ...(data.botId ? { botId: data.botId } : {}),
+                agentId: data.agentId,
                 deletedAt: IsNull(),
             },
         };
@@ -83,6 +83,7 @@ export class ContextVariableService {
             name: data.name,
             workspaceId,
             deletedAt: IsNull(),
+            agentId: data.agentId,
         });
 
         if (trainingEntry) {
@@ -99,7 +100,6 @@ export class ContextVariableService {
         return await this.contextVariableRepository.save({
             workspaceId,
             contextId: null,
-            botId: agent.botId,
             createdAt: new Date(),
             ...data,
         });
@@ -136,5 +136,10 @@ export class ContextVariableService {
         );
 
         return { ok: result.affected > 0 };
+    }
+
+    public getVariableValue(variables: ContextVariable[], variableName: string, defaultValue?: any): any {
+        const variable = variables.find((variable) => variable.name === variableName);
+        return variable ? variable.value : defaultValue;
     }
 }

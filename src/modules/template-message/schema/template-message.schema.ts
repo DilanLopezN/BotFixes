@@ -2,7 +2,6 @@ import { TimesmapPlugin } from './../../../common/mongoosePlugins/timestamp.plug
 import * as mongoose from 'mongoose';
 import { TemplateMessage } from '../interface/template-message.interface';
 import { AfterFindSoftDeletePlugin } from './../../../common/mongoosePlugins/afterFindSoftDelete.plugin';
-import { TemplateLanguage } from '../../channels/gupshup/services/partner-api.service';
 
 export enum TemplateType {
     message = 'message',
@@ -13,6 +12,18 @@ export enum TemplateCategory {
     MARKETING = 'MARKETING',
     UTILITY = 'UTILITY',
     AUTHENTICATION = 'AUTHENTICATION',
+}
+
+export enum TemplateLanguage {
+    pt_BR = 'pt_BR',
+    pt_PT = 'pt_PT',
+    en = 'en',
+    en_US = 'en_US',
+    en_GB = 'en_GB',
+    es = 'es',
+    es_AR = 'es_AR',
+    es_ES = 'es_ES',
+    es_MX = 'es_MX',
 }
 
 export enum TemplateRejectionReason {
@@ -113,6 +124,10 @@ export const TemplateMessageSchema = new mongoose.Schema(
     {
         message: String,
         name: String,
+        footerMessage: {
+            type: String,
+            required: false,
+        },
         userId: {
             type: mongoose.Types.ObjectId,
             required: false,

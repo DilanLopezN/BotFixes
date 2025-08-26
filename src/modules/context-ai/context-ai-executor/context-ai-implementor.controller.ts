@@ -13,7 +13,6 @@ const defaultPermissionRoutes: RoleData[] = [
     PredefinedRoles.SYSTEM_CS_ADMIN,
     PredefinedRoles.SYSTEM_DEV_ADMIN,
     PredefinedRoles.SYSTEM_UX_ADMIN,
-    PredefinedRoles.WORKSPACE_ADMIN,
 ];
 
 @Controller('workspaces/:workspaceId/context-ai-implementor')

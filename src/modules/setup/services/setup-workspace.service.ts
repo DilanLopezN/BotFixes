@@ -3,7 +3,7 @@ import { ModuleRef } from '@nestjs/core';
 import { CatchError } from '../../auth/exceptions';
 import { WorkspacesService } from '../../workspaces/services/workspaces.service';
 import { castObjectIdToString } from '../../../common/utils/utils';
-import { ConversationAttributeService } from '../../conversation-attribute/service/conversation-attribute.service';
+import { ConversationAttributeService } from '../../conversation-attribute-v2/services/conversation-attribute.service';
 
 @Injectable()
 export class SetupWorkspaceService {
@@ -12,9 +12,12 @@ export class SetupWorkspaceService {
     @CatchError()
     async createWorkspace(workspaceName: string) {
         const workspaceService = this.moduleRef.get<WorkspacesService>(WorkspacesService, { strict: false });
-        const conversationAttributeService = this.moduleRef.get<ConversationAttributeService>(ConversationAttributeService, {
-            strict: false,
-        });
+        const conversationAttributeService = this.moduleRef.get<ConversationAttributeService>(
+            ConversationAttributeService,
+            {
+                strict: false,
+            },
+        );
         const workspace = await workspaceService._create({
             name: workspaceName,
         });

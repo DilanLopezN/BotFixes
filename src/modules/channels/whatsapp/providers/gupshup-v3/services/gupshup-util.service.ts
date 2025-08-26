@@ -17,7 +17,13 @@ import {
 const axiosRetry = require('axios-retry');
 import { Activity } from '../../../../../activity/interfaces/activity';
 import { ExternalDataService } from './external-data.service';
-import { ActivityType, getWithAndWithout9PhoneNumber, GupshupWhatsappWebhookEvent, IdentityType } from 'kissbot-core';
+import {
+    ActivityType,
+    getWithAndWithout9PhoneNumber,
+    GupshupWhatsappWebhookEvent,
+    IdentityType,
+    MetaWhatsappWebhookEvent,
+} from 'kissbot-core';
 import { Conversation, Identity } from './../../../../../conversation/interfaces/conversation.interface';
 import { ActivityDto } from '../../../../../conversation/dto/activities.dto';
 import * as moment from 'moment';
@@ -152,6 +158,34 @@ export class GupshupV3UtilService {
         return payload;
     }
 
+    async getFileDetails(activity: Activity) {
+        if (!activity?.attachmentFile) {
+            return { mediaUrl: null, fileType: null, fileName: null };
+        }
+
+        let mediaUrl: string = activity?.attachmentFile?.contentUrl;
+
+        const fileName = activity?.attachmentFile?.name || activity?.attachmentFile?.key;
+
+        if (!mediaUrl || mediaUrl.startsWith(process.env.API_URI)) {
+            mediaUrl = await this.externalDataService.getAuthUrl(activity.attachmentFile.key, {
+                fromCopyBucket: true,
+            });
+            mediaUrl = mediaUrl.substring(0, mediaUrl.lastIndexOf('?'));
+        }
+        let d360TemplateType;
+
+        if (activity.attachmentFile.contentType.startsWith('image')) {
+            d360TemplateType = 'image';
+        } else if (activity.attachmentFile.contentType.startsWith('video')) {
+            d360TemplateType = 'video';
+        } else {
+            d360TemplateType = 'file';
+        }
+
+        return { mediaUrl, fileType: d360TemplateType, fileName };
+    }
+
     private async getMediaInfo(activity: Activity, payloadType: PayloadGupshupTypes) {
         if (
             payloadType !== PayloadGupshupTypes.PayloadAudioMessage &&
@@ -190,24 +224,38 @@ export class GupshupV3UtilService {
         await client.set(key, hash, 'EX', 86400);
     }
 
-    getMemberId(payload: GupshupWhatsappWebhookEvent): string {
-        return payload.entry[0].changes[0].value.contacts[0].wa_id;
+    getMemberId(payload: any): string {
+        return (
+            payload.source ||
+            payload.entry[0].changes[0].value.contacts?.[0]?.wa_id ||
+            payload.entry[0].changes[0].value.messages[0].from
+        );
     }
 
-    getMemberName(payload: GupshupWhatsappWebhookEvent): string {
-        return payload.entry[0].changes[0].value.contacts[0].profile.name;
+    getMemberName(payload: MetaWhatsappWebhookEvent): string {
+        return payload.entry[0].changes[0].value.contacts?.[0]?.profile?.name || '';
     }
 
-    getHash(payload: GupshupWhatsappWebhookEvent) {
+    getHash(payload: MetaWhatsappWebhookEvent) {
         return payload.entry[0].changes[0].value.messages[0].id;
     }
 
-    getText(payload: GupshupWhatsappWebhookEvent) {
-        return payload.entry[0].changes[0].value.messages[0]?.['text']?.body || '';
+    getText(payload: MetaWhatsappWebhookEvent) {
+        return (
+            payload.entry[0].changes[0].value.messages[0]?.['text']?.body ||
+            payload.entry[0].changes[0].value.messages[0]?.['reaction']?.emoji ||
+            payload.entry[0].changes[0].value.messages[0]?.interactive?.['button_reply']?.title ||
+            payload.entry[0].changes[0].value.messages[0]?.interactive?.['list_reply']?.title ||
+            payload.entry[0].changes[0].value.messages[0]?.['image']?.caption ||
+            payload.entry[0].changes[0].value.messages[0]?.['video']?.caption ||
+            payload.entry[0].changes[0].value.messages[0]?.['contacts']?.name ||
+            ''
+        );
     }
 
-    getContext(payload: GupshupWhatsappWebhookEvent) {
+    getContext(payload: MetaWhatsappWebhookEvent) {
         return (
+            payload.entry[0].changes[0].value.messages[0]?.reaction?.message_id ||
             payload.entry[0].changes[0].value.messages[0]?.context?.gs_id ||
             payload.entry[0].changes[0].value.messages[0]?.context?.meta_msg_id
         );
@@ -224,7 +272,7 @@ export class GupshupV3UtilService {
         return [option1, option2];
     }
 
-    async getActivityDto(payload: GupshupWhatsappWebhookEvent, conversation: Conversation) {
+    async getActivityDto(payload: MetaWhatsappWebhookEvent, conversation: Conversation) {
         const possibilities = await this.getAllPossibleBrIds(this.getMemberId(payload));
         const from: Identity = conversation.members.find((member) => possibilities.includes(member.id));
         const to: Identity = conversation.members.find((member) => member.type == IdentityType.bot);
@@ -255,11 +303,18 @@ export class GupshupV3UtilService {
     getChannelData(channelConfig: CompleteChannelConfig) {
         return {
             channelToken: channelConfig.token,
-            apikey: channelConfig.configData.apiKey,
+            apikey: channelConfig.configData.apiKey || channelConfig.configData.apikey,
             appId: channelConfig.configData.appId,
             phoneNumber: channelConfig.configData.phone,
             partnerToken: channelConfig.configData.token,
             gupshupAppName: channelConfig.configData.appName,
+        };
+    }
+
+    convertContactToAttachment(contact: any) {
+        return {
+            contentType: 'application/contact',
+            content: contact,
         };
     }
 }

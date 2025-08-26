@@ -13,6 +13,7 @@ export enum PaymentItemTypes {
     nps_discount = 'nps_discount',
     medical_report_discount = 'medical_report_discount',
     documents_request_discount = 'documents_request_discount',
+    active_mkt_discount = 'active_mkt_discount',
     api_ivr_discount = 'api_ivr_discount',
     schedule_notification_discount = 'schedule_notification_discount',
     recover_lost_schedule_discount = 'recover_lost_schedule_discount',

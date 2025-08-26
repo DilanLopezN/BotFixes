@@ -9,6 +9,7 @@ import { ScheduleAnalyticsController } from './controllers/schedule-analytics.co
 import { AutomaticMessageController } from './automatic-message/automatic-message.controller';
 import { AutomaticMessageService } from './automatic-message/automatic-message.service';
 import { ExternalDataService } from './services/external-data.service';
+import { AgentStatusMiddleware } from '../agent-status/middleware/agent-status.middleware';
 @Module({
     imports: [],
     providers: [AutomaticMessageService, ExternalDataService],
@@ -34,5 +35,6 @@ export class ScheduleModule {
                 CancelReasonController,
                 DiagnosticController,
             );
+        consumer.apply(AgentStatusMiddleware).forRoutes(ScheduleAnalyticsController);
     }
 }

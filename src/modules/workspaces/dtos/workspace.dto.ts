@@ -1,6 +1,11 @@
-import { IsString, ValidateIf, IsNotEmpty } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
-import { CustomerXSettings, GeneralConfigs } from '../interfaces/workspace.interface';
+import { IsNotEmpty, IsObject, IsOptional, IsString, ValidateIf } from 'class-validator';
+import {
+    AdvancedModuleFeatures,
+    CustomerXSettings,
+    FeatureFlag,
+    GeneralConfigs,
+} from '../interfaces/workspace.interface';
 
 export class WorkspaceSeetingsDto {
     @ApiProperty()
@@ -59,5 +64,35 @@ export class WorkspaceDto {
     readonly generalConfigs?: GeneralConfigs;
 
     @ApiProperty({ required: false })
+    readonly featureFlag?: FeatureFlag;
+
+    @ApiProperty({ required: false })
     readonly customerXSettings?: CustomerXSettings;
+}
+
+export class UpdateWorkspaceFlagsDto {
+    @ApiProperty({
+        description: 'Flags para habilitar/desabilitar funcionalidades. Pode conter quaisquer chaves.',
+        type: 'object',
+        example: { newFeatureToggle: true, anotherFlag: false },
+        required: false,
+    })
+    @IsOptional()
+    @IsObject({ message: 'featureFlag deve ser um objeto de configurações.' })
+    featureFlag?: Record<string, any>;
+
+    @ApiProperty({
+        description: 'Configurações gerais do workspace. Pode conter quaisquer chaves.',
+        type: 'object',
+        example: { newConfig: 'value', itemsPerPage: 50 },
+        required: false,
+    })
+    @IsOptional()
+    @IsObject({ message: 'generalConfigs deve ser um objeto de configurações.' })
+    generalConfigs?: Record<string, any>;
+}
+
+export class UpdateWorkspaceAdvancedModuleFeaturesDto {
+    @ApiProperty({ required: false })
+    readonly advancedModuleFeatures?: AdvancedModuleFeatures;
 }

@@ -36,11 +36,13 @@ import { SendFileTemplateDto } from './dto/send-file-template.dto';
 import { CreateMultipleConversation } from './dto/create-multiple-conversation';
 import { CloseConversationWithCategorizationDto } from './dto/close-conversation-with-categorization.dto';
 import { AuthApiGuard } from '../auth/guard/auth-api.guard';
+// import { AgentStatusVerifyBreakGuard } from '../agent-status/guards/agent-status-verify-break.guard';
 import { CreateSmtReDto } from './dto/create-smt-re.dto';
 
 @ApiTags('conversation')
 @Controller('workspaces')
 @ApiBearerAuth()
+@UseGuards()
 export class ConversationController {
     private readonly logger = new Logger(ConversationController.name);
     constructor(private conversationService: ConversationService) {}
@@ -622,8 +624,14 @@ export class ConversationController {
         @Param('conversationId') conversationId: string,
         @Param('workspaceId') workspaceId: string,
         @Body(new ValidationPipe()) createSmtReDto: CreateSmtReDto,
+        @UserDecorator() user: User,
     ): Promise<{ success: boolean }> {
-        return await this.conversationService.createSmtRe(conversationId, workspaceId, createSmtReDto.smtReSettingId);
+        return await this.conversationService.createSmtRe(
+            conversationId,
+            workspaceId,
+            createSmtReDto.smtReSettingId,
+            user._id as string,
+        );
     }
 
     @HttpCode(200)
@@ -638,11 +646,11 @@ export class ConversationController {
     @UseGuards(AuthGuard, RolesGuard)
     @ApiParam({ name: 'conversationId', description: 'conversation id', type: String, required: true })
     @ApiParam({ name: 'workspaceId', description: 'workspace id', type: String, required: true })
-    async stopSmtRe(
+    async deactivateSmtRe(
         @Param('conversationId') conversationId: string,
         @Param('workspaceId') workspaceId: string,
         @UserDecorator() user: User,
     ): Promise<{ success: boolean }> {
-        return await this.conversationService.stopSmtRe(conversationId, workspaceId, user._id as string);
+        return await this.conversationService.deactivateSmtRe(conversationId, workspaceId, user._id as string);
     }
 }

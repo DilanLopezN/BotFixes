@@ -32,6 +32,7 @@ interface AgentSuggestionTextParams {
 
 interface TemplateSuggestionTextParams {
     message: string;
+    buttons?: Record<string, any>;
 }
 
 export type { AgentSuggestionTextParams, TemplateSuggestionTextParams };

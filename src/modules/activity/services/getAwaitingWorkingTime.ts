@@ -1,205 +1,95 @@
 import { Team } from '../../team/interfaces/team.interface';
 import * as moment from 'moment';
 
-export const getAwaitingWorkingTime = async (startDate: number, endDate: number, team: Team) => {
-    let count = 1;
+/**
+ * Retorna o horário do dia (em milissegundos) a partir de um timestamp.
+ * Exemplo: 08:30:00 => 8h * 3600000 + 30min * 60000 = 30600000 ms
+ */
+const timeOfDay = (date: number): number => {
+    const m = moment(date);
+    return m.hours() * 3600000 + m.minutes() * 60000 + m.seconds() * 1000;
+};
+
+/**
+ * Verifica se o timestamp `date` está dentro de algum feriado ou pausa (offDay).
+ */
+const isWithinOffDay = (
+    date: number,
+    offDays: { start: number; end: number }[],
+): { start: number; end: number } | undefined => {
+    return offDays.find((offDay) => date >= offDay.start && date <= offDay.end);
+};
+
+/**
+ * Calcula o tempo de sobreposição entre dois intervalos.
+ * Retorna 0 se não houver interseção.
+ */
+const calculatePeriodOverlap = (start: number, end: number, periodStart: number, periodEnd: number): number => {
+    const overlapStart = Math.max(start, periodStart);
+    const overlapEnd = Math.min(end, periodEnd);
+    return Math.max(0, overlapEnd - overlapStart);
+};
+
+/**
+ * Função principal que calcula o tempo útil de espera (em milissegundos)
+ * entre duas datas, considerando os horários de expediente da equipe e desconsiderando feriados.
+ */
+export const getAwaitingWorkingTime = async (startDate: number, endDate: number, team: Team): Promise<number> => {
     let waitingTime = 0;
-    let newStartDate = startDate;
+    let currentDate = startDate;
 
-    const timeofDay = (date) => {
-        const hour = moment(date).format('HH:mm:ss').split(':');
-        const timestamp = Number(hour[0]) * 3600000 + Number(hour[1]) * 60000 + Number(hour[2]) * 1000;
+    while (currentDate < endDate) {
+        const currentMoment = moment(currentDate);
+        const dayKey = currentMoment.locale('en').format('ddd').toLowerCase(); // ex: 'mon', 'tue'...
+        const periods = team.attendancePeriods?.[dayKey] || [];
 
-        return timestamp;
-    };
-    const hourEndDate = timeofDay(endDate);
-
-    while (newStartDate < endDate) {
-        let day = moment(newStartDate).format('ddd').toLocaleLowerCase();
-
-        if (team.attendancePeriods[day].length === 0) {
-            const dayTime = moment(newStartDate).add(1, 'day').startOf('day').valueOf();
-            newStartDate = dayTime;
-        } else {
-            let time = 0;
-            let hourStartDate = timeofDay(newStartDate);
-
-            const offDaysPeriod =
-                team?.offDays.filter(
-                    (offDay) => moment(newStartDate).format(`DD/MM/YYYY`) === moment(offDay.start).format(`DD/MM/YYYY`),
-                ) || [];
-
-            //verifica se existe feriados no periodo
-            if (offDaysPeriod.length) {
-                const containsOffDays = offDaysPeriod.find(
-                    (offDay) => moment(newStartDate).format(`DD/MM/YYYY`) === moment(offDay.start).format(`DD/MM/YYYY`),
-                );
-
-                if (containsOffDays) {
-                    const hourStartOffDay = timeofDay(containsOffDays.start);
-                    const hourEndOffDay = timeofDay(containsOffDays.end);
-
-                    // Verifica se o offDay começou fora dos periodos de atendimento
-                    if (
-                        (hourStartOffDay <= team.attendancePeriods[day][0].start &&
-                            hourEndOffDay >= team.attendancePeriods[day][0].end) ||
-                        (hourStartOffDay >= team.attendancePeriods[day][0].end &&
-                            hourStartOffDay <= team.attendancePeriods[day][1].start) ||
-                        (hourStartOffDay < team.attendancePeriods[day][0].start &&
-                            hourEndOffDay <= team.attendancePeriods[day][0].start) ||
-                        (team.attendancePeriods[day][1] &&
-                            ((hourStartOffDay <= team.attendancePeriods[day][1].start &&
-                                hourEndOffDay >= team.attendancePeriods[day][1].end) ||
-                                hourStartOffDay >= team.attendancePeriods[day][1].end ||
-                                (hourStartOffDay < team.attendancePeriods[day][1].start &&
-                                    hourEndOffDay <= team.attendancePeriods[day][1].start)))
-                    ) {
-                        if (endDate >= containsOffDays.end) {
-                            newStartDate = containsOffDays.end;
-                        } else {
-                            newStartDate = endDate;
-                            break;
-                        }
-                    } else {
-                        team.attendancePeriods[day].forEach((period) => {
-                            hourStartDate = timeofDay(newStartDate);
-                            if (
-                                hourStartDate >= period.end ||
-                                (hourStartDate < period.start && hourEndDate <= period.start) ||
-                                newStartDate >= endDate
-                            ) {
-                                return;
-                            }
-
-                            // const endDateCompare = moment(endDate).format(`DD/MM/YYYY`);
-                            // const newStartDateCompare = moment(newStartDate).format(`DD/MM/YYYY`);
-                            
-
-                            if (
-                                moment(moment(endDate).format(`DD/MM/YYYY`)).isSame(
-                                    moment(newStartDate).format(`DD/MM/YYYY`),
-                                )
-                            ) {
-                                if (count === 1) {
-                                    if (period.start >= hourStartDate) {
-                                        if (hourEndDate > period.end) {
-                                            if (period.end < hourStartOffDay) {
-                                                time += period.end - period.start;
-                                            } else {
-                                                time += hourStartOffDay - period.start;
-                                                newStartDate = containsOffDays.end;
-                                            }
-                                        } else {
-                                            if (hourEndDate < hourStartOffDay) {
-                                                time += hourEndDate - period.start;
-                                            } else {
-                                                time += hourStartOffDay - period.start;
-                                                newStartDate = containsOffDays.end;
-                                            }
-                                        }
-                                    } else {
-                                        if (hourEndDate > period.end) {
-                                            if (hourEndDate < hourStartOffDay) {
-                                                time += period.end - hourStartDate;
-                                            } else {
-                                                time += hourStartOffDay - hourStartDate;
-                                                newStartDate = containsOffDays.end;
-                                            }
-                                        } else {
-                                            if (hourEndDate < hourStartOffDay) {
-                                                time += hourEndDate - hourStartDate;
-                                                newStartDate = containsOffDays.end;
-                                            } else {
-                                                time += hourStartOffDay - hourStartDate;
-                                                newStartDate = containsOffDays.end;
-                                            }
-                                        }
-                                    }
-                                } else {
-                                    if (hourEndDate > period.end) {
-                                        if (period.end < hourStartOffDay) {
-                                            time += period.end - period.start;
-                                        } else {
-                                            time += hourStartOffDay - period.start;
-                                            newStartDate = containsOffDays.end;
-                                        }
-                                    } else {
-                                        if (period.end < hourStartOffDay) {
-                                            time += hourEndDate - period.start;
-                                        } else {
-                                            time += hourStartOffDay - period.start;
-                                            newStartDate = containsOffDays.end;
-                                        }
-                                    }
-                                }
-                            } else {
-                                if (hourStartDate > period.start) {
-                                    if (period.end < hourStartOffDay) {
-                                        time += period.end - hourStartDate;
-                                    } else {
-                                        time += hourStartOffDay - hourStartDate;
-                                        newStartDate = containsOffDays.end;
-                                    }
-                                } else {
-                                    if (period.end < hourStartOffDay) {
-                                        time += period.end - period.start;
-                                    } else {
-                                        time += hourStartOffDay - period.start;
-                                        newStartDate = containsOffDays.end;
-                                    }
-                                }
-                            }
-                        });
-                    }
-                    day = moment(newStartDate).format('ddd').toLocaleLowerCase();
-                }
-            }
-            hourStartDate = timeofDay(newStartDate);
-            const equalsDate = moment(endDate).format(`DD/MM/YYYY`) === moment(newStartDate).format(`DD/MM/YYYY`);
-
-            team.attendancePeriods[day].forEach((period) => {
-                if (
-                    hourStartDate >= period.end ||
-                    (equalsDate && hourStartDate < period.start && hourEndDate <= period.start) ||
-                    newStartDate >= endDate
-                )
-                    return;
-
-                if (equalsDate) {
-                    if (count === 1) {
-                        if (period.start >= hourStartDate) {
-                            if (hourEndDate > period.end) {
-                                time += period.end - period.start;
-                            } else {
-                                time += hourEndDate - period.start;
-                            }
-                        } else {
-                            if (hourEndDate > period.end) {
-                                time += period.end - hourStartDate;
-                            } else {
-                                time += hourEndDate - hourStartDate;
-                            }
-                        }
-                    } else {
-                        if (hourEndDate > period.end) {
-                            time += period.end - period.start;
-                        } else {
-                            time += hourEndDate - period.start;
-                        }
-                    }
-                } else {
-                    if (hourStartDate >= period.start) {
-                        time += period.end - hourStartDate;
-                    } else {
-                        time += period.end - period.start;
-                    }
-                }
-            });
-
-            waitingTime += time;
-            newStartDate = moment(newStartDate).add(1, 'day').startOf('day').valueOf();
+        // 👉 Se não há expediente no dia, pula pro próximo
+        if (periods.length === 0) {
+            currentDate = currentMoment.add(1, 'day').startOf('day').valueOf();
+            continue;
         }
-        count += 1;
+
+        // 👉 Verifica se o dia atual está dentro de algum offDay
+        const offDaysToday = team.offDays.filter((offDay) =>
+            currentMoment.isBetween(moment(offDay.start), moment(offDay.end), undefined, '[]'),
+        );
+
+        if (offDaysToday.length > 0) {
+            const endOfOffDay = Math.max(...offDaysToday.map((o) => o.end));
+            currentDate = moment(Math.min(endOfOffDay + 1, endDate)).valueOf();
+            continue;
+        }
+
+        const currentTime = timeOfDay(currentDate);
+        const isSameDay = currentMoment.isSame(moment(endDate), 'day');
+        const endTime = isSameDay ? timeOfDay(endDate) : 86400000; // 24h em ms
+
+        let moved = false;
+
+        for (const period of periods) {
+            const dayStart = currentMoment.clone().startOf('day').valueOf();
+            const periodStart = dayStart + period.start;
+            const periodEnd = dayStart + period.end;
+
+            if (currentTime >= period.end || endTime <= period.start) continue;
+
+            const from = Math.max(currentDate, periodStart);
+            const to = Math.min(endDate, periodEnd);
+
+            const offDuring = isWithinOffDay(from, team.offDays) || isWithinOffDay(to, team.offDays);
+            if (!offDuring) {
+                const overlap = calculatePeriodOverlap(from, to, periodStart, periodEnd);
+                waitingTime += overlap;
+                currentDate = to;
+                moved = true;
+                break;
+            }
+        }
+
+        // Se não caiu em nenhum período válido, pula pro início do próximo dia
+        if (!moved) {
+            currentDate = currentMoment.add(1, 'day').startOf('day').valueOf();
+        }
     }
 
     return waitingTime;

@@ -32,6 +32,10 @@ export interface ConversationMetrics extends Document {
     awaitingWorkingTime?: number;
 }
 
+export interface ConversationFlags {
+    hasUserFollowup?: boolean;
+}
+
 export interface IConversation {
     suspendedUntil?: number;
     expiresAt: number;
@@ -78,6 +82,7 @@ export interface IConversation {
     smtReId?: string;
     stoppedSmtReId?: string;
     isWithSmtRe?: boolean;
+    conversationFlags?: ConversationFlags;
 }
 
 export interface AttachmentFile {

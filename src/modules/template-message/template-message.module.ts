@@ -11,6 +11,7 @@ import { PublicTemplateMessageController } from './controllers/public-template-m
 import { ExternalDataService } from './services/external-data.service';
 import { TemplateMessageHistorySchema } from './schema/template-message-history.schema';
 import { TemplateMessageHistoryService } from './services/template-message-history.service';
+import { SuggestionTextsModule } from '../suggestion-texts-v2/suggestion-texts.module';
 
 @Module({
     imports: [
@@ -21,6 +22,7 @@ import { TemplateMessageHistoryService } from './services/template-message-histo
         CacheModule,
         EventsModule,
         StorageModule,
+        SuggestionTextsModule,
     ],
     providers: [TemplateMessageService, TemplateMessageHistoryService, ExternalDataService],
     exports: [TemplateMessageService, TemplateMessageHistoryService],

@@ -5,7 +5,7 @@ import { Team, TeamUser } from '../interfaces/team.interface';
 import { KissbotEventDataType, KissbotEventSource, KissbotEventType } from 'kissbot-core';
 import { SimplifiedTeam } from '../interfaces/simplified-team.interface';
 import { ExternalDataService } from './external-data.service';
-import { castObjectId, getUnaccentRegexString } from '../../../common/utils/utils';
+import { castObjectId, castObjectIdToString, getUnaccentRegexString } from '../../../common/utils/utils';
 import { DefaultResponse } from '../../../common/interfaces/default';
 import { TeamCacheService } from './team-cache.service';
 import { CreateTeamParams } from '../interfaces/create-team.interface';
@@ -30,8 +30,8 @@ export class TeamService {
         const regexSearch = getUnaccentRegexString(search);
         return {
             $or: [
-                { 
-                    name: { $regex: `.*${regexSearch}.*`, $options: 'i' }
+                {
+                    name: { $regex: `.*${regexSearch}.*`, $options: 'i' },
                 },
             ],
         };
@@ -79,6 +79,7 @@ export class TeamService {
                 },
                 'name roleUsers inactivatedAt',
             )
+            .sort({ name: 1 })
             .exec();
 
         const simplifiedTeams = await Promise.all(
@@ -289,5 +290,28 @@ export class TeamService {
         } as any);
         this.sendEvent(newObj, 'update');
         return newObj;
+    }
+
+    public async getUsersOnTeam(workspaceId: string, teamId: string): Promise<{ _id: string; name: string }[]> {
+        const team = (await this.getTeam(workspaceId, teamId)).data;
+        const userIds = team.roleUsers.map((roleUser) => castObjectId(roleUser.userId));
+
+        const users = await this.externalDataService.getUsers(userIds, workspaceId, '_id name');
+
+        return users.map((user) => ({
+            _id: castObjectIdToString(user._id),
+            name: user.name,
+        }));
+    }
+
+    public async getUserTeams(userId: string, workspaceId: string) {
+        return await this.model.find(
+            {
+                'roleUsers.userId': castObjectId(userId),
+                deletedAt: { $exists: false },
+                workspaceId: castObjectId(workspaceId),
+            },
+            '_id name inactivatedAt',
+        );
     }
 }

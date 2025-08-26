@@ -13,8 +13,13 @@ interface AiMessage {
 
 interface AiExecute {
     messages: AiMessage[];
+    maxTokens?: number;
+    temperature?: number;
     provider?: AIProviderType;
     prompt: string;
+    model?: string;
+    presencePenalty?: number;
+    frequencyPenalty?: number;
 }
 
 export { AiExecute, AiExecuteData, AiMessage };

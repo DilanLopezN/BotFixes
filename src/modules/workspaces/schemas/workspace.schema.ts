@@ -50,8 +50,17 @@ export const GeneralConfigsSchema = new mongoose.Schema(
         enableIndividualCancelInConfirmation: Boolean,
         enableAutoCompleteTemplateVariables: Boolean,
         enableAgentsTeamHistoryAccess: Boolean,
+        enableAgentStatusForAgents: Boolean,
+        ignoreUserFollowupConversation: Boolean,
     },
     { versionKey: false, _id: false, strict: false }, // com strict = false permite adicionar outras chaves que não estejam listadas no enum
+);
+
+export const AdvancedModuleFeaturesSchema = new mongoose.Schema(
+    {
+        enableAgentStatus: Boolean,
+    },
+    { versionKey: false, _id: false },
 );
 
 export const CustomerXSettingsSchema = new mongoose.Schema(
@@ -69,10 +78,11 @@ export const WorkspaceSchema = new mongoose.Schema(
         dialogFlowAccount: DialogflowAccountSchema,
         settings: WorkspaceSettingsSchema,
         sso: WorkspaceSSOSchema,
-        featureFlag: FeatureFlagSchema,
+        featureFlag: { type: FeatureFlagSchema, default: {} },
         generalConfigs: GeneralConfigsSchema,
         customerXSettings: CustomerXSettingsSchema,
         userFeatureFlag: UserFeatureFlagSchema,
+        advancedModuleFeatures: AdvancedModuleFeaturesSchema,
         analyticsRanges: {
             type: Map,
             of: mongoose.Schema.Types.Mixed,

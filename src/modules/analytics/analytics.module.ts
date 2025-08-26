@@ -14,6 +14,7 @@ import {
     ContactSearch,
     ConversationCategorizationView,
     AgentConversationMetrics,
+    TeamTime,
 } from 'kissbot-entities';
 import { ConfigModule } from './../../config/config.module';
 import { ConversationAnalyticsModule } from './conversation-analytics/conversation-analytics.module';
@@ -43,11 +44,15 @@ import { synchronizePostgres } from '../../common/utils/sync';
                 Fallback,
                 Appointment,
                 AgentConversationMetrics,
+                TeamTime,
             ],
             synchronize: synchronizePostgres,
             migrationsRun: false,
             migrations: [__dirname + '/migrations/**/*{.ts,.js}'],
             schema: 'analytics',
+            extra: {
+                min: 2,
+            },
         }),
         TypeOrmModule.forRoot({
             type: 'postgres',
@@ -65,7 +70,6 @@ import { synchronizePostgres } from '../../common/utils/sync';
                 ActivityView,
                 Fallback,
                 Appointment,
-
                 Conversation,
                 ConversationSearch,
                 ContactSearch,

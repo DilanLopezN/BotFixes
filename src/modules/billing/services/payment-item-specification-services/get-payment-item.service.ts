@@ -35,6 +35,7 @@ export class GetPaymentItemService implements IPaymentItemSpecificationService {
             case PaymentItemTypes.nps_discount:
             case PaymentItemTypes.schedule_notification_discount:
             case PaymentItemTypes.documents_request_discount:
+            case PaymentItemTypes.active_mkt_discount:
             case PaymentItemTypes.recover_lost_schedule_discount: {
                 return this.moduleRef.get<ChannelConfigDiscountService>(ChannelConfigDiscountService);
             }

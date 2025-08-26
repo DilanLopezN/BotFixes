@@ -3,7 +3,6 @@ export interface ITrainingEntry {
     identifier: string;
     content: string;
     workspaceId: string;
-    botId?: string;
     pendingTraining: boolean;
     executedTrainingAt: Date;
     agentId: string;

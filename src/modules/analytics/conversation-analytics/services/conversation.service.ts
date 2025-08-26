@@ -457,6 +457,12 @@ export class ConversationService {
         let inTags = [];
         let notInTags = [];
 
+        const hasCategorizationFilter = template?.conditions?.some(
+            (condition) =>
+                condition?.field === TemplateGroupField.categorization_objective ||
+                condition?.field === TemplateGroupField.categorization_outcome,
+        );
+
         for (let condition of template.conditions) {
             let field: string;
             switch (condition.field) {
@@ -633,6 +639,7 @@ export class ConversationService {
         }
 
         if (
+            hasCategorizationFilter ||
             template.groupField === TemplateGroupField.categorization_objective ||
             template.groupField === TemplateGroupField.categorization_outcome
         ) {

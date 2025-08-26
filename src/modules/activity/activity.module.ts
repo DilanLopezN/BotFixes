@@ -11,7 +11,7 @@ import { AckConsumerRedisService } from './services/ack-consumer-redis.service';
 import { TeamModule } from '../team/team.module';
 import { ConversationModule } from '../conversation/conversation.module';
 import { ActivityUtilService } from './services/activity-util.service';
-import { ConversationAttributeModule } from '../conversation-attribute/conversation-attribute.module';
+import { ConversationAttributeModuleV2 } from '../conversation-attribute-v2/conversation-attribute.module';
 import { AnalyticsModule } from '../analytics/analytics.module';
 import { ActivitySearchModule } from '../analytics/search/activity-search/activity-search.module';
 import { Amqpv2Module } from '../_core/amqpv2/amqpv2.module';
@@ -25,7 +25,7 @@ import { ExternalDataService } from './services/external-data.service';
         EventsModule,
         AnalyticsModule,
         TeamModule,
-        ConversationAttributeModule,
+        ConversationAttributeModuleV2,
         forwardRef(() => ConversationModule),
         ActivitySearchModule,
         ActivityV2Module,

@@ -12,6 +12,8 @@ import { ContextFallbackMessagesModule } from '../context-fallback-message/conte
 import { ContextAiHistoricService } from './services/context-ai-historic.service';
 import { AgentModule } from '../agent/agent.module';
 import { AiProviderModule } from '../ai-provider/ai.module';
+import { IntentDetectionModule } from '../intent-detection/intent-detection.module';
+import { ContextAiRewriteQuestionService } from './services/context-ai.rewrite-question.service';
 
 @Module({
     imports: [
@@ -22,6 +24,7 @@ import { AiProviderModule } from '../ai-provider/ai.module';
         ContextFallbackMessagesModule,
         AgentModule,
         AiProviderModule,
+        IntentDetectionModule,
     ],
     controllers: [ContextAiImplementorController],
     providers: [
@@ -29,8 +32,14 @@ import { AiProviderModule } from '../ai-provider/ai.module';
         ContextAiBuilderService,
         QuestionFiltersValidatorService,
         ContextAiHistoricService,
+        ContextAiRewriteQuestionService,
     ],
-    exports: [ContextAiImplementorService, ContextAiBuilderService, ContextAiHistoricService],
+    exports: [
+        ContextAiImplementorService,
+        ContextAiBuilderService,
+        ContextAiHistoricService,
+        ContextAiRewriteQuestionService,
+    ],
 })
 export class ContextAiImplementorModule implements NestModule {
     configure(consumer: MiddlewareConsumer) {

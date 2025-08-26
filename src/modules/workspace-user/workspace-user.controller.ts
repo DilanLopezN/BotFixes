@@ -261,6 +261,24 @@ export class WorkspaceUserController {
         return await this.workspaceUsersService.deleteUser(userId, workspaceId);
     }
 
+    @Get(':workspaceId/users/:userId/teams')
+    @ApiBearerAuth()
+    @RolesDecorator([
+        PredefinedRoles.WORKSPACE_ADMIN,
+        PredefinedRoles.SYSTEM_ADMIN,
+        PredefinedRoles.SYSTEM_CS_ADMIN,
+        PredefinedRoles.SYSTEM_UX_ADMIN,
+    ])
+    @ApiParam({ name: 'workspaceId', required: true })
+    @ApiParam({ name: 'userId', description: 'userId', type: String, required: true })
+    @UseGuards(AuthGuard, RolesGuard)
+    async getUserTeams(
+        @Param('workspaceId') workspaceId: string,
+        @Param('userId') userId: string,
+    ) {
+        return await this.workspaceUsersService.getUserTeams(workspaceId, userId);
+    }
+
     @Delete(':workspaceId/users/:userId/roles/:roleId')
     @RolesDecorator([
         PredefinedRoles.WORKSPACE_ADMIN,

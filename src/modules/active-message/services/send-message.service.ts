@@ -468,6 +468,13 @@ export class SendMessageService {
                     }
                     createdByChannel = ChannelIdConfig.documents_request;
                 }
+                if (data.action == ActiveMessageInternalActions.mkt_ativo) {
+                    // para active_mkt por enquanto ta deletando a action pois deve apenas finalizar o atendimento
+                    if (!data?.omitAction) {
+                        data.action = setting?.action;
+                    }
+                    createdByChannel = ChannelIdConfig.active_mkt;
+                }
             }
             if (data.campaignId) {
                 createdByChannel = ChannelIdConfig.campaign;

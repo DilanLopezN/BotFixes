@@ -59,7 +59,6 @@ export class WhatsappIdHashService {
         return `WPPID:${id}`;
     }
 
-
     @CatchError()
     async createAndSetWppIdHash(response, channelConfig, activity, conversation) {
         await this.create({
