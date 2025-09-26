@@ -1,0 +1,16 @@
+export enum HealthEntityType {
+  speciality = 'speciality',
+  insurance = 'insurance',
+  procedure = 'procedure',
+  organizationUnit = 'organizationUnit',
+  doctor = 'doctor',
+  appointmentType = 'appointmentType',
+  insurancePlan = 'insurancePlan',
+  insuranceSubPlan = 'insuranceSubPlan',
+  planCategory = 'planCategory',
+  group = 'group',
+  occupationArea = 'occupationArea',
+  organizationUnitLocation = 'organizationUnitLocation',
+  typeOfService = 'typeOfService',
+  reason = 'reason',
+}

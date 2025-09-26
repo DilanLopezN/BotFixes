@@ -1,0 +1,101 @@
+@import "./../../../variables";
+
+.LabelWrapper{
+    width: 100%;
+    font-size: 13px;
+    .error-popup-container{
+        height: 0px;
+        position: relative;
+        .error-popup{
+            display: none;
+            position: absolute;
+            padding: 3px 6px;
+            border-radius: 5px;
+            height: auto;
+            bottom: -10px;
+        }
+        &::before{
+            content: "";
+            display: none;
+            position: absolute;
+            bottom: 2px;
+            width: 0;
+            height: 0;
+            border-style: solid;
+            border-width: 5px 5px 0 5px;
+            border-color: #f5c6cb transparent transparent transparent;
+            left: 10px;
+        }
+    }
+    &:hover{
+        .error-popup-container{
+            &::before, .error-popup{
+                display: block;
+            }        
+        }
+    }
+    .label-container{
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        height: 30px;
+        span{
+            margin-left: 5px;
+            font-size: 17px;
+        }
+        &.title-label{
+            span{
+                font-size: 20px;
+            }
+            font-size: 18px;
+        }
+
+        .tooltip-container{
+            position: relative;
+            .help-tooltip{
+                position: absolute;
+                bottom: 30px;
+                padding: 5px;
+                background: rgba(0,0,0,0.6);
+                border-radius: 5px;
+                display: none;
+                .help-tooltip-content{
+                    position: relative;
+                    color: #FFFFFF;
+                    font-size: 12px;
+                    white-space: pre-wrap;
+                    width: max-content;
+                    &:before{
+                        content: " ";
+                        bottom: -10px;
+                        left: 3px;
+                        position: absolute;
+                        width: 0;
+                        height: 0;
+                        border-style: solid;
+                        border-width: 5px 5px 0 5px;
+                        border-color: rgba(0, 0, 0, 0.6) transparent transparent transparent;
+                    }
+                }
+                .right-tooltip{
+                    &.help-tooltip-content:before{
+                        right: 0px !important;
+                        left: inherit;
+                    }
+                }
+            }
+            &:hover{
+             .help-tooltip{
+                 display: block;
+             }
+            }
+        }
+    }
+    &--content{
+        border: 1px solid transparent;
+        &.invalid{
+            border: 1px solid $color4;
+            border-radius: 3px;
+        }
+    }
+}

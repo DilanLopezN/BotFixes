@@ -1,0 +1,72 @@
+.CommentItem {
+  position: relative;
+  overflow-y: auto;
+  .mdi-delete-outline{
+    display: none;
+  }
+  .user_name {
+    font-size: 14px;
+    font-weight: bold;
+  }
+
+  .comments-list .media {
+    border-bottom: 1px dotted #ccc;
+    padding: 10px 0;
+  }
+
+  .container-item-comment {
+    .container-icons-comment {
+      position: absolute;
+      right: 10px;
+      top: -10px;
+      display: none;
+    }
+  }
+
+  .container-item-comment:hover {
+    .container-icons-comment {
+      display: block;
+    }
+  }
+  .media:hover{
+    .mdi-delete-outline{
+      display: block !important;
+    }
+  }
+  .media-body {
+    display: flex;
+    flex-wrap: wrap;
+
+    p {
+      display: flex;
+      width: 100%;
+      flex-wrap: wrap;
+      margin-bottom: 0;
+      font-size: 20px;
+    }
+  }
+
+  .item-empty {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+
+    i {
+      min-width: 100%;
+    }
+  }
+
+  .not-implemented-yet {
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 90%;
+    background: #d8e4ec;
+    text-align: center;
+    margin: 0 auto;
+    padding: 15px;
+    border-radius: 5px;
+  }
+}

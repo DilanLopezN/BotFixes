@@ -1,0 +1,40 @@
+.EntityForm {
+  .button-add {
+    margin-top: 10px;
+    margin-bottom: 5px;
+    .entry-title{
+      display: flex;
+    }
+    h5 {
+      margin-right: 5px;
+      margin-bottom: 0;
+    }
+  }
+  .name-attribute-value{
+    margin-bottom: 0;
+  }
+  .delete-entries{
+    position: absolute;
+    right: -15px;
+    top: 35px;
+  }
+
+  .display-none{
+    display: none;
+  }
+  .EntityModalAttr{
+    margin-left: 10px;
+  }
+
+  .container-header-btn-save {
+    display: flex;
+    align-items: flex-end;
+    flex-direction: row-reverse;
+  }
+
+  .float {
+    position: fixed;
+    bottom: 60px;
+    right: 50px;
+  }
+}

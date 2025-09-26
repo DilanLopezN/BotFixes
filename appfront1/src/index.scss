@@ -1,0 +1,204 @@
+@import './variables.scss';
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Nunito', sans-serif !important;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    color: #696969 !important;
+    overflow: hidden;
+}
+
+code {
+    font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
+    color: #444444 !important;
+}
+$default-box-shadow: 0 10px 40px -20px rgba(0, 0, 202, 0.2), 0 10px 80px -20px rgba(0, 0, 50, 0.1);
+
+/*
+*   Global Styles
+*   ==========================================================
+*   ==========================================================
+*   BEGIN
+*/
+
+// Overrides BEGIN
+label,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p,
+span,
+div {
+    color: $color7;
+}
+
+hr {
+    margin-top: 10px;
+    margin-bottom: 10px;
+}
+
+span.mdi {
+    color: $color7;
+}
+
+input::placeholder,
+select::placeholder,
+.react-select__placeholder {
+    color: $color1 !important;
+}
+input:disabled,
+.input-disabled,
+select:disabled,
+.react-select__placeholder,
+textarea:disabled {
+    cursor: not-allowed;
+}
+input:focus,
+select:focus {
+    box-shadow: none !important;
+}
+.invalid {
+    border-color: red !important;
+    color: red !important;
+}
+
+.card {
+    -webkit-box-shadow: 10px 13px 10px -8px rgba(115, 115, 115, 0.13);
+    -moz-box-shadow: 10px 13px 10px -8px rgba(115, 115, 115, 0.13);
+    box-shadow: 10px 13px 10px -8px rgba(115, 115, 115, 0.13);
+}
+
+.loading-bullet {
+    color: rgb(0, 123, 255) !important;
+}
+
+.block-ui-overlay {
+    opacity: 0.85 !important;
+    filter: alpha(opacity=85) !important;
+    background-color: $color2 !important;
+}
+.Popover {
+    z-index: 1000;
+}
+
+//Overrides END
+
+// helpers BEGIN
+
+.no-border {
+    border: none !important;
+}
+
+.no-padding {
+    padding: 0 !important;
+}
+
+.no-margin {
+    margin: 0 !important;
+}
+
+.pointer {
+    cursor: pointer !important;
+}
+
+.notification-success,
+.notification-danger {
+    border: 0 !important;
+}
+
+.antd-span-default-color {
+    span {
+        color: inherit;
+    }
+}
+.ant-btn-sm {
+    span {
+        color: inherit;
+    }
+}
+.ant-tooltip-inner {
+    code {
+        color: #fff !important;
+    }
+}
+.rs-picker-has-value .rs-btn .rs-picker-toggle-value,
+.rs-picker-has-value .rs-picker-toggle .rs-picker-toggle-value {
+    color: #696969 !important;
+}
+
+.rs-picker-default .rs-picker-toggle {
+    z-index: 0 !important;
+}
+
+.rs-calendar-table-cell {
+    span {
+        color: inherit !important;
+    }
+}
+
+body > .item-select-drag {
+    visibility: hidden;
+}
+
+.ant-popover-inner-content {
+    padding: 6px 12px !important;
+}
+.ant-btn-primary-color span {
+    color: inherit !important;
+}
+
+.menu-antd > div.ant-menu-submenu-title {
+    cursor: default;
+    padding-left: 12px !important;
+    padding-top: 20px;
+}
+
+.custom-modal-transfer .ant-modal-body {
+    padding: 12px 0;
+}
+
+.integrations-menu > div.ant-menu-submenu-title {
+    height: 85px !important;
+    padding-left: 12px !important;
+    padding-top: 20px;
+    width: 220px;
+}
+// helpers END
+
+.icon-menu {
+    font-size: 26px;
+    color: #fff;
+
+    &:hover {
+        opacity: 0.7;
+    }
+}
+
+.custom-alert .ant-alert-message {
+    font-weight: bold;
+}
+
+//Styling for the password expiration modal
+.password-expiration-modal {
+    position: absolute;
+    bottom: 35px;
+    right: 20px;
+    z-index: 99;
+    width: 35rem;
+    margin-left: 20px;
+}
+
+.no-title-padding-card .ant-card-head-title {
+    padding-bottom: 0 !important;
+}
+/*
+*   Global Styles
+*   ==========================================================
+*   ==========================================================
+*   END
+*/

@@ -1,0 +1,16 @@
+.DropAbove{
+    position: absolute;
+    top: -30px;
+    padding: 0px 10px;
+    border: 1px dashed;
+    font-size: 13px;
+    border-radius: 5px;
+    display: none;
+    background: #fff;
+    &.hover{
+        border-color: red;
+    }
+    &.show{
+        display: block
+    }
+}

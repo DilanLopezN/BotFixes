@@ -1,0 +1,73 @@
+@import "./../../../../variables.scss";
+
+.ConversationContainer {
+  position: relative;
+  background: #FFF;
+
+  input[type="search"]::-webkit-search-cancel-button {
+    -webkit-appearance: searchfield-cancel-button;
+  }
+
+  input[type="search"] {
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+    -webkit-appearance: none;
+  }
+}
+
+@keyframes loading {
+  0% {
+    transform-origin: 100% 100%;
+    transform: rotate(0deg);
+  }
+  100% {
+    transform-origin: 100% 100%;
+    transform: rotate(360deg);
+  }
+}
+
+.loading {
+  position: absolute;
+  right: 30px;
+  top: 7px;
+  &:before {
+    position: absolute;
+    display: block;
+    content: "";
+    z-index: 12;
+    top: 2px;
+    left: 2px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background-color: #fff;
+  }
+  &:after {
+    position: absolute;
+    display: block;
+    content: "";
+    z-index: 11;
+    width: 12px;
+    height: 12px;
+    border-radius: 200px 0 0;
+    background: linear-gradient(45deg, rgba(0, 0, 0, 0) 0, rgba(69, 154, 215, 1) 50%, rgba(69, 154, 215, 1) 100%);
+    animation: loading 0.5s linear infinite;
+  }
+}
+
+.validateNumberAlertTitle {
+  color: #484848;
+  overflow: hidden;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.validateNumberAlertSubTitle {
+  color: #484848;
+  overflow: hidden;
+  font-size: 12px;
+}
+
+#clickLink {
+  text-decoration: underline;
+}

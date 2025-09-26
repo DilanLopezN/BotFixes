@@ -1,0 +1,42 @@
+@import "./../../variables";
+
+.ModalDeleteItem {
+  .modal-delete-item {
+    padding: 20px 20px;
+
+    .modal-change {
+      display: flex;
+      width: 100%;
+      justify-content: space-around;
+    }
+
+    .Modal .modal-content {
+      height: auto;
+    }
+
+    h6 {
+      color: $color7;
+    }
+
+    p {
+      text-align: center;
+      font-size: 14px;
+      color: $color1;
+
+      span {
+        color: $color7;
+      }
+    }
+  }
+
+  .modal-confirm-yes {
+    min-width: 75px;
+    background: $color11 !important;
+  }
+
+  .modal-confirm-no {
+    min-width: 75px;
+    background: $color7 !important;
+    color: #fff;
+  }
+}

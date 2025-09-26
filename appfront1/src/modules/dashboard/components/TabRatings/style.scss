@@ -1,0 +1,54 @@
+thead {
+    .columnHeader {
+        background: #f1f1f1 !important;
+        font-weight: 600 !important;
+        color: #696969 !important;
+    }
+}
+
+.ratingTable {
+    tbody {
+        .ant-table-row {
+            cursor: pointer;
+        }
+    
+        .ant-rate-star-full {
+            div {
+                color: inherit !important;
+            }
+        }
+    
+        .ant-rate {
+            font-size: 15px;
+        }
+    }
+}
+
+.infoRating {
+    padding: 20px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    .ant-rate-star-full {
+        div {
+            color: inherit !important;
+        }
+    }
+}
+
+.infoAvgRating > .ant-rate-star-full {
+    div {
+        color: inherit !important;
+    }
+}
+
+.infoAvgRating > .ant-rate-star-half {
+    div {
+        color: inherit !important;
+        .ant-rate-star-second {
+            color: #e8e8e8 !important;
+        }
+    }
+}
+

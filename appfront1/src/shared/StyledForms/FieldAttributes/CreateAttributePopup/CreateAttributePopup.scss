@@ -1,0 +1,15 @@
+.CreateAttributePopup {
+  padding: 5px;
+
+  .btn-bottom {
+    display: flex;
+    justify-content: flex-end;
+    .btn-bottom-container {
+      max-width: 40%;
+    }
+  }
+
+  .CustomCreatableSelect {
+      min-width: 260px;
+  }
+}

@@ -1,0 +1,106 @@
+image: node:18.17.1-alpine
+
+variables:
+    AWS_ACCESS_KEY_ID: $AWS_ACCESS_KEY_ID
+    AWS_SECRET_ACCESS_KEY: $AWS_SECRET_ACCESS_KEY
+
+cache:
+    untracked: true
+    paths:
+        - node_modules/
+
+stages:
+    - build
+    - deploy
+
+.build: &build
+    script:
+        - apk add git
+        - npm i -f
+        - npm install kissbot-core -f
+        - npm i typescript@4.6.3 -f
+        - npm run build
+
+development_build:
+    <<: *build
+    before_script:
+        - export NODE_ENV=development
+        - export ENV=development
+        - export REACT_APP_WEBCHAT_LAUNCHER_URL=https://dev-webchat-launcher.botdesigner.io/bundle.js
+        - export REACT_APP_LAUNCHER_URL=https://dev-webchat.botdesigner.io
+        - export REACT_APP_API_URL=https://dev-api.botdesigner.io
+        - export REACT_APP_CM_URL=https://dev-conversation-manager.botdesigner.io
+        - export REACT_APP_DEMO_URL=https://dev-demo.botdesigner.io
+        - export REACT_APP_COGNITO_POOL_CLIENT_ID=10769r6ntig32p5nippmp3ucsv
+        - export REACT_APP_COGNITO_REGION=sa-east-1
+        - export REACT_APP_COGNITO_POOL_ID=sa-east-1_lZ65kuRKz
+        - export REACT_APP_INTEGRATIONS_API_URL=https://dev-integrations.botdesigner.io
+        - export REACT_APP_CX_CREDENCIAL=xxx
+    stage: build
+    artifacts:
+        paths:
+            - build/
+        expire_in: '2h00min'
+    only:
+        - develop
+    tags:
+        - build
+
+production_build:
+    <<: *build
+    before_script:
+        - export NODE_ENV=production
+        - export ENV=development
+        - export REACT_APP_WEBCHAT_LAUNCHER_URL=https://webchat-launcher.botdesigner.io/bundle.js
+        - export REACT_APP_LAUNCHER_URL=https://webchat.botdesigner.io
+        - export REACT_APP_API_URL=https://api.botdesigner.io
+        - export REACT_APP_CM_URL=https://conversation-manager.botdesigner.io
+        - export REACT_APP_DEMO_URL=https://demo.botdesigner.io
+        - export REACT_APP_COGNITO_POOL_CLIENT_ID=c027jsqpkbn0s01i550lln0af
+        - export REACT_APP_COGNITO_REGION=sa-east-1
+        - export REACT_APP_COGNITO_POOL_ID=sa-east-1_6Oo6cvHy2
+        - export REACT_APP_INTEGRATIONS_API_URL=https://integrations.botdesigner.io
+        - export REACT_APP_CX_CREDENCIAL=c814e23f8daf020dd3a00578a4edbbb1
+    stage: build
+    artifacts:
+        paths:
+            - build/
+        expire_in: '2h00min'
+    only:
+        - master
+    tags:
+        - build
+
+.deploy: &deploy
+    before_script:
+        - apk add --no-cache curl jq python3 py3-pip
+        - pip3 install awscli
+        - aws --version
+        - export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
+        - export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
+    script:
+        - aws s3 sync ./build/ s3://$BUCKET_NAME --delete
+
+development_deploy:
+    <<: *deploy
+    stage: deploy
+    variables:
+        BUCKET_NAME: ${DEV_BUCKET_NAME}
+    only:
+        - develop
+    dependencies:
+        - development_build
+    tags:
+        - build
+
+production_deploy:
+    <<: *deploy
+    stage: deploy
+    variables:
+        BUCKET_NAME: ${PROD_BUCKET_NAME}
+    only:
+        - master
+    dependencies:
+        - production_build
+    tags:
+        - build

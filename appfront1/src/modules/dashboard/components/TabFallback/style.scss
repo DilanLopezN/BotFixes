@@ -1,0 +1,35 @@
+thead {
+    .columnHeader {
+        background: #f1f1f1 !important;
+        font-weight: 600 !important;
+    }
+}
+
+.ant-table-tbody {
+    .editFallback:hover, .goToConversation:hover {
+        color: #1890ff !important;
+    }
+    .cancelEdit:hover {
+        color: red
+    }
+}
+
+.selectStatus {
+    width: 135px !important;
+    min-height: 30px !important;
+    height: 35px;
+    padding: 0 9px !important;
+}
+
+.formFallback {
+    .react-select__value-container--has-value {
+        margin: -2px auto -5px auto;
+    }
+    .react-select__multi-value {
+        height: 30px;
+    }
+    .react-select__multi-value__label {
+        display: flex;
+        align-items: center;
+    }
+}

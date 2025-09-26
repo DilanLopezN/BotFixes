@@ -1,0 +1,23 @@
+.Page.chat .content {
+    padding: 0 !important;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    font-family: 'Nunito', sans-serif !important;
+}
+
+.Page.chat .modalOverlay.opened {
+    z-index: 99999;
+    width: 100vw;
+    height: 100vh;
+    position: absolute;
+    top: 0;
+    left: 0;
+    background-color: #000;
+    opacity: 0.3 !important;
+    animation: none;
+
+    .modal-content {
+        height: 100vh;
+    }
+}

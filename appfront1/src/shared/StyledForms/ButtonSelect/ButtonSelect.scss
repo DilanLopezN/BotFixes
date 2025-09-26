@@ -1,0 +1,14 @@
+@import "./../../../variables";
+
+.ButtonSelect {
+  width: 100%;
+  margin: 0 auto;
+  height: 40px;
+  .btn-group.btn-group-toggle {
+    width: 100%;
+
+    .active-item {
+      background: #3f51b5;
+    }
+  }
+}

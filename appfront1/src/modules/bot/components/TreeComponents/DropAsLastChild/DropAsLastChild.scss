@@ -1,0 +1,18 @@
+.DropAsLastChild{
+    position: absolute;
+    left: 50px;
+    top: 0px;
+    min-width: 115px;
+    background: #fff;
+    padding: 0 5px;
+    border: 1px dashed;
+    border-radius: 5px;
+    font-size: 13px;
+    display: none;
+    &.hover{
+        border-color: red;
+    }
+    &.show{
+        display: block
+    }
+}

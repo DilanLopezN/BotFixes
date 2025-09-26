@@ -1,0 +1,98 @@
+@import "../../../../variables";
+
+$border-color: #c2d4e7;
+$border: 2px solid $border-color;
+.LoaderTree {
+  animation: fadeInOpacit 1.5s infinite;
+  min-height: 450px;
+  width: 100%;
+  position: relative;
+  margin-left: 75px;
+  margin-bottom: 50px;
+
+  .fallback-node-loader {
+    margin-top: 44px;
+    .btn-rounded-loader {
+      background: #114583;
+    }
+  }
+
+  .node-loader {
+    width: 42px;
+    height: 42px;
+    display: flex;
+    background: rgb(0, 123, 255);
+    border-radius: 50%;
+    align-items: center;
+    justify-content: center;
+    color: rgb(255, 255, 255);
+    font-weight: 700;
+    text-align: center;
+    cursor: pointer;
+    font-size: 14px;
+    margin-top: 21px;
+    .mdi {
+      color: #fff;
+    }
+  }
+
+  .start-loader:before {
+    animation: fadeInOpacit 1500ms infinite;
+    content: " ";
+    position: absolute;
+    height: 535px;
+    border-left: 2px solid #c2d4e7;
+    top: 42px;
+    margin-left: 19px;
+  }
+
+  .returnTwoInteractionLoader {
+    background: #c2d4e7;
+    width: 2px;
+    position: absolute;
+    height: 69px;
+    left: -58px;
+    top: 0;
+  }
+
+  .container-interaction-loader:before {
+    animation: fadeInOpacit 1500ms infinite;
+    content: " ";
+    position: absolute;
+    height: 2px;
+    border-left: 2px solid #c2d4e7;
+    top: 67px;
+    background: #c2d4e7;
+    left: -56px;
+    width: 57px;
+  }
+
+  .start-loader {
+    position: relative;
+  }
+
+  .container-interaction-loader {
+    padding-top: 25px;
+    position: relative;
+    margin-left: 75px;
+    margin-bottom: 25px;
+  }
+
+  @keyframes fadeInOpacit {
+    from {
+      opacity: .0
+    }
+    to {
+      opacity: .8
+    }
+  }
+
+  .loading {
+    font-size: 35px;
+    display: flex;
+    margin-bottom: 16px;
+    align-items: center;
+    color: #ffff;
+    animation: fadeInOpacit 1500ms infinite;
+  }
+}

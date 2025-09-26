@@ -1,0 +1,1 @@
+export { useFormattedLabel } from './useFormattedLabel';

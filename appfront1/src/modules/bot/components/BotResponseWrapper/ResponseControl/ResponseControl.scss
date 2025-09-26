@@ -1,0 +1,25 @@
+@import './../../../../../variables';
+
+.ResponseControl {
+    width: 25px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    .control-btn {
+        cursor: pointer;
+        margin-bottom: 5px;
+        span {
+            &:hover {
+                color: $color3;
+            }
+        }
+    }
+}
+.control-btn {
+    cursor: pointer;
+    margin-bottom: 5px;
+}
+
+.control-btn span:hover {
+    color: $color3;
+}

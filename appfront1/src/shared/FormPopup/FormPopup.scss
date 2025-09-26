@@ -1,0 +1,15 @@
+@import "./../../variables";
+.FormPopupBody{
+    background: $color8;
+    border: 1px solid $color5;
+    box-shadow: 0px 0px 2px 0px rgba(0,0,0,.2);
+    border-radius: 5px;
+    width: 100%;
+    left: 50px;
+    padding: 6px 10px;
+    min-width: 250px;
+    .close-popup{
+        display: flex;
+        justify-content: flex-end;
+    }
+}

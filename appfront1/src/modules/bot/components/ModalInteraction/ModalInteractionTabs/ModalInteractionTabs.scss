@@ -1,0 +1,23 @@
+@import "./../../../../../variables";
+
+.ModalInteractionTabs{
+    height: 50px;
+    align-items: center;
+    background: $color5;
+    display: flex;
+    justify-content: space-between;
+    padding: 0 10px;
+    .tab-item{
+        font-size: 15px;
+        color: $color1;
+        margin-left: 10px;
+        font-weight: 500;
+        cursor: pointer;
+        &.selected-tab{
+            color: $color6;
+        }
+    }
+    &--tab-item-container{
+        display: flex;
+    }
+}

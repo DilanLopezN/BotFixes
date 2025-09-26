@@ -1,0 +1,69 @@
+@import "./../../../../../variables";
+
+.TypingDelay{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    padding-bottom: 20px;
+    &:after{
+        content: " ";
+        height: 20px;
+        border-left: 1px dashed $color3;
+        position: absolute;
+        bottom: 0px;
+    }
+    .typing-delay-modal{
+        padding: 20px 25px;
+        background: $color8;
+        border-radius: 5px;
+        position: absolute;
+        top: 43px;
+        width: 300px;
+        z-index: 1000;
+        box-shadow: 0px 0px 2px 0px rgba(0, 0, 0, 0.75);
+        height: 120px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        align-items: flex-end;
+        .input-range{
+            .input-range__label--min, .input-range__label--max{
+                bottom: -15px;
+            }
+            .input-range__label-container{
+                left: 0;
+                // color: #fff;
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+            }
+            .input-range__label--value{
+                position: absolute;
+                top: -35px;
+                left: -10px;
+                background: rgba(0, 0, 0, 0.75);
+                padding: 2px;
+                text-align: center;
+                .input-range__label-container{
+                    color: #fff;
+                }
+                font-weight: 700;
+                border-radius: 5px;
+                padding: 0 5px;
+            }
+        }
+        .typing-send{
+            display: flex;
+            width: 100%;
+            justify-content: space-between;
+            margin-top: 10px;
+            height: 45px;
+            .done-btn{
+                margin-top: 5px;
+                padding: 0 5px;
+                background: $color3;
+                border-radius: 5px;
+                color: $color8;
+            }
+        }
+    }
+}

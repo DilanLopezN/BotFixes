@@ -1,0 +1,31 @@
+import { createGlobalStyle } from 'styled-components';
+
+export const GlobalStyles = createGlobalStyle`
+    :root {
+        --color1: #bebebe;
+        --color2: #f2f4f8;
+        --color3: #007bff;
+        --color4: #dc3545;
+        --color5: #d8e4ec;
+        --color6: #6ea6c9;
+        --color7: #696969;
+        --color8: #FFFFFF;
+        --color9: #EEF3F7;
+        --color10: #000000;
+        --color11: #dc3545;
+        --color12: #152d4c;
+        --color13: #0f1b30;
+        --color14: #dee2e6;
+        --color15:#155724;
+    }
+    *{
+        font-family: 'Nunito', sans-serif !important;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;}
+    
+    body {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+    }
+    `;

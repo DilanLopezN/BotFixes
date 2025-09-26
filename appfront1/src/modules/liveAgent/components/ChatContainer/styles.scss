@@ -1,0 +1,109 @@
+.chatContainerBody .conversationCard {
+    border-bottom: none;
+}
+
+#container-chat::-webkit-scrollbar,
+.chatSidebar::-webkit-scrollbar,
+.chatContainerBody::-webkit-scrollbar {
+    width: 10px;
+}
+
+#container-chat::-webkit-scrollbar-track,
+.chatSidebar::-webkit-scrollbar-track,
+.chatContainerBody::-webkit-scrollbar-track {
+    border-radius: 0px;
+    background: transparent;
+}
+
+#container-chat::-webkit-scrollbar-thumb,
+.chatSidebar::-webkit-scrollbar-thumb,
+.chatContainerBody::-webkit-scrollbar-thumb {
+    background :rgba(17, 17, 17, 0.2);
+    border-radius: 0px;
+    box-shadow: none;
+}
+
+#container-chat,
+#content-conversations {
+    scrollbar-width: auto;
+    scrollbar-color: rgba(17, 17, 17, 0.2) transparent;
+    
+}
+
+#chatContainerTextInput,
+.chatContainerBody {
+    margin-right: 2px;
+    scrollbar-width: none;
+}
+
+.chatContainerBody {
+    background: transparent !important;
+    z-index: 1;
+    margin-right: -3px;
+    padding: 5px 0 0 0;
+    height: 100%;
+}
+
+.balloonWrapper p {
+    margin-bottom: 0;
+}
+
+.react-pdf__Page__canvas,
+.react-pdf__Page__textContent {
+    width: 100% !important;
+}
+
+.Modal.opened, 
+.Modal.closed {
+    animation-duration: 150ms;
+}
+
+.Modal.viewImagePreview {
+    z-index: 999;
+    padding: 0 !important;
+    background: transparent;
+    .modal-content {
+        background: transparent;
+        border: none;
+        border-radius: 0;
+    }
+}
+
+.Modal.confirmationModal {
+    display: flex;
+    z-index: 999;
+    background: rgba(0, 0, 0, 0.16);
+    .modal-content {
+        border: none;
+    }
+
+    .editableDiv {
+        width: 100%;
+        border: 1px #cccccc solid;
+        border-radius: 7px;
+        outline: none;
+        height: 80px;
+        padding: 10px;
+        background: #FFF;
+    }
+
+    .finish-message {
+        width: 100%;
+        border: 1px #cccccc solid;
+        border-radius: 7px;
+        outline: none;
+        height: 85px !important;
+        padding: 10px;
+        background: #FFF;
+        resize: none;
+    }
+
+    [contentEditable=true]:empty:not(:focus):before{
+        content:attr(data-text)
+    }
+}
+
+.activity-focus {
+    background: #dedede !important;
+    transition: 0.2s;
+}

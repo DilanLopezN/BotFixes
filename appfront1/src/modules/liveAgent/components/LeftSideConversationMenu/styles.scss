@@ -1,0 +1,72 @@
+/* Safari 4.0 - 8.0 */
+@-webkit-keyframes fadeInText {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Standard syntax */
+@keyframes fadeInText {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Safari 4.0 - 8.0 */
+@-webkit-keyframes fadeOutText {
+  to {
+    opacity: 0;
+  }
+  from {
+    opacity: 1;
+  }
+}
+
+/* Standard syntax */
+@keyframes fadeOutText {
+  to {
+    opacity: 0;
+  }
+  from {
+    opacity: 1;
+  }
+}
+
+.LeftSideConversationMenu {
+  .left-side-button {
+    color: #fff;
+  }
+
+  .left-side-title {
+    overflow: hidden;
+    color: #fff;
+    font-size: 18px;
+    font-weight: 500;
+    white-space: nowrap;
+    color: #444;
+  }
+
+  &:not(.closing) {
+    .left-side-title {
+      -webkit-animation-name: fadeInText; /* Safari 4.0 - 8.0 */
+      -webkit-animation-duration: 1.0s; /* Safari 4.0 - 8.0 */
+      animation-name: fadeInText;
+      animation-duration: 1.0s;
+    }
+  }
+
+  &.closing {
+    .left-side-title {
+      -webkit-animation-name: fadeOutText; /* Safari 4.0 - 8.0 */
+      -webkit-animation-duration: 0.5s; /* Safari 4.0 - 8.0 */
+      animation-name: fadeOutText;
+      animation-duration: 0.5s;
+    }
+  }
+}
