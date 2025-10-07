@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import type { ApiError } from '~/interfaces/api-error';
 import type { UserPlanLimit } from '~/interfaces/user-plan-limit';
@@ -27,10 +27,6 @@ export const useGetPlanUserByWorkspace = () => {
       setIsLoading(false);
     }
   }, [workspaceId]);
-
-  useEffect(() => {
-    getPlanUserLimit();
-  }, [getPlanUserLimit]);
 
   return { messageUserLimit, isLoading, error, getPlanUserLimit };
 };

@@ -23,6 +23,7 @@ export interface ResultScheduleAnalytics {
     reschedule: number;
     no_recipient: number;
     invalid_recipient: number;
+    confirm_reschedule?: number;
   };
   [ExtractResumeType.reminder]?: {
     total: number;
@@ -82,6 +83,7 @@ export interface ResultScheduleAnalytics {
     open_cvs: number;
     no_recipient: number;
     invalid_recipient: number;
+    document_uploaded: number;
   };
   [ExtractResumeType.active_mkt]?: {
     total: number;

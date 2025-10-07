@@ -2,12 +2,12 @@ import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SendingType } from '~/constants/sending-type';
 import { useQueryString } from '~/hooks/use-query-string';
+import { localeKeys } from '~/i18n';
 import { PieChart } from '../../components/pie-chart';
 import { useScheduleAnalytics } from '../../hooks/use-schedule-analytics';
 import { SendingListQueryString } from '../../interfaces';
 import { ConfirmationCharts } from './confirmation-charts';
 import { NpsScoreCharts } from './nps-score-charts';
-import { localeKeys } from '~/i18n';
 
 export const ChartContainer = () => {
   const { t } = useTranslation();
@@ -27,10 +27,22 @@ export const ChartContainer = () => {
               invalidNumber: previousValue.invalidNumber + (currentValue.invalidNumber || 0),
               invalid_recipient:
                 previousValue.invalid_recipient + (currentValue.invalid_recipient || 0),
+              recipient_type: previousValue.recipient_type + (currentValue.recipient_type || 0),
               no_recipient: previousValue.no_recipient + (currentValue.no_recipient || 0),
               notAnswered: previousValue.notAnswered + (currentValue.notAnswered || 0),
               open_cvs: previousValue.open_cvs + (currentValue.open_cvs || 0),
               reschedule: previousValue.reschedule + (currentValue.reschedule || 0),
+              individual_cancel:
+                previousValue.individual_cancel + (currentValue.individual_cancel || 0),
+              start_reschedule_recover:
+                previousValue.start_reschedule_recover +
+                (currentValue.start_reschedule_recover || 0),
+              cancel_reschedule_recover:
+                previousValue.cancel_reschedule_recover +
+                (currentValue.cancel_reschedule_recover || 0),
+              confirm_reschedule_recover:
+                previousValue.confirm_reschedule_recover +
+                (currentValue.confirm_reschedule_recover || 0),
               total: previousValue.total + (currentValue.total || 0),
             };
           },
@@ -39,10 +51,15 @@ export const ChartContainer = () => {
             confirmed: 0,
             invalidNumber: 0,
             invalid_recipient: 0,
+            recipient_type: 0,
             no_recipient: 0,
             notAnswered: 0,
             open_cvs: 0,
             reschedule: 0,
+            individual_cancel: 0,
+            start_reschedule_recover: 0,
+            cancel_reschedule_recover: 0,
+            confirm_reschedule_recover: 0,
             total: 0,
           }
         )

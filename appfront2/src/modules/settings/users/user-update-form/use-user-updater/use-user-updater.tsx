@@ -1,8 +1,8 @@
 import { useCallback, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { PermissionResources } from '~/constants/permission-resources';
-import { updateUsersById } from '~/services/workspace/update-user-by-id';
+import { PermissionResource } from '~/constants/permission-resources';
 import { UserPermission } from '~/interfaces/user-permission';
+import { updateUsersById } from '~/services/workspace/update-user-by-id';
 import { UserUpdateFormProps } from '../interfaces';
 import { useUserById } from '../use-user-by-id';
 
@@ -19,21 +19,35 @@ export const useUserUpdater = () => {
 
         const newSubRoles: UserPermission[] = userData?.subRoles?.map((role) => {
           return {
-            resource: PermissionResources.WORKSPACE,
+            resource: PermissionResource.WORKSPACE,
             role: role!,
             resourceId: workspaceId,
           };
         });
 
-        const userUpdate = {
-          name: userData.name,
-          role: {
-            resource: PermissionResources.WORKSPACE,
-            resourceId: workspaceId,
-            role: userData.permission,
-          },
-          subRoles: newSubRoles || [],
-        };
+        const userUpdate = userData.email
+          ? {
+              email: userData.email,
+              name: userData.name,
+              erpUsername: userData.erpUsername,
+              role: {
+                resource: PermissionResource.WORKSPACE,
+                resourceId: workspaceId,
+                role: userData.permission,
+              },
+              subRoles: newSubRoles || [],
+            }
+          : {
+              name: userData.name,
+              erpUsername: userData.erpUsername,
+              role: {
+                resource: PermissionResource.WORKSPACE,
+                resourceId: workspaceId,
+                role: userData.permission,
+              },
+              subRoles: newSubRoles || [],
+            };
+
         await updateUsersById(workspaceId, userId, userUpdate);
       } catch (err) {
         throw err;

@@ -6,7 +6,9 @@ import type { Workspace } from '~/interfaces/workspace';
 export interface WorkspaceContextValues {
   data?: PaginatedModel<Workspace>;
   isLoading: boolean;
+  isRefetching: boolean;
   error?: ApiError;
+  refetch: () => void;
 }
 
 export interface WorkspaceProviderProps {

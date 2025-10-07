@@ -22,6 +22,7 @@ import {
   typeDownloadEnum,
 } from '../../../miscellaneous/utils';
 import { TimeoutInterceptor } from '../../../miscellaneous/interceptors/timeout.interceptor';
+import { ScheduleExportDto } from '../../dto/schedule-export.dto';
 
 @Controller('schedule-analytics')
 export class ScheduleAnalyticsController {
@@ -53,13 +54,17 @@ export class ScheduleAnalyticsController {
 
   @Post('/exportCsv')
   @UseInterceptors(new TimeoutInterceptor(120000))
-  async listSchedulesCsv(
-    @Body(new ValidationPipe()) filter: ScheduleFilterListDto,
-  ) {
-    const result = await this.scheduleAnalyticsService.listSchedulesCsv({
-      ...filter,
-      workspaceId: filter.workspaceId,
-    });
+  async listSchedulesCsv(@Body(new ValidationPipe()) dto: ScheduleExportDto) {
+    const { filter, selectedColumns } = dto;
+
+    const result = await this.scheduleAnalyticsService.listSchedulesCsv(
+      {
+        ...filter,
+        workspaceId: filter.workspaceId,
+      },
+      selectedColumns,
+    );
+
     return result;
   }
 

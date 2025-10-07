@@ -15,7 +15,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
 import { PageTemplate } from '~/components/page-template';
-import { UserRoles } from '~/constants/user-roles';
+import { UserRole } from '~/constants/user-roles';
 import { useSelectedWorkspace } from '~/hooks/use-selected-workspace';
 import { localeKeys } from '~/i18n';
 import { routes } from '~/routes/constants';
@@ -34,7 +34,7 @@ const { Option } = Select;
 
 export const UserCreateForm = () => {
   const navigate = useNavigate();
-  const [form] = Form.useForm();
+  const [form] = Form.useForm<UserCreateFormValues>();
   const { t } = useTranslation();
   const { featureFlag } = useSelectedWorkspace();
   const { messageUserLimit } = useGetPlanUserByWorkspace();
@@ -43,6 +43,9 @@ export const UserCreateForm = () => {
   const { data: userByEmail, getUserByEmail } = useGetUserByEmail();
   const { workspaceId = '' } = useParams<{ workspaceId: string }>();
   const { userManager } = localeKeys.settings.users;
+  const { userUpdater } = localeKeys.settings.users;
+  const isDocumentUploadEnabled = Boolean(featureFlag?.enableUploadErpDocuments);
+
   const [userExistanceVerification, setUserExistanceVerification] = useState(
     UserExistanceVerificationType.notExist
   );
@@ -159,7 +162,7 @@ export const UserCreateForm = () => {
           </StyledSpace>
           <Form form={form} layout='vertical' id='create-user-form' onFinish={onFinish}>
             <Row gutter={[16, 16]}>
-              <Col span={8}>
+              <Col span={!isDocumentUploadEnabled ? 7 : 6}>
                 <Form.Item
                   hasFeedback
                   label={t(userManager.email)}
@@ -182,7 +185,7 @@ export const UserCreateForm = () => {
                   <Input type='email' placeholder={t(userManager.placeholderEmail)} />
                 </Form.Item>
               </Col>
-              <Col span={8}>
+              <Col span={!isDocumentUploadEnabled ? 7 : 6}>
                 <Form.Item
                   label={t(userManager.name)}
                   name='name'
@@ -209,17 +212,40 @@ export const UserCreateForm = () => {
                   />
                 </Form.Item>
               </Col>
-
-              <Col span={8}>
+              {isDocumentUploadEnabled && (
+                <Col span={6}>
+                  <Form.Item
+                    label={t(userUpdater.erpUsername)}
+                    name='erpUsername'
+                    rules={[
+                      {
+                        message: t(userUpdater.erpUsername),
+                      },
+                      {
+                        validator: (_, value) => {
+                          const isWhitespace = !/\S/.test(value);
+                          if (isWhitespace) {
+                            return Promise.reject(t(userUpdater.errorWhitespaceName));
+                          }
+                          return Promise.resolve();
+                        },
+                      },
+                    ]}
+                  >
+                    <Input placeholder={t(userUpdater.erpUsername)} />
+                  </Form.Item>
+                </Col>
+              )}
+              <Col span={!isDocumentUploadEnabled ? 7 : 6}>
                 <Form.Item
                   label={t(userManager.permission)}
                   name='permission'
                   rules={[{ required: true, message: t(userManager.enterPermission) }]}
                 >
                   <Select placeholder={t(userManager.placeholderPermission)}>
-                    <Option value={UserRoles.WORKSPACE_ADMIN}>{t(userManager.admin)}</Option>
-                    <Option value={UserRoles.WORKSPACE_AGENT}>{t(userManager.agent)}</Option>
-                    <Option value={UserRoles.WORKSPACE_INACTIVE}>{t(userManager.inactive)}</Option>
+                    <Option value={UserRole.WORKSPACE_ADMIN}>{t(userManager.admin)}</Option>
+                    <Option value={UserRole.WORKSPACE_AGENT}>{t(userManager.agent)}</Option>
+                    <Option value={UserRole.WORKSPACE_INACTIVE}>{t(userManager.inactive)}</Option>
                   </Select>
                 </Form.Item>
               </Col>

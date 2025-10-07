@@ -624,7 +624,7 @@ export class ScheduleMessageService {
       query = query.innerJoin(
         Schedule,
         'schedule',
-        `schedule.group_id = schMsg.group_id`,
+        `schedule.group_id = schMsg.group_id AND schedule.workspace_id = '${filter.workspaceId}'`,
       );
     } else {
       query = query.innerJoin(
@@ -859,6 +859,43 @@ export class ScheduleMessageService {
       query = query.andWhere(
         `(schMsg.nps_score_comment IS NULL OR schMsg.nps_score_comment = '')`,
       );
+    }
+
+    if (filter?.aliasSettingId && filter?.type) {
+      if (filter.type === ExtractResumeType.confirmation) {
+        query.andWhere(
+          `EXISTS (
+            SELECT 1 FROM "schedule"."confirmation_setting" cs 
+            WHERE cs.id = schMsg.setting_type_id 
+            AND cs.schedule_setting_id = :aliasSettingId
+          )`,
+          {
+            aliasSettingId: filter.aliasSettingId,
+          },
+        );
+      } else if (filter.type === ExtractResumeType.reminder) {
+        query.andWhere(
+          `EXISTS (
+            SELECT 1 FROM "schedule"."reminder_setting" rs 
+            WHERE rs.id = schMsg.setting_type_id 
+            AND rs.schedule_setting_id = :aliasSettingId
+          )`,
+          {
+            aliasSettingId: filter.aliasSettingId,
+          },
+        );
+      } else {
+        query.andWhere(
+          `EXISTS (
+            SELECT 1 FROM "schedule"."send_setting" ss 
+            WHERE ss.id = schMsg.setting_type_id 
+            AND ss.schedule_setting_id = :aliasSettingId
+          )`,
+          {
+            aliasSettingId: filter.aliasSettingId,
+          },
+        );
+      }
     }
 
     return query;
@@ -1534,5 +1571,35 @@ export class ScheduleMessageService {
         responseType: ScheduleMessageResponseType.individual_cancel,
       },
     });
+  }
+
+  async updateScheduleMessageDocumentUploaded(
+    scheduleCode: string,
+    patientCode: string,
+    responseType: ScheduleMessageResponseType,
+  ) {
+    try {
+      const schedule = await this.scheduleService.getScheduleWithDocumentRequest(scheduleCode, patientCode);
+      const scheduleMsg = schedule?.scheduleMessage;
+        
+      if (scheduleMsg) {
+        await this.repo.update(
+          {
+            id: scheduleMsg.id,
+          },
+          {
+            responseType,
+            state: ScheduleMessageState.SAVED_INTEGRATIONS,
+          },
+        );
+      }
+    } catch (e) {
+      Sentry.captureEvent({
+        message: `${ScheduleMessageService.name}.updateScheduleMessageDocumentUploaded`,
+        extra: {
+          error: e,
+        },
+      });
+    }
   }
 }

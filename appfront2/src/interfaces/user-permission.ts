@@ -1,8 +1,9 @@
-import { UserRoles } from '~/constants/user-roles';
-import { PermissionResources } from '../constants/permission-resources';
+import { UserRole } from '~/constants/user-roles';
+import { PermissionResource } from '../constants/permission-resources';
 
 export interface UserPermission {
-  role: UserRoles;
-  resource: PermissionResources;
+  resource: PermissionResource;
   resourceId?: string;
+  role: UserRole;
+  _id?: string;
 }

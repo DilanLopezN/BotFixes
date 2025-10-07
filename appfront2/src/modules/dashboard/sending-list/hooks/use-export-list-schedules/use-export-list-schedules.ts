@@ -1,10 +1,15 @@
 import { notification } from 'antd';
 import { isUndefined, omitBy } from 'lodash';
 import { useCallback, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 import { useQueryString } from '~/hooks/use-query-string';
+import { localeKeys } from '~/i18n';
 import { exportListSchedulesCsv } from '~/services/workspace/export-list-schedules-csv';
-import { ScheduleFilterListDto } from '~/services/workspace/export-list-schedules-csv/interfaces';
+import {
+  ExportableFields,
+  ScheduleFilterListDto,
+} from '~/services/workspace/export-list-schedules-csv/interfaces';
 import { TypeDownloadEnum } from '~/services/workspace/export-list-schedules-csv/type-download-enum';
 import { SendingStatus } from '~/services/workspace/get-sending-list-by-workspace-id';
 import type { SendingListQueryString } from '../../interfaces';
@@ -12,6 +17,9 @@ import type { SendingListQueryString } from '../../interfaces';
 export const useExportSchedules = () => {
   const { workspaceId } = useParams<{ workspaceId: string }>();
   const { queryStringAsObj } = useQueryString<SendingListQueryString>();
+  const { t } = useTranslation();
+  const useExportListSchedulesLocaleKeys =
+    localeKeys.dashboard.sendingList.hooks.useExportListSchedules;
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
@@ -52,7 +60,7 @@ export const useExportSchedules = () => {
   }, [queryStringAsObj.npsScoreList]);
 
   const exportSchedules = useCallback(
-    async (downloadType: TypeDownloadEnum) => {
+    async (downloadType: TypeDownloadEnum, exportColumns: ExportableFields[]) => {
       const filter: ScheduleFilterListDto = {
         startDate: queryStringAsObj.startDate!,
         endDate: queryStringAsObj.endDate!,
@@ -79,37 +87,43 @@ export const useExportSchedules = () => {
           workspaceId,
           filter: sanitizedFilter,
           downloadType,
+          selectedColumns: exportColumns,
         });
 
         notification.success({
-          message: 'Exportação iniciada',
-          description: 'O download do arquivo foi iniciado com sucesso.',
+          message: t(useExportListSchedulesLocaleKeys.notifySuccessMessage),
+          description: t(useExportListSchedulesLocaleKeys.notifySuccessDescription),
         });
       } catch (err) {
         setError(err as Error);
         notification.error({
-          message: 'Erro ao exportar',
-          description: 'Ocorreu um erro ao tentar exportar os dados. Tente novamente mais tarde.',
+          message: t(useExportListSchedulesLocaleKeys.notifyErrorMessage),
+          description: t(useExportListSchedulesLocaleKeys.notifyErrorDescription),
         });
       } finally {
         setIsLoading(false);
       }
     },
     [
-      cancelReasonList,
+      queryStringAsObj.startDate,
+      queryStringAsObj.endDate,
+      queryStringAsObj.type,
+      queryStringAsObj.search,
+      specialityCodeList,
       doctorCodeList,
+      statusList,
+      procedureCodeList,
+      cancelReasonList,
+      organizationUnitList,
       insuranceCodeList,
       insurancePlanCodeList,
-      organizationUnitList,
-      procedureCodeList,
-      queryStringAsObj.endDate,
-      queryStringAsObj.search,
-      queryStringAsObj.startDate,
-      queryStringAsObj.type,
-      specialityCodeList,
-      statusList,
       npsScoreList,
       workspaceId,
+      t,
+      useExportListSchedulesLocaleKeys.notifySuccessMessage,
+      useExportListSchedulesLocaleKeys.notifySuccessDescription,
+      useExportListSchedulesLocaleKeys.notifyErrorMessage,
+      useExportListSchedulesLocaleKeys.notifyErrorDescription,
     ]
   );
 

@@ -1,10 +1,10 @@
 import { useTranslation } from 'react-i18next';
 import { SendingType } from '~/constants/sending-type';
+import { localeKeys } from '~/i18n';
 import { CancelingReasonChart } from '../../components/canceling-reason-chart';
 import { PieChart } from '../../components/pie-chart';
 import { useCancelingReasonMetrics } from '../../hooks/use-canceling-reason-metrics';
 import type { ConfirmationChartsProps } from './interfaces';
-import { localeKeys } from '~/i18n';
 
 export const ConfirmationCharts = ({
   scheduleAnalytics,

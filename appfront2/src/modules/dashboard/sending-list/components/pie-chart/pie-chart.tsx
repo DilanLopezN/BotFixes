@@ -2,6 +2,7 @@
 import { Button, Col, Divider, Flex, Space, Spin } from 'antd';
 import Highcharts from 'highcharts';
 import HighchartsReact, { type HighchartsReactProps } from 'highcharts-react-official';
+import accessibility from 'highcharts/modules/accessibility';
 import { useTranslation } from 'react-i18next';
 import { Link, generatePath, useLocation, useParams } from 'react-router-dom';
 import { SendingType } from '~/constants/sending-type';
@@ -19,6 +20,8 @@ import {
   EmptyChartContainer,
   EmptyChartText,
 } from './styles';
+
+accessibility(Highcharts);
 
 export const PieChart = ({
   title,
@@ -40,6 +43,7 @@ export const PieChart = ({
 
   const queryString = createQueryString({ startDate, endDate, type });
   const detailsPath = generatePath(fullTable.fullPath, { workspaceId }) + queryString;
+  const allTypeDataNotAnswered = !type ? data?.notAnswered : undefined;
 
   const analytics = [
     {
@@ -51,7 +55,10 @@ export const PieChart = ({
     {
       key: SendingStatus.SENDED,
       name: t(pieChartLocaleKeys.sentLegend),
-      y: type !== SendingType.confirmation ? data?.notAnswered : undefined,
+      y:
+        type && ![SendingType.confirmation, SendingType.recover_lost_schedule].includes(type)
+          ? data?.notAnswered
+          : allTypeDataNotAnswered,
     },
     {
       key: SendingStatus.INVALID,
@@ -60,8 +67,11 @@ export const PieChart = ({
     },
     {
       key: SendingStatus.NOT_ANSWERED,
-      name: t(pieChartLocaleKeys.notAnswered),
-      y: type === SendingType.confirmation ? data?.notAnswered : undefined,
+      name: t(pieChartLocaleKeys.sentLegend),
+      y:
+        type && [SendingType.confirmation, SendingType.recover_lost_schedule].includes(type)
+          ? data?.notAnswered
+          : undefined,
     },
     {
       key: SendingStatus.RESCHEDULE,
@@ -78,6 +88,26 @@ export const PieChart = ({
       key: SendingStatus.INVALID_RECIPIENT,
       name: t(pieChartLocaleKeys.invalidRecipíent),
       y: data?.invalid_recipient,
+    },
+    {
+      key: SendingStatus.INDIVIDUAL_CANCEL,
+      name: t(pieChartLocaleKeys.individualCancel),
+      y: data?.individual_cancel,
+    },
+    {
+      key: SendingStatus.START_RESCHEDULE_RECOVER,
+      name: t(pieChartLocaleKeys.startRescheduleRecover),
+      y: data?.start_reschedule_recover,
+    },
+    {
+      key: SendingStatus.CONFIRM_RESCHEDULE_RECOVER,
+      name: t(pieChartLocaleKeys.confirmRescheduleRecover),
+      y: data?.confirm_reschedule_recover,
+    },
+    {
+      key: SendingStatus.CANCEL_RESCHEDULE_RECOVER,
+      name: t(pieChartLocaleKeys.cancelRescheduleRecover),
+      y: data?.cancel_reschedule_recover,
     },
   ]
     .filter((analytic) => !statusList || statusList.includes(analytic.key))
@@ -119,6 +149,22 @@ export const PieChart = ({
     {
       key: SendingStatus.INVALID_RECIPIENT,
       color: '#ff0000',
+    },
+    {
+      key: SendingStatus.INDIVIDUAL_CANCEL,
+      color: '#ff7b00',
+    },
+    {
+      key: SendingStatus.START_RESCHEDULE_RECOVER,
+      color: '#00ffbf',
+    },
+    {
+      key: SendingStatus.CONFIRM_RESCHEDULE_RECOVER,
+      color: '#00a51b',
+    },
+    {
+      key: SendingStatus.CANCEL_RESCHEDULE_RECOVER,
+      color: '#700000',
     },
   ]
     .filter((colorMapItem) => analytics.some((analytic) => analytic.key === colorMapItem.key))
@@ -181,7 +227,7 @@ export const PieChart = ({
 
   return (
     <Spin spinning={isLoading}>
-      <ChartContainer shouldShowActions={shouldShowActions}>
+      <ChartContainer $shouldShowActions={shouldShowActions}>
         <Space direction='vertical'>
           <ChartTitle>{title}</ChartTitle>
           <ChartCount>{totalFiltered || 0}</ChartCount>

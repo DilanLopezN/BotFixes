@@ -1,6 +1,6 @@
 import { RedirectApp } from '~/components/redirect';
-import { PermissionResources } from '~/constants/permission-resources';
-import { UserRoles } from '~/constants/user-roles';
+import { PermissionResource } from '~/constants/permission-resources';
+import { UserRole } from '~/constants/user-roles';
 import { NavigationTemplate } from '~/layouts/navigation-template';
 import { Campaigns } from '~/modules/campaigns';
 import { BroadcastList } from '~/modules/campaigns/broadcast-list';
@@ -8,15 +8,34 @@ import { ViewBroadcastList } from '~/modules/campaigns/broadcast-list/pages/broa
 import { CreateBroadcastList } from '~/modules/campaigns/broadcast-list/pages/create-broadcast-list';
 import { EditBroadcastList } from '~/modules/campaigns/broadcast-list/pages/edit-broadcast-list';
 import { Dashboard } from '~/modules/dashboard';
+import { BreakDashboard } from '~/modules/dashboard/break-dashboard';
+import { BreakReports } from '~/modules/dashboard/break-dashboard/pages/break-reports';
 import { CategorizationDashboard } from '~/modules/dashboard/categorization-dashboard';
 import { CategorizationDashboardList } from '~/modules/dashboard/categorization-dashboard/pages/categorization-list';
+import { RatingDashboard } from '~/modules/dashboard/rating-dashboard';
+import { RatingDashboardList } from '~/modules/dashboard/rating-dashboard/pages/rating-list';
+import { RemiDashboard } from '~/modules/dashboard/remi-dashboard';
+import { RemiReports } from '~/modules/dashboard/remi-dashboard/pages/remi-reports';
 import { SendingList } from '~/modules/dashboard/sending-list';
 import { Dashboard as SendingListDashboard } from '~/modules/dashboard/sending-list/pages/dashboard';
 import { FullTable as SendingListFullTable } from '~/modules/dashboard/sending-list/pages/full-table/full-table';
 import { Login } from '~/modules/login';
+import { RecoverMail } from '~/modules/login/recover/recover-email';
+import { RecoverPassword } from '~/modules/login/recover/recover-password';
+import { AutomaticDistribution } from '~/modules/settings/automatic-distribution';
+import { AutomaticDistributionConversation } from '~/modules/settings/automatic-distribution/pages/automatic-distribution';
+import { Breaks } from '~/modules/settings/breaks';
+import { BreakList } from '~/modules/settings/breaks/pages/break-list';
 import { Categorization } from '~/modules/settings/categorization';
 import { CategorizationList } from '~/modules/settings/categorization/pages/categorization-list';
+import { Remi } from '~/modules/settings/remi';
+import { RemiCreateForm } from '~/modules/settings/remi/components/remi-create-form';
+import { RemiUpdateForm } from '~/modules/settings/remi/components/remi-update-form';
+import { RemiList } from '~/modules/settings/remi/pages/remi-list';
 import { Settings } from '~/modules/settings/settings';
+import { Tags } from '~/modules/settings/tags';
+import { CreateTagPage } from '~/modules/settings/tags/pages/create-tag-page/create-tag-page';
+import { TagsList } from '~/modules/settings/tags/pages/tags-list';
 import { Teams } from '~/modules/settings/teams';
 import { CreateNewTeam } from '~/modules/settings/teams/pages/create-new-team';
 import { TeamList } from '~/modules/settings/teams/pages/team-list';
@@ -25,6 +44,9 @@ import { Users } from '~/modules/settings/users';
 import { UserCreateForm } from '~/modules/settings/users/user-create-form';
 import { UserList } from '~/modules/settings/users/user-list';
 import { UserUpdateForm } from '~/modules/settings/users/user-update-form';
+import { WhatsAppFlow } from '~/modules/settings/whatsapp-flow';
+import { FlowTemplateEditor } from '~/modules/settings/whatsapp-flow/components/flow-template-editor';
+import { WhatsAppFlowList } from '~/modules/settings/whatsapp-flow/pages/whatsapp-flow-list';
 import { TrainerBot } from '~/modules/trainer-bot';
 import { Training } from '~/modules/trainer-bot/training';
 import { CreateTrainer } from '~/modules/trainer-bot/training/pages/create-trainer';
@@ -37,6 +59,8 @@ import {
   isSystemAdmin,
   isSystemCsAdmin,
   isSystemDevAdmin,
+  isWorkspaceAdmin,
+  isSystemSupportAdmin,
 } from '~/utils/permissions';
 import { AppTypePort } from '~/utils/redirect-app';
 import { BaseRoute } from './base-route';
@@ -51,6 +75,8 @@ export enum RouteType {
 export const routes = generateRouteWithFullPath({
   home: { path: '', element: <BaseRoute />, fullPath: '' },
   login: { path: 'login', element: <Login />, type: RouteType.notAuth, fullPath: '' },
+  recoverMail: { path: 'recover/email/:token', element: <RecoverMail />, fullPath: '' },
+  recoverPassword: { path: 'recover/password/:token', element: <RecoverPassword />, fullPath: '' },
   modules: {
     path: ':workspaceId',
     element: <NavigationTemplate />,
@@ -88,18 +114,91 @@ export const routes = generateRouteWithFullPath({
             fullPath: '',
             allowedRoles: [
               {
-                resource: PermissionResources.ANY,
-                role: UserRoles.SYSTEM_ADMIN,
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_ADMIN,
               },
               {
-                resource: PermissionResources.ANY,
-                role: UserRoles.SYSTEM_CS_ADMIN,
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_CS_ADMIN,
               },
               {
-                resource: PermissionResources.ANY,
-                role: UserRoles.SYSTEM_UX_ADMIN,
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_UX_ADMIN,
               },
             ],
+          },
+          breakDashboard: {
+            path: 'breaks',
+            element: <BreakDashboard />,
+            fullPath: '',
+            allowedRoles: undefined,
+            hasPermission: (user, workspace) => {
+              if (
+                workspace?.advancedModuleFeatures?.enableAgentStatus &&
+                isWorkspaceAdmin(user, workspace._id)
+              ) {
+                return true;
+              }
+
+              if (isAnySystemAdmin(user)) {
+                return true;
+              }
+
+              return false;
+            },
+            children: {
+              home: {
+                path: '',
+                element: (
+                  <RedirectApp pathname='/dashboard/breaks/metrics' appTypePort={AppTypePort.V2} />
+                ),
+                fullPath: '',
+              },
+              metrics: {
+                path: 'metrics',
+                element: (
+                  <RedirectApp
+                    pathname='/dashboard/breaks/metrics/overall-productivity'
+                    appTypePort={AppTypePort.V2}
+                  />
+                ),
+                fullPath: '',
+              },
+              breakReports: {
+                path: ':tabId',
+                element: <BreakReports />,
+                fullPath: '',
+              },
+              breakReportTabs: {
+                path: ':tabId/:subTabId',
+                element: <BreakReports />,
+                fullPath: '',
+              },
+            },
+          },
+          remiDashboard: {
+            path: 'remi',
+            element: <RemiDashboard />,
+            fullPath: '',
+            allowedRoles: undefined,
+            hasPermission: (user, workspace) => {
+              if (workspace.featureFlag?.enableRemi && isWorkspaceAdmin(user, workspace._id)) {
+                return true;
+              }
+
+              if (isAnySystemAdmin(user)) {
+                return true;
+              }
+
+              return false;
+            },
+            children: {
+              home: {
+                path: '',
+                element: <RemiReports />,
+                fullPath: '',
+              },
+            },
           },
           messages: {
             path: 'messages',
@@ -119,82 +218,66 @@ export const routes = generateRouteWithFullPath({
           },
           ratings: {
             path: 'ratings',
-            element: <RedirectApp pathname='/dashboard' appTypePort={AppTypePort.APP} />,
+            element: <RatingDashboard />,
             fullPath: '',
             allowedRoles: [
               {
-                resource: PermissionResources.ANY,
-                role: UserRoles.SYSTEM_ADMIN,
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_ADMIN,
               },
               {
-                resource: PermissionResources.ANY,
-                role: UserRoles.SYSTEM_CS_ADMIN,
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_CS_ADMIN,
               },
               {
-                resource: PermissionResources.ANY,
-                role: UserRoles.SYSTEM_UX_ADMIN,
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_UX_ADMIN,
               },
               {
-                resource: PermissionResources.WORKSPACE,
-                role: UserRoles.WORKSPACE_ADMIN,
+                resource: PermissionResource.WORKSPACE,
+                role: UserRole.WORKSPACE_ADMIN,
               },
               {
-                resource: PermissionResources.WORKSPACE,
-                role: UserRoles.DASHBOARD_ADMIN,
+                resource: PermissionResource.WORKSPACE,
+                role: UserRole.DASHBOARD_ADMIN,
               },
             ],
-            hasPermission: (user, workspace) => {
-              return workspace.featureFlag?.rating || isSystemAdmin(user);
+            children: {
+              categorizationDashboard: {
+                path: '',
+                element: <RatingDashboardList />,
+                fullPath: '',
+              },
             },
+            hasPermission: undefined,
           },
           appointments: {
             path: 'appointments',
             element: <RedirectApp pathname='/dashboard' appTypePort={AppTypePort.APP} />,
             fullPath: '',
-            allowedRoles: [
-              {
-                resource: PermissionResources.ANY,
-                role: UserRoles.SYSTEM_ADMIN,
-              },
-              {
-                resource: PermissionResources.ANY,
-                role: UserRoles.SYSTEM_CS_ADMIN,
-              },
-              {
-                resource: PermissionResources.ANY,
-                role: UserRoles.SYSTEM_UX_ADMIN,
-              },
-              {
-                resource: PermissionResources.WORKSPACE,
-                role: UserRoles.WORKSPACE_ADMIN,
-              },
-            ],
-            hasPermission: (user, workspace) => {
-              return workspace.featureFlag?.dashboardAppointments || isSystemAdmin(user);
-            },
           },
           sendingList: {
             path: 'sending-list',
             allowedRoles: [
               {
-                resource: PermissionResources.ANY,
-                role: UserRoles.SYSTEM_ADMIN,
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_ADMIN,
               },
               {
-                resource: PermissionResources.WORKSPACE,
-                role: UserRoles.WORKSPACE_ADMIN,
+                resource: PermissionResource.WORKSPACE,
+                role: UserRole.WORKSPACE_ADMIN,
               },
               {
-                resource: PermissionResources.ANY,
-                role: UserRoles.SYSTEM_CS_ADMIN,
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_CS_ADMIN,
               },
               {
-                resource: PermissionResources.WORKSPACE,
-                role: UserRoles.WORKSPACE_AGENT,
+                resource: PermissionResource.WORKSPACE,
+                role: UserRole.WORKSPACE_AGENT,
               },
               {
-                resource: PermissionResources.ANY,
-                role: UserRoles.SYSTEM_DEV_ADMIN,
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_DEV_ADMIN,
               },
             ],
             hasPermission: (user, workspace) => {
@@ -224,20 +307,20 @@ export const routes = generateRouteWithFullPath({
             element: <CategorizationDashboard />,
             allowedRoles: [
               {
-                resource: PermissionResources.ANY,
-                role: UserRoles.SYSTEM_ADMIN,
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_ADMIN,
               },
               {
-                resource: PermissionResources.ANY,
-                role: UserRoles.SYSTEM_DEV_ADMIN,
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_DEV_ADMIN,
               },
               {
-                resource: PermissionResources.ANY,
-                role: UserRoles.SYSTEM_CS_ADMIN,
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_CS_ADMIN,
               },
               {
-                resource: PermissionResources.WORKSPACE,
-                role: UserRoles.WORKSPACE_ADMIN,
+                resource: PermissionResource.WORKSPACE,
+                role: UserRole.WORKSPACE_ADMIN,
               },
             ],
             hasPermission: undefined,
@@ -274,24 +357,24 @@ export const routes = generateRouteWithFullPath({
             path: 'sending-list',
             allowedRoles: [
               {
-                resource: PermissionResources.ANY,
-                role: UserRoles.SYSTEM_ADMIN,
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_ADMIN,
               },
               {
-                resource: PermissionResources.WORKSPACE,
-                role: UserRoles.WORKSPACE_ADMIN,
+                resource: PermissionResource.WORKSPACE,
+                role: UserRole.WORKSPACE_ADMIN,
               },
               {
-                resource: PermissionResources.ANY,
-                role: UserRoles.SYSTEM_CS_ADMIN,
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_CS_ADMIN,
               },
               {
-                resource: PermissionResources.WORKSPACE,
-                role: UserRoles.WORKSPACE_AGENT,
+                resource: PermissionResource.WORKSPACE,
+                role: UserRole.WORKSPACE_AGENT,
               },
               {
-                resource: PermissionResources.ANY,
-                role: UserRoles.SYSTEM_DEV_ADMIN,
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_DEV_ADMIN,
               },
             ],
             hasPermission: (user, workspace) => {
@@ -313,28 +396,28 @@ export const routes = generateRouteWithFullPath({
             path: 'broadcast-list',
             allowedRoles: [
               {
-                resource: PermissionResources.ANY,
-                role: UserRoles.SYSTEM_ADMIN,
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_ADMIN,
               },
               {
-                resource: PermissionResources.ANY,
-                role: UserRoles.SYSTEM_CS_ADMIN,
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_CS_ADMIN,
               },
               {
-                resource: PermissionResources.ANY,
-                role: UserRoles.SYSTEM_UX_ADMIN,
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_UX_ADMIN,
               },
               {
-                resource: PermissionResources.WORKSPACE,
-                role: UserRoles.WORKSPACE_ADMIN,
+                resource: PermissionResource.WORKSPACE,
+                role: UserRole.WORKSPACE_ADMIN,
               },
               {
-                resource: PermissionResources.WORKSPACE,
-                role: UserRoles.WORKSPACE_AGENT,
+                resource: PermissionResource.WORKSPACE,
+                role: UserRole.WORKSPACE_AGENT,
               },
               {
-                resource: PermissionResources.ANY,
-                role: UserRoles.SYSTEM_DEV_ADMIN,
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_DEV_ADMIN,
               },
             ],
             hasPermission: (user, workspace) => {
@@ -369,20 +452,20 @@ export const routes = generateRouteWithFullPath({
             path: 'custom-flow',
             allowedRoles: [
               {
-                resource: PermissionResources.ANY,
-                role: UserRoles.SYSTEM_ADMIN,
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_ADMIN,
               },
               {
-                resource: PermissionResources.ANY,
-                role: UserRoles.SYSTEM_CS_ADMIN,
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_CS_ADMIN,
               },
               {
-                resource: PermissionResources.ANY,
-                role: UserRoles.SYSTEM_UX_ADMIN,
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_UX_ADMIN,
               },
               {
-                resource: PermissionResources.ANY,
-                role: UserRoles.SYSTEM_DEV_ADMIN,
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_DEV_ADMIN,
               },
             ],
             hasPermission: (user, workspace) => {
@@ -395,16 +478,24 @@ export const routes = generateRouteWithFullPath({
             path: 'active-message-settings',
             allowedRoles: [
               {
-                resource: PermissionResources.ANY,
-                role: UserRoles.SYSTEM_ADMIN,
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_ADMIN,
               },
               {
-                resource: PermissionResources.ANY,
-                role: UserRoles.SYSTEM_DEV_ADMIN,
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_DEV_ADMIN,
+              },
+              {
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_SUPPORT_ADMIN,
               },
             ],
             hasPermission: (user, workspace) => {
-              return (workspace && isSystemAdmin(user)) || isSystemDevAdmin(user);
+              return (
+                (workspace && isSystemAdmin(user)) ||
+                isSystemDevAdmin(user) ||
+                isSystemSupportAdmin(user)
+              );
             },
             element: null,
             fullPath: '',
@@ -413,16 +504,24 @@ export const routes = generateRouteWithFullPath({
             path: 'active-message-status',
             allowedRoles: [
               {
-                resource: PermissionResources.ANY,
-                role: UserRoles.SYSTEM_ADMIN,
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_ADMIN,
               },
               {
-                resource: PermissionResources.ANY,
-                role: UserRoles.SYSTEM_DEV_ADMIN,
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_SUPPORT_ADMIN,
+              },
+              {
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_DEV_ADMIN,
               },
             ],
             hasPermission: (user, workspace) => {
-              return (workspace && isSystemAdmin(user)) || isSystemDevAdmin(user);
+              return (
+                (workspace && isSystemAdmin(user)) ||
+                isSystemDevAdmin(user) ||
+                isSystemSupportAdmin(user)
+              );
             },
             element: null,
             fullPath: '',
@@ -431,12 +530,12 @@ export const routes = generateRouteWithFullPath({
             path: 'confirmation-settings',
             allowedRoles: [
               {
-                resource: PermissionResources.ANY,
-                role: UserRoles.SYSTEM_ADMIN,
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_ADMIN,
               },
               {
-                resource: PermissionResources.ANY,
-                role: UserRoles.SYSTEM_DEV_ADMIN,
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_DEV_ADMIN,
               },
             ],
             hasPermission: (user, workspace) => {
@@ -453,16 +552,16 @@ export const routes = generateRouteWithFullPath({
             path: 'cancel-reason',
             allowedRoles: [
               {
-                resource: PermissionResources.ANY,
-                role: UserRoles.SYSTEM_ADMIN,
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_ADMIN,
               },
               {
-                resource: PermissionResources.ANY,
-                role: UserRoles.SYSTEM_DEV_ADMIN,
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_DEV_ADMIN,
               },
               {
-                resource: PermissionResources.ANY,
-                role: UserRoles.SYSTEM_CS_ADMIN,
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_CS_ADMIN,
               },
             ],
             hasPermission: (user) => {
@@ -475,12 +574,12 @@ export const routes = generateRouteWithFullPath({
             path: 'confirmation/runners',
             allowedRoles: [
               {
-                resource: PermissionResources.ANY,
-                role: UserRoles.SYSTEM_ADMIN,
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_ADMIN,
               },
               {
-                resource: PermissionResources.ANY,
-                role: UserRoles.SYSTEM_DEV_ADMIN,
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_DEV_ADMIN,
               },
             ],
             hasPermission: (user, workspace) => {
@@ -497,12 +596,12 @@ export const routes = generateRouteWithFullPath({
             path: 'email-sending-settings',
             allowedRoles: [
               {
-                resource: PermissionResources.ANY,
-                role: UserRoles.SYSTEM_ADMIN,
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_ADMIN,
               },
               {
-                resource: PermissionResources.ANY,
-                role: UserRoles.SYSTEM_DEV_ADMIN,
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_DEV_ADMIN,
               },
             ],
             hasPermission: (user, workspace) => {
@@ -579,8 +678,69 @@ export const routes = generateRouteWithFullPath({
           },
           tags: {
             path: 'tags',
-            element: null,
+            allowedRoles: [
+              {
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_ADMIN,
+              },
+              {
+                resource: PermissionResource.WORKSPACE,
+                role: UserRole.WORKSPACE_ADMIN,
+              },
+              {
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_CS_ADMIN,
+              },
+              {
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_UX_ADMIN,
+              },
+              {
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_DEV_ADMIN,
+              },
+            ],
+            element: <Tags />,
             fullPath: '',
+            children: {
+              tagsList: {
+                path: '',
+                element: <TagsList />,
+                fullPath: '',
+              },
+              createTag: {
+                path: 'create-new-tag',
+                element: <CreateTagPage />,
+                fullPath: '',
+              },
+            },
+          },
+          breaks: {
+            path: 'breaks',
+            element: <Breaks />,
+            fullPath: '',
+            allowedRoles: undefined,
+            hasPermission: (user, workspace) => {
+              if (
+                workspace?.advancedModuleFeatures?.enableAgentStatus &&
+                isWorkspaceAdmin(user, workspace._id)
+              ) {
+                return true;
+              }
+
+              if (isAnySystemAdmin(user)) {
+                return true;
+              }
+
+              return false;
+            },
+            children: {
+              breakList: {
+                path: '',
+                element: <BreakList />,
+                fullPath: '',
+              },
+            },
           },
           acessGroup: {
             path: 'groups-access',
@@ -592,12 +752,12 @@ export const routes = generateRouteWithFullPath({
             element: null,
             allowedRoles: [
               {
-                resource: PermissionResources.ANY,
-                role: UserRoles.SYSTEM_ADMIN,
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_ADMIN,
               },
               {
-                resource: PermissionResources.ANY,
-                role: UserRoles.SYSTEM_CS_ADMIN,
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_CS_ADMIN,
               },
             ],
             fullPath: '',
@@ -605,6 +765,30 @@ export const routes = generateRouteWithFullPath({
           generalSettings: {
             path: 'general-settings',
             element: null,
+            fullPath: '',
+          },
+          aiAgent: {
+            path: 'ai-agent',
+            element: null,
+            allowedRoles: [
+              {
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_ADMIN,
+              },
+              {
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_CS_ADMIN,
+              },
+              {
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_UX_ADMIN,
+              },
+              {
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_DEV_ADMIN,
+              },
+            ],
+            hasPermission: undefined,
             fullPath: '',
           },
           privacyPolicy: {
@@ -625,20 +809,20 @@ export const routes = generateRouteWithFullPath({
             element: null,
             allowedRoles: [
               {
-                resource: PermissionResources.ANY,
-                role: UserRoles.SYSTEM_ADMIN,
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_ADMIN,
               },
               {
-                resource: PermissionResources.ANY,
-                role: UserRoles.SYSTEM_CS_ADMIN,
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_CS_ADMIN,
               },
               {
-                resource: PermissionResources.ANY,
-                role: UserRoles.SYSTEM_UX_ADMIN,
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_UX_ADMIN,
               },
               {
-                resource: PermissionResources.WORKSPACE,
-                role: UserRoles.WORKSPACE_ADMIN,
+                resource: PermissionResource.WORKSPACE,
+                role: UserRole.WORKSPACE_ADMIN,
               },
             ],
             hasPermission: (user, workspace) => {
@@ -651,16 +835,24 @@ export const routes = generateRouteWithFullPath({
             element: null,
             allowedRoles: [
               {
-                resource: PermissionResources.ANY,
-                role: UserRoles.SYSTEM_ADMIN,
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_ADMIN,
               },
               {
-                resource: PermissionResources.WORKSPACE,
-                role: UserRoles.WORKSPACE_ADMIN,
+                resource: PermissionResource.WORKSPACE,
+                role: UserRole.WORKSPACE_ADMIN,
+              },
+              {
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_CS_ADMIN,
               },
             ],
             hasPermission: (user, workspace) => {
-              return workspace.featureFlag?.enableModuleBillings || isSystemAdmin(user);
+              return (
+                workspace.featureFlag?.enableModuleBillings ||
+                isSystemAdmin(user) ||
+                isSystemCsAdmin(user)
+              );
             },
             fullPath: '',
           },
@@ -669,16 +861,16 @@ export const routes = generateRouteWithFullPath({
             element: null,
             allowedRoles: [
               {
-                resource: PermissionResources.ANY,
-                role: UserRoles.SYSTEM_ADMIN,
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_ADMIN,
               },
               {
-                resource: PermissionResources.ANY,
-                role: UserRoles.SYSTEM_CS_ADMIN,
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_CS_ADMIN,
               },
               {
-                resource: PermissionResources.ANY,
-                role: UserRoles.SYSTEM_UX_ADMIN,
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_UX_ADMIN,
               },
             ],
             hasPermission: (user, workspace) => {
@@ -691,20 +883,20 @@ export const routes = generateRouteWithFullPath({
             element: <Categorization />,
             allowedRoles: [
               {
-                resource: PermissionResources.ANY,
-                role: UserRoles.SYSTEM_ADMIN,
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_ADMIN,
               },
               {
-                resource: PermissionResources.ANY,
-                role: UserRoles.SYSTEM_DEV_ADMIN,
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_DEV_ADMIN,
               },
               {
-                resource: PermissionResources.ANY,
-                role: UserRoles.SYSTEM_CS_ADMIN,
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_CS_ADMIN,
               },
               {
-                resource: PermissionResources.WORKSPACE,
-                role: UserRoles.WORKSPACE_ADMIN,
+                resource: PermissionResource.WORKSPACE,
+                role: UserRole.WORKSPACE_ADMIN,
               },
             ],
             hasPermission: undefined,
@@ -727,6 +919,136 @@ export const routes = generateRouteWithFullPath({
               },
             },
           },
+          whatsAppFlow: {
+            path: 'whatsapp-flow',
+            element: <WhatsAppFlow />,
+            allowedRoles: [
+              {
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_ADMIN,
+              },
+              {
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_DEV_ADMIN,
+              },
+              {
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_CS_ADMIN,
+              },
+              {
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_UX_ADMIN,
+              },
+              {
+                resource: PermissionResource.WORKSPACE,
+                role: UserRole.WORKSPACE_ADMIN,
+              },
+            ],
+            fullPath: '',
+            hasPermission: (user, workspace) => {
+              return (
+                isSystemAdmin(user) ||
+                isSystemDevAdmin(user) ||
+                workspace.featureFlag?.enableModuleWhatsappFlow
+              );
+            },
+            children: {
+              home: {
+                path: '',
+                element: <WhatsAppFlowList />,
+                fullPath: '',
+              },
+              viewWhatsAppFlow: {
+                path: ':flowId',
+                element: <FlowTemplateEditor />,
+                fullPath: '',
+              },
+            },
+          },
+          remi: {
+            path: 'remi',
+            element: <Remi />,
+            allowedRoles: [
+              {
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_ADMIN,
+              },
+              {
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_DEV_ADMIN,
+              },
+              {
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_CS_ADMIN,
+              },
+              {
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_UX_ADMIN,
+              },
+              {
+                resource: PermissionResource.WORKSPACE,
+                role: UserRole.WORKSPACE_ADMIN,
+              },
+            ],
+            fullPath: '',
+            hasPermission: (user, workspace) => {
+              return isSystemAdmin(user) || workspace.featureFlag?.enableRemi;
+            },
+            children: {
+              home: {
+                path: '',
+                element: <RemiList />,
+                fullPath: '',
+              },
+              remiConfig: {
+                path: 'create',
+                element: <RemiCreateForm />,
+                fullPath: '',
+              },
+              remiUpdate: {
+                path: ':remiId',
+                element: <RemiUpdateForm />,
+                fullPath: '',
+              },
+            },
+          },
+          automaticDistribution: {
+            path: 'automatic-distribution',
+            element: <AutomaticDistributionConversation />,
+            allowedRoles: [
+              {
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_ADMIN,
+              },
+              {
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_DEV_ADMIN,
+              },
+              {
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_CS_ADMIN,
+              },
+              {
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_UX_ADMIN,
+              },
+              {
+                resource: PermissionResource.WORKSPACE,
+                role: UserRole.WORKSPACE_ADMIN,
+              },
+            ],
+            fullPath: '',
+            hasPermission: (user, workspace) => {
+              return isSystemAdmin(user) || workspace.featureFlag?.enableAutomaticDistribution;
+            },
+            children: {
+              home: {
+                path: '',
+                element: <AutomaticDistribution />,
+                fullPath: '',
+              },
+            },
+          },
         },
         fullPath: '',
       },
@@ -736,12 +1058,12 @@ export const routes = generateRouteWithFullPath({
         element: <TrainerBot />,
         allowedRoles: [
           {
-            resource: PermissionResources.ANY,
-            role: UserRoles.SYSTEM_ADMIN,
+            resource: PermissionResource.ANY,
+            role: UserRole.SYSTEM_ADMIN,
           },
           {
-            resource: PermissionResources.ANY,
-            role: UserRoles.SYSTEM_DEV_ADMIN,
+            resource: PermissionResource.ANY,
+            role: UserRole.SYSTEM_DEV_ADMIN,
           },
         ],
         hasPermission: (user, workspace) => {
@@ -759,12 +1081,12 @@ export const routes = generateRouteWithFullPath({
             fullPath: '',
             allowedRoles: [
               {
-                resource: PermissionResources.ANY,
-                role: UserRoles.SYSTEM_ADMIN,
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_ADMIN,
               },
               {
-                resource: PermissionResources.ANY,
-                role: UserRoles.SYSTEM_DEV_ADMIN,
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_DEV_ADMIN,
               },
             ],
             hasPermission: (user, workspace) => {

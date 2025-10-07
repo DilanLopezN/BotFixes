@@ -1,5 +1,6 @@
-import { EditOutlined } from '@ant-design/icons';
-import { Button, Card, Space, Tag, Typography } from 'antd';
+import { DownloadOutlined, EditOutlined, MoreOutlined } from '@ant-design/icons';
+import type { MenuProps } from 'antd';
+import { Button, Card, Dropdown, Space, Tag, Typography } from 'antd';
 import { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { useEffect, useMemo, useState } from 'react';
@@ -8,13 +9,14 @@ import { generatePath, useNavigate, useParams } from 'react-router-dom';
 import { EnhancedTable } from '~/components/enhanced-table';
 import { PageTemplate } from '~/components/page-template';
 import { UserFilterType } from '~/constants/user-filter-type';
-import { UserRoles } from '~/constants/user-roles';
+import { UserRole } from '~/constants/user-roles';
 import { useAuth } from '~/hooks/use-auth';
 import { localeKeys } from '~/i18n';
 import type { User } from '~/interfaces/user';
 import { UserPermission } from '~/interfaces/user-permission';
 import { routes } from '~/routes/constants';
-import { normalizeSearchValue } from '~/utils/normalize-search-value';
+import { TypeDownloadEnum } from '~/services/workspace/export-list-schedules-csv/type-download-enum';
+import { normalizeText } from '~/utils/normalize-text';
 import { isAnySystemAdmin } from '~/utils/permissions';
 import { BodyContainer } from '../styles';
 import { useGetPlanUserByWorkspace } from '../use-get-plan-user-by-workspace';
@@ -25,6 +27,7 @@ import {
   UserListContainer,
 } from './styles';
 import { useUserList } from './use-user-list';
+import { useUsersExporter } from './use-users-exporter';
 import { UserCreateMultiple } from './user-create-multiple';
 import { UserFilter } from './user-filter';
 
@@ -33,7 +36,7 @@ const { Text } = Typography;
 export const UserList = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { data, isLoading } = useUserList();
+  const { data, isLoading, fetchUserList } = useUserList();
   const { user: loggedUser } = useAuth();
   const { messageUserLimit, getPlanUserLimit } = useGetPlanUserByWorkspace();
   const [selectedFilter, setSelectedFilter] = useState(UserFilterType.All);
@@ -42,13 +45,25 @@ export const UserList = () => {
   const { userList } = localeKeys.settings.users;
   const { workspaceId = '' } = useParams<{ workspaceId: string }>();
   const { createUser, updateUser } = routes.modules.children.settings.children.users.children;
+  const { onExport, isExporting } = useUsersExporter();
+
+  const exportMenuItems: MenuProps['items'] = [
+    {
+      key: 'csv',
+      label: t(userList.exporter.exportCsv),
+    },
+  ];
+
+  const handleExportMenuClick: MenuProps['onClick'] = (e) => {
+    if (e.key === 'csv') onExport(TypeDownloadEnum.CSV, selectedFilter, searchInputValue);
+  };
 
   const filteredUsers = useMemo(() => {
-    const lowerCaseQuery = normalizeSearchValue(searchInputValue);
+    const lowerCaseQuery = normalizeText(searchInputValue);
 
     const isSearchValueIncluded = (user: User) =>
-      normalizeSearchValue(user.name).includes(lowerCaseQuery) ||
-      normalizeSearchValue(user.email).includes(lowerCaseQuery);
+      normalizeText(user.name).includes(lowerCaseQuery) ||
+      normalizeText(user.email).includes(lowerCaseQuery);
 
     if (selectedFilter === UserFilterType.Active) {
       return data.filter(
@@ -56,9 +71,9 @@ export const UserList = () => {
           isSearchValueIncluded(user) &&
           user.roles.some(
             (role) =>
-              role.role === UserRoles.WORKSPACE_ADMIN ||
-              role.role === UserRoles.WORKSPACE_AGENT ||
-              role.role === UserRoles.SYSTEM_ADMIN
+              role.role === UserRole.WORKSPACE_ADMIN ||
+              role.role === UserRole.WORKSPACE_AGENT ||
+              role.role === UserRole.SYSTEM_ADMIN
           )
       );
     }
@@ -67,7 +82,7 @@ export const UserList = () => {
       return data.filter(
         (user) =>
           isSearchValueIncluded(user) &&
-          user.roles.some((role) => role.role === UserRoles.WORKSPACE_INACTIVE)
+          user.roles.some((role) => role.role === UserRole.WORKSPACE_INACTIVE)
       );
     }
 
@@ -84,13 +99,14 @@ export const UserList = () => {
   };
 
   const isDisabled = (user: User) => {
+    if (loggedUser && user.email === loggedUser.email) {
+      return false;
+    }
+
     return user.roles.some((role) =>
-      [UserRoles.SYSTEM_ADMIN, UserRoles.SYSTEM_CS_ADMIN, UserRoles.SYSTEM_UX_ADMIN].includes(
-        role.role
-      )
+      [UserRole.SYSTEM_ADMIN, UserRole.SYSTEM_DEV_ADMIN].includes(role.role)
     );
   };
-
   const isAnyAdmin = loggedUser !== undefined && isAnySystemAdmin(loggedUser);
 
   useEffect(() => {
@@ -99,6 +115,15 @@ export const UserList = () => {
 
   const actionsButton = (
     <Space>
+      <Dropdown.Button
+        icon={<MoreOutlined />}
+        loading={isExporting}
+        onClick={() => onExport(TypeDownloadEnum.XLSX, selectedFilter, searchInputValue)}
+        menu={{ items: exportMenuItems, onClick: handleExportMenuClick }}
+      >
+        <DownloadOutlined />
+        {t(userList.exporter.exportXlsx)}
+      </Dropdown.Button>
       {isAnyAdmin && (
         <Button onClick={() => setIsModalVisible(true)}>{t(userList.importSeveral)}</Button>
       )}
@@ -116,8 +141,8 @@ export const UserList = () => {
       key: 'name',
       render: (name: string) => <SpanCapitalize>{name}</SpanCapitalize>,
       sorter: (a, b) => {
-        const isAInactive = a.roles.some((role) => role.role === UserRoles.WORKSPACE_INACTIVE);
-        const isBInactive = b.roles.some((role) => role.role === UserRoles.WORKSPACE_INACTIVE);
+        const isAInactive = a.roles.some((role) => role.role === UserRole.WORKSPACE_INACTIVE);
+        const isBInactive = b.roles.some((role) => role.role === UserRole.WORKSPACE_INACTIVE);
 
         if (isAInactive && !isBInactive) {
           return 1;
@@ -144,18 +169,18 @@ export const UserList = () => {
             return (
               role?.resourceId &&
               role.resourceId === workspaceId &&
-              (role.role === UserRoles.WORKSPACE_ADMIN ||
-                role.role === UserRoles.WORKSPACE_AGENT ||
-                role.role === UserRoles.WORKSPACE_INACTIVE)
+              (role.role === UserRole.WORKSPACE_ADMIN ||
+                role.role === UserRole.WORKSPACE_AGENT ||
+                role.role === UserRole.WORKSPACE_INACTIVE)
             );
           })
           ?.map((permission) => {
             let roleType;
-            if (permission.role === UserRoles.WORKSPACE_ADMIN) {
+            if (permission.role === UserRole.WORKSPACE_ADMIN) {
               roleType = t(userList.admin);
-            } else if (permission.role === UserRoles.WORKSPACE_AGENT) {
+            } else if (permission.role === UserRole.WORKSPACE_AGENT) {
               roleType = t(userList.agent);
-            } else if (permission.role === UserRoles.WORKSPACE_INACTIVE) {
+            } else if (permission.role === UserRole.WORKSPACE_INACTIVE) {
               roleType = t(userList.inactive);
             } else {
               roleType = permission.role;
@@ -216,14 +241,14 @@ export const UserList = () => {
     const activeCount = filteredUsers.filter((user) =>
       user.roles.some(
         (role) =>
-          role.role === UserRoles.WORKSPACE_ADMIN ||
-          role.role === UserRoles.WORKSPACE_AGENT ||
-          role.role === UserRoles.SYSTEM_ADMIN
+          role.role === UserRole.WORKSPACE_ADMIN ||
+          role.role === UserRole.WORKSPACE_AGENT ||
+          role.role === UserRole.SYSTEM_ADMIN
       )
     ).length;
 
     const inactiveCount = filteredUsers.filter((user) =>
-      user.roles.some((role) => role.role === UserRoles.WORKSPACE_INACTIVE)
+      user.roles.some((role) => role.role === UserRole.WORKSPACE_INACTIVE)
     ).length;
 
     const activeUsersText = activeCount === 1 ? t(userList.active) : t(userList.actives);
@@ -269,12 +294,6 @@ export const UserList = () => {
               }}
               dataSource={filteredUsers}
               columns={columns}
-              locale={{
-                triggerAsc: 'Ordenar em Ordem Ascendente',
-                sortTitle: 'Título da Ordenação',
-                cancelSort: 'Cancelar Ordenação',
-                triggerDesc: 'Ordenar em Ordem Descendente',
-              }}
             />
           </BodyContainer>
           <UserCreateMultiple
@@ -282,6 +301,7 @@ export const UserList = () => {
               setIsModalVisible(false);
             }}
             visible={isModalVisible}
+            fetchUserList={fetchUserList}
           />
         </UserListContainer>
       </Card>

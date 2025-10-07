@@ -1,17 +1,13 @@
 import { Col, Row, Table } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useTranslation } from 'react-i18next';
-import { SendingType } from '~/constants/sending-type';
-import { useQueryString } from '~/hooks/use-query-string';
 import { localeKeys } from '~/i18n';
-import type { SendingListQueryString } from '~/modules/dashboard/sending-list/interfaces';
 import { SendingStatus } from '~/services/workspace/get-sending-list-by-workspace-id';
 import type { DataType, StatusListProps } from './interfaces';
 import { Container } from './styles';
 
 export const StatusList = ({ selectedStatusList, setSelectedStatusList }: StatusListProps) => {
   const { t } = useTranslation();
-  const { queryStringAsObj } = useQueryString<SendingListQueryString>();
 
   const { filtersModal: filtersModalLocaleKeys } = localeKeys.dashboard.sendingList.fullTable;
 
@@ -36,88 +32,56 @@ export const StatusList = ({ selectedStatusList, setSelectedStatusList }: Status
     },
   ];
 
-  const options = [
+  const options: DataType[] = [
     {
       key: SendingStatus.CONFIRMED,
       description: t(filtersModalLocaleKeys.confirmedStatus),
-      allowedForTypeList: [SendingType.confirmation],
-    },
-    {
-      key: SendingStatus.OPEN_CVS,
-      description: t(filtersModalLocaleKeys.openCsvStatus),
-      allowedForTypeList: [
-        SendingType.confirmation,
-        SendingType.medical_report,
-        SendingType.nps,
-        SendingType.reminder,
-        SendingType.nps_score,
-        SendingType.recover_lost_schedule,
-      ],
     },
     {
       key: SendingStatus.RESCHEDULE,
       description: t(filtersModalLocaleKeys.rescheduledStatus),
-      allowedForTypeList: [SendingType.confirmation],
-    },
-    {
-      key: SendingStatus.NOT_ANSWERED,
-      description: t(filtersModalLocaleKeys.notAnsweredStatus),
-      allowedForTypeList: [SendingType.confirmation],
     },
     {
       key: SendingStatus.CANCELED,
       description: t(filtersModalLocaleKeys.canceledStatus),
-      allowedForTypeList: [SendingType.confirmation],
+    },
+    {
+      key: SendingStatus.INDIVIDUAL_CANCEL,
+      description: t(filtersModalLocaleKeys.individualCancel),
+    },
+    {
+      key: SendingStatus.START_RESCHEDULE_RECOVER,
+      description: t(filtersModalLocaleKeys.startRescheduleRecover),
+    },
+    {
+      key: SendingStatus.CONFIRM_RESCHEDULE_RECOVER,
+      description: t(filtersModalLocaleKeys.confirmRescheduleRecover),
+    },
+    {
+      key: SendingStatus.CANCEL_RESCHEDULE_RECOVER,
+      description: t(filtersModalLocaleKeys.cancelRescheduleRecover),
+    },
+    {
+      key: SendingStatus.NOT_ANSWERED,
+      description: t(filtersModalLocaleKeys.sentStatus),
+    },
+    {
+      key: SendingStatus.OPEN_CVS,
+      description: t(filtersModalLocaleKeys.openCsvStatus),
     },
     {
       key: SendingStatus.INVALID,
       description: t(filtersModalLocaleKeys.invalidNumberStatus),
-      allowedForTypeList: [
-        SendingType.confirmation,
-        SendingType.reminder,
-        SendingType.medical_report,
-        SendingType.nps,
-        SendingType.nps_score,
-        SendingType.schedule_notification,
-        SendingType.recover_lost_schedule,
-      ],
     },
     {
       key: SendingStatus.NO_RECIPIENT,
       description: t(filtersModalLocaleKeys.noRecipient),
-      allowedForTypeList: [
-        SendingType.confirmation,
-        SendingType.reminder,
-        SendingType.medical_report,
-        SendingType.nps,
-        SendingType.nps_score,
-        SendingType.schedule_notification,
-        SendingType.recover_lost_schedule,
-      ],
     },
     {
       key: SendingStatus.INVALID_RECIPIENT,
       description: t(filtersModalLocaleKeys.invalidRecipíent),
-      allowedForTypeList: [
-        SendingType.confirmation,
-        SendingType.reminder,
-        SendingType.medical_report,
-        SendingType.nps,
-        SendingType.nps_score,
-        SendingType.schedule_notification,
-        SendingType.recover_lost_schedule,
-      ],
     },
-  ].reduce<DataType[]>((previousValue, currentValue) => {
-    if (
-      !queryStringAsObj.type ||
-      currentValue.allowedForTypeList.includes(queryStringAsObj.type as SendingType)
-    ) {
-      return [...previousValue, { key: currentValue.key, description: currentValue.description }];
-    }
-
-    return previousValue;
-  }, []);
+  ];
 
   const footerActions = () => {
     return (
@@ -157,7 +121,7 @@ export const StatusList = ({ selectedStatusList, setSelectedStatusList }: Status
                 setSelectedStatusList(newSelectedRowKeys as string[]);
               },
             }}
-            pagination={{ showTotal: footerActions }}
+            pagination={{ showTotal: footerActions, pageSize: 20 }}
           />
         </Col>
       </Row>

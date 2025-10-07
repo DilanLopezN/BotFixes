@@ -109,6 +109,25 @@ export const ContactTable = ({
       };
     }) || [];
 
+  const dynamicButtons = (): Columns => {
+    const btns: Columns = [];
+    if (selectedTemplate?.buttons?.length) {
+      selectedTemplate?.buttons.forEach((button, index) => {
+        if (button?.url?.endsWith('{{1}}') && button.type === 'URL') {
+          btns.push({
+            title: `${button.type}_${index}`,
+            dataIndex: `${button.type}_${index}`,
+            key: `${button.type}_${index}`,
+            width: 230,
+            ellipsis: true,
+            editable: true && canEdit,
+          });
+        }
+      });
+    }
+    return btns;
+  };
+
   const columns: Columns = [
     {
       title: t(contactTableLocaleKeys.titleColumnPhone),
@@ -128,6 +147,7 @@ export const ContactTable = ({
     },
     ...isCreatingColumns,
     ...dynamicColumns,
+    ...dynamicButtons(),
     {
       title: '',
       dataIndex: 'actions',
@@ -202,8 +222,14 @@ export const ContactTable = ({
     if (!canEdit) {
       return '';
     }
+    const rowKeys = Object.keys(row);
+    const matchButtons = selectedTemplate?.buttons?.some((button, index) => {
+      const constructedKey = `${button.type.toUpperCase()}_${index}`;
+      return rowKeys.includes(constructedKey) && row[constructedKey] !== '';
+    });
 
-    const hasEmptyColumn = !row.name || !row.phone || variables.some((variable) => !row[variable]);
+    const hasEmptyColumn =
+      !row.name || !row.phone || variables.some((variable) => !row[variable]) || !matchButtons;
 
     if (duplicatedPhones.includes(String(row.phone))) {
       return 'editable-row-duplicate-phone';

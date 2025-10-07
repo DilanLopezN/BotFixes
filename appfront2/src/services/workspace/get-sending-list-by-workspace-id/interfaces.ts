@@ -1,24 +1,9 @@
 import { SendingType } from '~/constants/sending-type';
+import { SendingListQueryParams } from '~/interfaces/send-list-query-params';
 import { SendingStatus } from './constants';
-import { feedbackEnum } from '~/modules/dashboard/sending-list/components/filters-modal/constants';
+import { RecipientTypeEnum } from '~/modules/dashboard/sending-list/constants';
 
-export interface GetSendingListByWorkspaceIdParams {
-  workspaceId: string;
-  startDate: string;
-  endDate: string;
-  type?: string;
-  search?: string;
-  specialityCodeList?: string[];
-  doctorCodeList?: string[];
-  statusList?: SendingStatus[];
-  procedureCodeList?: string[];
-  cancelReasonList?: string[];
-  organizationUnitList?: string[];
-  insuranceCodeList?: string[];
-  insurancePlanCodeList?: string[];
-  npsScoreList?: string[];
-  feedback?: feedbackEnum;
-}
+export interface GetSendingListByWorkspaceIdParams extends SendingListQueryParams {}
 
 export interface SendingListData {
   conversationId: string;
@@ -59,6 +44,7 @@ export interface SendingListData {
   data: Record<string, any>;
   reasonId?: string | null;
   isFirstComeFirstServed: boolean | null;
+  recipientType: RecipientTypeEnum;
 }
 
 export interface SendingList {

@@ -72,6 +72,11 @@ export class CreateScheduleSettingDto {
   @IsBoolean()
   omitAppointmentTypeName?: boolean;
 
+  @ApiProperty({ description: 'Omit doctor name', required: false })
+  @IsOptional()
+  @IsBoolean()
+  omitDoctorName?: boolean;
+
   @ApiProperty({ description: 'Omit extract guidance', required: false })
   @IsOptional()
   @IsBoolean()
@@ -183,6 +188,11 @@ export class UpdateScheduleSettingDto {
   @IsOptional()
   @IsBoolean()
   omitAppointmentTypeName?: boolean;
+
+  @ApiProperty({ description: 'Omit doctor name', required: false })
+  @IsOptional()
+  @IsBoolean()
+  omitDoctorName?: boolean;
 
   @ApiProperty({ description: 'Omit extract guidance', required: false })
   @IsOptional()

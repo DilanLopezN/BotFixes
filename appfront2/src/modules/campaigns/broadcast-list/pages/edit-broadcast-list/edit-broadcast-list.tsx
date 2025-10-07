@@ -132,13 +132,12 @@ export const EditBroadcastList = () => {
       return { ...rest, phone: String(phone) };
     });
 
-    const hasContactError = dataSource.some((contact) => {
+    const hasContactError = contacts.some((contact) => {
       return !contact.name?.trim() || !contact.phone;
     });
 
-    const hasEmptyContactAttributes = dataSource.some((contact) => {
-      const { sent, ...normalizedContact } = contact;
-      return !Object.values(normalizedContact).every(Boolean);
+    const hasEmptyContactAttributes = contacts.some((contact) => {
+      return !Object.values(contact).every(Boolean);
     });
 
     if (hasContactError) {

@@ -1,11 +1,11 @@
 import { useTranslation } from 'react-i18next';
 import { SendingType } from '~/constants/sending-type';
+import { localeKeys } from '~/i18n';
 import { NpsProfileChart } from '../../components/nps-profile-chart';
 import { NpsScoreChart } from '../../components/nps-score-chart';
 import { PieChart } from '../../components/pie-chart';
 import { useNpsAnalytics } from '../../hooks/use-nps-analytics';
 import type { ConfirmationChartsProps } from './interfaces';
-import { localeKeys } from '~/i18n';
 
 export const NpsScoreCharts = ({
   scheduleAnalytics,

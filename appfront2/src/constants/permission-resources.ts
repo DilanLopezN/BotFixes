@@ -1,4 +1,4 @@
-export enum PermissionResources {
+export enum PermissionResource {
   WORKSPACE = 'WORKSPACE',
   BOT = 'BOT',
   ENTITY = 'ENTITY',

@@ -1,5 +1,5 @@
 import { SendingType } from '~/constants/sending-type';
-import { feedbackEnum } from './components/filters-modal/constants';
+import { RecipientTypeEnum, FeedbackEnum } from './constants';
 
 export type SendingListQueryString = {
   startDate: string;
@@ -18,5 +18,8 @@ export type SendingListQueryString = {
   insuranceCodeList?: string;
   insurancePlanCodeList?: string;
   npsScoreList?: string;
-  feedback?: feedbackEnum;
+  getGroup?: string;
+  feedback?: FeedbackEnum;
+  recipientType?: RecipientTypeEnum;
+  aliasSettingId?: string;
 };

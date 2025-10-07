@@ -10,7 +10,7 @@ import { UserCreateMultipleProps } from './interfaces';
 import { useCreateMultipleUser } from './use-create-multiple-user';
 
 export const UserCreateMultiple = (props: UserCreateMultipleProps) => {
-  const { onClose, visible } = props;
+  const { onClose, visible, fetchUserList } = props;
 
   const { t } = useTranslation();
   const { userCreateMultiple } = localeKeys.settings.users.userList;
@@ -20,7 +20,7 @@ export const UserCreateMultiple = (props: UserCreateMultipleProps) => {
 
   const downloadSampleFile = async () => {
     const columns = ['name', 'email'];
-    downloadXlsxFile(`modelo-import-usuario.xlsx`, [columns]);
+    downloadXlsxFile(`user-import-template.xlsx`, [columns]);
   };
 
   const onUploadFile = async () => {
@@ -29,6 +29,8 @@ export const UserCreateMultiple = (props: UserCreateMultipleProps) => {
       message: t(userCreateMultiple.success),
       description: t(userCreateMultiple.successImportSeveral),
     });
+    onClose();
+    await fetchUserList();
   };
 
   useEffect(() => {

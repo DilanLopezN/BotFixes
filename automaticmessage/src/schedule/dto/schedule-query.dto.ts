@@ -1,5 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsBoolean, IsDateString, IsEnum, IsOptional, IsString } from 'class-validator';
+import {
+  IsBoolean,
+  IsDateString,
+  IsEnum,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 import { ExtractResumeType } from '../models/extract-resume.entity';
 import { ScheduleMessageState } from '../models/schedule-message.entity';
 
@@ -10,12 +16,16 @@ export enum StatusScheduleEnum {
   invalidNumber = 'invalid_number',
   not_answered = 'not_answered',
   reschedule = 'reschedule',
+  confirm_reschedule = 'confirm_reschedule',
+
   open_cvs = 'open_cvs',
   no_recipient = 'no_recipient',
   invalid_recipient = 'invalid_recipient',
   start_reschedule_recover = 'start_reschedule_recover',
   cancel_reschedule_recover = 'cancel_reschedule_recover',
   confirm_reschedule_recover = 'confirm_reschedule_recover',
+
+  document_uploaded = 'document_uploaded',
 }
 
 export enum feedbackEnum {
@@ -91,6 +101,11 @@ export class ScheduleFilterListDto {
   @IsOptional()
   @IsString()
   patientCode?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  aliasSettingId?: string;
 
   @ApiProperty({ required: false, enum: ExtractResumeType })
   @IsOptional()

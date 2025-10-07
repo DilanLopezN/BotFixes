@@ -63,6 +63,7 @@ export class ScheduleSettingController {
       useOrganizationUnitOnGroupDescription:
         body.useOrganizationUnitOnGroupDescription,
       omitAppointmentTypeName: body.omitAppointmentTypeName,
+      omitDoctorName: body.omitDoctorName,
       omitExtractGuidance: body.omitExtractGuidance,
       fridayJoinWeekendMonday: body.fridayJoinWeekendMonday,
       checkScheduleChanges: body.checkScheduleChanges,
@@ -83,6 +84,17 @@ export class ScheduleSettingController {
     body: ListScheduleSettingDto
   ) {
     return await this.scheduleSettingService.listByWorkspaceId(body.workspaceId);
+  }
+
+  @Post('listByAlias')
+  @ApiOperation({ summary: 'List all schedule settings for a workspace' })
+  @ApiBody({ type: ListScheduleSettingDto })
+  @ApiResponse({ status: 200, description: 'Schedule settings listed successfully', type: Array })
+  async listScheduleSettingByAlias(
+    @Body()
+    body: ListScheduleSettingDto
+  ) {
+    return await this.scheduleSettingService.listByWorkspaceIdWithAlias(body.workspaceId);
   }
 
   @Post('getById')
@@ -155,6 +167,7 @@ export class ScheduleSettingController {
           useOrganizationUnitOnGroupDescription:
             body.schedule.useOrganizationUnitOnGroupDescription,
           omitAppointmentTypeName: body.schedule.omitAppointmentTypeName,
+          omitDoctorName: body.schedule.omitDoctorName,
           omitExtractGuidance: body.schedule.omitExtractGuidance,
           fridayJoinWeekendMonday: body.schedule.fridayJoinWeekendMonday,
           checkScheduleChanges: body.schedule.checkScheduleChanges,

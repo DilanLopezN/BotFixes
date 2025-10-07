@@ -1,4 +1,3 @@
-import { Menu } from 'antd';
 import { ItemType } from 'antd/es/menu/interface';
 import { useTranslation } from 'react-i18next';
 import { MenuNavigator } from '~/components/menu-navigator';
@@ -7,6 +6,7 @@ import { MenuList } from '~/hooks/use-menu-with-permissions/interfaces';
 import { localeKeys } from '~/i18n';
 import { routes } from '~/routes/constants';
 import { AppTypePort } from '~/utils/redirect-app';
+import { StyledMenu } from './styles';
 
 export const SidebarMenu = () => {
   const { t } = useTranslation();
@@ -47,13 +47,11 @@ export const SidebarMenu = () => {
         {
           key: settingsModules.tags.path,
           label: (
-            <MenuNavigator
-              pathname={`settings/${settingsModules.tags.path}`}
-              appTypePort={AppTypePort.APP}
-            >
+            <MenuNavigator pathname={settingsModules.tags.path} appTypePort={AppTypePort.V2}>
               {t(localeKeys.settings.sidebarMenu.tagsMenuItem)}
             </MenuNavigator>
           ),
+          allowedRoles: settingsModules.tags.allowedRoles,
         },
         {
           key: settingsModules.acessGroup.path,
@@ -90,16 +88,17 @@ export const SidebarMenu = () => {
           ),
         },
         {
-          key: settingsModules.autoAssign.path,
+          key: settingsModules.aiAgent.path,
           label: (
             <MenuNavigator
-              pathname={`settings/${settingsModules.autoAssign.path}`}
+              pathname={`settings/${settingsModules.aiAgent.path}`}
               appTypePort={AppTypePort.APP}
             >
-              {t(localeKeys.settings.sidebarMenu.automaticallyAssignMenuItem)}
+              {t(localeKeys.settings.sidebarMenu.aiAgentMenuItem)}
             </MenuNavigator>
           ),
-          hasPermission: settingsModules.autoAssign.hasPermission,
+          allowedRoles: settingsModules.aiAgent.allowedRoles,
+          hasPermission: settingsModules.aiAgent.hasPermission,
         },
         {
           key: settingsModules.privacyPolicy.path,
@@ -111,6 +110,31 @@ export const SidebarMenu = () => {
               {t(localeKeys.settings.sidebarMenu.privacyPolicyMenuItem)}
             </MenuNavigator>
           ),
+        },
+        {
+          key: settingsModules.categorization.path,
+          label: (
+            <MenuNavigator
+              pathname={settingsModules.categorization.path}
+              appTypePort={AppTypePort.V2}
+            >
+              {t(localeKeys.settings.sidebarMenu.categorizationMenuItem)}
+            </MenuNavigator>
+          ),
+          allowedRoles: settingsModules.categorization.allowedRoles,
+          hasPermission: settingsModules.categorization.hasPermission,
+        },
+        {
+          key: settingsModules.autoAssign.path,
+          label: (
+            <MenuNavigator
+              pathname={`settings/${settingsModules.autoAssign.path}`}
+              appTypePort={AppTypePort.APP}
+            >
+              {t(localeKeys.settings.sidebarMenu.automaticallyAssignMenuItem)}
+            </MenuNavigator>
+          ),
+          hasPermission: settingsModules.autoAssign.hasPermission,
         },
         {
           key: settingsModules.rating.path,
@@ -151,17 +175,50 @@ export const SidebarMenu = () => {
           allowedRoles: settingsModules.featureFlags.allowedRoles,
         },
         {
-          key: settingsModules.categorization.path,
+          key: settingsModules.breaks.path,
           label: (
-            <MenuNavigator
-              pathname={settingsModules.categorization.path}
-              appTypePort={AppTypePort.V2}
-            >
-              {t(localeKeys.settings.sidebarMenu.categorizationMenuItem)}
+            <MenuNavigator pathname={settingsModules.breaks.path} appTypePort={AppTypePort.V2}>
+              {t(localeKeys.settings.sidebarMenu.breaksMenuItem)}
             </MenuNavigator>
           ),
-          allowedRoles: settingsModules.categorization.allowedRoles,
-          hasPermission: settingsModules.categorization.hasPermission,
+          allowedRoles: settingsModules.breaks.allowedRoles,
+          hasPermission: settingsModules.breaks.hasPermission,
+        },
+        {
+          key: settingsModules.whatsAppFlow.path,
+          label: (
+            <MenuNavigator
+              pathname={settingsModules.whatsAppFlow.path}
+              appTypePort={AppTypePort.V2}
+            >
+              {t(localeKeys.settings.sidebarMenu.whatsAppFlow)}
+            </MenuNavigator>
+          ),
+          allowedRoles: settingsModules.whatsAppFlow.allowedRoles,
+          hasPermission: settingsModules.whatsAppFlow.hasPermission,
+        },
+        {
+          key: settingsModules.remi.path,
+          label: (
+            <MenuNavigator pathname={settingsModules.remi.path} appTypePort={AppTypePort.V2}>
+              {t(localeKeys.settings.sidebarMenu.remi)}
+            </MenuNavigator>
+          ),
+          allowedRoles: settingsModules.remi.allowedRoles,
+          hasPermission: settingsModules.remi.hasPermission,
+        },
+        {
+          key: settingsModules.automaticDistribution.path,
+          label: (
+            <MenuNavigator
+              pathname={settingsModules.automaticDistribution.path}
+              appTypePort={AppTypePort.V2}
+            >
+              {t(localeKeys.settings.sidebarMenu.automaticDistribution)}
+            </MenuNavigator>
+          ),
+          allowedRoles: settingsModules.automaticDistribution.allowedRoles,
+          hasPermission: settingsModules.automaticDistribution.hasPermission,
         },
       ],
     },
@@ -177,11 +234,10 @@ export const SidebarMenu = () => {
   })) as ItemType[];
 
   return (
-    <Menu
+    <StyledMenu
       expandIcon={false}
       mode='inline'
       theme='light'
-      style={{ height: '100vh' }}
       items={normalizedMenu}
       selectedKeys={[selectedKey]}
     />

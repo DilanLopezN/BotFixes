@@ -9,9 +9,11 @@ import {
   AiOutlineTeam,
   AiOutlineUser,
 } from 'react-icons/ai';
-import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Link, Outlet, useLocation } from 'react-router-dom';
 import { ClarityScript } from '~/components/clarity-script';
 import { SpinnerContainer } from '~/components/spinner-container';
+import { StartBreakModal } from '~/components/start-break-modal';
+import { UserRole } from '~/constants/user-roles';
 import { useAuth } from '~/hooks/use-auth';
 import { useOrganizationSettings } from '~/hooks/use-organization-settings';
 import { useSelectedWorkspace } from '~/hooks/use-selected-workspace';
@@ -21,9 +23,10 @@ import {
   canViewSendingList,
   isAnySystemAdmin,
   isSystemAdmin,
+  isSystemCsAdmin,
   isWorkspaceAdmin,
 } from '~/utils/permissions';
-import { AppTypePort, redirectApp } from '~/utils/redirect-app';
+import { AppTypePort, getBaseUrl } from '~/utils/redirect-app';
 import { CampaignIcon } from './icons/campaign-icon';
 import { DashboardIcon } from './icons/dashboard-icon';
 import { HelpCenterIcon } from './icons/help-center-icon';
@@ -46,7 +49,6 @@ export const NavigationTemplate = () => {
   const { t } = useTranslation();
   const { user } = useAuth();
   const selectedWorkspace = useSelectedWorkspace();
-  const nagivate = useNavigate();
   const { organizationSettings, isLoading } = useOrganizationSettings();
 
   const { name: workspaceName, _id: workspaceId, featureFlag } = selectedWorkspace;
@@ -54,32 +56,27 @@ export const NavigationTemplate = () => {
   const workspaceFeatureFlag = featureFlag || {};
   const optionsMap: OptionsMap = {
     dashboard: {
+      id: 'dashboard',
       title: t(localeKeys.navigationSideBar.dashboardMenuItem),
-      path: '/dashboard',
+      path: getBaseUrl({ pathname: '/dashboard/real-time', appTypePort: AppTypePort.APP }),
       icon: DashboardIcon,
-      onClick: () => {
-        redirectApp({ pathname: 'dashboard/real-time', appTypePort: AppTypePort.APP });
-      },
     },
     entities: {
+      id: 'entities',
       title: t(localeKeys.navigationSideBar.entitiesMenuItem),
-      path: '/entities',
+      path: getBaseUrl({ pathname: '/entities', appTypePort: AppTypePort.APP }),
       icon: AiOutlineDatabase,
-      onClick: () => {
-        redirectApp({ pathname: 'entities', appTypePort: AppTypePort.APP });
-      },
     },
     'live-agent': {
+      id: 'live-agent',
       title: t(localeKeys.navigationSideBar.liveAgentMenuItem),
-      path: '/live-agent',
+      path: getBaseUrl({ pathname: '/live-agent', appTypePort: AppTypePort.APP }),
       icon: AiOutlineComment,
-      onClick: () => {
-        redirectApp({ pathname: 'live-agent', appTypePort: AppTypePort.APP });
-      },
     },
     integrations: {
+      id: 'integrations',
       title: t(localeKeys.navigationSideBar.integrationsMenuItem),
-      path: '/integrations/settings',
+      path: getBaseUrl({ pathname: '/integrations', appTypePort: AppTypePort.APP }),
       icon: AiOutlineAppstore,
       hasPermission: () => {
         if (workspaceFeatureFlag.enableModuleIntegrations || (user && isAnySystemAdmin(user))) {
@@ -87,45 +84,40 @@ export const NavigationTemplate = () => {
         }
         return false;
       },
-      onClick: () => {
-        redirectApp({
-          pathname: 'integrations/settings',
-          appTypePort: AppTypePort.APP,
-        });
-      },
     },
     settings: {
+      id: 'settings',
       title: t(localeKeys.navigationSideBar.settingsMenuItem),
-      path: '/settings',
+      path: getBaseUrl({ pathname: '/settings', appTypePort: AppTypePort.APP }),
       icon: AiOutlineSetting,
-      onClick: () => {
-        nagivate('settings');
-      },
     },
     customers: {
+      id: 'customers',
       title: t(localeKeys.navigationSideBar.customersMenuItem),
-      path: '/customers/billing',
+      path:
+        user && !isSystemAdmin(user)
+          ? getBaseUrl({
+              pathname: '/admin/customers/customer-summary',
+              appTypePort: AppTypePort.ADMIN,
+            })
+          : getBaseUrl({ pathname: '/customers/billing', appTypePort: AppTypePort.APP }),
       icon: AiOutlineTeam,
-      onClick: () => {
-        if (user && !isSystemAdmin(user)) {
-          redirectApp({
-            pathname: '/admin/customers/customer-summary',
-            appTypePort: AppTypePort.ADMIN,
-          });
-          return;
-        }
-        redirectApp({ pathname: 'customers/billing', appTypePort: AppTypePort.APP });
-      },
     },
     campaigns: {
+      id: 'campaigns',
       title: t(localeKeys.navigationSideBar.campaignsMenuItem),
-      path: '/campaigns',
+      path: getBaseUrl({
+        pathname: '/campaigns',
+        appTypePort: AppTypePort.APP,
+      }),
       icon: CampaignIcon,
       hasPermission: () => {
         if (
           user &&
           ((isSystemAdmin(user) &&
             (workspaceFeatureFlag.campaign || workspaceFeatureFlag.activeMessage)) ||
+            (isSystemCsAdmin(user) &&
+              (workspaceFeatureFlag.campaign || workspaceFeatureFlag.activeMessage)) ||
             (isAnySystemAdmin(user) && workspaceFeatureFlag.campaign) ||
             (isWorkspaceAdmin(user, workspaceId) && workspaceFeatureFlag.campaign) ||
             (workspaceFeatureFlag.campaign && canViewCampaign(user, selectedWorkspace)) ||
@@ -136,17 +128,15 @@ export const NavigationTemplate = () => {
         }
         return false;
       },
-      onClick: () => {
-        redirectApp({ pathname: 'campaigns', appTypePort: AppTypePort.APP });
-      },
     },
     trainerBot: {
+      id: 'trainer-bot',
       title: t(localeKeys.navigationSideBar.trainerBotMenuItem),
-      path: '/trainer-bot',
+      path: getBaseUrl({
+        pathname: '/trainer-bot/training',
+        appTypePort: AppTypePort.V2,
+      }),
       icon: AiOutlineRobot,
-      onClick: () => {
-        nagivate('trainer-bot/training');
-      },
     },
   };
 
@@ -157,7 +147,20 @@ export const NavigationTemplate = () => {
       return previousValue;
     }
 
-    if (!user?.roles?.some((userRole) => roles.some((role) => role === userRole.role))) {
+    if (
+      !user?.roles?.some((userRole) =>
+        roles.some((role) => {
+          if (
+            (role === UserRole.WORKSPACE_ADMIN || role === UserRole.DASHBOARD_ADMIN) &&
+            role === userRole.role
+          ) {
+            return userRole.resourceId === selectedWorkspace._id;
+          }
+
+          return role === userRole.role;
+        })
+      )
+    ) {
       return previousValue;
     }
 
@@ -190,11 +193,10 @@ export const NavigationTemplate = () => {
             <LogoImage title='Botdesigner' src='/v2/assets/img/botdesigner-min-logo.png' />
           </LogoImageWrapper>
           <Link
-            to='/home'
-            onClick={(event) => {
-              event.preventDefault();
-              redirectApp({ pathname: 'home', appTypePort: AppTypePort.APP });
-            }}
+            to={getBaseUrl({
+              pathname: '/home',
+              appTypePort: AppTypePort.APP,
+            })}
           >
             <OptionItem
               selected={pathname.includes('/home')}
@@ -205,7 +207,7 @@ export const NavigationTemplate = () => {
           </Link>
           {options?.map((element) => {
             const Icon = element.icon;
-            const isSelected = pathname.includes(element.path);
+            const isSelected = pathname.includes(element.id);
 
             const render = (
               <OptionItem
@@ -219,16 +221,7 @@ export const NavigationTemplate = () => {
             );
 
             return (
-              <Link
-                key={element.path}
-                to={element.path}
-                onClick={(e) => {
-                  e.preventDefault();
-                  if (element.onClick) {
-                    element.onClick();
-                  }
-                }}
-              >
+              <Link key={element.path} to={element.path}>
                 {render}
               </Link>
             );
@@ -242,16 +235,16 @@ export const NavigationTemplate = () => {
           </Anchor>
           <WorkspaceOption />
           <Link
-            to='/profile'
-            onClick={(event) => {
-              event.preventDefault();
-              redirectApp({ pathname: 'profile', appTypePort: AppTypePort.APP });
-            }}
+            to={getBaseUrl({
+              pathname: '/profile',
+              appTypePort: AppTypePort.APP,
+            })}
           >
             <OptionItem selected={false} title={t(localeKeys.navigationSideBar.profileMenuItem)}>
               <AiOutlineUser className='icon-menu' />
             </OptionItem>
           </Link>
+          <StartBreakModal />
         </BottomLevelOptions>
       </SideMenu>
       <ChildArea>

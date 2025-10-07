@@ -1,9 +1,9 @@
 export interface NavigationProps {
+  id: string;
   title: string;
   path: string;
   icon: (props: Record<string, unknown>) => JSX.Element;
   hasPermission?: () => boolean;
-  onClick?: () => void;
 }
 
 export interface OptionsMap {

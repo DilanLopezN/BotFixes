@@ -441,4 +441,25 @@ export class ScheduleService {
       .orderBy('sc.schedule_date')
       .getMany();
   }
+
+  @CatchError()
+  async getScheduleWithDocumentRequest(
+    scheduleCode: string,
+    patientCode: string,
+  ): Promise<Schedule> {
+    const result = await this.repository
+      .createQueryBuilder('sch')
+      .where('sch.schedule_code = :scheduleCode', { scheduleCode: scheduleCode })
+      .andWhere('sch.patient_code = :patientCode', { patientCode: patientCode })
+      .innerJoinAndMapOne(
+        'sch.scheduleMessage',
+        ScheduleMessage,
+        'msg',
+        `msg.send_type = :sendType AND sch.id = msg.schedule_id`,
+        { sendType: ExtractResumeType.documents_request },
+      )
+      .getOne();
+    
+    return result;
+  }
 }

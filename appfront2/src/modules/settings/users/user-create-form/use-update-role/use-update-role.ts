@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { PermissionResources } from '~/constants/permission-resources';
+import { PermissionResource } from '~/constants/permission-resources';
 import { ApiError } from '~/interfaces/api-error';
 import { Me } from '~/interfaces/me';
 import { updateRoles } from '~/services/workspace/update-roles';
@@ -16,7 +16,7 @@ export const useUpdateRole = () => {
       setIsUpdating(true);
       const { _id } = selectedUser;
       const userUpdateRole = {
-        resource: PermissionResources.WORKSPACE,
+        resource: PermissionResource.WORKSPACE,
         resourceId: workspaceId,
         role: values.permission,
       };

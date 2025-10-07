@@ -12,6 +12,11 @@ export interface PieChartProps {
     open_cvs?: number;
     no_recipient?: number;
     invalid_recipient?: number;
+    individual_cancel?: number;
+    start_reschedule_recover?: number;
+    cancel_reschedule_recover?: number;
+    confirm_reschedule_recover?: number;
+    recipient_type?: number;
   };
   isLoading?: boolean;
   type?: SendingType;

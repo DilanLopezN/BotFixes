@@ -71,6 +71,17 @@ export const DayOffTable = ({
         );
       },
     },
+    /* 
+    TODO: Vai ser implementado quando o backend estiver pronto 
+    {
+      title: t(dayOffTable.createdAt),
+      dataIndex: 'createdAt',
+      key: 'createdAt',
+      render: (_, dayOff) => {
+        return <span>{dayjs(dayOff.createdAt).format('DD/MM/YYYY HH:mm')}</span>;
+      },
+    },
+    */
     {
       title: '',
       width: 340,

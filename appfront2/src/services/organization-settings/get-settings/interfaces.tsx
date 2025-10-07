@@ -1,4 +1,4 @@
-import { UserRoles } from '~/constants/user-roles';
+import { UserRole } from '~/constants/user-roles';
 
 interface Channel {
   _id: string;
@@ -8,7 +8,7 @@ interface Channel {
 
 interface Extension {
   enable: boolean;
-  roles: UserRoles[];
+  roles: UserRole[];
   extension: string;
 }
 

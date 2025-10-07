@@ -6,6 +6,7 @@ export const exportListSchedulesCsv = async ({
   workspaceId,
   filter,
   downloadType,
+  selectedColumns,
 }: ExportListSchedulesCsvParams): Promise<void> =>
   doRequest(
     apiInstance.post(
@@ -13,6 +14,7 @@ export const exportListSchedulesCsv = async ({
       {
         ...filter,
         downloadType,
+        selectedColumns,
       },
       {
         responseType: 'blob',

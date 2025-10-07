@@ -8,4 +8,8 @@ export enum SendingStatus {
   RESCHEDULE = 'reschedule',
   NO_RECIPIENT = 'no_recipient',
   INVALID_RECIPIENT = 'invalid_recipient',
+  INDIVIDUAL_CANCEL = 'individual_cancel',
+  START_RESCHEDULE_RECOVER = 'start_reschedule_recover',
+  CANCEL_RESCHEDULE_RECOVER = 'cancel_reschedule_recover',
+  CONFIRM_RESCHEDULE_RECOVER = 'confirm_reschedule_recover',
 }

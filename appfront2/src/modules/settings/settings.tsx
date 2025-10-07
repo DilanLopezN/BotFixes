@@ -6,7 +6,7 @@ const { Sider } = Layout;
 
 export const Settings = () => (
   <Layout hasSider>
-    <Sider theme='light' width={224}>
+    <Sider theme='light' width={224} style={{ overflow: 'hidden' }}>
       <SidebarMenu />
     </Sider>
     <Layout>

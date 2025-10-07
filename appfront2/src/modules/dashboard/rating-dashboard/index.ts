@@ -1,0 +1,1 @@
+export { RatingDashboard } from './rating';

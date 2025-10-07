@@ -16,7 +16,7 @@ export const BroadcastInfoCard = ({ canEdit = true }: BroadcastInfoCardProps) =>
 
   const cardTitle = (
     <Flex justify='space-between'>
-      <span>{t(broadcastInfoCardLocaleKeys.labelListName)}</span>
+      <span>{t(broadcastInfoCardLocaleKeys.labelListNameSpan)}</span>
       {name ? (
         <Tag color='green'>{t(broadcastInfoCardLocaleKeys.tagFilled)}</Tag>
       ) : (

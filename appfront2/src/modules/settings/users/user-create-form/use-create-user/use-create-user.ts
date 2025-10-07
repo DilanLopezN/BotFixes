@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { PermissionResources } from '~/constants/permission-resources';
+import { PermissionResource } from '~/constants/permission-resources';
 import { UserLanguage } from '~/constants/user-language';
 import type { ApiError } from '~/interfaces/api-error';
 import { createUsersByWorkspace } from '~/services/workspace/create-user';
@@ -18,8 +18,9 @@ export const useCreateUser = () => {
         name: values.name,
         email: values.email,
         password: values.password,
+        ...(values.erpUsername ? { erpUsername: values.erpUsername } : {}),
         role: {
-          resource: PermissionResources.WORKSPACE,
+          resource: PermissionResource.WORKSPACE,
           resourceId: workspaceId,
           role: values.permission,
         },

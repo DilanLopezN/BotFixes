@@ -1,15 +1,15 @@
-import { PermissionResources } from '~/constants/permission-resources';
+import { PermissionResource } from '~/constants/permission-resources';
 import { UserLanguage } from '~/constants/user-language';
-import { UserRoles } from '~/constants/user-roles';
+import { UserRole } from '~/constants/user-roles';
 
 export interface CreateUsersProps {
   name: string;
   email: string;
   password: string;
   role: {
-    resource: PermissionResources;
+    resource: PermissionResource;
     resourceId: string;
-    role: UserRoles;
+    role: UserRole;
   };
   // avatar: string;
   language: UserLanguage;

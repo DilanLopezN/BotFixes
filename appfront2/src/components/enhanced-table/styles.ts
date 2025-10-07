@@ -1,10 +1,16 @@
 import styled from 'styled-components';
 
 export const Container = styled.div.withConfig({
-  shouldForwardProp: (prop) => !['minHeight'].includes(prop),
-})<{ height?: number | string; minHeight?: string }>`
+  shouldForwardProp: (prop) => !['height', 'minHeight', 'shouldRenderExtraPadding'].includes(prop),
+})<{
+  height?: number | string;
+  minHeight?: string;
+  shouldRenderExtraPadding?: boolean;
+}>`
   display: flex;
   flex-direction: column;
+  padding-bottom: ${({ shouldRenderExtraPadding }) =>
+    shouldRenderExtraPadding ? '16px' : undefined};
 
   .ant-table-body {
     height: ${({ height }) => height};

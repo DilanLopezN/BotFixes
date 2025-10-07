@@ -9,7 +9,7 @@ import { TrainingButtonProps } from './interfaces';
 export const TrainingButton = ({ trainings, setTrainings }: TrainingButtonProps) => {
   const { t } = useTranslation();
   const { trainingButtons: trainingButtonsLocaleKeys } = localeKeys.trainerBot.training.components;
-  const isPending = trainings.some((t) => t.pendingTraining);
+  const isPending = trainings.some((training) => training.pendingTraining);
   const { startTraining, isLoading: isTrainingLoading } = useDoTraining();
 
   const getButtonIcon = () => {

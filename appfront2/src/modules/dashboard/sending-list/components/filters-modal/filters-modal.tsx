@@ -6,20 +6,22 @@ import { useTranslation } from 'react-i18next';
 import { useQueryString } from '~/hooks/use-query-string';
 import { useSelectedIntegration } from '~/hooks/use-selected-integration';
 import { localeKeys } from '~/i18n';
+import { FeedbackEnum, RecipientTypeEnum } from '../../constants';
 import type { SendingListQueryString } from '../../interfaces';
 import { CancelingReasonList } from '../canceling-reason-list';
 import { DoctorList } from '../doctor-list';
+import { FeedbackList } from '../feedback-list';
 import { InsuranceNameList } from '../insurance-name-list';
 import { InsurancePlanNameList } from '../insurance-plan-name-list';
+import { NpsScoreList } from '../nps-score-list';
 import { OrganizationUnitList } from '../organization-unit-list';
 import { ProcedureList } from '../procedure-lits';
+import { RecipientTypeList } from '../recipient-type-list';
+import { ScheduleWithAliasList } from '../schedule-with-alias-list';
 import { SpecialityList } from '../speciality-list';
 import { StatusList } from '../status-list';
 import type { FiltersModalProps } from './interfaces';
 import { FiltersContainer } from './styles';
-import { NpsScoreList } from '../nps-score-list';
-import { Feedback } from './filter-feedback/feedback';
-import { feedbackEnum } from './constants';
 
 export const FiltersModal = ({ isVisible, onClose }: FiltersModalProps) => {
   const { t } = useTranslation();
@@ -34,10 +36,13 @@ export const FiltersModal = ({ isVisible, onClose }: FiltersModalProps) => {
   const [selectedProcedureList, setSelectedProcedureList] = useState<string[]>([]);
   const [selectedCancelingReasonList, setSelectedCancelingReasonList] = useState<string[]>([]);
   const [selectedOrganizationUnitList, setSelectedOrganizationUnitList] = useState<string[]>([]);
-  const [feedback, setFeedback] = useState<feedbackEnum | null>(null);
+  const [feedback, setFeedback] = useState<FeedbackEnum | null>(null);
+  const [recipientType, setRecipientType] = useState<RecipientTypeEnum | null>(null);
+  const [selectedScheduleSettingWithAliasList, setSelectedScheduleSettingWithAliasList] = useState<
+    string[]
+  >([]);
   const [activeCollapseItem, setActiveCollapseItem] = useState<string[]>(['1']);
   const { data: selectedIntegration } = useSelectedIntegration();
-
   const { filtersModal: filtersModalLocaleKeys } = localeKeys.dashboard.sendingList.fullTable;
 
   const handleResetFilters = () => {
@@ -51,6 +56,8 @@ export const FiltersModal = ({ isVisible, onClose }: FiltersModalProps) => {
     setSelectedOrganizationUnitList([]);
     setSelectedNpsScoreList([]);
     setFeedback(null);
+    setRecipientType(null);
+    setSelectedScheduleSettingWithAliasList([]);
   };
 
   const handleFilters = () => {
@@ -65,6 +72,8 @@ export const FiltersModal = ({ isVisible, onClose }: FiltersModalProps) => {
       insurancePlanCodeList: selectedInsurancePlanCodeList,
       npsScoreList: selectedNpsScoreList,
       feedback,
+      recipientType,
+      aliasSettingId: selectedScheduleSettingWithAliasList,
       currentPage: 1,
     });
     onClose();
@@ -103,20 +112,26 @@ export const FiltersModal = ({ isVisible, onClose }: FiltersModalProps) => {
       setSelectedNpsScoreList(
         queryStringAsObj.npsScoreList ? queryStringAsObj.npsScoreList.split(',') : []
       );
-      setFeedback((queryStringAsObj.feedback as feedbackEnum) || undefined);
+      setFeedback((queryStringAsObj.feedback as FeedbackEnum) || undefined);
+      setRecipientType((queryStringAsObj.recipientType as RecipientTypeEnum) || undefined);
+      setSelectedScheduleSettingWithAliasList(
+        queryStringAsObj.aliasSettingId ? queryStringAsObj.aliasSettingId.split(',') : []
+      );
     }
   }, [
     isVisible,
-    queryStringAsObj.doctorCodeList,
-    queryStringAsObj.specialityCodeList,
-    queryStringAsObj.statusList,
-    queryStringAsObj.procedureCodeList,
+    queryStringAsObj.aliasSettingId,
     queryStringAsObj.cancelReasonList,
-    queryStringAsObj.organizationUnitList,
+    queryStringAsObj.doctorCodeList,
+    queryStringAsObj.feedback,
     queryStringAsObj.insuranceCodeList,
     queryStringAsObj.insurancePlanCodeList,
     queryStringAsObj.npsScoreList,
-    queryStringAsObj.feedback,
+    queryStringAsObj.organizationUnitList,
+    queryStringAsObj.procedureCodeList,
+    queryStringAsObj.recipientType,
+    queryStringAsObj.specialityCodeList,
+    queryStringAsObj.statusList,
   ]);
 
   const filterList: CollapseProps['items'] = [
@@ -276,7 +291,34 @@ export const FiltersModal = ({ isVisible, onClose }: FiltersModalProps) => {
           <Badge count={feedback ? 1 : 0} />
         </Space>
       ),
-      children: <Feedback feedback={feedback} setFeedback={setFeedback} />,
+      children: <FeedbackList feedback={feedback} setFeedback={setFeedback} />,
+    },
+    {
+      key: '11',
+      label: (
+        <Space align='center'>
+          <span>Canal</span>
+          <Badge count={recipientType ? 1 : 0} />
+        </Space>
+      ),
+      children: (
+        <RecipientTypeList recipientType={recipientType} setRecipientType={setRecipientType} />
+      ),
+    },
+    {
+      key: '12',
+      label: (
+        <Space align='center'>
+          <span>{t(filtersModalLocaleKeys.configSendingStatus)}</span>
+          <Badge count={selectedScheduleSettingWithAliasList.length} />
+        </Space>
+      ),
+      children: (
+        <ScheduleWithAliasList
+          selectedScheduleSettingWithAliasList={selectedScheduleSettingWithAliasList}
+          setSelectedScheduleSettingWithAliasList={setSelectedScheduleSettingWithAliasList}
+        />
+      ),
     },
   ];
 
@@ -284,7 +326,7 @@ export const FiltersModal = ({ isVisible, onClose }: FiltersModalProps) => {
     return (
       <Flex justify='space-between'>
         <Button onClick={handleResetFilters}>{t(filtersModalLocaleKeys.resetFiltersButton)}</Button>
-        <Space>
+        <Space style={{ paddingRight: 24 }}>
           <CancelBtn />
           <OkBtn />
         </Space>
@@ -300,7 +342,12 @@ export const FiltersModal = ({ isVisible, onClose }: FiltersModalProps) => {
         onOk={handleFilters}
         okText={t(filtersModalLocaleKeys.filterButton)}
         cancelText={t(filtersModalLocaleKeys.cancelButton)}
-        styles={{ body: { height: 650, overflowY: 'auto' } }}
+        styles={{
+          body: { height: 650, overflowY: 'auto', paddingRight: 16 },
+          content: {
+            paddingRight: 0,
+          },
+        }}
         onCancel={onClose}
         title={t(filtersModalLocaleKeys.modalTitle)}
         maskClosable={false}

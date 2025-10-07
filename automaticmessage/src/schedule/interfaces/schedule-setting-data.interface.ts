@@ -5,6 +5,7 @@ export interface CreateScheduleSettingData {
   workspaceId: string;
   integrationId: string;
   name: string;
+  alias?: string;
   active: boolean;
   extractAt: number;
   extractRule: ExtractRule;
@@ -14,6 +15,7 @@ export interface CreateScheduleSettingData {
   enableResendNotAnswered?: boolean;
   useOrganizationUnitOnGroupDescription?: boolean;
   omitAppointmentTypeName?: boolean;
+  omitDoctorName?: boolean;
   omitExtractGuidance?: boolean;
   fridayJoinWeekendMonday?: boolean;
   checkScheduleChanges?: boolean;
@@ -30,6 +32,7 @@ export interface UpdateScheduleSettingData {
   integrationId: string;
   active: boolean;
   name: string;
+  alias?: string;
   id: number;
   workspaceId: string;
   extractAt: number;
@@ -40,6 +43,7 @@ export interface UpdateScheduleSettingData {
   enableResendNotAnswered?: boolean;
   useOrganizationUnitOnGroupDescription?: boolean;
   omitAppointmentTypeName?: boolean;
+  omitDoctorName?: boolean;
   omitExtractGuidance?: boolean;
   fridayJoinWeekendMonday?: boolean;
   checkScheduleChanges?: boolean;

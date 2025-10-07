@@ -1,8 +1,10 @@
 import { I18nextProvider } from 'react-i18next';
 import { Outlet } from 'react-router-dom';
+import { ActivityMonitor } from './components/activity-monitor';
 import { GaPageViewTracker } from './components/ga-page-view-tracker';
 import { AuthProvider } from './contexts/auth-context';
 import { OrganizationSettingsProvides } from './contexts/organization-settings-context';
+import { UserActivityProvider } from './contexts/user-activity-context';
 import { WorkspaceProvider } from './contexts/workspace-context';
 import { GlobalStyles } from './global-styles';
 import { i18n } from './i18n';
@@ -15,9 +17,12 @@ export const ProvidersContainer = () => {
         <AntdLanguageProvider>
           <OrganizationSettingsProvides>
             <WorkspaceProvider>
-              <Outlet />
-              <GaPageViewTracker />
-              <GlobalStyles />
+              <UserActivityProvider>
+                <Outlet />
+                <ActivityMonitor />
+                <GaPageViewTracker />
+                <GlobalStyles />
+              </UserActivityProvider>
             </WorkspaceProvider>
           </OrganizationSettingsProvides>
         </AntdLanguageProvider>

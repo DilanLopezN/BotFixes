@@ -124,7 +124,7 @@ export const FiltersModal = ({ isVisible, onClose }: FiltersModalProps) => {
     return (
       <Flex justify='space-between'>
         <Button onClick={handleResetFilters}>{t(filtersModalLocaleKeys.buttonClean)}</Button>
-        <Space>
+        <Space style={{ paddingRight: 24 }}>
           <CancelBtn />
           <OkBtn />
         </Space>
@@ -137,7 +137,17 @@ export const FiltersModal = ({ isVisible, onClose }: FiltersModalProps) => {
       forceRender
       title={t(filtersModalLocaleKeys.modalTitle)}
       style={{ maxWidth: '490px' }}
-      styles={{ body: { height: 360, overflow: 'hidden', overflowY: 'auto' } }}
+      styles={{
+        body: {
+          height: 360,
+          overflow: 'hidden',
+          overflowY: 'auto',
+          paddingRight: 16,
+        },
+        content: {
+          paddingRight: 0,
+        },
+      }}
       open={isVisible}
       maskClosable={false}
       keyboard={false}

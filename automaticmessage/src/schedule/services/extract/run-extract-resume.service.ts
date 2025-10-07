@@ -843,7 +843,9 @@ export class RunExtractResumeService {
           schedule?.doctorName &&
           schedule?.appointmentTypeCode != 'Q'
         ) {
-          msg = ` ${msg} ${schedule.doctorName} -`;
+          if(!scheduleSetting.omitDoctorName) {
+            msg = ` ${msg} ${schedule.doctorName} -`;
+          }
         }
         try {
           if (msg?.[msg?.length - 1] == '-') {
@@ -1050,9 +1052,17 @@ export class RunExtractResumeService {
 
           const promises = orderedGroup.map(async (scheduleToSend, index) => {
             try {
+
               // const scheduleToSend = orderedGroup[0];
               const { contact, schedule } = scheduleToSend;
-
+              
+              let address = schedule.organizationUnitAddress;
+              try {
+                // Remove quebras de linha e espaços extras
+                address = address?.replace(/\s*\n\s*/g, ' ').trim();
+              } catch (e) {
+                this.logger.warn('Erro ao limpar endereço', e);
+              }
               // Obtém o número de telefone completo do contato
               const phone = contact?.phone?.[0]
                 ? getCompletePhone(contact.phone[0])
@@ -1073,7 +1083,7 @@ export class RunExtractResumeService {
                 patientPhone: phone,
                 patientName: contact.name,
                 patientCode: contact.code,
-                organizationUnitAddress: schedule.organizationUnitAddress,
+                organizationUnitAddress: address,
                 organizationUnitName: schedule.organizationUnitName,
                 organizationUnitCode: schedule.organizationUnitCode,
                 procedureName: schedule.procedureName,

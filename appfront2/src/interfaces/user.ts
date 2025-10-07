@@ -22,4 +22,5 @@ export interface User {
   roles: UserPermission[];
   liveAgentParams?: LiveAgentParams;
   passwordExpires: number;
+  erpUsername?: string;
 }

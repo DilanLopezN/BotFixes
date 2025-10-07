@@ -1,5 +1,4 @@
-import { PermissionResources } from '~/constants/permission-resources';
-import { UserRoles } from '~/constants/user-roles';
+import { UserPermission } from './user-permission';
 
 export interface Me {
   _id: string;
@@ -8,12 +7,7 @@ export interface Me {
   timezone: string;
   loginMethod: string;
   cognitoUniqueId: string;
-  roles: {
-    resource: PermissionResources;
-    resourceId: string;
-    role: UserRoles;
-    _id: string;
-  }[];
+  roles: UserPermission[];
   language: string;
   passwordExpires: number;
   createdAt: string;

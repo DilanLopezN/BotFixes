@@ -53,18 +53,6 @@ export const SidebarMenu = () => {
           ),
         },
         {
-          key: dashboardModules.messages.path,
-          label: (
-            <MenuNavigator
-              pathname={`dashboard/${dashboardModules.messages.path}`}
-              appTypePort={AppTypePort.APP}
-            >
-              {t(sidebarMenuLocaleKeys.messagesMenuItem)}
-            </MenuNavigator>
-          ),
-          hasPermission: dashboardModules.messages.hasPermission,
-        },
-        {
           key: dashboardModules.agents.path,
           label: (
             <MenuNavigator
@@ -78,10 +66,7 @@ export const SidebarMenu = () => {
         {
           key: dashboardModules.ratings.path,
           label: (
-            <MenuNavigator
-              pathname={`dashboard/${dashboardModules.ratings.path}`}
-              appTypePort={AppTypePort.APP}
-            >
+            <MenuNavigator pathname={dashboardModules.ratings.path} appTypePort={AppTypePort.V2}>
               {t(sidebarMenuLocaleKeys.ratingsMenuItem)}
             </MenuNavigator>
           ),
@@ -98,8 +83,6 @@ export const SidebarMenu = () => {
               {t(sidebarMenuLocaleKeys.appointmentsMenuItem)}
             </MenuNavigator>
           ),
-          hasPermission: dashboardModules.appointments.hasPermission,
-          allowedRoles: dashboardModules.appointments.allowedRoles,
         },
         {
           key: dashboardModules.fallbacks.path,
@@ -125,6 +108,32 @@ export const SidebarMenu = () => {
           ),
           allowedRoles: dashboardModules.categorizationDashboard.allowedRoles,
           hasPermission: dashboardModules.categorizationDashboard.hasPermission,
+        },
+        {
+          key: dashboardModules.breakDashboard.path,
+          label: (
+            <MenuNavigator
+              pathname={dashboardModules.breakDashboard.path}
+              appTypePort={AppTypePort.V2}
+            >
+              {t(sidebarMenuLocaleKeys.breakMenuItem)}
+            </MenuNavigator>
+          ),
+          allowedRoles: dashboardModules.breakDashboard.allowedRoles,
+          hasPermission: dashboardModules.breakDashboard.hasPermission,
+        },
+        {
+          key: dashboardModules.remiDashboard.path,
+          label: (
+            <MenuNavigator
+              pathname={dashboardModules.remiDashboard.path}
+              appTypePort={AppTypePort.V2}
+            >
+              {t(sidebarMenuLocaleKeys.remiMenuItem)}
+            </MenuNavigator>
+          ),
+          allowedRoles: dashboardModules.remiDashboard.allowedRoles,
+          hasPermission: dashboardModules.remiDashboard.hasPermission,
         },
       ],
     },

@@ -15,6 +15,9 @@ export const allowedQueries = [
   'insurancePlanCodeList',
   'npsScoreList',
   'feedback',
+  'recipientType',
+  'getGroup',
+  'aliasSettingId',
 ];
 
 export const maxScreenSizeToCompactActions = 1350;

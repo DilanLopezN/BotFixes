@@ -15,4 +15,5 @@ export interface DayOffFormValues {
   message?: string;
   period: [Dayjs, Dayjs];
   cannotAssignEndConversation?: boolean;
+  createdAt?: Dayjs;
 }

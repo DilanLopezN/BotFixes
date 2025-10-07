@@ -122,11 +122,11 @@ export const CreateBroadcastList = () => {
       return { ...rest, phone: String(phone) };
     });
 
-    const hasContactError = dataSource.some((contact) => {
+    const hasContactError = contacts.some((contact) => {
       return !contact.name?.trim() || !contact.phone;
     });
 
-    const hasEmptyContactAttributes = dataSource.some((contact) => {
+    const hasEmptyContactAttributes = contacts.some((contact) => {
       return !Object.values(contact).every(Boolean);
     });
 

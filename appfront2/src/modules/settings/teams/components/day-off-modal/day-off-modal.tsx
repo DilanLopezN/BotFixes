@@ -1,5 +1,5 @@
 import { Checkbox, Col, DatePicker, Form, Input, Modal } from 'antd';
-import dayjs from 'dayjs';
+import dayjs, { Dayjs } from 'dayjs';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { localeKeys } from '~/i18n';
@@ -18,8 +18,11 @@ export const DayOffModal = ({
 
   const handleFinish = (values: DayOffFormValues) => {
     setDayOffList((previousState) => {
+      const now = dayjs();
       const currentDayOffList = previousState.slice();
-      const startDateTimestamp = values.period[0].valueOf();
+      const startDateTimestamp = values.period[0].isBefore(now)
+        ? now.valueOf()
+        : values.period[0].valueOf();
       const endDateTimestamp = values.period[1].valueOf();
 
       const newDayOff = {
@@ -91,7 +94,16 @@ export const DayOffModal = ({
           <Form.Item
             name='period'
             label={t(dayOffModal.fields.period.label)}
-            rules={[{ required: true, message: t(dayOffModal.requiredFieldMessage) }]}
+            rules={[
+              { required: true, message: t(dayOffModal.requiredFieldMessage) },
+              {
+                validator: async (_, value) => {
+                  if (value && value[0] && (value[0] as Dayjs).isBefore(dayjs(), 'day')) {
+                    throw new Error(t(dayOffModal.fields.period.pastDateError));
+                  }
+                },
+              },
+            ]}
           >
             <DatePicker.RangePicker
               allowClear={false}
@@ -100,7 +112,48 @@ export const DayOffModal = ({
                 t(dayOffModal.fields.period.placeholderStart),
                 t(dayOffModal.fields.period.placeholderEnd),
               ]}
+              disabledTime={(current) => {
+                if (!current) return {};
+                const now = dayjs();
+                if (current.isSame(now, 'day')) {
+                  const disabledHours = Array.from({ length: now.hour() }, (_, index) => index);
+                  const disabledMinutes = (selectedHour: number) => {
+                    if (selectedHour === now.hour()) {
+                      return Array.from({ length: now.minute() }, (_, index) => index);
+                    }
+                    return [];
+                  };
+                  return {
+                    disabledHours: () => disabledHours,
+                    disabledMinutes,
+                  };
+                }
+                return {};
+              }}
               showTime={{ defaultValue: [dayjs('00:00', 'HH:mm'), dayjs('23:59', 'HH:mm')] }}
+              disabledDate={(current) => current.isBefore(dayjs(), 'day')}
+              getPopupContainer={(trigger) => trigger.parentElement || document.body}
+              onOk={(dates) => {
+                if (!dates || !dates[0] || !dates[1]) return;
+
+                const [start, end] = dates;
+                const now = dayjs();
+
+                let adjustedStart = start;
+                let adjustedEnd = end;
+
+                if (start.isBefore(now)) {
+                  adjustedStart = now;
+                }
+
+                if (!end.isAfter(adjustedStart)) {
+                  adjustedEnd = adjustedStart.add(1, 'minute');
+                }
+
+                form.setFieldsValue({
+                  period: [adjustedStart, adjustedEnd],
+                });
+              }}
             />
           </Form.Item>
         </Col>

@@ -1,11 +1,13 @@
-import { UserRoles } from '~/constants/user-roles';
+import { UserRole } from '~/constants/user-roles';
 
 export interface UserUpdateFormProps {
   name: string;
-  permission: UserRoles;
-  subRoles: UserRoles[];
+  email?: string;
+  erpUsername?: string;
+  permission: UserRole;
+  subRoles: UserRole[];
 }
 
 export const workspaceSubRolesList = {
-  [UserRoles.DASHBOARD_ADMIN]: UserRoles.DASHBOARD_ADMIN,
+  [UserRole.DASHBOARD_ADMIN]: UserRole.DASHBOARD_ADMIN,
 };

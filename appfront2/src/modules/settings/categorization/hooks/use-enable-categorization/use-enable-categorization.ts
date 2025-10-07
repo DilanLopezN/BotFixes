@@ -1,9 +1,10 @@
-import { useTranslation } from 'react-i18next';
 import { AxiosError } from 'axios';
 import { useCallback, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
-import { localeKeys } from '~/i18n';
 import { useSelectedWorkspace } from '~/hooks/use-selected-workspace';
+import { useWorkspaceList } from '~/hooks/use-workspace-list';
+import { localeKeys } from '~/i18n';
 import type { ApiError } from '~/interfaces/api-error';
 import { updateWorkspaceById } from '~/services/workspace/update-workspace-by-id';
 import { notifyError } from '~/utils/notify-error';
@@ -11,7 +12,8 @@ import { ApiErrorType } from '../../constants';
 
 export const useEnableCategorization = () => {
   const { workspaceId = '' } = useParams<{ workspaceId: string }>();
-  const { name } = useSelectedWorkspace();
+  const currentWorkspace = useSelectedWorkspace();
+  const { refetch, isRefetching } = useWorkspaceList();
   const [isActivatingCategorization, setIsActivatingCategorization] = useState(false);
   const [activatingCategorizationError, setActivatingCategorizationError] = useState<ApiError>();
 
@@ -28,10 +30,14 @@ export const useEnableCategorization = () => {
         setActivatingCategorizationError(undefined);
         setIsActivatingCategorization(true);
         await updateWorkspaceById({
+          ...currentWorkspace,
           _id: workspaceId,
-          name,
-          userFeatureFlag: { enableConversationCategorization },
+          userFeatureFlag: {
+            ...currentWorkspace.userFeatureFlag,
+            enableConversationCategorization,
+          },
         });
+        refetch();
         setIsActivatingCategorization(false);
         return true;
       } catch (error) {
@@ -51,17 +57,18 @@ export const useEnableCategorization = () => {
       }
     },
     [
+      currentWorkspace,
+      isActivatingCategorization,
+      refetch,
+      t,
       useEnableCategorizationLocaleKeys.createOutcomeError,
       useEnableCategorizationLocaleKeys.notifyErrorCategorization,
-      isActivatingCategorization,
-      name,
-      t,
       workspaceId,
     ]
   );
 
   return {
-    isActivatingCategorization,
+    isActivatingCategorization: isActivatingCategorization || isRefetching,
     activatingCategorizationError,
     activateCategorization,
   };

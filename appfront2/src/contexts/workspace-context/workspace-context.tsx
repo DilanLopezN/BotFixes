@@ -1,4 +1,4 @@
-import { createContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '~/hooks/use-auth';
 import type { ApiError } from '~/interfaces/api-error';
 import type { PaginatedModel } from '~/interfaces/paginated-model';
@@ -10,36 +10,55 @@ import type { WorkspaceContextValues, WorkspaceProviderProps } from './interface
 export const WorkspaceContext = createContext<WorkspaceContextValues>({
   data: undefined,
   isLoading: true,
+  isRefetching: false,
   error: undefined,
+  refetch: () => {},
 });
 
 export const WorkspaceProvider = ({ children }: WorkspaceProviderProps) => {
   const { isAuth } = useAuth();
   const [data, setData] = useState<PaginatedModel<Workspace>>();
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefetching, setIsRefetching] = useState(false);
   const [error, setError] = useState<ApiError>();
 
-  const contextValues = useMemo(() => ({ data, isLoading, error }), [data, error, isLoading]);
+  const fetchWorkspaces = async (isRefetch = false) => {
+    const queryString = createQueryString({
+      sort: 'name',
+      filter: '{"simple":true}',
+    });
+    try {
+      if (isRefetch) {
+        setIsRefetching(true);
+      } else {
+        setIsLoading(true);
+      }
+      const response = await getWorkspaces(queryString);
+      setData(response);
+    } catch (err) {
+      setError(err as ApiError);
+    } finally {
+      if (isRefetch) {
+        setIsRefetching(false);
+      } else {
+        setIsLoading(false);
+      }
+    }
+  };
+
+  const refetch = useCallback(() => {
+    if (isAuth) {
+      fetchWorkspaces(true);
+    }
+  }, [isAuth]);
+
+  const contextValues = useMemo(
+    () => ({ data, isLoading, isRefetching, error, refetch }),
+    [data, error, isLoading, isRefetching, refetch]
+  );
 
   useEffect(() => {
     if (!isAuth) return;
-
-    const fetchWorkspaces = async () => {
-      const queryString = createQueryString({
-        sort: 'name',
-        filter: '{"simple":true}',
-      });
-      try {
-        setIsLoading(true);
-        const response = await getWorkspaces(queryString);
-        setData(response);
-      } catch (err) {
-        setError(err as ApiError);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     fetchWorkspaces();
   }, [isAuth]);
 

@@ -1,5 +1,6 @@
 import { Table } from 'antd';
 import type { CheckboxValueType } from 'antd/es/checkbox/Group';
+import _ from 'lodash';
 import {
   ForwardedRef,
   forwardRef,
@@ -24,6 +25,8 @@ export const EnhancedTable = forwardRef(
       dataSource,
       rowKey,
       minHeight,
+      addExtraPaddingIfEmpty = true,
+      shouldAlwaysAddHeight = false,
       ...props
     }: EnhancedTableProps,
     ref: ForwardedRef<EnhancedTableRef>
@@ -33,6 +36,10 @@ export const EnhancedTable = forwardRef(
     const [checkboxOptions, setCheckboxOptions] = useState<CheckboxValueType[]>([]);
 
     const { enhancedTable: enhancedTableLocaleKeys } = localeKeys.components;
+
+    const shouldRenderExtraPadding = addExtraPaddingIfEmpty && _.isEmpty(dataSource);
+    const height =
+      shouldAlwaysAddHeight || (dataSource && dataSource.length > 0) ? scroll?.y : undefined;
 
     const filteredColumns = useMemo(() => {
       return id
@@ -70,8 +77,9 @@ export const EnhancedTable = forwardRef(
 
     return (
       <Container
-        height={dataSource && dataSource.length > 0 ? scroll?.y : undefined}
+        height={height}
         minHeight={minHeight}
+        shouldRenderExtraPadding={shouldRenderExtraPadding}
       >
         <Table<any>
           {...props}

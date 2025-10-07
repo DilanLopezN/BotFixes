@@ -26,5 +26,10 @@ export const EnableCategorizationSwitch = ({ onActive }: EnableConversationCateg
       onActive(!!checked);
     }
   }, [checked, onActive]);
+
+  useEffect(() => {
+    setChecked(Boolean(userFeatureFlag?.enableConversationCategorization));
+  }, [userFeatureFlag?.enableConversationCategorization]);
+
   return <Switch value={checked} onChange={handleCheck} loading={isActivatingCategorization} />;
 };
