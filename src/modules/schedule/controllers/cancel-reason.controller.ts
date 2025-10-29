@@ -30,6 +30,7 @@ export class CancelReasonController {
         PredefinedRoles.SYSTEM_DEV_ADMIN,
         PredefinedRoles.SYSTEM_CS_ADMIN,
         PredefinedRoles.SYSTEM_UX_ADMIN,
+        PredefinedRoles.SYSTEM_SUPPORT_ADMIN,
     ])
     @UseGuards(AuthGuard, RolesGuard)
     async create(
@@ -61,6 +62,7 @@ export class CancelReasonController {
         PredefinedRoles.SYSTEM_DEV_ADMIN,
         PredefinedRoles.SYSTEM_CS_ADMIN,
         PredefinedRoles.SYSTEM_UX_ADMIN,
+        PredefinedRoles.SYSTEM_SUPPORT_ADMIN,
     ])
     @UseGuards(AuthGuard, RolesGuard)
     async update(
@@ -94,6 +96,7 @@ export class CancelReasonController {
         PredefinedRoles.SYSTEM_DEV_ADMIN,
         PredefinedRoles.SYSTEM_CS_ADMIN,
         PredefinedRoles.SYSTEM_UX_ADMIN,
+        PredefinedRoles.SYSTEM_SUPPORT_ADMIN,
     ])
     @UseGuards(AuthGuard, RolesGuard)
     async listByWorkspaceId(@Param('workspaceId') workspaceId: string): Promise<any> {
@@ -159,6 +162,7 @@ export class CancelReasonController {
         PredefinedRoles.SYSTEM_DEV_ADMIN,
         PredefinedRoles.SYSTEM_CS_ADMIN,
         PredefinedRoles.SYSTEM_UX_ADMIN,
+        PredefinedRoles.SYSTEM_SUPPORT_ADMIN,
     ])
     @UseGuards(AuthGuard, RolesGuard)
     async findOne(@Param('workspaceId') workspaceId: string, @Param('reasonId') reasonId: string): Promise<any> {

@@ -227,7 +227,11 @@ export class HealthEntityService extends MongooseAbstractionService<HealthEntity
                     code: entity.code,
                 };
 
-                if (integration.type === IntegrationType.CM || integration.type === IntegrationType.BOTDESIGNER) {
+                if (
+                    integration.type === IntegrationType.CM ||
+                    integration.type === IntegrationType.BOTDESIGNER ||
+                    integration.type === IntegrationType.BOTDESIGNER_FAKE
+                ) {
                     fieldsToFindUpdate.specialityType = entity.specialityType;
                 }
                 break;

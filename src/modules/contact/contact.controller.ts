@@ -92,6 +92,7 @@ export class ContactController {
                 workspaceId,
                 email: dto.email,
                 whatsapp: dto.whatsapp,
+                ddi: dto?.ddi,
             };
 
             return await this.contactService._create(contactData, workspaceId);

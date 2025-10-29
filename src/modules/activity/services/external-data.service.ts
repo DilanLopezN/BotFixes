@@ -7,19 +7,34 @@ import { ChannelConfigService } from '../../channel-config/channel-config.servic
 
 @Injectable()
 export class ExternalDataService {
-    private audioTranscriptionService: AudioTranscriptionService;
-    private workspaceService: WorkspacesService;
-    private channelConfigService: ChannelConfigService;
+    private _audioTranscriptionService: AudioTranscriptionService;
+    private _workspaceService: WorkspacesService;
+    private _channelConfigService: ChannelConfigService;
     constructor(private readonly moduleRef: ModuleRef) {}
 
-    async onApplicationBootstrap() {
-        this.audioTranscriptionService = this.moduleRef.get<AudioTranscriptionService>(AudioTranscriptionService, {
-            strict: false,
-        });
-        this.workspaceService = this.moduleRef.get<WorkspacesService>(WorkspacesService, {
-            strict: false,
-        });
-        this.channelConfigService = this.moduleRef.get<ChannelConfigService>(ChannelConfigService, { strict: false });
+    private get audioTranscriptionService(): AudioTranscriptionService {
+        if (!this._audioTranscriptionService) {
+            this._audioTranscriptionService = this.moduleRef.get<AudioTranscriptionService>(AudioTranscriptionService, {
+                strict: false,
+            });
+        }
+        return this._audioTranscriptionService;
+    }
+
+    private get workspaceService(): WorkspacesService {
+        if (!this._workspaceService) {
+            this._workspaceService = this.moduleRef.get<WorkspacesService>(WorkspacesService, {
+                strict: false,
+            });
+        }
+        return this._workspaceService;
+    }
+
+    private get channelConfigService(): ChannelConfigService {
+        if (!this._channelConfigService) {
+            this._channelConfigService = this.moduleRef.get<ChannelConfigService>(ChannelConfigService, { strict: false });
+        }
+        return this._channelConfigService;
     }
 
     async createAudioTranscription(data: CreateAudioTranscriptionData) {

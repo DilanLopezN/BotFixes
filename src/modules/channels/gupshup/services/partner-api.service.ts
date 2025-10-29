@@ -9,6 +9,16 @@ import { Exceptions } from '../../../auth/exceptions';
 import { set } from 'lodash';
 import { UploadingFile } from './../../../../common/interfaces/uploading-file.interface';
 import * as FormData from 'form-data';
+import {
+    CallbackModes,
+    DataSetSubscription,
+    DataUpdateSubscription,
+    DEFAULT_MODES_V2,
+    DEFAULT_MODES_V3,
+    ResponseGetAllSubscriptions,
+    ResponseSetSubscription,
+    ResponseUpdateSubscription,
+} from '../interfaces/subscription.interface';
 
 interface AppData {
     token: string;
@@ -60,8 +70,8 @@ export enum TemplateTypeGupshup {
 @Injectable()
 export class PartnerApiService {
     private gupshupApi: AxiosInstance;
-    private partnerEmail: string = 'frederico@botdesigner.io';
-    private partnerPassword: string = 'L6IA40WK4C7O';
+    private partnerEmail: string = process.env.GUPSHUP_PARTNER_EMAIL;
+    private partnerPassword: string = process.env.GUPSHUP_PARTNER_PASSWORD;
     private readonly logger = new Logger(PartnerApiService.name);
     constructor(public readonly eventsService: EventsService, private readonly cacheService: CacheService) {
         this.gupshupApi = axios.create({
@@ -71,7 +81,7 @@ export class PartnerApiService {
         });
     }
 
-    private async getPartnerAppToken(appName: string, forceRestart?: boolean): Promise<AppData> {
+    public async getPartnerAppToken(appName: string, forceRestart?: boolean): Promise<AppData> {
         try {
             this.logger.log(`PartnerApiService.getPartnerAppToken: ${appName}`);
             const key = `GS_APP_NAME_PARTNER_TOKEN:${appName}`;
@@ -99,6 +109,10 @@ export class PartnerApiService {
             const gsApp = partnerListResult.data?.partnerAppsList?.find((app) => {
                 return app.name == appName;
             });
+
+            if (!gsApp) {
+                throw Exceptions.GUPSHUP_APPNAME_NOT_FOUND;
+            }
 
             const partnerAppTokenResponse = await this.gupshupApi.get(`/app/${gsApp.id}/token`, {
                 headers: {
@@ -364,60 +378,174 @@ export class PartnerApiService {
         return post.data;
     }
 
-    async updateCallbackUrl(appName: string, callbackUrl: string) {
-        const readAuth = await this.gupshupApi.post(
-            '/account/login',
-            `email=${this.partnerEmail}&password=${this.partnerPassword}`,
-            {
-                headers: {
-                    'cache-control': 'no-cache',
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-            },
-        );
+    async updateCallbackUrl(channelConfigId: string, appName: string, callbackUrl: string, version: 2 | 3) {
+        const resultSubscriptions = await this.getAllSubscriptions(appName);
 
-        const apps = await this.gupshupApi.get(`/account/api/partnerApps`, {
-            headers: {
-                Connection: 'keep-alive',
-                token: readAuth.data.token,
-            },
-        });
+        if (resultSubscriptions?.status == 'success') {
+            const modes = version === 2 ? DEFAULT_MODES_V2 : DEFAULT_MODES_V3;
 
-        const gsApp = apps.data?.partnerAppsList?.find((app) => {
-            return app.name == appName;
-        });
+            if (!resultSubscriptions?.subscriptions?.length) {
+                return await this.setSubscriptionForApp(appName, {
+                    modes: modes,
+                    tag: `V${version} - ${channelConfigId}`,
+                    url: callbackUrl,
+                    version,
+                    active: true,
+                });
+            } else {
+                const existSubscriptionByVersion = resultSubscriptions.subscriptions.find(
+                    (sub) => sub.version == version,
+                );
 
-        if (!gsApp) {
-            throw Exceptions.GUPSHUP_APPNAME_NOT_FOUND;
+                const otherVersionSubscriptions = resultSubscriptions.subscriptions.filter(
+                    (sub) => sub.version !== version,
+                );
+
+                for (const otherSub of otherVersionSubscriptions) {
+                    if (otherSub.active) {
+                        await this.updateSubscriptionForApp(appName, otherSub.id, {
+                            ...otherSub,
+                            active: false,
+                        });
+                    }
+                }
+
+                if (!existSubscriptionByVersion) {
+                    return await this.setSubscriptionForApp(appName, {
+                        modes: modes,
+                        tag: `V${version} - ${channelConfigId}`,
+                        url: callbackUrl,
+                        version,
+                        active: true,
+                    });
+                } else {
+                    if (!existSubscriptionByVersion?.active) {
+                        return await this.updateSubscriptionForApp(appName, existSubscriptionByVersion.id, {
+                            ...existSubscriptionByVersion,
+                            active: true,
+                            url: callbackUrl,
+                            tag: `V${version} - ${channelConfigId}`,
+                            modes: modes,
+                        });
+                    } else {
+                        return await this.updateSubscriptionForApp(appName, existSubscriptionByVersion.id, {
+                            ...existSubscriptionByVersion,
+                            url: callbackUrl,
+                            modes: modes,
+                            tag: `V${version} - ${channelConfigId}`,
+                        });
+                    }
+                }
+            }
         }
 
-        const writetoken = await this.gupshupApi.get(`/app/${gsApp.id}/token`, {
-            headers: {
-                Connection: 'keep-alive',
-                token: readAuth.data.token,
-            },
-        });
+        return null;
+    }
 
-        const body = {};
-        body['callbackUrl'] = callbackUrl;
-
-        var prms = new URLSearchParams(body);
+    async getAllSubscriptions(appName: string): Promise<ResponseGetAllSubscriptions> {
+        const { appId, token } = await this.getPartnerAppToken(appName);
 
         const result = await this.gupshupApi
-            .put(`/app/${gsApp.id}/callbackUrl`, prms.toString(), {
+            .get(`/app/${appId}/subscription`, {
                 headers: {
                     Connection: 'keep-alive',
                     'Content-Type': 'application/x-www-form-urlencoded',
-                    token: writetoken.data.token.token,
+                    Authorization: token,
                 },
             })
             .catch((error) => {
                 Sentry.captureEvent({
-                    message: 'Error PartnerApiService.updateCallbackUrl',
+                    message: 'Error PartnerApiService.getAllSubscriptions',
                     extra: {
                         error: error,
                         appName,
-                        callbackUrl,
+                    },
+                });
+                return error;
+            });
+
+        return result?.data;
+    }
+
+    async setSubscriptionForApp(appName: string, data: DataSetSubscription): Promise<ResponseSetSubscription> {
+        const { appId, token } = await this.getPartnerAppToken(appName);
+
+        const body: any = { ...data, showOnUI: true };
+
+        var prms = new URLSearchParams(body);
+
+        const result = await this.gupshupApi
+            .post(`/app/${appId}/subscription`, prms.toString(), {
+                headers: {
+                    Connection: 'keep-alive',
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    Authorization: token,
+                },
+            })
+            .catch((error) => {
+                Sentry.captureEvent({
+                    message: 'Error PartnerApiService.setSubscriptionForApp',
+                    extra: {
+                        error: error,
+                        appName,
+                    },
+                });
+                return error;
+            });
+
+        return result;
+    }
+
+    async updateSubscriptionForApp(
+        appName: string,
+        subscriptionId: string,
+        data: DataUpdateSubscription,
+    ): Promise<ResponseUpdateSubscription> {
+        const { appId, token } = await this.getPartnerAppToken(appName);
+
+        const body: any = { ...data, showOnUI: true };
+
+        var prms = new URLSearchParams(body);
+
+        const result = await this.gupshupApi
+            .put(`/app/${appId}/subscription/${subscriptionId}`, prms.toString(), {
+                headers: {
+                    Connection: 'keep-alive',
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    Authorization: token,
+                },
+            })
+            .catch((error) => {
+                Sentry.captureEvent({
+                    message: 'Error PartnerApiService.updateSubscriptionForApp',
+                    extra: {
+                        error: error,
+                        appName,
+                    },
+                });
+                return error;
+            });
+
+        return result;
+    }
+
+    async deleteSubscriptionByIdForApp(appName: string, subscriptionId: string): Promise<ResponseUpdateSubscription> {
+        const { appId, token } = await this.getPartnerAppToken(appName);
+
+        const result = await this.gupshupApi
+            .delete(`/app/${appId}/subscription/${subscriptionId}`, {
+                headers: {
+                    Connection: 'keep-alive',
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    Authorization: token,
+                },
+            })
+            .catch((error) => {
+                Sentry.captureEvent({
+                    message: 'Error PartnerApiService.updateSubscriptionForApp',
+                    extra: {
+                        error: error,
+                        appName,
                     },
                 });
                 return error;

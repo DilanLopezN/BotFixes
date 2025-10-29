@@ -66,7 +66,7 @@ export class HealthIntegrationService extends MongooseAbstractionService<HealthI
         if (!systemAnyAdmin) {
             const integration = await this.model
                 .find({ ...query.filter, workspaceId, deletedAt: { $eq: null } })
-                .select('-apiToken -apiUrl -apiPassword -enabled -apiUsername -codeIntegration -debug -auditRequests')
+                .select('-apiToken -apiUrl -apiPassword -apiUsername -codeIntegration -debug -auditRequests')
                 .exec();
 
             return { data: integration };

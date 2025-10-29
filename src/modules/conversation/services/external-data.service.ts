@@ -12,37 +12,81 @@ import { SmtReService } from '../../conversation-smt-re/services/smt-re.service'
 import { SmtRe } from '../../conversation-smt-re/models/smt-re.entity';
 import { FileUploaderService } from '../../../common/file-uploader/file-uploader.service';
 import { FileToUpload } from '../../../common/file-uploader/interfaces/file-to-upload.interface';
+import * as Sentry from '@sentry/node';
 
 @Injectable()
 export class ExternalDataService {
-    private contactsAcceptedPrivacyPolicyService: ContactsAcceptedPrivacyPolicyService;
-    private privacyPolicyService: PrivacyPolicyService;
-    private audioTranscriptionService: AudioTranscriptionService;
-    private blockedContactService: BlockedContactService;
-    private conversationCategorizationService: ConversationCategorizationService;
-    private smtReService: SmtReService;
-    private fileUploaderService: FileUploaderService;
+    private _contactsAcceptedPrivacyPolicyService: ContactsAcceptedPrivacyPolicyService;
+    private _privacyPolicyService: PrivacyPolicyService;
+    private _audioTranscriptionService: AudioTranscriptionService;
+    private _blockedContactService: BlockedContactService;
+    private _conversationCategorizationService: ConversationCategorizationService;
+    private _smtReService: SmtReService;
+    private _fileUploaderService: FileUploaderService;
 
     constructor(private readonly moduleRef: ModuleRef) {}
 
-    async onApplicationBootstrap() {
-        this.contactsAcceptedPrivacyPolicyService = this.moduleRef.get<ContactsAcceptedPrivacyPolicyService>(
-            ContactsAcceptedPrivacyPolicyService,
-            { strict: false },
-        );
-        this.privacyPolicyService = this.moduleRef.get<PrivacyPolicyService>(PrivacyPolicyService, { strict: false });
-        this.audioTranscriptionService = this.moduleRef.get<AudioTranscriptionService>(AudioTranscriptionService, {
-            strict: false,
-        });
-        this.blockedContactService = this.moduleRef.get<BlockedContactService>(BlockedContactService, {
-            strict: false,
-        });
-        this.conversationCategorizationService = this.moduleRef.get<ConversationCategorizationService>(
-            ConversationCategorizationService,
-            { strict: false },
-        );
-        this.smtReService = this.moduleRef.get<SmtReService>(SmtReService, { strict: false });
-        this.fileUploaderService = this.moduleRef.get<FileUploaderService>(FileUploaderService, { strict: false });
+    private get contactsAcceptedPrivacyPolicyService(): ContactsAcceptedPrivacyPolicyService {
+        if (!this._contactsAcceptedPrivacyPolicyService) {
+            this._contactsAcceptedPrivacyPolicyService = this.moduleRef.get<ContactsAcceptedPrivacyPolicyService>(
+                ContactsAcceptedPrivacyPolicyService,
+                { strict: false },
+            );
+        }
+        return this._contactsAcceptedPrivacyPolicyService;
+    }
+
+    private get privacyPolicyService(): PrivacyPolicyService {
+        if (!this._privacyPolicyService) {
+            this._privacyPolicyService = this.moduleRef.get<PrivacyPolicyService>(PrivacyPolicyService, {
+                strict: false,
+            });
+        }
+        return this._privacyPolicyService;
+    }
+
+    private get audioTranscriptionService(): AudioTranscriptionService {
+        if (!this._audioTranscriptionService) {
+            this._audioTranscriptionService = this.moduleRef.get<AudioTranscriptionService>(AudioTranscriptionService, {
+                strict: false,
+            });
+        }
+        return this._audioTranscriptionService;
+    }
+
+    private get blockedContactService(): BlockedContactService {
+        if (!this._blockedContactService) {
+            this._blockedContactService = this.moduleRef.get<BlockedContactService>(BlockedContactService, {
+                strict: false,
+            });
+        }
+        return this._blockedContactService;
+    }
+
+    private get conversationCategorizationService(): ConversationCategorizationService {
+        if (!this._conversationCategorizationService) {
+            this._conversationCategorizationService = this.moduleRef.get<ConversationCategorizationService>(
+                ConversationCategorizationService,
+                { strict: false },
+            );
+        }
+        return this._conversationCategorizationService;
+    }
+
+    private get smtReService(): SmtReService {
+        if (!this._smtReService) {
+            this._smtReService = this.moduleRef.get<SmtReService>(SmtReService, { strict: false });
+        }
+        return this._smtReService;
+    }
+
+    private get fileUploaderService(): FileUploaderService {
+        if (!this._fileUploaderService) {
+            this._fileUploaderService = this.moduleRef.get<FileUploaderService>(FileUploaderService, {
+                strict: false,
+            });
+        }
+        return this._fileUploaderService;
     }
 
     async setAcceptedPrivacyPolicy(
@@ -79,7 +123,18 @@ export class ExternalDataService {
     }
 
     async getBlockedContactByWhatsapp(workspaceId: string, phone: string) {
-        return await this.blockedContactService.getBlockedContactByWhatsapp(workspaceId, phone);
+        try {
+            return await this.blockedContactService.getBlockedContactByWhatsapp(workspaceId, phone);
+        } catch (e) {
+            Sentry.captureEvent({
+                message: 'Conversation.ExternalDataService.getBlockedContactByWhatsapp',
+                extra: {
+                    error: e,
+                    workspaceId,
+                    phone,
+                },
+            });
+        }
     }
 
     async createConversationCategorization(

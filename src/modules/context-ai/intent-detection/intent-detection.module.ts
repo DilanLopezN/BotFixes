@@ -14,12 +14,16 @@ import { AgentModule } from '../agent/agent.module';
 import { AuthMiddleware } from '../../auth/middleware/auth.middleware';
 import { MessageContextValidator } from './validator/message-context.validator';
 import { InteractionsModule } from '../../interactions/interactions.module';
+import { AiProviderModule } from '../ai-provider/ai.module';
+import { IntentLibraryModule } from '../intent-library/intent-library.module';
 
 @Module({
     imports: [
         TypeOrmModule.forFeature([IntentDetection, IntentActions, IntentDetectionUserHistory], CONTEXT_AI),
         AgentModule,
         forwardRef(() => InteractionsModule),
+        AiProviderModule,
+        IntentLibraryModule,
     ],
     controllers: [IntentDetectionController, IntentActionsController],
     providers: [

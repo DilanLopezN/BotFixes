@@ -38,3 +38,9 @@ export interface ListIntentDetectionFilter {
     agentId?: string;
     workspaceId?: string;
 }
+
+export interface ImportIntentFromLibraryData {
+    intentLibraryId: string;
+    agentId: string;
+    workspaceId: string;
+}

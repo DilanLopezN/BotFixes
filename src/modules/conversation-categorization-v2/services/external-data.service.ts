@@ -12,19 +12,46 @@ import { SmtReSetting } from '../../conversation-smt-re/models/smt-re-setting.en
 
 @Injectable()
 export class ExternalDataService {
-    private teamService: TeamService;
-    private conversationService: ConversationService;
-    private workspaceService: WorkspacesService;
-    private usersService: UsersService;
-    private smtReSettingService: SmtReSettingService;
+    private _teamService: TeamService;
+    private _conversationService: ConversationService;
+    private _workspaceService: WorkspacesService;
+    private _usersService: UsersService;
+    private _smtReSettingService: SmtReSettingService;
     constructor(private readonly moduleRef: ModuleRef) {}
 
-    async onApplicationBootstrap() {
-        this.teamService = this.moduleRef.get<TeamService>(TeamService, { strict: false });
-        this.conversationService = this.moduleRef.get<ConversationService>(ConversationService, { strict: false });
-        this.workspaceService = this.moduleRef.get<WorkspacesService>(WorkspacesService, { strict: false });
-        this.usersService = this.moduleRef.get<UsersService>(UsersService, { strict: false });
-        this.smtReSettingService = this.moduleRef.get<SmtReSettingService>(SmtReSettingService, { strict: false });
+    private get teamService(): TeamService {
+        if (!this._teamService) {
+            this._teamService = this.moduleRef.get<TeamService>(TeamService, { strict: false });
+        }
+        return this._teamService;
+    }
+
+    private get conversationService(): ConversationService {
+        if (!this._conversationService) {
+            this._conversationService = this.moduleRef.get<ConversationService>(ConversationService, { strict: false });
+        }
+        return this._conversationService;
+    }
+
+    private get workspaceService(): WorkspacesService {
+        if (!this._workspaceService) {
+            this._workspaceService = this.moduleRef.get<WorkspacesService>(WorkspacesService, { strict: false });
+        }
+        return this._workspaceService;
+    }
+
+    private get usersService(): UsersService {
+        if (!this._usersService) {
+            this._usersService = this.moduleRef.get<UsersService>(UsersService, { strict: false });
+        }
+        return this._usersService;
+    }
+
+    private get smtReSettingService(): SmtReSettingService {
+        if (!this._smtReSettingService) {
+            this._smtReSettingService = this.moduleRef.get<SmtReSettingService>(SmtReSettingService, { strict: false });
+        }
+        return this._smtReSettingService;
     }
 
     async getTeam(workspaceId: string, teamId: string): Promise<Team> {
@@ -45,9 +72,6 @@ export class ExternalDataService {
     }
 
     async getSmtReSettingsByIds(ids: string[]): Promise<SmtReSetting[]> {
-        if (!this.smtReSettingService) {
-            this.smtReSettingService = this.moduleRef.get<SmtReSettingService>(SmtReSettingService, { strict: false });
-        }
         return await this.smtReSettingService.findByIds(ids);
     }
 }

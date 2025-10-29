@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsNumber, IsBoolean } from 'class-validator';
+import { IsOptional, IsString, IsNumber, IsBoolean, IsObject } from 'class-validator';
 
 export class HealthAnalyticsFiltersDto {
     @IsOptional()
@@ -36,4 +36,8 @@ export class HealthAnalyticsFiltersDto {
     @IsOptional()
     @IsString({ each: true })
     pivotConfig?: string[];
+
+    @IsOptional()
+    @IsObject()
+    pivotValueFilter?: Record<string, Record<string, boolean>>;
 }

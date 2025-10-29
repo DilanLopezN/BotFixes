@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsBoolean, IsNotEmpty, IsOptional, IsString, IsUUID, IsEnum } from 'class-validator';
 import { AgentType } from '../entities/agent.entity';
-import { AgentMode } from '../interfaces/agent.interface';
+import { AgentMode, AgentContext } from '../interfaces/agent.interface';
 
 export class CreateAgentDto {
     @ApiProperty()
@@ -13,10 +13,6 @@ export class CreateAgentDto {
     @IsString()
     @IsNotEmpty()
     description: string;
-
-    @ApiProperty()
-    @IsString()
-    personality: string;
 
     @ApiProperty()
     @IsString()
@@ -42,10 +38,20 @@ export class CreateAgentDto {
     @IsOptional()
     agentMode?: AgentMode;
 
-    @ApiProperty()
+    @ApiProperty({ required: false })
     @IsString()
     @IsOptional()
-    modelName?: string;
+    integrationId?: string;
+
+    @ApiProperty({ required: false })
+    @IsBoolean()
+    @IsOptional()
+    allowSendAudio?: boolean;
+
+    @ApiProperty({ required: false })
+    @IsBoolean()
+    @IsOptional()
+    allowResponseWelcome?: boolean;
 }
 
 export class UpdateAgentDto {
@@ -63,11 +69,6 @@ export class UpdateAgentDto {
     @IsString()
     @IsOptional()
     description?: string;
-
-    @ApiProperty()
-    @IsString()
-    @IsOptional()
-    personality?: string;
 
     @ApiProperty({ required: false })
     @IsString()
@@ -88,6 +89,26 @@ export class UpdateAgentDto {
     @IsEnum(AgentType)
     @IsOptional()
     agentType?: AgentType;
+
+    @ApiProperty({ required: false, enum: AgentContext })
+    @IsEnum(AgentContext)
+    @IsOptional()
+    agentContext?: AgentContext;
+
+    @ApiProperty({ required: false })
+    @IsString()
+    @IsOptional()
+    integrationId?: string;
+
+    @ApiProperty({ required: false })
+    @IsBoolean()
+    @IsOptional()
+    allowSendAudio?: boolean;
+
+    @ApiProperty({ required: false })
+    @IsBoolean()
+    @IsOptional()
+    allowResponseWelcome?: boolean;
 }
 
 export class DeleteAgentDto {

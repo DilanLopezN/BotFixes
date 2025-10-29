@@ -9,7 +9,6 @@ export const ChannelId = 'rating';
 
 @Injectable()
 export class RatingChannelConsumerService {
-
     private readonly logger = new Logger(RatingChannelConsumerService.name);
 
     constructor(

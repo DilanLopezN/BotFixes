@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsOptional, IsString, MaxLength, IsDateString, IsBoolean } from 'class-validator';
 
 export class UpdateTrainingEntryDto {
     @ApiProperty()
@@ -18,4 +18,19 @@ export class UpdateTrainingEntryDto {
     @IsString()
     @MaxLength(1_000)
     content: string;
+
+    @ApiProperty({ required: false })
+    @IsOptional()
+    @IsString()
+    trainingEntryTypeId?: string;
+
+    @ApiProperty({ required: false })
+    @IsOptional()
+    @IsDateString()
+    expiresAt?: string;
+
+    @ApiProperty({ required: false })
+    @IsOptional()
+    @IsBoolean()
+    isActive?: boolean;
 }

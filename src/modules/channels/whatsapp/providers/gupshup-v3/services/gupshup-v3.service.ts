@@ -3,7 +3,11 @@ import { WhatsappInterfaceService } from '../../../interfaces/whatsapp-service.i
 import { GupshupV3UtilService } from './gupshup-util.service';
 import { AxiosResponse } from 'axios';
 import * as Sentry from '@sentry/node';
-import { PayloadMessageGupshupV3 } from '../interfaces/payload-message-gupshup-v3.interface';
+import {
+    InteractiveType,
+    PayloadInteractiveFlowMessage,
+    PayloadMessageGupshupV3,
+} from '../interfaces/payload-message-gupshup-v3.interface';
 import { ResponseMessageGupshupV3 } from '../interfaces/response-message-gupshup-v3.interface';
 import {
     ResponseDefault,
@@ -33,6 +37,7 @@ import {
     MetaWhatsappOutcomingReactionMessage,
     MetaWhatsappOutcomingInteractiveContent,
     MetaWhatsappOutcomingTemplateContent,
+    MetaWhatsappOutcomingInteractiveMessage,
 } from '../../dialog360/interfaces/meta-whatsapp-outcoming.interface';
 import { Activity } from '../../../../../activity/interfaces/activity';
 import { FileUploaderService } from '../../../../../../common/file-uploader/file-uploader.service';
@@ -40,6 +45,7 @@ import { UploadingFile } from '../../../../../../common/interfaces/uploading-fil
 import { TemplateVariable } from '../../../../../template-message/interface/template-message.interface';
 import * as handlebars from 'handlebars';
 import { set } from 'lodash';
+import { ExternalDataService } from './external-data.service';
 interface AppData {
     token: string;
     appId: string;
@@ -65,14 +71,15 @@ export enum TemplateTypeGupshup {
 @Injectable()
 export class GupshupV3Service implements WhatsappInterfaceService {
     private readonly logger = new Logger(GupshupV3Service.name);
-    private partnerEmail: string = 'frederico@botdesigner.io';
-    private partnerPassword: string = 'L6IA40WK4C7O';
+    private partnerEmail: string = process.env.GUPSHUP_PARTNER_EMAIL;
+    private partnerPassword: string = process.env.GUPSHUP_PARTNER_PASSWORD;
 
     constructor(
         @Inject(forwardRef(() => GupshupV3UtilService)) private gupshupUtilService: GupshupV3UtilService,
         private readonly cacheService: CacheService,
         private readonly gupshupV3IncomingService: GupshupV3IncomingService,
         private readonly fileUploaderService: FileUploaderService,
+        private readonly externalDataService: ExternalDataService,
     ) {}
 
     async handleIncomingMessage(payload: MetaWhatsappWebhookEvent, channelConfigToken: string, workspaceId?: string) {
@@ -494,27 +501,66 @@ export class GupshupV3Service implements WhatsappInterfaceService {
         payloadData: PayloadMessageWhatsapp,
         channelConfig: CompleteChannelConfig,
     ): Promise<ResponseMessageWhatsapp | any> {
-        const { partnerToken, appId } = this.gupshupUtilService.getChannelData(channelConfig);
-        // const { partnerToken, appId } = channelData;
-        // const { phone_destination, payload } = payloadData;
-        // const data: PayloadMessageGupshupV3 = {
-        //     messaging_product: 'whatsapp',
-        //     recipient_type: 'individual',
-        //     to: phone_destination,
-        //     type: MessageType.interactive,
-        //     interactive: {
-        //         ...payload,
-        //     },
-        // };
-        // let token = partnerToken;
-        // let partnerAppId = appId;
-        // if (!partnerToken || !appId) {
-        //     const appdata = await this.getPartnerAppToken(channelData);
-        //     token = appdata.token;
-        //     partnerAppId = appdata.appId;
-        // }
+        const channelData = this.gupshupUtilService.getChannelData(channelConfig);
+        const { partnerToken, appId } = channelData;
+        const { activity } = payloadData;
 
-        // return await this.sendMessage(partnerAppId, token, data);
+        const attach = activity.attachments?.[0];
+        const button = attach.content.buttons[0];
+        const flowData = await this.externalDataService.getFlowDataWithFlow(button.value);
+
+        const payload = {
+            action: {
+                name: 'flow',
+                parameters: {
+                    flow_action: 'navigate',
+                    flow_cta: button?.title || 'Clique aqui!',
+                    flow_id: flowData?.flow?.flowId,
+                    flow_token: flowData?.flow?.id ? `${flowData.flow.id}` : undefined,
+                    flow_message_version: '3',
+                    flow_action_payload: {
+                        screen: flowData?.flowScreen || 'RECOMMEND',
+                        data: Object.keys(flowData?.data || {}).length ? flowData.data : undefined,
+                    },
+                },
+            },
+            header: attach?.content?.title
+                ? {
+                      type: 'text',
+                      text: attach?.content?.title,
+                  }
+                : undefined,
+            body: {
+                text: `${attach.content?.subtitle ? `${attach.content?.subtitle}\n` : ''}${
+                    attach.content?.text ? attach.content?.text : ''
+                }`,
+            },
+            footer: attach?.content?.footer
+                ? {
+                      text: attach?.content?.footer,
+                  }
+                : undefined,
+            type: InteractiveType.flow,
+        } as PayloadInteractiveFlowMessage;
+
+        const data: MetaWhatsappOutcomingBaseMessage = {
+            messaging_product: 'whatsapp',
+            recipient_type: 'individual',
+            to: activity.to.phone,
+            type: MetaWhatsappOutcomingMessageType.INTERACTIVE,
+            interactive: {
+                ...payload,
+            },
+        } as MetaWhatsappOutcomingInteractiveMessage;
+        let token = partnerToken;
+        let partnerAppId = appId;
+        if (!partnerToken || !appId) {
+            const appdata = await this.getPartnerAppToken(channelData);
+            token = appdata.token;
+            partnerAppId = appdata.appId;
+        }
+
+        return await this.sendOutcomingMessage(partnerAppId, token, data);
     }
 
     async sendOutcomingButtonMessage(
@@ -1087,6 +1133,46 @@ export class GupshupV3Service implements WhatsappInterfaceService {
                             title: button.title.substring(0, 20), // WhatsApp limit: 20 characters
                         },
                     })),
+                },
+            } as MetaWhatsappOutcomingInteractiveContent,
+        };
+
+        return await this.sendOutcomingMessage(appData.appId, appData.token, data);
+    }
+
+    async sendOutcomingCtaUrl(
+        payloadData: PayloadMessageWhatsapp,
+        channelConfig: CompleteChannelConfig,
+    ): Promise<ResponseMessageWhatsapp | any> {
+        const channelData = this.gupshupUtilService.getChannelData(channelConfig);
+        const { activity } = payloadData;
+
+        const appData = await this.getPartnerAppToken(channelData);
+
+        const attachment = activity.attachments?.[0];
+        if (!attachment?.content?.buttons) {
+            throw new Error('CTA url message requires buttons in attachment');
+        }
+
+        const button = attachment.content.buttons[0];
+
+        // Para CTA url, usar estrutura mais simples sem header/footer
+        const data: MetaWhatsappOutcomingBaseMessage = {
+            messaging_product: 'whatsapp',
+            recipient_type: 'individual',
+            to: activity.to.phone,
+            type: MetaWhatsappOutcomingMessageType.INTERACTIVE,
+            interactive: {
+                type: 'cta_url',
+                body: {
+                    text: attachment.content.text || attachment.content.subtitle || activity.text || '',
+                },
+                action: {
+                    name: 'cta_url',
+                    parameters: {
+                        display_text: button?.title || button?.value,
+                        url: button.value,
+                    },
                 },
             } as MetaWhatsappOutcomingInteractiveContent,
         };

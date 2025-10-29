@@ -22,6 +22,9 @@ export class DistributionRule {
     @Column({ name: 'check_team_working_time_conversation', default: false })
     checkTeamWorkingTimeConversation: boolean;
 
+    @Column({ name: 'excluded_user_ids', type: 'character varying', array: true, nullable: true })
+    excludedUserIds: string[];
+
     @Column({
         name: 'created_at',
         type: 'timestamp',

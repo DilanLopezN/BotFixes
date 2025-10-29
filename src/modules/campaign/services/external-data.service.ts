@@ -9,17 +9,31 @@ import { ObjectiveType } from "../../active-message/models/active-message-settin
 
 @Injectable()
 export class ExternalDataService {
-
-    private sendMessageService: SendMessageService
-    private activeMessageSettingService: ActiveMessageSettingService
-    private interactionsService: InteractionsService
+    private _sendMessageService: SendMessageService;
+    private _activeMessageSettingService: ActiveMessageSettingService;
+    private _interactionsService: InteractionsService;
 
     constructor(private readonly moduleRef: ModuleRef) {}
 
-    async onApplicationBootstrap() {
-        this.sendMessageService = this.moduleRef.get<SendMessageService>(SendMessageService, { strict: false });
-        this.activeMessageSettingService = this.moduleRef.get<ActiveMessageSettingService>(ActiveMessageSettingService, { strict: false });
-        this.interactionsService = this.moduleRef.get<InteractionsService>(InteractionsService, { strict: false });
+    private get sendMessageService(): SendMessageService {
+        if (!this._sendMessageService) {
+            this._sendMessageService = this.moduleRef.get<SendMessageService>(SendMessageService, { strict: false });
+        }
+        return this._sendMessageService;
+    }
+
+    private get activeMessageSettingService(): ActiveMessageSettingService {
+        if (!this._activeMessageSettingService) {
+            this._activeMessageSettingService = this.moduleRef.get<ActiveMessageSettingService>(ActiveMessageSettingService, { strict: false });
+        }
+        return this._activeMessageSettingService;
+    }
+
+    private get interactionsService(): InteractionsService {
+        if (!this._interactionsService) {
+            this._interactionsService = this.moduleRef.get<InteractionsService>(InteractionsService, { strict: false });
+        }
+        return this._interactionsService;
     }
 
     async sendMessageFromValidateNumber(event: IWhatswebCheckPhoneNumberResponseEvent, data: SendActiveMessageData) {

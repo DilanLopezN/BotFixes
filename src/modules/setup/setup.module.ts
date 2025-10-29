@@ -6,10 +6,12 @@ import { SetupBillingService } from './services/setup-billing.service';
 import { SetupWorkspaceService } from './services/setup-workspace.service';
 import { SetupService } from './services/setup.service';
 import { SetupController } from './controllers/setup.controller';
+import { Dialog360ProxyController } from './controllers/dialog360-proxy.controller';
 import { SetupSetting } from './models/setup-setting.entity';
 import { STARTER_CONNECTION } from './ormconfig';
 import { synchronizePostgres } from '../../common/utils/sync';
 import { SetupHealthCheckService } from './services/setup-health-check.service';
+import { SetupDefaultFeaturesService } from './services/setup-default-features.service';
 @Module({
     imports: [
         ConfigModule,
@@ -25,7 +27,8 @@ import { SetupHealthCheckService } from './services/setup-health-check.service';
         }),
         TypeOrmModule.forFeature([SetupSetting], STARTER_CONNECTION),
     ],
-    controllers: [SetupController],
-    providers: [SetupService, SetupBillingService, SetupWorkspaceService, SetupSettingService, SetupHealthCheckService],
+    controllers: [SetupController, Dialog360ProxyController],
+    providers: [SetupService, SetupBillingService, SetupWorkspaceService, SetupSettingService, SetupHealthCheckService, SetupDefaultFeaturesService],
 })
 export class SetupModule {}
+

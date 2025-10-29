@@ -1,0 +1,1 @@
+export * from './file-extractor-registry.service';

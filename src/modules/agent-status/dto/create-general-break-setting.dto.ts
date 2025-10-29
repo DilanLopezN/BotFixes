@@ -1,4 +1,4 @@
-import { IsBoolean, IsNumber, IsOptional, IsString, Max, Min, Validate } from 'class-validator';
+import { IsArray, IsBoolean, IsNumber, IsOptional, IsString, Max, Min, Validate } from 'class-validator';
 import { CreateGeneralBreakSettingData } from '../interfaces/general-break-setting.interface';
 import { ApiProperty } from '@nestjs/swagger';
 import { TotalMaxDurationConstraint } from './total-max-duration-constraint.dto';
@@ -40,6 +40,16 @@ export class CreateGeneralBreakSettingDto implements CreateGeneralBreakSettingDa
     @Min(1)
     @Max(28800, { message: 'A duração maxima da pausa por inatividade não pode ser maior que 28800' })
     maxInactiveDurationSeconds?: number;
+
+    @ApiProperty({
+        description: 'Lista de IDs de usuários excluídos da pausa automática',
+        example: ['507f1f77bcf86cd799439011', '507f191e810c19729de860ea'],
+        required: false,
+    })
+    @IsOptional()
+    @IsArray()
+    @IsString({ each: true })
+    excludedUserIds?: string[];
 
     // Propriedade fictícia para validar a soma
     @Validate(TotalMaxDurationConstraint)

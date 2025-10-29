@@ -3,6 +3,7 @@ import { WhatsappUtilService } from './whatsapp-util.service';
 import { TemplateCategory } from '../../../template-message/schema/template-message.schema';
 import { CompleteChannelConfig } from '../../../channel-config/channel-config.service';
 import { UploadingFile } from '../../../../common/interfaces/uploading-file.interface';
+import { PayloadMessageWhatsapp } from '../interfaces/payload-message-whatsapp.interface';
 
 @Injectable()
 export class WhatsappBridgeService {
@@ -48,6 +49,11 @@ export class WhatsappBridgeService {
 
     async getPreviewFlowURL(channelConfig: CompleteChannelConfig, flowId: string) {
         const service = await this.whatsappUtilService.getService(channelConfig);
-        // return await service.getPreviewFlowURL(channelConfig, flowId);
+        return await service.getPreviewFlowURL(channelConfig, flowId);
+    }
+
+    async sendFlowMessage(channelConfig: CompleteChannelConfig, payload: PayloadMessageWhatsapp) {
+        const service = await this.whatsappUtilService.getService(channelConfig);
+        return await service.sendOutcomingFlowMessage(payload, channelConfig);
     }
 }

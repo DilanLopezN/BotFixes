@@ -31,6 +31,15 @@ export const Exceptions = {
         'EXTERNAL_REQUEST_MISSING_WORKSPACE_ID',
     ),
     INVALID_DATE_FILTER: new CustomBadRequestException('Invalid date filter!', 'INVALID_DATE_FILTER'),
+    INVALID_DATE_RANGE: new CustomBadRequestException('Invalid date range!', 'INVALID_DATE_RANGE'),
+    DATE_RANGE_EXCEEDS_ONE_MONTH: new CustomBadRequestException(
+        'Date range cannot exceed one month!',
+        'DATE_RANGE_EXCEEDS_ONE_MONTH',
+    ),
+    END_DATE_BEFORE_START_DATE: new CustomBadRequestException(
+        'End date cannot be before start date!',
+        'END_DATE_BEFORE_START_DATE',
+    ),
     INVALID_RATING_TOKEN: new CustomUnauthorizedException('Invalid rating token!', 'INVALID_RATING_TOKEN'),
     INVALID_EMAIL: new CustomBadRequestException('Invalid email!', 'INVALID_EMAIL'),
     INVALID_USER: new CustomBadRequestException('Invalid user!', 'INVALID_USER'),
@@ -823,7 +832,7 @@ export const Exceptions = {
         'ERROR_PUBLISHED_FLOW',
     ),
     ALREADY_EXIST_GENERAL_BREAK_SETTING: new CustomBadRequestException(
-        'ALREADY_EXIST_GENERAL_BREAK_SETTING',
+        'A pause setting with this name already exists in this workspace',
         'ALREADY_EXIST_GENERAL_BREAK_SETTING',
     ),
     SMT_RE_TEAM_NOT_ALLOWED: new CustomBadRequestException(

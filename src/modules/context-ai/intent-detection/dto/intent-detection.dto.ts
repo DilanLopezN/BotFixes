@@ -83,3 +83,13 @@ export class DetectIntentDto {
     @IsOptional()
     fromInteractionId?: string;
 }
+
+export class ImportIntentDetectionFromLibraryDto {
+    @IsUUID()
+    @IsNotEmpty()
+    intentLibraryId: string;
+
+    @IsUUID()
+    @IsNotEmpty()
+    agentId: string;
+}

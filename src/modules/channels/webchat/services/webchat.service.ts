@@ -1,19 +1,27 @@
-import { Injectable } from "@nestjs/common";
-import { ChannelConfigService } from "./../../../channel-config/channel-config.service";
-import { ICreateWebchatConversation } from "../interfaces/create-webchat-conversation.interface";
-import { ConversationService } from "./../../../conversation/services/conversation.service";
-import { ActivityType, ChannelIdConfig, IdentityType, ISocketSendRequestEvent, KissbotEventDataType, KissbotEventSource, KissbotEventType } from "kissbot-core";
-import { castObjectIdToString, getTime } from "./../../../../common/utils/utils";
-import { PrivateConversationDataService } from "./../../../private-conversation-data/services/private-conversation-data.service";
-import { Conversation, ConversationWorkspace } from "./../../../conversation/interfaces/conversation.interface";
-import { ActivityDto } from "./../../../conversation/dto/activities.dto";
-import { CreateWebchatActivity } from "../interfaces/create-webchat-activity.interface";
+import { Injectable } from '@nestjs/common';
+import { ChannelConfigService } from './../../../channel-config/channel-config.service';
+import { ICreateWebchatConversation } from '../interfaces/create-webchat-conversation.interface';
+import { ConversationService } from './../../../conversation/services/conversation.service';
+import {
+    ActivityType,
+    ChannelIdConfig,
+    IdentityType,
+    ISocketSendRequestEvent,
+    KissbotEventDataType,
+    KissbotEventSource,
+    KissbotEventType,
+} from 'kissbot-core';
+import { castObjectIdToString, getTime } from './../../../../common/utils/utils';
+import { PrivateConversationDataService } from './../../../private-conversation-data/services/private-conversation-data.service';
+import { Conversation, ConversationWorkspace } from './../../../conversation/interfaces/conversation.interface';
+import { ActivityDto } from './../../../conversation/dto/activities.dto';
+import { CreateWebchatActivity } from '../interfaces/create-webchat-activity.interface';
 import * as moment from 'moment';
-import { ActivityService } from "./../../../activity/services/activity.service";
-import { Activity } from "./../../../activity/interfaces/activity";
-import { EventsService } from "./../../../events/events.service";
+import { ActivityService } from './../../../activity/services/activity.service';
+import { Activity } from './../../../activity/interfaces/activity';
+import { EventsService } from './../../../events/events.service';
 import { v4 } from 'uuid';
-import { AttachmentService } from "./../../../attachment/services/attachment.service";
+import { AttachmentService } from './../../../attachment/services/attachment.service';
 import { orderBy } from 'lodash';
 
 @Injectable()
@@ -45,7 +53,7 @@ export class WebchatService {
                 hash: token,
                 token: token,
                 createdByChannel: channelId,
-                shouldRequestRating: !!config.workspace?.featureFlag?.rating,
+                shouldRequestRating: !!config.workspace?.generalConfigs?.enableRating,
             };
 
             const members = [
@@ -128,11 +136,11 @@ export class WebchatService {
         const activity: ActivityDto = await this.transformWebchatActivity(webchatActivityRequest, conversation);
 
         if (activity.type === ActivityType.event && activity.name === 'resume') {
-            let rawActivities = await this.activityService.getConversationActivitiesByTypes(conversationId, conversation.workspace._id, [
-                ActivityType.message,
-                ActivityType.member_upload_attachment,
-                ActivityType.rating_message,
-            ]);
+            let rawActivities = await this.activityService.getConversationActivitiesByTypes(
+                conversationId,
+                conversation.workspace._id,
+                [ActivityType.message, ActivityType.member_upload_attachment, ActivityType.rating_message],
+            );
 
             rawActivities = orderBy(rawActivities, 'timestamp', 'asc');
 

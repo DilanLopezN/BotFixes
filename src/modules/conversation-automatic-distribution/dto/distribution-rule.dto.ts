@@ -36,6 +36,15 @@ export class CreateDistributionRuleDto {
     @IsOptional()
     @IsBoolean()
     checkTeamWorkingTimeConversation?: boolean;
+
+    @ApiPropertyOptional({
+        description: 'List of user IDs excluded from automatic distribution',
+        example: ['507f1f77bcf86cd799439011', '507f1f77bcf86cd799439012'],
+        type: [String],
+    })
+    @IsOptional()
+    @IsArray()
+    excludedUserIds?: string[];
 }
 
 export class UpdateDistributionRuleDto {
@@ -74,6 +83,15 @@ export class UpdateDistributionRuleDto {
     @IsOptional()
     @IsBoolean()
     checkTeamWorkingTimeConversation?: boolean;
+
+    @ApiPropertyOptional({
+        description: 'List of user IDs excluded from automatic distribution',
+        example: ['507f1f77bcf86cd799439011', '507f1f77bcf86cd799439012'],
+        type: [String],
+    })
+    @IsOptional()
+    @IsArray()
+    excludedUserIds?: string[];
 }
 
 export class DistributionRuleResponseDto {
@@ -114,6 +132,13 @@ export class DistributionRuleResponseDto {
         default: false,
     })
     checkTeamWorkingTimeConversation?: boolean;
+
+    @ApiPropertyOptional({
+        description: 'List of user IDs excluded from automatic distribution',
+        example: ['507f1f77bcf86cd799439011', '507f1f77bcf86cd799439012'],
+        type: [String],
+    })
+    excludedUserIds?: string[];
 
     @ApiPropertyOptional({
         description: 'Creation date',

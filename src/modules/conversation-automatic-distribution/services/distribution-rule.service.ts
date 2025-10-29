@@ -23,6 +23,7 @@ export class DistributionRuleService {
             maxConversationsPerAgent: createDto.maxConversationsPerAgent,
             checkUserWasOnConversation: createDto.checkUserWasOnConversation ?? false,
             checkTeamWorkingTimeConversation: createDto.checkTeamWorkingTimeConversation ?? false,
+            excludedUserIds: createDto.excludedUserIds ?? [],
         });
 
         try {

@@ -5,6 +5,7 @@ export interface IDistributionRule {
     maxConversationsPerAgent: number;
     checkUserWasOnConversation?: boolean;
     checkTeamWorkingTimeConversation?: boolean;
+    excludedUserIds?: string[];
     createdAt?: Date;
     updatedAt?: Date;
 }

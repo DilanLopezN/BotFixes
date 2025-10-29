@@ -11,7 +11,7 @@ export interface WorkspaceSSO {
 }
 
 export interface FeatureFlag {
-    rating: boolean;
+    //rating: boolean;
     enableChannelApi: boolean;
     dashboardNewVersion: boolean;
     enableModuleIntegrations: boolean;
@@ -39,7 +39,6 @@ export interface FeatureFlag {
     enableBotAudioTranscription: boolean;
     categorizationDashboard: boolean;
     enableUploadErpDocuments: boolean;
-    enableConcatAgentNameInMessage: boolean;
     enableContactV2: boolean;
 }
 
@@ -60,6 +59,8 @@ export interface GeneralConfigs {
     enableAgentsTeamHistoryAccess: boolean;
     enableAgentStatusForAgents: boolean;
     ignoreUserFollowupConversation: boolean;
+    enableRating: boolean;
+    enableConcatAgentNameInMessage: boolean;
 }
 
 export interface CustomerXSettings {

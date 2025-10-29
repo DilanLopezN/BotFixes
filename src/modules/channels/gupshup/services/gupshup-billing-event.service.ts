@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import * as moment from "moment";
 import { CatchError } from "./../../../auth/exceptions";
@@ -9,6 +9,7 @@ import { GUPSHUP_CONNECTION } from "../ormconfig";
 
 @Injectable()
 export class GupshupBillingEventService {
+    private readonly logger = new Logger(GupshupBillingEventService.name);
     constructor(
         @InjectRepository(GupshupBillingEvent, GUPSHUP_CONNECTION)
         private gupshupBillingEventRepository: Repository<GupshupBillingEvent>,
@@ -16,9 +17,13 @@ export class GupshupBillingEventService {
 
     @CatchError()
     async create(data: CreateGupshupBillingEvent) {
-        await this.gupshupBillingEventRepository.insert({
-            ...data,
-            createdAt: moment().valueOf(),
-        })
+        try {
+            await this.gupshupBillingEventRepository.insert({
+                ...data,
+                createdAt: moment().valueOf(),
+            });
+        } catch (e) {
+            this.logger.log(e);
+        }
     }
 }

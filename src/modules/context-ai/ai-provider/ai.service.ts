@@ -3,19 +3,22 @@ import { OpenIaProviderService } from './providers/openai-provider.service';
 import { AiExecuteData } from './interfaces/ai-execute-data';
 import { GoogleIaProviderService } from './providers/google-provider.service';
 import { AiExecute, AiGenerateEmbeddings, AIProviderType } from './interfaces';
+import { GroqProviderService } from './providers/groq-provider.service';
 
 @Injectable()
 export class AiProviderService {
     constructor(
         private readonly openaiProviderService: OpenIaProviderService,
         private readonly googleIaProviderService: GoogleIaProviderService,
+        private readonly groqProviderService: GroqProviderService,
     ) {}
 
     private getService(provider: AIProviderType | undefined) {
         switch (provider) {
             case AIProviderType.google:
                 return this.googleIaProviderService;
-
+            case AIProviderType.groq:
+                return this.groqProviderService;
             default:
                 return this.openaiProviderService;
         }

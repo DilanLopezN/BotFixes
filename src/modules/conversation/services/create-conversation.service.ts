@@ -197,7 +197,7 @@ export class CreateConversationService {
             workspace: channelConfig.workspace,
             bot: channelConfig.bot,
             members,
-            shouldRequestRating: !!channelConfig.workspace?.featureFlag?.rating,
+            shouldRequestRating: !!channelConfig.workspace?.generalConfigs?.enableRating,
             referralSourceId: referralSourceId,
         };
 
@@ -212,7 +212,7 @@ export class CreateConversationService {
                     conversationToCreate.priority = team?.priority || 0;
                 }
 
-                if (!!channelConfig.workspace?.featureFlag?.rating && existingAutoAssign.enableRating) {
+                if (!!channelConfig.workspace?.generalConfigs?.enableRating && existingAutoAssign.enableRating) {
                     conversationToCreate.shouldRequestRating = existingAutoAssign.enableRating;
                 } else {
                     conversationToCreate.shouldRequestRating = false;

@@ -22,6 +22,7 @@ import { ExternalDataService } from './external-data.service';
 import { ObjectiveType } from '../../active-message/models/active-message-setting.entity';
 import { shouldRunCron } from '../../../common/utils/bootstrapOptions';
 import { KafkaService } from '../../_core/kafka/kafka.service';
+import * as Sentry from '@sentry/node';
 
 export const campaignTopicName = `campaign_start`;
 
@@ -347,68 +348,94 @@ export class CampaignService {
             throw Exceptions.CAMPAIGN_SHOULD_AWAITING_SEND_PAUSED;
         }
 
-        const contacts = await this.contactService.getCampaignContacts(campaignId);
+        try {
+            const contacts = await this.contactService.getCampaignContacts(campaignId);
 
-        await this.campaignRepository.update(
-            {
-                id: campaign.id,
-            },
-            {
-                startedAt: moment().valueOf(),
-                status: CampaignStatus.running,
-            },
-        );
+            await this.campaignRepository.update(
+                {
+                    id: campaign.id,
+                },
+                {
+                    startedAt: moment().valueOf(),
+                    status: CampaignStatus.running,
+                },
+            );
 
-        const pauseCacheKey = await this.getPauseCacheKey(campaignId);
-        const client = this.cacheService.getClient();
-        await client.del(pauseCacheKey);
+            const pauseCacheKey = await this.getPauseCacheKey(campaignId);
+            const client = this.cacheService.getClient();
+            await client.del(pauseCacheKey);
 
-        for (let i = 0; i < contacts.length; i++) {
-            const contact = contacts[i];
-            const value = await client.get(pauseCacheKey);
+            for (let i = 0; i < contacts.length; i++) {
+                const contact = contacts[i];
+                const value = await client.get(pauseCacheKey);
 
-            if (value === 'true') {
-                this.logger.log(`Pausing campaign ${campaign.name} - ${campaign.id}`);
-                await client.del(pauseCacheKey);
-                return;
-            }
+                if (value === 'true') {
+                    this.logger.log(`Pausing campaign ${campaign.name} - ${campaign.id}`);
+                    await client.del(pauseCacheKey);
+                    return;
+                }
 
-            const attr = await this.buildContactAttributes(contact.contactAttributes, campaign.campaignAttributes);
-            const data: SendActiveMessageData = {
-                apiToken: activeMessageSetting.apiToken,
-                phoneNumber: contact.phone,
-                contactName: contact.name,
-                teamId: '',
-                action: campaign.action,
-                attributes: attr,
-                campaignId: campaign.id,
-                templateId: campaign.templateId,
-                externalId: `${contact.campaignContact.hash}`,
-            };
+                try {
+                    const attr = await this.buildContactAttributes(
+                        contact.contactAttributes,
+                        campaign.campaignAttributes,
+                    );
+                    const data: SendActiveMessageData = {
+                        apiToken: activeMessageSetting.apiToken,
+                        phoneNumber: contact.phone,
+                        contactName: contact.name,
+                        teamId: '',
+                        action: campaign.action,
+                        attributes: attr,
+                        campaignId: campaign.id,
+                        templateId: campaign.templateId,
+                        externalId: `${contact.campaignContact.hash}`,
+                    };
 
-            if (contact.isValid) {
-                await this.externalDataService.sendMessageFromValidateNumber(
-                    {
-                        isValid: true,
-                        token: activeMessageSetting.channelConfigToken,
-                        phone: contact.phone,
-                        phoneId: contact.whatsapp,
-                        userId: activeMessageSetting.channelConfigToken,
-                        whatsapp: contact.whatsapp,
-                    },
-                    data,
-                );
-            } else {
-                await this.externalDataService.sendMessage(data);
-            }
+                    if (contact.isValid) {
+                        await this.externalDataService.sendMessageFromValidateNumber(
+                            {
+                                isValid: true,
+                                token: activeMessageSetting.channelConfigToken,
+                                phone: contact.phone,
+                                phoneId: contact.whatsapp,
+                                userId: activeMessageSetting.channelConfigToken,
+                                whatsapp: contact.whatsapp,
+                            },
+                            data,
+                        );
+                    } else {
+                        await this.externalDataService.sendMessage(data);
+                    }
 
-            await this.campaignContactService.updateCampaignContactSendedAt(contact.campaignContact.id);
+                    await this.campaignContactService.updateCampaignContactSendedAt(contact.campaignContact.id);
 
-            if (i < contacts.length - 1) {
-                if (campaign.sendInterval) {
-                    await new Promise((res, _) => setTimeout(res, campaign.sendInterval));
+                    if (i < contacts.length - 1) {
+                        if (campaign.sendInterval) {
+                            await new Promise((res, _) => setTimeout(res, campaign.sendInterval));
+                        }
+                    }
+                } catch (error) {
+                    console.log('ERROR CampaignService.startCampaign sendMessage: ', error);
+                    Sentry.captureEvent({
+                        message: 'ERROR CampaignService.startCampaign sendMessage',
+                        extra: {
+                            error: error,
+                            contact,
+                            campaign,
+                        },
+                    });
                 }
             }
+        } catch (error) {
+            console.log('ERROR CampaignService.startCampaign: ', error);
+            Sentry.captureEvent({
+                message: 'ERROR CampaignService.startCampaign',
+                extra: {
+                    error: error,
+                    campaign,
+                },
+            });
         }
 
         await this.campaignRepository.update(

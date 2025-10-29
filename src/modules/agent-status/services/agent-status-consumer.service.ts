@@ -31,7 +31,7 @@ export class AgentStatusConsumerService {
         const timer = rabbitMsgLatency.labels(AgentStatusConsumerService.name).startTimer();
         rabbitMsgCounter.labels(AgentStatusConsumerService.name).inc();
         try {
-            if (typeof event !== 'object' || !event.data) return;
+            if (typeof event !== 'object' || event === null || !event.data) return;
 
             const { workspaceId, userId } = event.data as IAgentStatusEvent;
             if (!workspaceId || !userId) {
@@ -47,7 +47,11 @@ export class AgentStatusConsumerService {
                     break;
             }
         } catch (e) {
-            console.log('AgentStatusConsumerService.processEvent', event.type, JSON.stringify(event.data));
+            console.log(
+                'AgentStatusConsumerService.processEvent',
+                event?.type || 'unknown',
+                JSON.stringify(event?.data || {}),
+            );
             rabbitMsgCounterError.labels(AgentStatusConsumerService.name).inc();
             throw e;
         }

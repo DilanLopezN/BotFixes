@@ -87,6 +87,7 @@ export class Dialog360UtilService {
             payload.entry[0].changes[0].value.messages[0]?.['reaction']?.emoji ||
             payload.entry[0].changes[0].value.messages[0]?.interactive?.['button_reply']?.title ||
             payload.entry[0].changes[0].value.messages[0]?.interactive?.['list_reply']?.title ||
+            payload.entry[0].changes[0].value.messages[0]?.['button']?.text ||
             payload.entry[0].changes[0].value.messages[0]?.['image']?.caption ||
             payload.entry[0].changes[0].value.messages[0]?.['video']?.caption ||
             payload.entry[0].changes[0].value.messages[0]?.['document']?.filename ||

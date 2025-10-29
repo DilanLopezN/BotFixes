@@ -61,13 +61,12 @@ export class WhatsappOutcomingConsumerService {
                         activity.attachments?.[0].content.buttons.length === 1 &&
                         activity.attachments?.[0].content?.buttons?.[0]?.type === 'flow'
                     ) {
-                        // const channelConfig = await this.externalDataService.getChannelConfig(conversation.token);
-                        // response = await this.externalDataService.sendFlowMessage(activity, channelConfig);
+                        response = await this.sendFlowMessage(activity, channelConfig);
                     } else if (
                         activity.attachments?.[0].content.buttons.length === 1 &&
                         activity.attachments?.[0].content?.buttons?.[0]?.type === 'openUrl'
                     ) {
-                        // response = await this.sendCtaURLMessageToGupshup(conversation, activity);
+                        response = await this.sendCtaUrlMessage(activity, channelConfig);
                     } else if (
                         activity.attachments?.[0]?.content?.buildAsQuickReply &&
                         activity?.attachments?.[0]?.content?.buttons?.length <= 3
@@ -106,21 +105,6 @@ export class WhatsappOutcomingConsumerService {
                             error: e,
                         },
                     });
-                    if (activity.attachmentFile) {
-                        response = await this.sendMediaMessage(activity, channelConfig);
-                    } else if (activity.text) {
-                        if (activity?.data?.reactionHash) {
-                            response = await this.sendReactionMessage(activity, channelConfig);
-                        } else {
-                            response = await this.sendTextMessage(activity, channelConfig);
-                        }
-                    } else if (activity.data?.wabaTemplateId) {
-                        // response = await this.sendTemplateMessage(activity, channelConfig);
-                    } else if (activity.data?.flowId) {
-                        // response = await this.sendFlowMessage(activity, channelConfig);
-                    } else if (activity.attachments?.length) {
-                        // response = await this.sendButtonMessage(activity, channelConfig);
-                    }
                 }
 
                 if (!response) {
@@ -149,9 +133,6 @@ export class WhatsappOutcomingConsumerService {
      */
 
     async sendTextMessage(activity: Activity, channelConfig: CompleteChannelConfig) {
-        if (activity.isHsm && activity.data?.wabaTemplateId) {
-            //TODO SendTemplateMessage
-        }
         const service = await this.whatsappUtilService.getService(channelConfig);
 
         const payloadData: PayloadMessageWhatsapp = {
@@ -185,25 +166,26 @@ export class WhatsappOutcomingConsumerService {
         activity: Activity,
         channelConfig: CompleteChannelConfig,
     ): Promise<ResponseMessageWhatsapp | any> {
-        // const { partnerToken, appId } = channelData;
-        // const { phone_destination, payload } = payloadData;
-        // const data: PayloadMessageGupshupV3 = {
-        //     messaging_product: 'whatsapp',
-        //     recipient_type: 'individual',
-        //     to: phone_destination,
-        //     type: MessageType.interactive,
-        //     interactive: {
-        //         ...payload,
-        //     },
-        // };
-        // let token = partnerToken;
-        // let partnerAppId = appId;
-        // if (!partnerToken || !appId) {
-        //     const appdata = await this.getPartnerAppToken(channelData);
-        //     token = appdata.token;
-        //     partnerAppId = appdata.appId;
-        // }
-        // return await this.sendMessage(partnerAppId, token, data);
+        const service = await this.whatsappUtilService.getService(channelConfig);
+
+        const payloadData: PayloadMessageWhatsapp = {
+            activity,
+        };
+
+        return await service.sendOutcomingFlowMessage(payloadData, channelConfig);
+    }
+
+    async sendCtaUrlMessage(
+        activity: Activity,
+        channelConfig: CompleteChannelConfig,
+    ): Promise<ResponseMessageWhatsapp | any> {
+        const service = await this.whatsappUtilService.getService(channelConfig);
+
+        const payloadData: PayloadMessageWhatsapp = {
+            activity,
+        };
+
+        return await service.sendOutcomingCtaUrl(payloadData, channelConfig);
     }
 
     async sendMediaMessage(activity: Activity, channelConfig: CompleteChannelConfig) {
@@ -303,60 +285,6 @@ export class WhatsappOutcomingConsumerService {
     //     }
 
     //     return await service.sendOutcomingButtonMessage(payloadData, channelConfig);
-    // }
-
-    // async sendFlowMessage(activity: Activity, channelConfig: CompleteChannelConfig) {
-    //     const { service, channelData } = await this.whatsappUtilService.getService(
-    //         castObjectIdToString(channelConfig._id),
-    //         channelConfig,
-    //     );
-
-    //     const payloadData: PayloadMessageWhatsapp = {
-    //         type: ChannelTypeWhatsapp.gupshup,
-    //         phone_destination: activity.to.id,
-    //         payload: {},
-    //     };
-
-    //     switch (channelConfig?.channelId) {
-    //         case ChannelIdConfig.gupshup:
-    //             payloadData.payload = (await this.externalDataService.transformActivityToPayloadGupshup(
-    //                 activity,
-    //                 PayloadGupshupTypes.PayloadInteractiveFlowMessage,
-    //             )) as PayloadInteractiveFlowMessage;
-    //             break;
-
-    //         default:
-    //             break;
-    //     }
-
-    //     return await service.sendOutcomingFlowMessage(payloadData, channelConfig);
-    // }
-
-    // async sendTemplateMessage(activity: Activity, channelConfig: CompleteChannelConfig) {
-    //     const { service, channelData } = await this.whatsappUtilService.getService(
-    //         castObjectIdToString(channelConfig._id),
-    //         channelConfig,
-    //     );
-
-    //     const payloadData: PayloadMessageWhatsapp = {
-    //         type: ChannelTypeWhatsapp.gupshup,
-    //         phone_destination: activity.to.id,
-    //         payload: {},
-    //     };
-
-    //     switch (channelConfig?.channelId) {
-    //         case ChannelIdConfig.gupshup:
-    //             payloadData.payload = (await this.externalDataService.transformActivityToPayloadGupshup(
-    //                 activity,
-    //                 PayloadGupshupTypes.PayloadTemplateMessage,
-    //             )) as PayloadTemplateMessage;
-    //             break;
-
-    //         default:
-    //             break;
-    //     }
-
-    //     return await service.sendOutcomingTemplateMessage(payloadData, channelConfig);
     // }
 
     async getPreviewFlowURL(channelConfig: CompleteChannelConfig, flowId: string) {

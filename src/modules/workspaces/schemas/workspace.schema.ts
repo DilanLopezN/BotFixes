@@ -52,6 +52,8 @@ export const GeneralConfigsSchema = new mongoose.Schema(
         enableAgentsTeamHistoryAccess: Boolean,
         enableAgentStatusForAgents: Boolean,
         ignoreUserFollowupConversation: Boolean,
+        enableRating: Boolean, //de FeatureFlag
+        enableConcatAgentNameInMessage: Boolean
     },
     { versionKey: false, _id: false, strict: false }, // com strict = false permite adicionar outras chaves que não estejam listadas no enum
 );
@@ -79,7 +81,7 @@ export const WorkspaceSchema = new mongoose.Schema(
         settings: WorkspaceSettingsSchema,
         sso: WorkspaceSSOSchema,
         featureFlag: { type: FeatureFlagSchema, default: {} },
-        generalConfigs: GeneralConfigsSchema,
+        generalConfigs: { type: GeneralConfigsSchema, default: {} },
         customerXSettings: CustomerXSettingsSchema,
         userFeatureFlag: UserFeatureFlagSchema,
         advancedModuleFeatures: AdvancedModuleFeaturesSchema,

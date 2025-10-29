@@ -82,7 +82,6 @@ export class ContextVariableService {
         const trainingEntry = await this.contextVariableRepository.findOne({
             name: data.name,
             workspaceId,
-            deletedAt: IsNull(),
             agentId: data.agentId,
         });
 
@@ -109,7 +108,6 @@ export class ContextVariableService {
         const trainingEntry = await this.contextVariableRepository.findOne({
             id: data.contextVariableId,
             workspaceId,
-            deletedAt: IsNull(),
         });
 
         if (!trainingEntry) {
@@ -127,18 +125,19 @@ export class ContextVariableService {
 
     public async deleteContextVariable(workspaceId: string, data: DeleteContextVariable): Promise<{ ok: boolean }> {
         await this.removeContextVariablesCache(workspaceId, data.agentId);
-        const result = await this.contextVariableRepository.update(
-            { id: data.contextVariableId },
-            {
-                workspaceId,
-                deletedAt: new Date(),
-            },
-        );
+        const result = await this.contextVariableRepository.delete({
+            id: data.contextVariableId,
+            workspaceId,
+        });
 
         return { ok: result.affected > 0 };
     }
 
-    public getVariableValue(variables: ContextVariable[], variableName: string, defaultValue?: any): any {
+    public getVariableValue(
+        variables: ContextVariable[] | IContextVariableResume[],
+        variableName: string,
+        defaultValue?: any,
+    ): any {
         const variable = variables.find((variable) => variable.name === variableName);
         return variable ? variable.value : defaultValue;
     }

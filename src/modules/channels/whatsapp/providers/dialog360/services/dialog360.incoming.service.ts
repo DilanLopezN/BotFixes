@@ -58,6 +58,10 @@ export class Dialog360IncomingService {
                     case 'sent': {
                         this.externalDataService.checkMissingReceived(message.recipient_id, channelConfigToken);
                         await this.updateActivityAck(id, AckType.ServerAck, channelConfigToken, workspaceId);
+                        // Handle billing event if pricing data is present
+                        if (message.pricing) {
+                            await this.handleBillingEvent(payload, channelConfigToken, workspaceId);
+                        }
                         break;
                     }
                     case 'delivered': {
@@ -112,6 +116,10 @@ export class Dialog360IncomingService {
 
             switch (payload.entry[0].changes[0].value.messages[0].type) {
                 case 'interactive': {
+                    result = await this.processInteractiveMessage(payload, channelConfigToken);
+                    break;
+                }
+                case 'button': {
                     result = await this.processInteractiveMessage(payload, channelConfigToken);
                     break;
                 }
@@ -1137,5 +1145,51 @@ export class Dialog360IncomingService {
         this.kafkaService.sendEvent(data, channelConfigToken, 'activity_ack');
         timer5();
         return hash;
+    }
+
+    private async handleBillingEvent(payload: MetaWhatsappWebhookEvent, channelConfigToken: string, workspaceId?: string) {
+        try {
+            const message = payload?.entry?.[0]?.changes?.[0]?.value?.['statuses']?.[0];
+            if (!message?.pricing) {
+                return;
+            }
+
+            const messageId = message.id;
+            const recipientId = message.recipient_id;
+            const pricing = message.pricing;
+            if (!pricing.billable) return;
+            const conversation = message.conversation;
+            const timestamp = message.timestamp ? parseInt(message.timestamp) * 1000 : moment().valueOf();
+
+            // Try to resolve conversationId from message hash
+            let conversationId: string | undefined;
+            let hash;
+            try {
+                hash = await this.externalDataService.findHashByWppId(messageId);
+                if (hash) {
+                    conversationId = await this.externalDataService.getConversationIdByActivityHash(hash);
+                }
+            } catch (e) {
+                this.logger.warn('Could not resolve conversationId for billing event', e);
+            }
+
+            await this.externalDataService.createWhatsappBillingEvent({
+                conversationId,
+                workspaceId,
+                channelConfigToken,
+                messageId: hash,
+                recipientId,
+                conversationWhatsappId: conversation?.id,
+                conversationExpirationTimestamp: conversation?.expiration_timestamp,
+                conversationOriginType: conversation?.origin?.type,
+                billable: pricing.billable,
+                pricingModel: pricing.pricing_model,
+                category: pricing.category,
+                pricingType: pricing.type,
+                timestamp,
+            });
+        } catch (e) {
+            this.logger.error('Error handling billing event', e);
+        }
     }
 }

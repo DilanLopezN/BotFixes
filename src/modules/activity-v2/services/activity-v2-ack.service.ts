@@ -76,4 +76,8 @@ export class ActivityV2AckService {
             console.log('ERROR', e);
         }
     }
+
+    async findAckByHash(hash) {
+        return await this.activityAckRepository.find({ hash });
+    }
 }

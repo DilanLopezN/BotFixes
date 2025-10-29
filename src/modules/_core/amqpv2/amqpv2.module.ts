@@ -26,6 +26,8 @@ import { CampaignMessageStatusConsumerService } from '../../campaign-v2/services
 import { ConversationClosedConsumerService } from '../../conversation-smt-re/services/conversation-closed-consumer.service';
 import { ConversationAutomaticDistributionService } from '../../conversation-automatic-distribution/services/conversation-automatic-distribution.service';
 import { AgentStatusConsumerService } from '../../agent-status/services/agent-status-consumer.service';
+import { GupshupCheckAckErrorConsumer } from '../../channels/gupshup/services/gupshup-check-ack-error-consumer.service';
+import { EmailCampaignConsumerService } from '../../active-mail-marketing/services/email-campaign-consumer.service';
 
 @Module({
     imports: [
@@ -38,6 +40,18 @@ import { AgentStatusConsumerService } from '../../agent-status/services/agent-st
                 {
                     name: process.env.CHANNEL_EXCHANGE_NAME,
                     type: 'topic',
+                },
+                {
+                    name: `${process.env.EVENT_EXCHANGE_NAME}_delay`,
+                    //obs: isso ta causando um loop generalizado, tive que usar em topic pra api rodar.
+                    type: 'x-delayed-message',
+                    options: {
+                        durable: true,
+                        autoDelete: false,
+                        arguments: {
+                            'x-delayed-type': 'direct',
+                        },
+                    },
                 },
             ],
             uri: process.env.AMQP_SERVER_URI,
@@ -124,6 +138,12 @@ import { AgentStatusConsumerService } from '../../agent-status/services/agent-st
                     prefetchCount: 10,
                 },
                 [AgentStatusConsumerService.name]: {
+                    prefetchCount: 10,
+                },
+                [GupshupCheckAckErrorConsumer.name]: {
+                    prefetchCount: 10,
+                },
+                [EmailCampaignConsumerService.name]: {
                     prefetchCount: 10,
                 },
             },

@@ -6,7 +6,9 @@ export interface ITrainingEntry {
     pendingTraining: boolean;
     executedTrainingAt: Date;
     agentId: string;
+    isActive: boolean;
     createdAt: Date;
     updatedAt: Date;
     deletedAt: Date;
+    expiresAt: Date;
 }

@@ -3,12 +3,14 @@ import { CatchError, Exceptions } from '../../auth/exceptions';
 import { CreateInitialSetup } from '../interfaces/create-initial-setup.interface';
 import { SetupBillingService } from './setup-billing.service';
 import { SetupWorkspaceService } from './setup-workspace.service';
+import { SetupDefaultFeaturesService } from './setup-default-features.service';
 
 @Injectable()
 export class SetupService {
     constructor(
         private readonly setupBillingService: SetupBillingService,
         private readonly setupWorkspaceService: SetupWorkspaceService,
+        private readonly setupDefaultFeaturesService: SetupDefaultFeaturesService,
     ) {}
 
     @CatchError()
@@ -54,6 +56,14 @@ export class SetupService {
             workspace.name,
             body.workspaceChannelSpecifications,
         );
+
+        try {
+            await this.setupDefaultFeaturesService.setupDefaultFeatures(
+                workspace._id.toString ? workspace._id.toString() : workspace._id,
+            );
+        } catch (error) {
+            console.error(`[SetupDefaultFeatures] Erro ao configurar features padrão: ${error.message}`, error);
+        }
 
         return {
             workspace,

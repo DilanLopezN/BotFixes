@@ -14,6 +14,7 @@ import {
     KissbotEventSource,
     convertPhoneNumber,
     IdentityType,
+    getWithAndWithout9PhoneNumber,
 } from 'kissbot-core';
 import { Identity } from '../interfaces/identity.interface';
 import { IContact, IContactCreate, IContactUpdate } from '../interfaces/contact.interface';
@@ -21,7 +22,7 @@ import { BlockedContactService } from './blocked-contact.service';
 import { isAnySystemAdmin } from '../../../common/utils/roles';
 import { User } from '../../../modules/users/interfaces/user.interface';
 import * as moment from 'moment';
-import { castObjectIdToString } from '../../../common/utils/utils';
+import { castObjectIdToString, getCompletePhone } from '../../../common/utils/utils';
 
 @Injectable()
 export class ContactService {
@@ -439,7 +440,15 @@ export class ContactService {
         const query: FindConditions<ContactEntity> = { workspaceId };
 
         const orConditions = [];
-        if (contact.phone) orConditions.push({ phone: String(contact.phone) });
+        if (contact.phone) {
+            const phones = getWithAndWithout9PhoneNumber(getCompletePhone(String(contact.phone), contact.ddi));
+            const satitizePhone = [...new Set(phones)];
+            satitizePhone?.forEach((phone) => {
+                orConditions.push({ phone: String(phone) });
+                orConditions.push({ whatsapp: String(phone) });
+            });
+            orConditions.push({ phone: String(contact.phone) });
+        }
         if (contact.email) orConditions.push({ email: contact.email });
 
         let existingContact: IContact = null;

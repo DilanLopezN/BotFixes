@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Put, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Param, Post, Put, UseGuards } from '@nestjs/common';
 import { PredefinedRoles } from '../../../common/utils/utils';
 import { AuthGuard } from '../../auth/guard/auth.guard';
 import { RolesDecorator } from '../../users/decorators/roles.decorator';
@@ -11,9 +11,12 @@ import { CreateConfirmationSettingDto } from '../dto/confirmation-setting.dto';
 import { CreateReminderSettingDto } from '../dto/reminder-setting.dto';
 import { UpdateSendSettingData } from '../interfaces/send-setting-data.interface';
 import { CreateSendSettingDto } from '../dto/send-setting.dto';
+import { ToggleSettingActiveDto } from '../dto/toggle-setting-active.dto';
 import axios, { AxiosInstance } from 'axios';
 import axiosRetry from 'axios-retry';
 import * as Sentry from '@sentry/node';
+import { UserDecorator } from '../../../decorators/user.decorator';
+import { User, UserRoles } from '../../users/interfaces/user.interface';
 
 @Controller('workspaces')
 export class ScheduleSettingController {
@@ -65,8 +68,8 @@ export class ScheduleSettingController {
         @Body() body: UpdateScheduleSettingDto,
     ): Promise<any> {
         const requestData = {
-            active: body.active,
             name: body.name,
+            alias: body.alias,
             getScheduleInterval: body.getScheduleInterval,
             integrationId: body.integrationId,
             id: scheduleSettingId,
@@ -125,6 +128,36 @@ export class ScheduleSettingController {
         }
     }
 
+    @Get(':workspaceId/schedule-setting-with-alias')
+    @RolesDecorator([
+        PredefinedRoles.SYSTEM_ADMIN,
+        PredefinedRoles.SYSTEM_DEV_ADMIN,
+        PredefinedRoles.SYSTEM_CS_ADMIN,
+        PredefinedRoles.SYSTEM_UX_ADMIN,
+        PredefinedRoles.WORKSPACE_AGENT,
+        PredefinedRoles.DASHBOARD_ADMIN,
+        PredefinedRoles.WORKSPACE_ADMIN,
+    ])
+    @UseGuards(AuthGuard, RolesGuard)
+    async listScheduleSettingWithAlias(@Param('workspaceId') workspaceId: string): Promise<any> {
+        const requestData = {
+            workspaceId,
+        };
+        try {
+            const url = process.env.AUTOMATIC_MESSAGE_URL + `/schedule-setting/listByAlias`;
+            const response = await this.axiosInstance.post(url, requestData);
+            return response.data;
+        } catch (error) {
+            Sentry.captureEvent({
+                message: `${ScheduleSettingController.name}.listScheduleSettingWithAlias`,
+                extra: {
+                    error,
+                },
+            });
+            throw error;
+        }
+    }
+
     @Get(':workspaceId/schedule-setting/:scheduleSettingId')
     @RolesDecorator([PredefinedRoles.SYSTEM_ADMIN, PredefinedRoles.SYSTEM_DEV_ADMIN])
     @UseGuards(AuthGuard, RolesGuard)
@@ -163,10 +196,14 @@ export class ScheduleSettingController {
             reminder: CreateReminderSettingDto;
             sendSettings?: CreateSendSettingDto[];
         },
+        @UserDecorator() user: User,
     ): Promise<any> {
+        let isSystemAdmin = user?.roles?.some((role) => role.role === UserRoles.SYSTEM_ADMIN);
+
         const requestData = {
             ...body,
             workspaceId,
+            ...(isSystemAdmin ? { userRole: UserRoles.SYSTEM_ADMIN } : {}),
         };
         try {
             const url = process.env.AUTOMATIC_MESSAGE_URL + `/schedule-setting/createAllSettings`;
@@ -179,7 +216,10 @@ export class ScheduleSettingController {
                     error,
                 },
             });
-            throw error;
+            const errorMessage =
+                error.response?.data?.message || error.message || 'Erro ao criar configurações de agendamento';
+
+            throw new BadRequestException(errorMessage);
         }
     }
 
@@ -213,7 +253,46 @@ export class ScheduleSettingController {
                     error,
                 },
             });
-            throw error;
+            const errorMessage =
+                error.response?.data?.message || error.message || 'Erro ao atualizar configurações de agendamento';
+
+            throw new BadRequestException(errorMessage);
+        }
+    }
+
+    @Post(':workspaceId/schedule-setting/toggle-active')
+    @RolesDecorator([PredefinedRoles.SYSTEM_ADMIN, PredefinedRoles.SYSTEM_DEV_ADMIN])
+    @UseGuards(AuthGuard, RolesGuard)
+    async toggleSettingActive(
+        @Param('workspaceId') workspaceId: string,
+        @Body() body: ToggleSettingActiveDto,
+        @UserDecorator() user: User,
+    ): Promise<any> {
+        let isSystemAdmin = user?.roles?.some((role) => role.role === UserRoles.SYSTEM_ADMIN);
+
+        const requestData = {
+            id: body.id,
+            workspaceId,
+            active: body.active,
+            settingType: body.settingType,
+            type: body.type,
+            ...(isSystemAdmin ? { userRole: UserRoles.SYSTEM_ADMIN } : {}),
+        };
+        try {
+            const url = process.env.AUTOMATIC_MESSAGE_URL + `/schedule-setting/toggle-active`;
+            const response = await this.axiosInstance.post(url, requestData);
+            return response.data;
+        } catch (error) {
+            Sentry.captureEvent({
+                message: `${ScheduleSettingController.name}.toggleSettingActive`,
+                extra: {
+                    error,
+                },
+            });
+            const errorMessage =
+                error.response?.data?.message || error.message || 'Erro ao ativar/desativar configuração';
+
+            throw new BadRequestException(errorMessage);
         }
     }
 }

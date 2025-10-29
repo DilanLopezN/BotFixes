@@ -20,7 +20,7 @@ export interface CreateSendSettingData {
 
 export interface UpdateSendSettingData {
     id: number;
-    active: boolean;
+    // active: boolean;
     type: string;
     workspaceId: string;
     apiToken: string;

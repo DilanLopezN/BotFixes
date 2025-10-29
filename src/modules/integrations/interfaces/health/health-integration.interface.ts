@@ -62,6 +62,7 @@ export enum IntegrationType {
     MATRIX = 'MATRIX',
     AMIGO = 'AMIGO',
     KAYSER = 'KAYSER',
+    BOTDESIGNER_FAKE = 'BOTDESIGNER_FAKE'
 }
 
 export enum IntegrationRules {
@@ -98,9 +99,11 @@ export enum IntegrationRules {
     doNotAllowSameDayAndDoctorScheduling = 'doNotAllowSameDayAndDoctorScheduling',
     doNotAllowSameDayAndProcedureScheduling = 'doNotAllowSameDayAndProcedureScheduling',
     doNotAllowSameHourScheduling = 'doNotAllowSameHourScheduling',
+    doNotAllowSameDayForProcedureWithLaterality = 'doNotAllowSameDayForProcedureWithLaterality',
     minutesAfterAppointmentCanSchedule = 'minutesAfterAppointmentCanSchedule',
     useInsuranceSuggestion = 'useInsuranceSuggestion',
     useDoctorSuggestion = 'useDoctorSuggestion',
+    useScheduleSuggestion = 'useScheduleSuggestion',
     patientNameCase = 'patientNameCase',
     allowStepBack = 'allowStepBack',
     useListInAllSteps = 'useListInAllSteps',

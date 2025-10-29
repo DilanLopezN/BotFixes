@@ -25,7 +25,7 @@ export class ContextMessageController {
     @Post('getConsumedTokens')
     @RolesDecorator([PredefinedRoles.SYSTEM_ADMIN])
     @UseGuards(AuthGuard, RolesGuard)
-    async doQuestion(
+    async getConsumedTokens(
         @Body(new ValidationPipe()) dto: GetConsumedTokensDto,
         @Param('workspaceId') workspaceId: string,
     ): Promise<DefaultResponse<GetConsumedTokensResponse[]>> {

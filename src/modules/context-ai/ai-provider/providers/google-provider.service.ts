@@ -32,7 +32,7 @@ export class GoogleIaProviderService implements AIProvider {
         return null;
     }
 
-    public async execute({ messages, prompt }: AiExecute): Promise<AiExecuteData> {
+    public async execute({ messages, prompt, image }: AiExecute): Promise<AiExecuteData> {
         try {
             const historicMessages = await this.getHistoryMessages(messages);
             const chatSession = this.model.startChat({
@@ -46,7 +46,21 @@ export class GoogleIaProviderService implements AIProvider {
                 history: historicMessages,
             });
 
-            const result = await chatSession.sendMessage(prompt);
+            let result;
+            if (image) {
+                const parts = [
+                    prompt,
+                    {
+                        inlineData: {
+                            data: image.data,
+                            mimeType: image.mimeType,
+                        },
+                    },
+                ];
+                result = await this.model.generateContent(parts);
+            } else {
+                result = await chatSession.sendMessage(prompt);
+            }
             let message = result.response.text();
 
             if (message.includes('```')) {

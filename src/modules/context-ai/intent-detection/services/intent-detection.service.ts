@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, NotFoundException, Inject, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { IntentDetection } from '../entities/intent-detection.entity';
@@ -6,6 +6,7 @@ import {
     CreateIntentDetectionData,
     DeleteIntentDetectionData,
     IIntentDetection,
+    ImportIntentFromLibraryData,
     ListIntentDetectionFilter,
     UpdateIntentDetectionData,
 } from '../interfaces/intent-detection.interface';
@@ -23,17 +24,22 @@ import { MessageContextValidator } from '../validator/message-context.validator'
 import { InteractionsService } from '../../../interactions/services/interactions.service';
 import { omit } from 'lodash';
 import { IIntentActions } from '../interfaces/intent-actions.interface';
+import { AiProviderService } from '../../ai-provider/ai.service';
+import { AIProviderType } from '../../ai-provider/interfaces';
+import { IntentLibraryService } from '../../intent-library/services/intent-library.service';
+import { ActionType } from '../enums/action-type.enum';
 
 @Injectable()
 export class IntentDetectionService {
     constructor(
         @InjectRepository(IntentDetection, CONTEXT_AI)
         private readonly intentDetectionRepository: Repository<IntentDetection>,
-        private readonly openIaProviderService: OpenIaProviderService,
+        private readonly aiProviderService: AiProviderService,
         private readonly agentService: AgentService,
         private readonly intentActionsService: IntentActionsService,
         private readonly intentDetectionUserHistoryService: IntentDetectionUserHistoryService,
         private readonly messageContextValidator: MessageContextValidator,
+        private readonly intentLibraryService: IntentLibraryService,
         @Inject(forwardRef(() => InteractionsService))
         private readonly interactionsService: InteractionsService,
     ) {}
@@ -86,9 +92,9 @@ export class IntentDetectionService {
         });
     }
 
-    public async findByAgentId(agentId: string): Promise<IIntentDetection[]> {
+    public async findByAgentId(workspaceId: string, agentId: string): Promise<IIntentDetection[]> {
         return this.intentDetectionRepository.find({
-            where: { agentId, deletedAt: null },
+            where: { agentId, workspaceId, deletedAt: null },
             order: { name: 'ASC' },
         });
     }
@@ -125,6 +131,22 @@ export class IntentDetectionService {
         return results;
     }
 
+    public async importFromLibrary(data: ImportIntentFromLibraryData): Promise<IIntentDetection> {
+        const intentLibrary = await this.intentLibraryService.findById(data.intentLibraryId);
+
+        if (!intentLibrary) {
+            throw new NotFoundException(`IntentLibrary with ID ${data.intentLibraryId} not found`);
+        }
+
+        return this.create({
+            name: intentLibrary.name,
+            description: intentLibrary.description,
+            examples: intentLibrary.examples,
+            agentId: data.agentId,
+            workspaceId: data.workspaceId,
+        });
+    }
+
     public async detectIntentWithAI(
         text: string,
         workspaceId: string,
@@ -156,29 +178,37 @@ export class IntentDetectionService {
             await this.validateAgentTypeAndWorkspace(finalAgentId, workspaceId);
         }
 
-        const intentPrompt = await this.buildIntentDetectionPrompt(finalAgentId, text);
-        const intentDefinitions = await this.findByAgentId(finalAgentId);
+        const intentDefinitions = await this.findByAgentId(workspaceId, finalAgentId);
 
-        if (intentDefinitions.length === 0) {
+        if (intentDefinitions?.length === 0) {
             return { intent: null, actions: [], interaction: null, tokens: 0 };
         }
 
+        const intentPrompt = await this.buildIntentDetectionPrompt(intentDefinitions);
         const message = `Texto para análise: "${text}"`;
 
         try {
-            const result = await this.openIaProviderService.sendMessage({
+            const result = await this.aiProviderService.sendMessage({
                 message,
                 prompt: intentPrompt,
-                temperature: 0,
-                model: 'gpt-4o-mini',
+                temperature: 0.2,
+                model: 'gpt-4.1-mini',
                 resultsLength: 1,
-                maxTokens: 256,
+                maxTokens: 128,
+                provider: AIProviderType.openai,
             });
 
-            const detectedIntentionId = this.parseIntentResponse(result.response?.choices[0]?.message?.content || '');
+            const resultId = this.parseIntentResponse(result.response?.choices[0]?.message?.content || '');
+
+            if (!resultId) {
+                return { intent: null, actions: [], interaction: null, tokens: 0 };
+            }
+
+            const detectedIntentionId = resultId?.replace(/(.{8})(.{4})(.{4})(.{4})(.{12})/, '$1-$2-$3-$4-$5');
             const totalTokens = result.promptTokens + result.completionTokens;
 
             const { interaction, actions, detectedIntent } = await this.getIntentDetectionById(
+                workspaceId,
                 detectedIntentionId,
                 finalAgentId,
             );
@@ -230,10 +260,8 @@ export class IntentDetectionService {
         return this.intentDetectionUserHistoryService.list(filter);
     }
 
-    private async buildIntentDetectionPrompt(agentId: string, text: string): Promise<string> {
-        const intentDefinitions = await this.findByAgentId(agentId);
-
-        const intentsInfo = intentDefinitions.map((intent) => ({
+    private async buildIntentDetectionPrompt(intents: IIntentDetection[]): Promise<string> {
+        const intentsInfo = intents.map((intent) => ({
             id: intent.id,
             name: intent.name,
             description: intent.description,
@@ -241,14 +269,14 @@ export class IntentDetectionService {
         }));
 
         return `
-Você é um sistema especializado em identificar a intenção principal de mensagens enviadas por pacientes em um chatbot da área da saúde.
-Sua tarefa é analisar o texto da mensagem com atenção e selecionar, entre as intenções disponíveis para este cliente, **a mais adequada ao que a pessoa está tentando comunicar**.
+Você é um sistema especializado em identificar a intenção de mensagens enviadas por pacientes em um chatbot da área da saúde.
+Sua tarefa é analisar o texto do paciente com atenção e selecionar, entre as intenções disponíveis, *a mais adequada ao que o paciente está tentando comunicar*.
 
 Intenções disponíveis:
 ${intentsInfo
     .map(
         (intent) => `
-- **ID: ${intent.id}**
+- **ID: ${intent.id.replace(/-/g, '')}**
   Nome: ${intent.name}
   Descrição: ${intent.description}
   Exemplos: ${intent.examples.join(', ')}
@@ -257,12 +285,11 @@ ${intentsInfo
     .join('\n')}
 
 INSTRUÇÕES:
-1. Leia o texto com atenção, considerando o contexto típico de conversas na área da saúde
-2. Compare o conteúdo da mensagem com as intenções disponíveis para este cliente (mesmo que existam intenções parecidas)
-3. Escolha **apenas uma** intenção — aquela que melhor representa o objetivo da pessoa
-4. Dê atenção especial a termos de ação (ex: agendar, reagendar, cancelar, saber, localizar, confirmar) e a palavras-chave de contexto (ex: consulta, exame, resultado, médico, horário)
-5. Se não for possível identificar uma intenção clara entre as disponíveis, retorne **null**
-6. Retorne **apenas o ID** da intenção correspondente, sem explicações ou texto adicional
+1. Considere o contexto típico de conversas na área da saúde para seleção da intenção
+2. Dê atenção especial a termos de ação (ex: agendar, reagendar, cancelar, saber, localizar, confirmar) e a palavras-chave de contexto (ex: consulta, exame, resultado, médico, horário)
+3. Escolha **apenas uma** intenção — aquela que melhor representa a intenção do paciente
+4. Se não for possível identificar uma intenção entre as disponíveis, retorne **null**
+5. Retorne **apenas o ID** da intenção correspondente, sem explicações ou texto adicional
 
 Resposta (apenas o ID da intenção ou null):`;
     }
@@ -295,6 +322,7 @@ Resposta (apenas o ID da intenção ou null):`;
     }
 
     public async getIntentDetectionById(
+        workspaceId: string,
         detectedIntentionId: string,
         agentId: string,
     ): Promise<{ interaction: IIntentDetection; detectedIntent: IIntentDetection; actions: IIntentActions[] }> {
@@ -302,16 +330,18 @@ Resposta (apenas o ID da intenção ou null):`;
             return { actions: [], detectedIntent: null, interaction: null };
         }
 
-        const intentDefinitions = await this.findByAgentId(agentId);
+        const intentDefinitions = await this.findByAgentId(workspaceId, agentId);
         const detectedIntent = detectedIntentionId
             ? intentDefinitions.find((intent) => intent.id === detectedIntentionId)
             : null;
 
         const actions = detectedIntent ? await this.intentActionsService.findByIntentId(detectedIntent.id) : [];
-        const treeAction = actions.find((action) => action.actionType === 'tree');
+        const treeAction = actions.find(
+            (action) => action.actionType === ActionType.TREE || action.actionType === ActionType.TREE_IMMEDIATELY,
+        );
 
         if (!treeAction) {
-            return { actions: [], detectedIntent, interaction: null };
+            return { actions, detectedIntent, interaction: null };
         }
 
         try {

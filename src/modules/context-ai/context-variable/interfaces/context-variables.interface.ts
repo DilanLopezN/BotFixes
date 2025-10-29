@@ -8,7 +8,6 @@ interface IContextVariable {
     type: ContextVariableType;
     createdAt: Date;
     updatedAt: Date;
-    deletedAt: Date;
 }
 
 enum ContextVariableType {

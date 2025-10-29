@@ -1,4 +1,3 @@
-
 export interface CreateScheduleSettingData {
     getScheduleInterval: number;
     workspaceId: string;
@@ -26,7 +25,7 @@ export interface CreateScheduleSettingData {
 export interface UpdateScheduleSettingData {
     getScheduleInterval: number;
     integrationId: string;
-    active: boolean;
+    // active: boolean;
     name: string;
     id: number;
     workspaceId: string;

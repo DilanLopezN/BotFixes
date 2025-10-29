@@ -114,29 +114,35 @@ export class EmbeddingsService {
         }
     }
 
-    public async listEmbeddingsByWorkspaceId(
+    public async listEmbeddingsByAgentId(
+        agentId: string,
         workspaceId: string,
         questionEmbedding: number[],
-    ): Promise<{ identifier: string; content: string; id: string }[]> {
+        options: { maxResults?: number; minSimilarity?: number } = {},
+    ): Promise<{ identifier: string; content: string; id: string; similarity?: number }[]> {
         const query = `
-            SELECT training_entry_id AS "trainingEntryId",
-                embedding <=> $1::VECTOR AS similarity
-            FROM context_ai.embeddings
-            WHERE workspace_id = $2 
-            AND deleted_at IS NULL
-            AND embedding <=> $1::VECTOR <= $3
+            SELECT e.training_entry_id AS "trainingEntryId",
+                e.embedding <=> $1::VECTOR AS similarity
+            FROM context_ai.embeddings e
+            INNER JOIN context_ai.training_entry te ON e.training_entry_id::UUID = te.id::UUID
+            WHERE te.agent_id::UUID = $2::UUID
+            AND e.deleted_at IS NULL
+            AND te.deleted_at IS NULL
+            AND te.is_active = true
+            AND (te.expires_at IS NULL OR te.expires_at > NOW())
+            AND e.embedding <=> $1::VECTOR <= $3
             ORDER BY similarity ASC
             LIMIT $4;
         `;
 
         // Quanto mais próximo de 0, mais similar
         // Pode ser uma variável customizada futuramente
-        const minimalSimilarity = 0.6;
-        const maxResults = 15;
+        const minimalSimilarity = options.minSimilarity ?? 0.5;
+        const maxResults = options.maxResults ?? 15;
 
         const result = await this.databaseService.execute<Embeddings[]>(query, [
             `[${questionEmbedding}]`,
-            workspaceId,
+            agentId,
             minimalSimilarity,
             maxResults,
         ]);
@@ -145,9 +151,18 @@ export class EmbeddingsService {
             return [];
         }
 
-        return await this.trainingEntryService.listTrainingEntriesContent(
+        const trainingEntries = await this.trainingEntryService.listTrainingEntriesContent(
             workspaceId,
+            agentId,
             result.map((result) => result.trainingEntryId),
         );
+
+        return trainingEntries.map((entry) => {
+            const embeddingResult = result.find((r) => r.trainingEntryId === entry.id);
+            return {
+                ...entry,
+                similarity: embeddingResult?.similarity ?? undefined,
+            };
+        });
     }
 }

@@ -9,6 +9,9 @@ import axios from 'axios';
 import { Exceptions } from '../../../auth/exceptions';
 import { CreateAudioTranscriptionData } from '../interfaces/audio-transcription.interface';
 import { CacheService } from '../../../_core/cache/cache.service';
+import { clientGroq } from '../../ai-provider/helpers/groq-ai.instance';
+import { TranscriptionVerbose } from 'openai/resources/audio/transcriptions';
+import { Transcription } from 'groq-sdk/resources/audio';
 @Injectable()
 export class AudioTranscriptionService {
     private readonly logger = new Logger(AudioTranscriptionService.name);
@@ -105,14 +108,49 @@ export class AudioTranscriptionService {
                 writer.on('error', reject);
             });
 
+            // fiz as contas e usando essa versão da aproximadamente 89% de economia em comparação ao serviço da openAI
+            const groq = clientGroq();
             const openai = clientOpenAI();
-            openai.timeout = 25_000;
-            const transcription = await openai.audio.transcriptions.create({
-                file: fs.createReadStream(tempFilePath),
-                model: 'whisper-1',
-                response_format: 'verbose_json',
-                language: 'pt',
-            });
+
+            let transcription: TranscriptionVerbose | Transcription;
+            let createdFrom: string;
+
+            try {
+                // Tentativa principal com Groq
+                transcription = await groq.audio.transcriptions.create({
+                    file: fs.createReadStream(tempFilePath),
+                    model: 'whisper-large-v3-turbo',
+                    response_format: 'verbose_json',
+                    language: 'pt',
+                    temperature: 0.1, // 0.0 da o valor literal da transcrição podendo gerar erros, 0.1 permite preencher lacunas de áudios ruins, sem viajar.
+                });
+
+                createdFrom = 'groq';
+            } catch (groqError) {
+                console.warn('Groq falhou, tentando com OpenAI:', groqError.message);
+
+                try {
+                    // Fallback para OpenAI
+                    openai.timeout = 25_000;
+                    transcription = await openai.audio.transcriptions.create({
+                        file: fs.createReadStream(tempFilePath),
+                        model: 'whisper-1',
+                        response_format: 'verbose_json',
+                        language: 'pt',
+                    });
+
+                    createdFrom = 'openai';
+                } catch (openaiError) {
+                    console.error('Ambos os serviços falharam:', {
+                        groq: groqError.message,
+                        openai: openaiError.message,
+                    });
+
+                    // Limpa o cache e retorna null se ambos falharem
+                    await this.deleteAudioTranscriptionByExternalIdFromCache(workspaceId, externalId || urlFile);
+                    return null;
+                }
+            }
 
             if (!transcription?.text || !transcription['duration']) {
                 await this.deleteAudioTranscriptionByExternalIdFromCache(workspaceId, externalId || urlFile);
@@ -121,6 +159,7 @@ export class AudioTranscriptionService {
 
             const audioTranscription = await this.audioTranscriptionRepository.save({
                 createdBy: createdBy,
+                createdFrom,
                 textTranscription: transcription.text,
                 urlFile: urlFile,
                 workspaceId: workspaceId,

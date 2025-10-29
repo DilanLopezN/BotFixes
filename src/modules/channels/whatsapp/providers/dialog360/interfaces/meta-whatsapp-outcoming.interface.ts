@@ -60,6 +60,7 @@ export interface MetaWhatsappOutcomingTextMessage extends MetaWhatsappOutcomingB
 export interface MetaWhatsappOutcomingAudioMessage {
     id?: string;
     link?: string;
+    voice?: boolean;
 }
 
 export interface MetaWhatsappOutcomingImageMessage {

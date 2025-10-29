@@ -1,8 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { FindCondition, Repository } from 'typeorm';
 import { Agent, AgentType } from '../entities/agent.entity';
 import {
+    AgentContext,
     CreateAgentData,
     DeleteAgentData,
     IAgent,
@@ -20,7 +21,7 @@ export class AgentService {
 
     public async create(data: CreateAgentData): Promise<IAgent> {
         if (data.isDefault) {
-            await this.unsetDefaultAgents(data.workspaceId, data.agentType);
+            await this.unsetDefaultAgents(data.workspaceId, data.agentType, data.agentContext);
         }
 
         const agent = this.agentRepository.create(data);
@@ -36,7 +37,8 @@ export class AgentService {
 
         if (data.isDefault) {
             const agentType = data.agentType || agent.agentType;
-            await this.unsetDefaultAgents(agent.workspaceId, agentType);
+            const agentContext = data.agentContext !== undefined ? data.agentContext : agent.agentContext;
+            await this.unsetDefaultAgents(agent.workspaceId, agentType, agentContext);
         }
 
         Object.assign(agent, data);
@@ -77,8 +79,13 @@ export class AgentService {
         });
     }
 
-    public async getDefaultAgent(workspaceId: string, agentType: AgentType, botId?: string): Promise<IAgent | null> {
-        const whereClause: any = {
+    public async getDefaultAgent(
+        workspaceId: string,
+        agentType: AgentType,
+        botId?: string,
+        agentContext?: string,
+    ): Promise<IAgent | null> {
+        const whereClause: FindCondition<Agent> = {
             workspaceId,
             agentType,
             isDefault: true,
@@ -87,6 +94,10 @@ export class AgentService {
 
         if (botId) {
             whereClause.botId = botId;
+        }
+
+        if (agentContext) {
+            whereClause.agentContext = agentContext as any;
         }
 
         return this.agentRepository.findOne({ where: whereClause });
@@ -112,11 +123,31 @@ export class AgentService {
         return result > 0;
     }
 
-    private async unsetDefaultAgents(workspaceId: string, agentType?: AgentType): Promise<void> {
+    public async canAgentRespondWelcome(workspaceId: string): Promise<boolean> {
+        const count = await this.agentRepository.count({
+            where: {
+                workspaceId,
+                isActive: true,
+                allowResponseWelcome: true,
+                isDefault: true,
+            },
+        });
+        return count > 0;
+    }
+
+    private async unsetDefaultAgents(
+        workspaceId: string,
+        agentType?: AgentType,
+        agentContext?: AgentContext | null,
+    ): Promise<void> {
         const whereClause: any = { workspaceId, isDefault: true };
 
         if (agentType) {
             whereClause.agentType = agentType;
+        }
+
+        if (agentContext !== undefined) {
+            whereClause.agentContext = agentContext;
         }
 
         await this.agentRepository.update(whereClause, { isDefault: false });

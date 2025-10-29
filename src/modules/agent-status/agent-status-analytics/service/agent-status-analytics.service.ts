@@ -1,5 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import { GroupDateType, GroupBy } from '../dto/agent-status-analytics-filter.dto';
+import * as moment from 'moment';
+import { DefaultResponse } from '../../../../common/interfaces/default';
+import { WorkingTimeType } from '../../interfaces/working-time.interface';
+import { WorkingTime } from '../../models/working-time.entity';
+import { WorkingTimeService } from '../../services/working-time.service';
+import { GroupBy, GroupDateType } from '../dto/agent-status-analytics-filter.dto';
+import { AgentStatusAnalyticsCSVParams } from '../interface/agent-status-analytics-csv.interface';
 import {
     AgentBreakStatus,
     AgentOfflineStatus,
@@ -7,14 +13,9 @@ import {
     AgentStatusResponse,
     AgentTimeAggregation,
     AgentTimeAggregationTotal,
+    BreakOvertimeCSVItem,
 } from '../interface/agent-status-analytics.interface';
-import * as moment from 'moment';
-import { WorkingTimeType } from '../../interfaces/working-time.interface';
 import { ExternalDataService } from './external-data.service';
-import { WorkingTimeService } from '../../services/working-time.service';
-import { WorkingTime } from '../../models/working-time.entity';
-import { DefaultResponse } from '../../../../common/interfaces/default';
-import { Brackets } from 'typeorm';
 
 @Injectable()
 export class AgentStatusAnalyticsService {
@@ -23,7 +24,12 @@ export class AgentStatusAnalyticsService {
         private readonly externalDataService: ExternalDataService,
     ) {}
 
-    async getAgentStatus(workspaceId: string, teamId?: string, userId?: string): Promise<AgentStatusResponse> {
+    async getAgentStatus(
+        workspaceId: string,
+        teamId?: string,
+        userId?: string,
+        breakSettingId?: number,
+    ): Promise<AgentStatusResponse> {
         let agentUsers: { _id: string; name: string }[] = [];
         if (!userId) {
             agentUsers = await this.externalDataService.getAllActiveUsersAgentByWorkspaceId(workspaceId);
@@ -49,6 +55,15 @@ export class AgentStatusAnalyticsService {
             userIds: userIds || [],
         };
 
+        if (breakSettingId) {
+            const breakAgents = await this.getBreakAgents(commonFilter, filteredAgentUsers, breakSettingId);
+            return {
+                online: [],
+                break: breakAgents,
+                offline: [],
+            };
+        }
+
         const onlineAgents = await this.getOnlineAgents(commonFilter, filteredAgentUsers);
         const breakAgents = await this.getBreakAgents(commonFilter, filteredAgentUsers);
         const agentsOffline = filteredAgentUsers.filter((user) => {
@@ -69,6 +84,41 @@ export class AgentStatusAnalyticsService {
             break: breakAgents,
             offline: offlineAgents,
         };
+    }
+
+    async getBreakOvertimeCsv(workspaceId: string, filterDto: AgentStatusAnalyticsCSVParams): Promise<any[]> {
+        const result = await this.getListBreakOvertime(
+            workspaceId,
+            { limit: 0, skip: 0 },
+            filterDto.startDate,
+            filterDto.endDate,
+            filterDto.teamId,
+            filterDto.userId,
+            filterDto.breakSettingId,
+        );
+
+        const dataFormatted = result.data.map((item) => {
+            const csvItem = item as Partial<WorkingTime> & BreakOvertimeCSVItem;
+
+            return {
+                ID: csvItem.id,
+                Agente: csvItem.userName || csvItem.userId,
+                Data: new Date(csvItem.startedAt).toLocaleString('pt-BR', {
+                    timeZone: filterDto?.timezone || 'America/Sao_Paulo',
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                }),
+                'Nome da pausa': csvItem.breakName || 'Inativo',
+                'Tempo excedido': this.formatSecondsToTime(csvItem.overtimeSeconds || 0),
+                Justificativa: csvItem.justification || '',
+            };
+        });
+
+        return dataFormatted;
     }
 
     async getListBreakOvertime(
@@ -137,14 +187,17 @@ export class AgentStatusAnalyticsService {
         const { count } = await countQuery.getRawOne<{ count: string }>();
 
         // Paginação
-        baseQuery.orderBy('wt.started_at', 'DESC').limit(limit).offset(skip);
+        baseQuery.orderBy('wt.started_at', 'DESC');
+        if (filter?.limit > 0) {
+            baseQuery.limit(limit).offset(skip);
+        }
         const rawResults = await baseQuery.getRawMany();
 
         // Buscar nomes de usuários via serviço externo
         const uniqueUserIds = [...new Set(rawResults.map((r) => r.userId))];
         const users = await this.externalDataService.getUsersByIds(uniqueUserIds);
 
-        const result = rawResults.map((row) => {
+        const result: any = rawResults.map((row) => {
             const user = users.find((u) => u._id === row.userId);
 
             const breakName = row.type === WorkingTimeType.INACTIVE ? '' : row.breakName ?? 'Desconhecido';
@@ -162,13 +215,23 @@ export class AgentStatusAnalyticsService {
         });
 
         return {
-            data: result as any,
+            data: result,
             metadata: {
                 count: Number(count),
                 limit,
                 skip,
             },
         };
+    }
+
+    private formatSecondsToTime(seconds: number): string {
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        const secs = seconds % 60;
+
+        return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs
+            .toString()
+            .padStart(2, '0')}`;
     }
 
     async getOnlineTime(
@@ -221,6 +284,7 @@ export class AgentStatusAnalyticsService {
         userId?: string,
         groupDateBy?: GroupDateType,
         groupBy?: GroupBy,
+        breakSettingId?: number,
     ): Promise<AgentTimeAggregation[]> {
         const queryResult = await this.calculateTotalOvertimeGrouped(
             workspaceId,
@@ -230,6 +294,7 @@ export class AgentStatusAnalyticsService {
             teamId ? [teamId] : undefined,
             groupDateBy,
             groupBy,
+            breakSettingId,
         );
 
         return this.formatAggregationResults(queryResult);
@@ -241,6 +306,7 @@ export class AgentStatusAnalyticsService {
         endDate?: string,
         teamId?: string,
         userId?: string,
+        breakSettingId?: number,
     ): Promise<AgentTimeAggregationTotal> {
         const result = await this.calculateTotalOvertime(
             workspaceId,
@@ -248,6 +314,7 @@ export class AgentStatusAnalyticsService {
             endDate,
             userId ? [userId] : undefined,
             teamId ? [teamId] : undefined,
+            breakSettingId,
         );
 
         return { total: Math.round(result) };
@@ -330,6 +397,7 @@ export class AgentStatusAnalyticsService {
     private async getBreakAgents(
         filter: any,
         agentUsers: { _id: string; name: string }[],
+        breakSettingId?: number,
     ): Promise<AgentBreakStatus[]> {
         const repository = await this.workingTimeService.getRepository();
 
@@ -350,6 +418,15 @@ export class AgentStatusAnalyticsService {
         if (filter?.userIds?.length) {
             query.andWhere('wt.userId IN (:...userIds)', { userIds: filter.userIds });
         }
+
+        if (breakSettingId) {
+            if (breakSettingId === -1) {
+                query.andWhere('wt.breakSettingId IS NULL');
+            } else {
+                query.andWhere('wt.breakSettingId = :breakSettingId', { breakSettingId });
+            }
+        }
+
         query
             .andWhere('wt.type IN (:...types)', { types: [WorkingTimeType.BREAK, WorkingTimeType.INACTIVE] })
             .andWhere('wt.endedAt IS NULL');
@@ -754,6 +831,7 @@ export class AgentStatusAnalyticsService {
         teamIds?: string[],
         groupDateBy?: GroupDateType,
         groupBy?: GroupBy,
+        breakSettingId?: number,
     ) {
         const dateFilter = this.getDateRangeFilter(startDate, endDate);
         const groupByParam = groupDateBy ?? GroupDateType.DAY;
@@ -772,6 +850,16 @@ export class AgentStatusAnalyticsService {
             filters += ` AND wt.user_id = ANY($${paramIndex})`;
             params.push(userIds);
             paramIndex++;
+        }
+
+        if (breakSettingId) {
+            if (breakSettingId === -1) {
+                filters += ` AND wt.break_setting_id IS NULL`;
+            } else {
+                filters += ` AND wt.break_setting_id = $${paramIndex}`;
+                params.push(breakSettingId);
+                paramIndex++;
+            }
         }
 
         let rawQuery: string;
@@ -911,6 +999,7 @@ export class AgentStatusAnalyticsService {
         endDate?: string,
         userIds?: string[],
         teamIds?: string[],
+        breakSettingId?: number,
     ): Promise<number> {
         const dateFilter = this.getDateRangeFilter(startDate, endDate);
 
@@ -927,6 +1016,16 @@ export class AgentStatusAnalyticsService {
             filters += ` AND wt.user_id = ANY($${paramIndex})`;
             params.push(userIds);
             paramIndex++;
+        }
+
+        if (breakSettingId) {
+            if (breakSettingId === -1) {
+                filters += ` AND wt.break_setting_id IS NULL`;
+            } else {
+                filters += ` AND wt.break_setting_id = $${paramIndex}`;
+                params.push(breakSettingId);
+                paramIndex++;
+            }
         }
 
         let teamFilter = '';
@@ -968,7 +1067,6 @@ export class AgentStatusAnalyticsService {
         const result = await (await this.workingTimeService.getRepository()).manager.query(rawQuery, params);
         return Number(result?.[0]?.average_overtime ?? 0);
     }
-
     private formatAggregationResults(results: any[]): AgentTimeAggregation[] {
         return results.map((result) => ({
             agg_field: result.agg_field,

@@ -36,6 +36,10 @@ export class AgentStatusAnalyticsFilterDto {
     @IsOptional()
     @IsEnum(GroupBy)
     groupBy?: GroupBy;
+
+    @IsOptional()
+    @IsNumber()
+    breakSettingId?: number;
 }
 
 export class AgentStatusAnalyticsFilterListBreakOvertimeDto {

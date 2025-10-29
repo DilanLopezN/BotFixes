@@ -11,5 +11,7 @@ export interface CreateGupshupBillingEvent {
     referenceGsId: string;
     referenceConversationId: string;
     referenceDestination: string;
+    billable: boolean;
+    category: string;
     gsTimestamp: number;
 }

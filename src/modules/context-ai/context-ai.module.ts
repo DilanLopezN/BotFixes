@@ -16,8 +16,6 @@ import { ContextFallbackMessage } from './context-fallback-message/entities/cont
 import { TrainingEntryModule } from './training-entry/training-entry.module';
 import { AudioTranscriptionModule } from './audio-transcription/audio-transcription.module';
 import { AudioTranscription } from './audio-transcription/models/audio-transcription.entity';
-import { AiUsageLoggerModule } from './ai-usage-logger/ai-usage-logger.module';
-import { AiUsageLoggerRepository } from './ai-usage-logger/ai-usage-logger.entity';
 import { Agent } from './agent/entities/agent.entity';
 import { AgentModule } from './agent/agent.module';
 import { AiProviderModule } from './ai-provider/ai.module';
@@ -25,6 +23,16 @@ import { IntentDetection } from './intent-detection/entities/intent-detection.en
 import { IntentActions } from './intent-detection/entities/intent-actions.entity';
 import { IntentDetectionUserHistory } from './intent-detection/entities/intent-detection-user-history.entity';
 import { IntentDetectionModule } from './intent-detection/intent-detection.module';
+import { IntentLibrary } from './intent-library/entities/intent-library.entity';
+import { IntentLibraryModule } from './intent-library/intent-library.module';
+import { AgentSkillsModule } from './agent-skills/agent-skills.module';
+import { AgentSkills } from './agent-skills/entities/agent-skills.entity';
+import { TrainingEntryType } from './training-entry/entities/training-entry-type.entity';
+import { AudioTts } from './audio-tts/entities/audio.entity';
+import { FileExtractModule } from './file-extract/file-extract.module';
+import { FileExtract } from './file-extract/entities/file-extract.entity';
+import { GuardrailsModule } from './guardrails/guardrails.module';
+import { ConversationTraceEntity } from './context-ai-executor/entities/conversation-trace.entity';
 
 @Module({
     imports: [
@@ -39,11 +47,16 @@ import { IntentDetectionModule } from './intent-detection/intent-detection.modul
                 ExecutedTraining,
                 ContextFallbackMessage,
                 AudioTranscription,
-                AiUsageLoggerRepository,
                 Agent,
                 IntentDetection,
                 IntentActions,
                 IntentDetectionUserHistory,
+                IntentLibrary,
+                AgentSkills,
+                TrainingEntryType,
+                AudioTts,
+                FileExtract,
+                ConversationTraceEntity,
             ],
             replication: {
                 master: {
@@ -72,10 +85,13 @@ import { IntentDetectionModule } from './intent-detection/intent-detection.modul
         ContextVariableModule,
         ContextFallbackMessagesModule,
         AudioTranscriptionModule,
-        AiUsageLoggerModule,
         AgentModule,
         AiProviderModule,
         IntentDetectionModule,
+        IntentLibraryModule,
+        AgentSkillsModule,
+        FileExtractModule,
+        GuardrailsModule,
     ],
 })
 export class ContextAiModule {}

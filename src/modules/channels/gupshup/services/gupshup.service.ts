@@ -13,6 +13,7 @@ import {
     convertPhoneNumber,
     IConversationWhatsappExpirationUpdated,
     ActivityType,
+    IWhatswebMessageAckErrorDelay,
 } from 'kissbot-core';
 import { CreateConversationService } from './../../../conversation/services/create-conversation.service';
 import { ActivityDto } from './../../../conversation/dto/activities.dto';
@@ -69,7 +70,7 @@ export class GupshupService {
         try {
             if (message.type === 'billing-event') {
                 //[17/11/22] - VAMOS IGNORAR POR HORA, IOPS DO POSTGRES
-                //await this.handleBillingEvent(message, channelConfigToken);
+                await this.handleBillingEvent(message, channelConfigToken);
                 return;
             }
 
@@ -311,11 +312,20 @@ channelConfigId: ${channelConfig._id}`;
             this.createConversationService.getConversationCacheKey(memberId, channelConfigToken),
         );
         if (!conversationId) {
-            const key = this.gupshupUtilService.getActivtyGupshupIdHashCacheKey(message.payload.gsId);
+            const key = this.gupshupUtilService.getActivtyGupshupIdHashCacheKey(
+                message?.payload?.gsId || message?.payload?.references?.gsId,
+            );
             const hash = await client.get(key);
             const activity = await this.activityService.getOneByHash(hash);
             conversationId = activity?.conversationId;
         }
+        let safeConversationId: string | undefined;
+        try {
+            safeConversationId = conversationId?.toString?.().replace?.(/^"|"$/g, '');
+        } catch (e) {
+            safeConversationId = conversationId as any;
+        }
+
         await this.gupshupBillingEventService.create({
             channelConfigToken,
             deductionModel: message.payload.deductions.model,
@@ -325,7 +335,9 @@ channelConfigId: ${channelConfig._id}`;
             referenceDestination: message.payload.references.destination,
             referenceGsId: message.payload.references.gsId,
             referenceId: message.payload.references.id,
-            conversationId,
+            conversationId: safeConversationId,
+            billable: (message?.payload?.deductions as any).billable,
+            category: (message?.payload?.deductions as any).category,
             gsTimestamp: message.timestamp,
         });
     }
@@ -586,17 +598,30 @@ channelConfigId: ${channelConfig._id}`;
         }
 
         if (ackType) {
-            this.activeMessageService.checkMissingReceived(phoneNumber, channelConfigToken, String(ackType));
-            const hash = await this.updateActivityAck(gsId, ackType, channelConfigToken, null, workspaceId);
-            if (
-                (ackType == AckType.NumberDontExists ||
-                    ackType == AckType.UserDontExists ||
-                    ackType == AckType.MessageUndeliverable) &&
-                !!ackInvalidNumber
-            ) {
-                this.handleNumberDontExistsCallback(hash);
+            if (ackType !== AckType.MessageUndeliverable) {
+                this.activeMessageService.checkMissingReceived(phoneNumber, channelConfigToken, String(ackType));
+                const hash = await this.updateActivityAck(gsId, ackType, channelConfigToken, null, workspaceId);
+                if ((ackType == AckType.NumberDontExists || ackType == AckType.UserDontExists) && !!ackInvalidNumber) {
+                    this.handleNumberDontExistsCallback(hash);
+                }
+                return;
+            } else {
+                const data = {
+                    data: {
+                        ack: ackType,
+                        gsId: gsId,
+                        phoneNumber,
+                        timestamp: moment().format().valueOf(),
+                        workspaceId,
+                        channelConfigToken,
+                    } as IWhatswebMessageAckErrorDelay,
+                    dataType: KissbotEventDataType.WHATSWEB_MESSAGE_ACK,
+                    source: KissbotEventSource.KISSBOT_API,
+                    type: KissbotEventType.WHATSWEB_MESSAGE_ACK_ERROR_DELAY,
+                };
+
+                this.eventsService.sendDelayEvent(data, null, { delay: 5000 });
             }
-            return;
         }
         if (!!ackTypeNotDefined) {
             Sentry.captureEvent({
@@ -716,6 +741,7 @@ channelConfigId: ${channelConfig._id}`;
             const instance = this.gupshupUtilService.getAxiosInstance();
             const response = await instance.get(encodeURI(message.payload.payload.url), {
                 responseType: 'arraybuffer',
+                timeout: 20000,
             });
             if (response.status > 300) {
                 const bufferError = Buffer.from(response.data, 'binary');
@@ -875,6 +901,7 @@ channelConfigId: ${channelConfig._id}`;
                     message: 'GupshupService.processMediaMessage',
                     extra: {
                         error: messageErr,
+                        message: message,
                     },
                 });
             } catch (e) {
@@ -944,89 +971,119 @@ channelConfigId: ${channelConfig._id}`;
     }
 
     private async processTextMessage(message: GupshupMessage, channelConfigToken: string) {
-        this.activeMessageService.checkMissingResponse(message.payload.sender.phone, channelConfigToken);
-        await this.gupshupUtilService.setGupshupIdHash(message.payload.id, message.payload.id);
-        await this.awaiterDalay(message.payload.sender.phone, channelConfigToken);
-        const quoted = await this.getQuoted(message);
-        const memberId = this.gupshupUtilService.getMemberId(message);
-        const referralSourceId = message?.payload?.referral?.source_id;
-
-        let startActivity: ActivityDto;
-        let conversation;
         try {
-            conversation = await this.getExistingConversation(channelConfigToken, memberId);
-        } catch (e) {
-            this.logger.error('processTextMessage');
-            console.error(e);
-            Sentry.captureException(e);
-        }
+            this.activeMessageService.checkMissingResponse(message.payload.sender.phone, channelConfigToken);
+            await this.gupshupUtilService.setGupshupIdHash(message.payload.id, message.payload.id);
+            await this.awaiterDalay(message.payload.sender.phone, channelConfigToken);
+            const quoted = await this.getQuoted(message);
+            const memberId = this.gupshupUtilService.getMemberId(message);
+            const referralSourceId = message?.payload?.referral?.source_id;
 
-        if (!conversation) {
-            conversation = await this.createConversationService.getExistingConversation(channelConfigToken, memberId);
-        }
-
-        if (!conversation) {
-            const channelConfig = await this.channelConfigService.getOneBtIdOrToken(channelConfigToken);
-
+            let startActivity: ActivityDto;
+            let conversation;
             try {
-                // Caso não possua conversa criada bloqueia mensagens receptivas, esse canal realiza apenas atendimentos ativos.
-                if (channelConfig && !!channelConfig?.blockInboundAttendance) {
-                    return;
-                }
-            } catch (error) {
-                console.log('ERROR gupshupService.handleWhatsappMessage validate block inbound message: ', error);
+                conversation = await this.getExistingConversation(channelConfigToken, memberId);
+            } catch (e) {
+                this.logger.error('processTextMessage');
+                console.error(e);
+                Sentry.captureException(e);
             }
 
-            const r = await this.createConversationService.getConversation({
-                activityHash: message.payload.id,
-                activityText: message?.payload?.payload?.text || message?.payload?.payload?.emoji || '',
-                activityTimestamp: moment().valueOf(),
-                activityQuoted: quoted,
-                channelConfigToken,
-                channelId: !!referralSourceId ? ChannelIdConfig.ads : ChannelIdConfig.gupshup,
-                memberChannel: ChannelIdConfig.gupshup,
-                memberId,
-                memberName: message.payload.sender.name,
-                memberPhone: convertPhoneNumber(message.payload.sender.phone),
-                memberDDI: message?.payload?.sender?.country_code,
-                privateConversationData: {
-                    phoneNumber: channelConfig?.configData?.phoneNumber,
-                    apikey: channelConfig?.configData?.apikey,
-                    gupshupAppName: message.app,
+            if (!conversation) {
+                conversation = await this.createConversationService.getExistingConversation(
+                    channelConfigToken,
+                    memberId,
+                );
+            }
+
+            if (!conversation) {
+                const channelConfig = await this.channelConfigService.getOneBtIdOrToken(channelConfigToken);
+
+                try {
+                    // Caso não possua conversa criada bloqueia mensagens receptivas, esse canal realiza apenas atendimentos ativos.
+                    if (channelConfig && !!channelConfig?.blockInboundAttendance) {
+                        return;
+                    }
+                } catch (error) {
+                    console.log('ERROR gupshupService.handleWhatsappMessage validate block inbound message: ', error);
+                }
+
+                const r = await this.createConversationService.getConversation({
+                    activityHash: message.payload.id,
+                    activityText: message?.payload?.payload?.text || message?.payload?.payload?.emoji || '',
+                    activityTimestamp: moment().valueOf(),
+                    activityQuoted: quoted,
+                    channelConfigToken,
+                    channelId: !!referralSourceId ? ChannelIdConfig.ads : ChannelIdConfig.gupshup,
+                    memberChannel: ChannelIdConfig.gupshup,
+                    memberId,
+                    memberName: message.payload.sender.name,
+                    memberPhone: convertPhoneNumber(message.payload.sender.phone),
+                    memberDDI: message?.payload?.sender?.country_code,
+                    privateConversationData: {
+                        phoneNumber: channelConfig?.configData?.phoneNumber,
+                        apikey: channelConfig?.configData?.apikey,
+                        gupshupAppName: message.app,
+                    },
+                    channelConfig,
+                    referralSourceId: referralSourceId,
+                });
+
+                conversation = r.conversation;
+                startActivity = r.startActivity;
+            }
+
+            if (!conversation) {
+                try {
+                    Sentry.captureEvent({
+                        message: 'GupshupService.processTextMessage not found conversation',
+                        extra: {
+                            message: message,
+                            channelConfigToken,
+                        },
+                    });
+                } catch (e) {
+                    Sentry.captureEvent({
+                        message: 'GupshupService.processTextMessage catch 2',
+                        extra: {
+                            error: e,
+                        },
+                    });
+                }
+                return;
+            }
+
+            await this.createReferral(message, conversation);
+            // try {
+            //     await this.gupshupIdHashService.create({
+            //         channelConfigToken,
+            //         gsId: message.payload.id,
+            //         hash: message.payload.id,
+            //         conversationId: conversation._id,
+            //         workspaceId: conversation.workspace?._id
+            //     })
+            // } catch (e) {
+
+            // }
+
+            if (startActivity) {
+                startActivity.referralSourceId = referralSourceId;
+                return await this.handleActivity(startActivity, message, channelConfigToken, conversation);
+            } else {
+                const activity = await this.gupshupUtilService.getActivityDto(message, conversation);
+                activity.quoted = quoted;
+                activity.referralSourceId = referralSourceId;
+                return await this.handleActivity(activity, message, channelConfigToken, conversation);
+            }
+        } catch (error) {
+            Sentry.captureEvent({
+                message: 'GupshupService.processTextMessage',
+                extra: {
+                    error: error,
+                    message: JSON.stringify(message),
+                    channelConfigToken,
                 },
-                channelConfig,
-                referralSourceId: referralSourceId,
             });
-
-            conversation = r.conversation;
-            startActivity = r.startActivity;
-        }
-
-        if (!conversation) {
-            return;
-        }
-
-        await this.createReferral(message, conversation);
-        // try {
-        //     await this.gupshupIdHashService.create({
-        //         channelConfigToken,
-        //         gsId: message.payload.id,
-        //         hash: message.payload.id,
-        //         conversationId: conversation._id,
-        //         workspaceId: conversation.workspace?._id
-        //     })
-        // } catch (e) {
-
-        // }
-
-        if (startActivity) {
-            startActivity.referralSourceId = referralSourceId;
-            return await this.handleActivity(startActivity, message, channelConfigToken, conversation);
-        } else {
-            const activity = await this.gupshupUtilService.getActivityDto(message, conversation);
-            activity.quoted = quoted;
-            activity.referralSourceId = referralSourceId;
-            return await this.handleActivity(activity, message, channelConfigToken, conversation);
         }
     }
 
@@ -1287,7 +1344,14 @@ channelConfigId: ${channelConfig._id}`;
         }
     }
 
-    async updateActivityAck(gsId: string, ack: number, channelConfigToken: string, body?: any, workspaceId?: string) {
+    async updateActivityAck(
+        gsId: string,
+        ack: number,
+        channelConfigToken: string,
+        body?: any,
+        workspaceId?: string,
+        timestamp?: string,
+    ) {
         const timer = ackProcessLatencyLocation.labels('loc1').startTimer();
         const client = await this.cacheService.getClient();
         const key = this.gupshupUtilService.getActivtyGupshupIdHashCacheKey(gsId);
@@ -1333,7 +1397,7 @@ channelConfigId: ${channelConfig._id}`;
             data: {
                 ack,
                 hash: [hash],
-                timestamp: moment().format().valueOf(),
+                timestamp: timestamp || moment().format().valueOf(),
                 workspaceId,
                 conversation: conversation,
             } as IActivityAck & { conversation: any },

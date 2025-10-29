@@ -16,9 +16,6 @@ export class ContextMessage implements IContextMessage {
     @Column({ name: 'workspace_id', nullable: true, length: 24 })
     workspaceId: string;
 
-    @Column({ name: 'bot_id', nullable: true, length: 24 })
-    botId?: string;
-
     @Column({ name: 'agent_id', nullable: true, length: 36 })
     agentId: string;
 

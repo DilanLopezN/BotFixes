@@ -8,4 +8,5 @@ export interface Embeddings {
     createdAt: Date;
     updatedAt: Date;
     deletedAt: Date;
+    similarity?: number;
 }

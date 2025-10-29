@@ -1,14 +1,4 @@
-import {
-    Controller,
-    Get,
-    Post,
-    Body,
-    Put,
-    Param,
-    Delete,
-    ValidationPipe,
-    UseGuards,
-} from '@nestjs/common';
+import { Controller, Get, Post, Body, Put, Param, Delete, ValidationPipe, UseGuards } from '@nestjs/common';
 import { QueryStringDecorator } from '../../../../decorators/queryString.decorator';
 import { HealthFlowService } from '../../services/health/health-flow.service';
 import { CreateHealthFlowDto } from '../../dto/health/health-flow.dto';
@@ -21,7 +11,10 @@ import { RolesGuard } from '../../../users/guards/roles.guard';
 import { RolesDecorator } from '../../../users/decorators/roles.decorator';
 import { PredefinedRoles } from '../../../../common/utils/utils';
 import { IntegrationEnabledGuard } from '../../guards/integration_enabled.guard';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 
+@ApiTags('Health Flows')
+@ApiBearerAuth()
 @UseGuards(AuthGuard, RolesGuard)
 @Controller('workspaces/:workspaceId/integrations/:integrationType')
 export class HealthFlowController {
@@ -69,6 +62,23 @@ export class HealthFlowController {
         return await this.healthFlowService.sync(integrationId, workspaceId, user._id);
     }
 
+    @Post(':integrationId/health-flows/sync-one/:flowId')
+    @RolesDecorator([
+        PredefinedRoles.SYSTEM_ADMIN,
+        PredefinedRoles.SYSTEM_CS_ADMIN,
+        PredefinedRoles.SYSTEM_UX_ADMIN,
+        PredefinedRoles.WORKSPACE_ADMIN,
+    ])
+    @UseGuards(IntegrationEnabledGuard)
+    async syncOneFlow(
+        @Param('integrationId') integrationId: string,
+        @Param('workspaceId') workspaceId: string,
+        @Param('flowId') flowId: string,
+        @UserDecorator() user: User,
+    ) {
+        return await this.healthFlowService.syncOne(integrationId, workspaceId, flowId, user._id);
+    }
+
     @Post(':integrationId/health-flows/sync-force')
     @RolesDecorator([PredefinedRoles.SYSTEM_ADMIN])
     async syncForceFlows(
@@ -89,6 +99,22 @@ export class HealthFlowController {
     @UseGuards(IntegrationEnabledGuard)
     async syncDraftFlows(@Param('integrationId') integrationId: string, @Param('workspaceId') workspaceId: string) {
         return await this.healthFlowService.syncDraft(integrationId, workspaceId);
+    }
+
+    @Post(':integrationId/health-flows/sync-one-draft/:flowId')
+    @RolesDecorator([
+        PredefinedRoles.SYSTEM_ADMIN,
+        PredefinedRoles.SYSTEM_CS_ADMIN,
+        PredefinedRoles.SYSTEM_UX_ADMIN,
+        PredefinedRoles.WORKSPACE_ADMIN,
+    ])
+    @UseGuards(IntegrationEnabledGuard)
+    async syncOneDraftFlow(
+        @Param('integrationId') integrationId: string,
+        @Param('workspaceId') workspaceId: string,
+        @Param('flowId') flowId: string,
+    ) {
+        return await this.healthFlowService.syncOneDraft(integrationId, workspaceId, flowId);
     }
 
     @Get(':integrationId/health-flows')

@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
 import { WorkspacesService } from '../../workspaces/services/workspaces.service';
+import { UpdateWorkspaceFlagsDto } from '../../workspaces/dtos/workspace.dto';
 
 /**
 *  Este módulo foi criado para encapsular apenas o WorkspacesService e expô-lo de forma isolada,
@@ -26,5 +27,15 @@ export class ExternalDataWorkspaceService {
 
     async isWorkspaceDisabled(workspaceId: string) {
         return await this.workspacesService.isWorkspaceDisabled(workspaceId);
+    }
+
+    //adicionei aqui porque tive problema de dependencia circular usando o external-data.service
+    async updateWorkspaceFlagsAndConfigs(workspaceId: string, dto: UpdateWorkspaceFlagsDto, internalRequest: boolean) {
+        try {
+            const result = await this.workspacesService.updateFlagsAndConfigs(workspaceId, dto, null, internalRequest);
+            return result;
+        } catch (error) {
+            throw error;
+        }
     }
 }

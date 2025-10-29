@@ -6,13 +6,22 @@ import { IntentsInterface } from '../../../modules/intents/interfaces/intents.in
 
 @Injectable()
 export class ExternalDataService {
-    private teamService: TeamService;
-    private intentsService: IntentsService;
+    private _teamService: TeamService;
+    private _intentsService: IntentsService;
     constructor(private readonly moduleRef: ModuleRef) {}
 
-    async onApplicationBootstrap() {
-        this.teamService = this.moduleRef.get<TeamService>(TeamService, { strict: false });
-        this.intentsService = this.moduleRef.get<IntentsService>(IntentsService, { strict: false });
+    private get teamService(): TeamService {
+        if (!this._teamService) {
+            this._teamService = this.moduleRef.get<TeamService>(TeamService, { strict: false });
+        }
+        return this._teamService;
+    }
+
+    private get intentsService(): IntentsService {
+        if (!this._intentsService) {
+            this._intentsService = this.moduleRef.get<IntentsService>(IntentsService, { strict: false });
+        }
+        return this._intentsService;
     }
 
     async getTeamById(teamId: string) {

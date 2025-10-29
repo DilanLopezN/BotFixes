@@ -156,7 +156,10 @@ export class TemplateMessageService extends MongooseAbstractionService<TemplateM
             templateChannelConfigs = workspaceChannelConfigs
                 .filter(
                     (currChannel) =>
-                        currChannel.enable && !!currChannel.configData?.appName && !!currChannel.configData?.apikey,
+                        currChannel.enable &&
+                        !!currChannel.configData?.appName &&
+                        !!currChannel.configData?.apikey &&
+                        !currChannel?.whatsappProvider,
                 )
                 .map((channel) => {
                     appNames.push(channel.configData.appName);
@@ -165,7 +168,12 @@ export class TemplateMessageService extends MongooseAbstractionService<TemplateM
         } else {
             templateChannelConfigs = workspaceChannelConfigs
                 .filter((currChannel) => {
-                    if (currChannel.enable && !!currChannel.configData?.appName && !!currChannel.configData?.apikey) {
+                    if (
+                        currChannel.enable &&
+                        !!currChannel.configData?.appName &&
+                        !!currChannel.configData?.apikey &&
+                        !currChannel?.whatsappProvider
+                    ) {
                         return channels.find((channelId) => String(channelId) === String(currChannel._id));
                     }
                 })
@@ -341,13 +349,40 @@ export class TemplateMessageService extends MongooseAbstractionService<TemplateM
         let active = data.active;
         let templateCategory: TemplateCategory = data.category || TemplateCategory.UTILITY;
         let appNames = [];
+        let templateChannelConfigs = [];
         let templateType = TemplateTypeGupshup.TEXT;
         let flowDataChannel;
         const channelConfigList = await this.externalDataService.getChannelConfigByWorkspaceIdAndGupshup(
             data.workspaceId,
         );
 
-        const newWhatsappVersionChannelConfigList = channelConfigList.filter((cc) => !!cc.whatsappProvider);
+        try {
+            // limpa casos onde uma veriavel vem com 3 chaves em volta da variavel, exemplo: {{{variavel}} ou {{variavel}}}
+            data.message = data.message.replace(/\{{3,}/g, '{{').replace(/\}{3,}/g, '}}');
+        } catch (error) {
+            console.log('ERROR TemplateMessageService._create: ', error);
+            Sentry.captureEvent({
+                message: 'ERROR TemplateMessageService._create:',
+                extra: {
+                    payload: {
+                        error,
+                        message: data.message,
+                    },
+                },
+            });
+        }
+
+        const newWhatsappVersionChannelConfigList = channelConfigList.filter((cc) => {
+            if (!cc.whatsappProvider) {
+                return false;
+            }
+
+            if (data.channels && data.channels.length > 0) {
+                return data.channels.some((channelId) => String(channelId) === String(cc._id));
+            }
+
+            return true;
+        });
 
         const { validMessageTemplate, variableEmpty } = this.validationVariables(data.message, data.variables);
 
@@ -408,15 +443,23 @@ export class TemplateMessageService extends MongooseAbstractionService<TemplateM
                 throw Exceptions.TEMPLATE_MESSAGE_MIN_LENGTH;
             }
 
-            const { templateAppNames, templateChannelConfigs } = await this.getAppNamesTemplateHsm(
+            // busca appNames gupshup v2 baseado no filtro de channels
+            const appNamesResult = await this.getAppNamesTemplateHsm(
                 data.workspaceId,
                 flowDataChannel || data.channels,
             );
-            appNames = templateAppNames;
-            channels = flowDataChannel || templateChannelConfigs;
-            if (!appNames.length) {
+            appNames = appNamesResult.templateAppNames;
+            templateChannelConfigs = appNamesResult.templateChannelConfigs;
+
+            if (!newWhatsappVersionChannelConfigList?.length && !appNames.length) {
                 throw Exceptions.TEMPLATE_CHANNEL_APPNAME_NOT_FOUND;
             }
+
+            const allChannels = [
+                ...templateChannelConfigs,
+                ...newWhatsappVersionChannelConfigList.map((cc) => String(cc._id)),
+            ];
+            channels = flowDataChannel || allChannels;
         } else {
             if (
                 data?.message?.trim()?.length > MAX_LENGTH_MESSAGE ||
@@ -442,12 +485,17 @@ export class TemplateMessageService extends MongooseAbstractionService<TemplateM
         templateType = this.checkValidTemplateFile(file);
 
         if (isAnySystemAdmin(data.user) && data.isHsm && !data.aiSuggestion) {
-            const { data: dataSuggestion } = await this.suggestionTextsService.getTemplateMessageSuggestions(
-                data.workspaceId,
-                { message: data.message, buttons: data.buttons },
-            );
-            if (dataSuggestion.remove.length) {
-                throw new UnprocessableEntityException(dataSuggestion);
+            // Essa validação serve para quando um systemAdmin quer criar um template de marketing
+            // se caso um system esteja querendo criar template de marketing não precisa passar pelo prompt,
+            // pois o prompt é para não permitir template de marketing
+            if (!(isSystemAdmin(data.user) && templateCategory === TemplateCategory.MARKETING)) {
+                const { data: dataSuggestion } = await this.suggestionTextsService.getTemplateMessageSuggestions(
+                    data.workspaceId,
+                    { message: data.message, buttons: data.buttons },
+                );
+                if (dataSuggestion.remove.length) {
+                    throw new UnprocessableEntityException(dataSuggestion);
+                }
             }
         }
 
@@ -479,10 +527,10 @@ export class TemplateMessageService extends MongooseAbstractionService<TemplateM
         }
 
         if (!!template?.isHsm) {
-            let promises;
-
+            let promises = [];
+            // create templates for gupshup v3 and dialog360
             if (newWhatsappVersionChannelConfigList.length) {
-                promises = newWhatsappVersionChannelConfigList.map(async (cc) => {
+                const newWhatsappPromises = newWhatsappVersionChannelConfigList.map(async (cc) => {
                     try {
                         return await this.externalDataService.createTemplateMetaWhatsapp(
                             cc,
@@ -495,16 +543,20 @@ export class TemplateMessageService extends MongooseAbstractionService<TemplateM
                             allowTemplateCategoryChange,
                         );
                     } catch (error) {
-                        console.log('ERROR CREATE TEMPLATE GUPSHUP: ', error);
-                        return { error: 'Error create template on gupshup' };
+                        console.log('ERROR CREATE TEMPLATE META WHATSAPP: ', error);
+                        return { error: 'Error create template on meta whatsapp' };
                     }
                 });
-            } else {
-                promises = appNames.map(async (appName, index) => {
+                promises = [...promises, ...newWhatsappPromises];
+            }
+
+            // create templates for gupshup v2
+            if (appNames.length) {
+                const gupshupV2Promises = appNames.map(async (appName, index) => {
                     try {
                         return await this.externalDataService.createTemplateGupshup(
                             appName,
-                            channels[index],
+                            templateChannelConfigs[index],
                             template,
                             allowTemplateCategoryChange,
                             templateCategory,
@@ -512,18 +564,20 @@ export class TemplateMessageService extends MongooseAbstractionService<TemplateM
                             templateType,
                         );
                     } catch (error) {
-                        console.log('ERROR CREATE TEMPLATE GUPSHUP: ', error);
-                        return { error: 'Error create template on gupshup' };
+                        console.log('ERROR CREATE TEMPLATE GUPSHUP V2: ', error);
+                        return { error: 'Error create template on gupshup v2' };
                     }
                 });
+                promises = [...promises, ...gupshupV2Promises];
             }
+
             const gupshupTemplateResult = await Promise.all(promises);
 
             let wabaResult: WabaResultType = {};
             let channelResult = [];
             let active = false;
             gupshupTemplateResult.forEach((currTemplateGupshup) => {
-                //Logica para o Dialog360/gupshupv3/outros pela api meta
+                //Lógica para o Dialog360/gupshupv3/outros pela api meta
                 if (currTemplateGupshup.whatsappProvider) {
                     if (currTemplateGupshup?.error) {
                         console.log(
@@ -562,8 +616,11 @@ export class TemplateMessageService extends MongooseAbstractionService<TemplateM
                             category: currTemplateGupshup?.category || templateCategory,
                         };
                     }
+                    // Se entrou no if do provider, retorna para não continuar para lógica do v2
                     return;
                 }
+
+                // Lógica para o Gupshup v2
                 if (currTemplateGupshup?.error) {
                     console.log(
                         'ERROR CREATE TEMPLATE GUPSHUP - currTemplateGupshup.error: ',
@@ -1786,6 +1843,7 @@ export class TemplateMessageService extends MongooseAbstractionService<TemplateM
             workspaceId: castObjectId(workspaceId),
             category: TemplateCategory.UTILITY,
             buttons: [],
+            aiSuggestion: true,
         };
 
         const templatesToCreate = partialTemplate.map((currTemplate) => {

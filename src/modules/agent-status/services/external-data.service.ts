@@ -5,12 +5,15 @@ import { TeamService } from '../../../modules/team/services/team.service';
 
 @Injectable()
 export class ExternalDataAgentStatusService {
-    private teamService: TeamService;
+    private _teamService: TeamService;
 
     constructor(private readonly moduleRef: ModuleRef) {}
 
-    async onApplicationBootstrap() {
-        this.teamService = this.moduleRef.get<TeamService>(TeamService, { strict: false });
+    private get teamService(): TeamService {
+        if (!this._teamService) {
+            this._teamService = this.moduleRef.get<TeamService>(TeamService, { strict: false });
+        }
+        return this._teamService;
     }
 
     async getTeamIdsByWorkspaceAndUser(workspaceId: string, userId: string) {

@@ -15,9 +15,12 @@ export class AmqpService {
         return process.env.EVENT_EXCHANGE_NAME;
     }
 
-
     public getChannelExchangeName(): string {
         return process.env.CHANNEL_EXCHANGE_NAME;
+    }
+
+    public getEventExchangeDelayName(): string {
+        return `${process.env.EVENT_EXCHANGE_NAME}_delay`;
     }
 
     /**

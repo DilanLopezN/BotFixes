@@ -19,7 +19,7 @@ export interface CreateReminderSettingData {
 export interface UpdateReminderSettingData {
     id: number;
     workspaceId: string;
-    active: boolean;
+    // active: boolean;
     templateId: string;
     apiToken: string;
     sendBeforeScheduleDate?: number;

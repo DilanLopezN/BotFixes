@@ -33,6 +33,12 @@ export const isSystemFarmerAdmin = (user: User): boolean => {
     );
 };
 
+export const isSystemSupportAdmin = (user: User): boolean => {
+    return (user.roles || []).some((role) =>
+        [UserRoles.SYSTEM_ADMIN, UserRoles.SYSTEM_SUPPORT_ADMIN].includes(role.role),
+    );
+};
+
 export const isSystemUxAdmin = (user: User): boolean => {
     return (user.roles || []).some((role) => [UserRoles.SYSTEM_ADMIN, UserRoles.SYSTEM_UX_ADMIN].includes(role.role));
 };

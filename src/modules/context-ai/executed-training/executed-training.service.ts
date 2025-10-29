@@ -44,64 +44,85 @@ export class ExecutedTrainingService {
         }
 
         let successTraining = 0;
+        const batchSize = 20;
 
-        for (const trainingEntry of trainingEntries) {
-            if (trainingEntry.deletedAt) {
-                await this.embeddingsService.deleteEmbedding({
-                    workspaceId: trainingEntry.workspaceId,
-                    trainingEntryId: trainingEntry.id,
-                });
-            } else {
-                const { embedding, tokens } = await this.embeddingsService.getEmbeddingFromText(trainingEntry.content);
+        // Processar deletions primeiro (sequencial)
+        const deletedEntries = trainingEntries.filter((entry) => entry.deletedAt);
+        for (const trainingEntry of deletedEntries) {
+            await this.embeddingsService.deleteEmbedding({
+                workspaceId: trainingEntry.workspaceId,
+                trainingEntryId: trainingEntry.id,
+            });
+        }
 
-                const queryRunner = this.connection.createQueryRunner();
-                await queryRunner.connect();
-                await queryRunner.startTransaction();
+        // Processar embeddings em lotes de 20 em paralelo
+        const activeEntries = trainingEntries.filter((entry) => !entry.deletedAt);
 
+        for (let i = 0; i < activeEntries.length; i += batchSize) {
+            const batch = activeEntries.slice(i, i + batchSize);
+            const batchPromises = batch.map(async (trainingEntry) => {
                 try {
-                    await queryRunner.manager.save(ExecutedTraining, {
-                        content: trainingEntry.content,
-                        createdAt: new Date(),
-                        identifier: trainingEntry.identifier,
-                        trainingEntryId: trainingEntry.id,
-                        workspaceId: trainingEntry.workspaceId,
-                        totalTokens: tokens,
-                        agentId: trainingEntry.agentId,
-                    });
+                    const { embedding, tokens } = await this.embeddingsService.getEmbeddingFromText(
+                        trainingEntry.content,
+                    );
 
-                    // Atualiza com dados da sincronização
-                    await queryRunner.manager.save(TrainingEntry, {
-                        id: trainingEntry.id,
-                        pendingTraining: false,
-                        updatedAt: new Date(),
-                        executedTrainingAt: new Date(),
-                    });
+                    const queryRunner = this.connection.createQueryRunner();
+                    await queryRunner.connect();
+                    await queryRunner.startTransaction();
 
-                    const buildedContent = `${trainingEntry.identifier}\n${trainingEntry.content}`;
+                    try {
+                        await queryRunner.manager.save(ExecutedTraining, {
+                            content: trainingEntry.content,
+                            createdAt: new Date(),
+                            identifier: trainingEntry.identifier,
+                            trainingEntryId: trainingEntry.id,
+                            workspaceId: trainingEntry.workspaceId,
+                            totalTokens: tokens,
+                            agentId: trainingEntry.agentId,
+                        });
 
-                    await this.embeddingsService.createEmbeddings({
-                        content: buildedContent,
-                        trainingEntryId: trainingEntry.id,
-                        workspaceId,
-                        embedding,
-                        totalTokens: tokens,
-                    });
+                        // Atualiza com dados da sincronização
+                        await queryRunner.manager.save(TrainingEntry, {
+                            id: trainingEntry.id,
+                            pendingTraining: false,
+                            updatedAt: new Date(),
+                            executedTrainingAt: new Date(),
+                        });
 
-                    successTraining++;
-                    await queryRunner.commitTransaction();
+                        const buildedContent = `${trainingEntry.identifier}\n${trainingEntry.content}`;
+
+                        await this.embeddingsService.createEmbeddings({
+                            content: buildedContent,
+                            trainingEntryId: trainingEntry.id,
+                            workspaceId,
+                            embedding,
+                            totalTokens: tokens,
+                        });
+
+                        await queryRunner.commitTransaction();
+                        return { success: true, id: trainingEntry.id };
+                    } catch (error) {
+                        console.error(`Error processing training entry ${trainingEntry.id}:`, error);
+                        await queryRunner.rollbackTransaction();
+                        return { success: false, id: trainingEntry.id, error };
+                    } finally {
+                        await queryRunner.release();
+                    }
                 } catch (error) {
-                    console.error(error);
-                    await queryRunner.rollbackTransaction();
-                } finally {
-                    await queryRunner.release();
+                    console.error(`Error getting embedding for training entry ${trainingEntry.id}:`, error);
+                    return { success: false, id: trainingEntry.id, error };
                 }
-            }
+            });
+
+            const batchResults = await Promise.all(batchPromises);
+            const batchSuccessCount = batchResults.filter((result) => result.success).length;
+            successTraining += batchSuccessCount;
         }
 
         return {
             data: {
                 success: successTraining,
-                total: trainingEntries.filter((trainingEntry) => !trainingEntry.deletedAt).length,
+                total: activeEntries.length,
             },
         };
     }

@@ -1,4 +1,4 @@
-import { Injectable, Logger, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { SmtRe } from '../models/smt-re.entity';
@@ -15,8 +15,6 @@ import { Conversation } from '../../conversation/interfaces/conversation.interfa
 import { CategorizationType } from '../../conversation-categorization-v2/interfaces/categorization-type';
 @Injectable()
 export class SmtReService {
-    private readonly logger = new Logger(SmtReService.name);
-
     constructor(
         @InjectRepository(SmtRe, CONVERSATION_SMT_RE_CONNECTION_NAME)
         private readonly smtReRepository: Repository<SmtRe>,
@@ -108,30 +106,18 @@ export class SmtReService {
     }
 
     async sendPendingSmtRe(): Promise<void> {
-        this.logger.debug('Checking for pending messages to send...');
-
         try {
             const pendingSmtReList = await this.findPendingMessages();
-            this.logger.debug(`Found ${pendingSmtReList.length} pending SMT-RE messages`);
 
             for (const pendingSmtRe of pendingSmtReList) {
                 try {
                     const now = moment.utc();
-                    this.logger.debug(
-                        `Processing SMT-RE ${pendingSmtRe.id} for conversation ${pendingSmtRe.conversationId}`,
-                    );
 
                     // Check if initial message should be sent
                     if (!pendingSmtRe.initialMessageSent) {
-                        this.logger.debug(`Checking initial message for SMT-RE ${pendingSmtRe.id}`);
                         const initialSendTime = moment(pendingSmtRe.createdAt).add(
                             pendingSmtRe.smtReSetting.initialWaitTime,
                             'minutes',
-                        );
-                        this.logger.debug(
-                            `Initial message time check - now: ${now.format()}, sendTime: ${initialSendTime.format()}, shouldSend: ${now.isSameOrAfter(
-                                initialSendTime,
-                            )}`,
                         );
 
                         if (now.valueOf() >= initialSendTime.valueOf()) {
@@ -141,39 +127,25 @@ export class SmtReService {
                                 { color: '#678f78', name: '@remi.assume' },
                             ]);
                             await this.updateInitialMessageSent(pendingSmtRe.id);
-                            this.logger.log(`Initial message sent for conversation ${pendingSmtRe.conversationId}`);
                         }
                     }
                     // Check if automatic message should be sent
                     else if (!pendingSmtRe.automaticMessageSent && pendingSmtRe.initialMessageSentAt) {
-                        this.logger.debug(`Checking automatic message for SMT-RE ${pendingSmtRe.id}`);
                         const automaticSendTime = moment(pendingSmtRe.initialMessageSentAt).add(
                             pendingSmtRe.smtReSetting.automaticWaitTime,
                             'minutes',
-                        );
-                        this.logger.debug(
-                            `Automatic message time check - now: ${now.format()}, sendTime: ${automaticSendTime.format()}, shouldSend: ${now.isSameOrAfter(
-                                automaticSendTime,
-                            )}`,
                         );
 
                         if (now.isSameOrAfter(automaticSendTime)) {
                             await this.sendMessage(pendingSmtRe, SmtReMessageType.AUTOMATIC);
                             await this.updateAutomaticMessageSent(pendingSmtRe.id);
-                            this.logger.log(`Automatic message sent for conversation ${pendingSmtRe.conversationId}`);
                         }
                     }
                     // Check if finalization message should be sent
                     else if (!pendingSmtRe.finalizationMessageSent && pendingSmtRe.automaticMessageSentAt) {
-                        this.logger.debug(`Checking finalization message for SMT-RE ${pendingSmtRe.id}`);
                         const finalizationSendTime = moment(pendingSmtRe.automaticMessageSentAt).add(
                             pendingSmtRe.smtReSetting.finalizationWaitTime,
                             'minutes',
-                        );
-                        this.logger.debug(
-                            `Finalization message time check - now: ${now.format()}, sendTime: ${finalizationSendTime.format()}, shouldSend: ${now.isSameOrAfter(
-                                finalizationSendTime,
-                            )}`,
                         );
 
                         if (now.isSameOrAfter(finalizationSendTime)) {
@@ -182,14 +154,11 @@ export class SmtReService {
                                 { color: '#8e8f67', name: '@remi.finaliza' },
                             ]);
                             await this.updateFinalizationMessageSent(pendingSmtRe.id);
-                            this.logger.log(
-                                `Finalization message sent for conversation ${pendingSmtRe.conversationId}`,
-                            );
                         }
                     }
                 } catch (e) {
                     Sentry.captureEvent({
-                        message: 'SmtReService.sendPendingSmtRe',
+                        message: 'SmtReService.sendPendingSmtRe - processing individual message',
                         extra: {
                             error: e,
                             pendingSmtRe,
@@ -198,8 +167,12 @@ export class SmtReService {
                 }
             }
         } catch (error) {
-            this.logger.error('Error in message scheduling:', error);
-            this.logger.debug('Error details:', error.stack);
+            Sentry.captureEvent({
+                message: 'SmtReService.sendPendingSmtRe - fetching pending messages',
+                extra: {
+                    error,
+                },
+            });
         }
     }
 
@@ -251,15 +224,26 @@ export class SmtReService {
                 try {
                     await this.finishConversation(smtRe, conversation);
                 } catch (error) {
-                    this.logger.log(`Failed to create auto categorization ${smtReId}`);
+                    Sentry.captureEvent({
+                        message: 'SmtReService.sendMessage - finishConversation failed',
+                        extra: {
+                            error,
+                            smtReId,
+                            conversationId: smtRe.conversationId,
+                        },
+                    });
                 }
-
-                this.logger.log(`End conversation activity sent for smt-re: ${smtReId}`);
             }
-
-            this.logger.log(`Message sent successfully for smt-re: ${smtReId}`);
         } catch (error) {
-            this.logger.error(`Error sending message for smt-re ${smtRe.id}:`, error);
+            Sentry.captureEvent({
+                message: 'SmtReService.sendMessage - error sending message',
+                extra: {
+                    error,
+                    smtReId: smtRe.id,
+                    conversationId: smtRe.conversationId,
+                    messageType,
+                },
+            });
         }
     }
 
@@ -275,7 +259,14 @@ export class SmtReService {
             });
             return await this.findById(smtRe.id);
         } catch (error) {
-            this.logger.error(`Error stopping automatic messages for conversation ${conversationId}:`, error);
+            Sentry.captureEvent({
+                message: 'SmtReService.stopSmtRe - error stopping automatic messages',
+                extra: {
+                    error,
+                    conversationId,
+                    memberId,
+                },
+            });
         }
     }
 
@@ -321,14 +312,17 @@ export class SmtReService {
                 ConversationCloseType.bot_finished,
                 'remi',
             );
-
-            this.logger.log(`Automatic categorization created for conversation ${smtRe.conversationId} by REMI`);
         } catch (error) {
-            console.log('ERRO DILAN REMI', error);
-            this.logger.error(
-                `Error creating automatic categorization for conversation ${smtRe.conversationId}:`,
-                error,
-            );
+            Sentry.captureEvent({
+                message: 'SmtReService.finishConversation - error creating automatic categorization',
+                extra: {
+                    error,
+                    conversationId: smtRe.conversationId,
+                    smtReId: smtRe.id,
+                    objectiveId: smtRe.smtReSetting.objectiveId,
+                    outcomeId: smtRe.smtReSetting.outcomeId,
+                },
+            });
             // Não faz throw do erro para não interromper o fluxo principal de finalização
         }
     }

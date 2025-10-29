@@ -38,10 +38,16 @@ export class GupshupBillingEvent {
     // campo GS reference.conversationId
     @Column({ name: 'reference_conversation_id' })
     referenceConversationId: string;
-    
+
     // campo GS reference.destination
     @Column({ name: 'reference_destination' })
     referenceDestination: string;
+
+    @Column({ name: 'billable' })
+    billable: boolean;
+
+    @Column({ name: 'category' })
+    category: string;
 
     @Column({ type: 'bigint', name: 'created_at' })
     createdAt: number;
@@ -60,7 +66,7 @@ export class GupshupBillingEvent {
     //         "type": "FEP/UIC/BIC",
     //         "model": "NBP/CBP",
     //         "source": "whatsapp"
-    //       },
+    //       },billable
     //       "references": {
     //         "id": "59f8db90c37e-4408-90ab-cc54ef8246ad",
     //         "gsId": "ee4a68a0-1203-4c85-8dc3-49d0b3226a35",

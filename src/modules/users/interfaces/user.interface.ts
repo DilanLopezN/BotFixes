@@ -34,6 +34,7 @@ export interface User extends Document {
     liveAgentParams?: LiveAgentParams;
     passwordExpires: number;
     isVerified: boolean;
+    erpUsername?: string;
 }
 
 export interface LiveAgentParams {

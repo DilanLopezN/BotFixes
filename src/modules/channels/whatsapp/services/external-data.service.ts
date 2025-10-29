@@ -4,11 +4,14 @@ import { ChannelConfigService } from '../../../channel-config/channel-config.ser
 
 @Injectable()
 export class ExternalDataService {
-    private channelConfigService: ChannelConfigService;
+    private _channelConfigService: ChannelConfigService;
     constructor(private readonly moduleRef: ModuleRef) {}
 
-    async onApplicationBootstrap() {
-        this.channelConfigService = this.moduleRef.get<ChannelConfigService>(ChannelConfigService, { strict: false });
+    private get channelConfigService(): ChannelConfigService {
+        if (!this._channelConfigService) {
+            this._channelConfigService = this.moduleRef.get<ChannelConfigService>(ChannelConfigService, { strict: false });
+        }
+        return this._channelConfigService;
     }
 
     async getChannelConfigByToken(token: string) {

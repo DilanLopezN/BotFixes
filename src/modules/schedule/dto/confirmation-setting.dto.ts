@@ -17,7 +17,7 @@ export interface CreateConfirmationSettingDto {
 export interface UpdateConfirmationSettingDto {
     apiToken: string;
     templateId: string;
-    active: boolean;
+    // active: boolean;
     retryInvalid?: boolean;
     resendMsgNoMatch?: boolean;
     erpParams?: string;

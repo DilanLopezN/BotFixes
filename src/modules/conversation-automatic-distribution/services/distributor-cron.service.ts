@@ -1,22 +1,19 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { Repository } from 'typeorm';
-import { InjectRepository } from '@nestjs/typeorm';
-import { CONVERSATION_AUTOMATIC_DISTRIBUTION_CONNECTION } from '../ormconfig';
 import { ConversationAutomaticDistribution } from '../models/conversation-automatic-distribution.entity';
 import { ConversationAutomaticDistributionLog } from '../models/conversation-automatic-distribution-log.entity';
 import { shouldRunCron } from '../../../common/utils/bootstrapOptions';
-import { ActivityType, IdentityType } from 'kissbot-core';
+import { ActivityType, IdentityType, UserRoles } from 'kissbot-core';
 import { systemMemberId } from '../../../common/utils/utils';
 import { ExternalDataService } from './external-data.service';
 import { DistributionRuleService } from './distribution-rule.service';
 import { AssignmentResult } from '../interfaces/assignment-resut.interface';
 import { Agent } from '../interfaces/assignment-resut.interface';
 import { AgentDistributionContext, AgentWorkload } from '../interfaces/agent-workload.interface';
-import * as Sentry from '@sentry/node';
 import { ConversationAutomaticDistributionService } from './conversation-automatic-distribution.service';
 import { ConversationAutomaticDistributionLogService } from './conversation-automatic-distribution-log.service';
 import { DistributionType } from '../enums/distribution-type.enum';
+import { isUserAgent } from '../../../common/utils/roles';
 
 @Injectable()
 export class DistributorCronService {
@@ -220,7 +217,11 @@ export class DistributorCronService {
                 return { agent: null, executedRules: [] };
             }
 
-            let availableAgents = await this.getAvailableAgents(context.teamId, context.workspaceId);
+            let availableAgents = await this.getAvailableAgents(
+                context.teamId,
+                context.workspaceId,
+                distributionRule.excludedUserIds,
+            );
 
             if (availableAgents.length === 0) {
                 this.logger.warn(`[AVAILABLE AGENTS] No available agents found for team: ${context.teamId}`);
@@ -255,6 +256,21 @@ export class DistributorCronService {
                     executedRules.push(DistributionType.NOT_IN_WORKING_TIME);
                     return { agent: null, executedRules };
                 }
+            }
+
+            const isAgentStatusActive = await this.externalDataService.isAgentStatusActive(context.workspaceId);
+            if (isAgentStatusActive) {
+                for (const agent of availableAgents) {
+                    const isOnline = await this.externalDataService.isOnline(agent.id);
+                    if (!isOnline) {
+                        availableAgents = availableAgents.filter((a) => a.id !== agent.id);
+                    }
+                }
+            }
+
+            if (availableAgents.length === 0) {
+                this.logger.warn(`[AVAILABLE AGENTS] No available agents found for team: ${context.teamId}`);
+                return { agent: null, executedRules };
             }
 
             const agentsWithinLimit = this.filterAgentsByConversationLimit(
@@ -302,15 +318,11 @@ export class DistributorCronService {
             return false;
         }
 
-        const currentTime_GMT3 = new Date(currentTime.getTime() - 3 * 60 * 60 * 1000);
-
         const daysOfWeek = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
-        const currentDay = daysOfWeek[currentTime_GMT3.getDay()];
+        const currentDay = daysOfWeek[currentTime.getDay()];
 
         const currentMilliseconds =
-            currentTime_GMT3.getHours() * 3600000 +
-            currentTime_GMT3.getMinutes() * 60000 +
-            currentTime_GMT3.getSeconds() * 1000;
+            currentTime.getHours() * 3600000 + currentTime.getMinutes() * 60000 + currentTime.getSeconds() * 1000;
 
         const dayPeriods = attendancePeriods[currentDay];
 
@@ -332,7 +344,11 @@ export class DistributorCronService {
         return isWithinWorkingHours;
     }
 
-    private async getAvailableAgents(teamId: string, workspaceId: string): Promise<AgentWorkload[]> {
+    private async getAvailableAgents(
+        teamId: string,
+        workspaceId: string,
+        excludedUserIds: string[] | undefined = [],
+    ): Promise<AgentWorkload[]> {
         try {
             const teamDoc = await this.externalDataService.getTeamById(teamId);
             const team = teamDoc?.toJSON ? teamDoc.toJSON() : teamDoc;
@@ -351,8 +367,21 @@ export class DistributorCronService {
                 return [];
             }
 
-            const userIds = agentMembers.map((roleUser) => roleUser.userId.toString());
-            const users = await this.externalDataService.getUsersByQuery({ _id: { $in: userIds } });
+            let userIds = agentMembers.map((roleUser) => roleUser.userId.toString());
+
+            // Remove usuários selecionados para não receber atendimentos via distribuição automática
+            userIds = userIds.filter((userId) => !excludedUserIds?.includes(userId));
+
+            const queryUsers = await this.externalDataService.getUsersByQuery({ _id: { $in: userIds } });
+            const usersJson = queryUsers?.length ? queryUsers.map((user) => (user.toJSON ? user.toJSON() : user)) : [];
+
+            const users = usersJson?.length
+                ? usersJson.filter((user) => {
+                      const isAgent = isUserAgent(user as any, workspaceId);
+                      if (!isAgent) return false;
+                      return true;
+                  })
+                : [];
 
             const validUserIds = users.map((user) => user._id.toString());
             const [conversationCounts, lastAssignments] = await Promise.all([

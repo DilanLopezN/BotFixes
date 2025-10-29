@@ -16,6 +16,7 @@ import {
     ChannelIdConfig,
     ConversationStatus,
     getConversationRoomId,
+    IConversationFirstAgentReplyedEvent,
     IdentityType,
     ISocketSendRequestEvent,
     IWhatswebMessageAck,
@@ -396,7 +397,7 @@ export class ActivityService extends MongooseAbstractionService<Activity> {
                         try {
                             if (!conversation.metrics?.awaitingWorkingTime) {
                                 if (conversation.assignedToTeamId) {
-                                    const team = await this.teamService.getOne(conversation.assignedToTeamId);
+                                    const team: any = await this.teamService.getOne(conversation.assignedToTeamId);
                                     if (team) {
                                         if (conversation.metrics?.assignmentAt) {
                                             updateConversationQuery.metrics.awaitingWorkingTime =
@@ -404,7 +405,23 @@ export class ActivityService extends MongooseAbstractionService<Activity> {
                                                     conversation.metrics?.assignmentAt,
                                                     now,
                                                     team,
+                                                    moment,
                                                 );
+
+                                            this.eventsService.sendEvent({
+                                                data: {
+                                                    conversationId: conversation._id,
+                                                    team,
+                                                    activityFrom: activity.from.id,
+                                                    activityId: activity._id,
+                                                    conversation,
+                                                    workspaceId: activity.workspaceId,
+                                                    timestamp: activity.timestamp,
+                                                } as IConversationFirstAgentReplyedEvent,
+                                                dataType: KissbotEventDataType.CONVERSATION,
+                                                source: KissbotEventSource.KISSBOT_API,
+                                                type: KissbotEventType.CONVERSATION_FIRST_AGENT_REPLYED,
+                                            });
                                         }
                                     }
                                 }
@@ -782,6 +799,7 @@ export class ActivityService extends MongooseAbstractionService<Activity> {
                     closeType: activity?.data?.closeType,
                     team,
                     ignoreUserFollowupConversation: workspace?.generalConfigs?.ignoreUserFollowupConversation,
+                    timestamp: moment(now).toDate(),
                 },
                 dataType: KissbotEventDataType.CONVERSATION,
                 source: KissbotEventSource.KISSBOT_API,

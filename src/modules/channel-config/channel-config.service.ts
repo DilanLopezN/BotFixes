@@ -7,7 +7,7 @@ import {
 import { Model } from 'mongoose';
 import { InjectModel } from '@nestjs/mongoose';
 import { ChannelConfigDto, CreateEventRequest } from './dto/channel-config.dto';
-import { ChannelConfigModel, ExpirationTimeType } from './schemas/channel-config.schema';
+import { ChannelConfigModel, ChannelConfigWhatsappProvider, ExpirationTimeType } from './schemas/channel-config.schema';
 import { CatchError, Exceptions } from './../auth/exceptions';
 import { BotsService } from './../../modules/bots/bots.service';
 import { WorkspacesService } from './../../modules/workspaces/services/workspaces.service';
@@ -28,11 +28,13 @@ import { PartnerApiService } from '../channels/gupshup/services/partner-api.serv
 import { ModuleRef } from '@nestjs/core';
 import * as Sentry from '@sentry/node';
 import { castObjectIdToString } from '../../common/utils/utils';
+import { ExternalDataService } from './external-data.service';
+import axios from 'axios';
 
 export type CompleteChannelConfig = Partial<ChannelConfig> & {
     workspace: Partial<Workspace>;
     bot: Partial<Bot>;
-}
+};
 @Injectable()
 export class ChannelConfigService extends MongooseAbstractionService<ChannelConfig> {
     private readonly logger = new Logger(ChannelConfigService.name);
@@ -48,6 +50,8 @@ export class ChannelConfigService extends MongooseAbstractionService<ChannelConf
         private readonly amqpConnection: AmqpConnection,
         private readonly redisCacheService: CacheService,
         private readonly moduleRef: ModuleRef,
+        @Inject(forwardRef(() => ExternalDataService))
+        private readonly externalDataService: ExternalDataService,
     ) {
         super(model, null, eventsService);
     }
@@ -63,38 +67,67 @@ export class ChannelConfigService extends MongooseAbstractionService<ChannelConf
     }
 
     async _create(configDto: ChannelConfigDto): Promise<ChannelConfig> {
-        const newConfig = new ChannelConfigModel(configDto);
-        if (configDto.channelId === ChannelIdConfig.webchat || configDto.channelId === ChannelIdConfig.webemulator) {
-            newConfig.configData = {
-                showTooltip: false,
-                toolTipText: [],
-                startWithConfirmation: false,
-                startChatOnLoad: false,
-                color: '152d4c',
-            };
-        }
+        try {
+            const newConfig = new ChannelConfigModel(configDto);
+            if (
+                configDto.channelId === ChannelIdConfig.webchat ||
+                configDto.channelId === ChannelIdConfig.webemulator
+            ) {
+                newConfig.configData = {
+                    showTooltip: false,
+                    toolTipText: [],
+                    startWithConfirmation: false,
+                    startChatOnLoad: false,
+                    color: '152d4c',
+                };
+            }
 
-        if (configDto.channelId === ChannelIdConfig.emulator || configDto.channelId === ChannelIdConfig.webemulator) {
-            newConfig.expirationTime = {
-                time: 5,
-                timeType: ExpirationTimeType.hour,
-            };
-        }
+            if (
+                configDto.channelId === ChannelIdConfig.emulator ||
+                configDto.channelId === ChannelIdConfig.webemulator
+            ) {
+                newConfig.expirationTime = {
+                    time: 5,
+                    timeType: ExpirationTimeType.hour,
+                };
+            }
 
-        const createdChannelConfig = await this.create(newConfig);
-        if (createdChannelConfig.channelId == ChannelIdConfig.whatsweb) {
-            void this.eventsService.sendEvent({
-                data: createdChannelConfig,
-                dataType: KissbotEventDataType.CHANNEL_CONFIG,
-                source: KissbotEventSource.KISSBOT_API,
-                type: KissbotEventType.CHANNEL_CONFIG_WHATSWEB_CREATED,
-            });
-        }
+            const createdChannelConfig = await this.create(newConfig);
 
-        return createdChannelConfig;
+            if (createdChannelConfig.channelId == ChannelIdConfig.gupshup) {
+                await this.externalDataService.createActiveMessageSettingIfNeeded(createdChannelConfig);
+
+                await this.eventsService.sendEvent({
+                    data: createdChannelConfig,
+                    dataType: KissbotEventDataType.CHANNEL_CONFIG,
+                    source: KissbotEventSource.KISSBOT_API,
+                    type: KissbotEventType.CHANNEL_CONFIG_UPDATED,
+                });
+            }
+
+            if (createdChannelConfig.channelId == ChannelIdConfig.whatsweb) {
+                void this.eventsService.sendEvent({
+                    data: createdChannelConfig,
+                    dataType: KissbotEventDataType.CHANNEL_CONFIG,
+                    source: KissbotEventSource.KISSBOT_API,
+                    type: KissbotEventType.CHANNEL_CONFIG_WHATSWEB_CREATED,
+                });
+            }
+
+            return createdChannelConfig;
+        } catch (error) {
+            console.log('Error in _create method:', error);
+        }
     }
 
-    async updateCallbackUrlGupshup(token: string, appName: string, workspaceId: string, channelConfigId: string) {
+    async updateCallbackUrlGupshup(
+        token: string,
+        appName: string,
+        workspaceId: string,
+        channelConfigId: string,
+        version: 2 | 3,
+        url: string,
+    ) {
         const channelConfigSameAppName = await this.model.findOne({
             _id: { $ne: channelConfigId },
             'configData.appName': { $eq: appName },
@@ -104,21 +137,22 @@ export class ChannelConfigService extends MongooseAbstractionService<ChannelConf
             throw Exceptions.CHANNEL_CONFIG_APPNAME_ALREADY_EXISTS;
         }
 
-        const callbackUrl =
-            'https://conversation-manager.botdesigner.io/channels/whatsapp/gupshup/' +
-            token +
-            '?workspaceId=' +
-            workspaceId;
+        let callbackUrl = `${url}/channels/whatsapp/gupshup/${token}?workspaceId=${workspaceId}`;
+
+        if (version === 3) {
+            callbackUrl = `${url}/channels/${token}/whatsapp/gupshupv3/${workspaceId}`;
+        }
 
         try {
             const partnerApiService = this.moduleRef.get<PartnerApiService>(PartnerApiService, { strict: false });
-            const resultCallbackUrl = await partnerApiService.updateCallbackUrl(appName, callbackUrl);
+            const resultCallbackUrl = await partnerApiService.updateCallbackUrl(
+                channelConfigId,
+                appName,
+                callbackUrl,
+                version,
+            );
 
-            if (resultCallbackUrl.data.status == 'success') {
-                await partnerApiService.updateWebhookOptions(appName);
-                await partnerApiService.updateEnableTemplate(appName, true);
-                await partnerApiService.updateEnableOptinMessage(appName, true);
-            }
+            return resultCallbackUrl;
         } catch (error) {
             Sentry.captureEvent({
                 message: 'Error ChannelConfigService.updateCallbackUrlGupshup update settings gupshup',
@@ -132,31 +166,107 @@ export class ChannelConfigService extends MongooseAbstractionService<ChannelConf
         }
     }
 
-    async _update(channelConfigId, channelConfig, omitEvent?: boolean): Promise<ChannelConfig> {
+    async updateProviderByActiveFlow(channelConfigId: string) {
+        const channelConfig = await this.getOne(channelConfigId);
+
+        if (!channelConfig) {
+            throw Exceptions.CHANNEL_CONFIG_NOT_FOUND;
+        }
+        const workspaceId = channelConfig.workspaceId;
+
+        if (process.env.NODE_ENV == 'production' || process.env.NODE_ENV == 'development') {
+            // se já possui provider gupshup v3 ou d360 vinculado então já existe callback de flow setado
+            if (!channelConfig?.whatsappProvider) {
+                try {
+                    const appName = channelConfig.configData.appName;
+                    const token = channelConfig.token;
+
+                    if (!appName) {
+                        throw Exceptions.GUPSHUP_APPNAME_NOT_FOUND;
+                    }
+                    let url = 'https://conversation-manager.botdesigner.io';
+                    if (process.env.NODE_ENV == 'development') {
+                        url = 'https://dev-conversation-manager.botdesigner.io';
+                    }
+
+                    const callbackUrl = `${url}/channels/${token}/whatsapp/gupshupv3/${workspaceId}`;
+                    const partnerApiService = this.moduleRef.get<PartnerApiService>(PartnerApiService, {
+                        strict: false,
+                    });
+                    await partnerApiService.updateCallbackUrl(channelConfigId, appName, callbackUrl, 3);
+                } catch (error) {
+                    Sentry.captureEvent({
+                        message: 'Error ChannelConfigService.updateProviderByActiveFlow',
+                        extra: {
+                            error: error,
+                            workspaceId,
+                            channelConfigId,
+                        },
+                    });
+                    throw error;
+                }
+
+                let newChannelConfig = channelConfig;
+                newChannelConfig.whatsappProvider = ChannelConfigWhatsappProvider.gupshupv3;
+                return await this._update(channelConfigId, newChannelConfig as any);
+            }
+        }
+    }
+
+    async _update(channelConfigId, channelConfig: ChannelConfigDto, omitEvent?: boolean): Promise<ChannelConfig> {
         const existsChannelConfig = await this.getOne(channelConfigId);
 
         if (!existsChannelConfig) {
             throw Exceptions.CHANNEL_CONFIG_NOT_FOUND;
         }
 
-        if (process.env.NODE_ENV == 'production') {
+        if (process.env.NODE_ENV == 'production' || process.env.NODE_ENV == 'development') {
             if (
                 channelConfig?.configData?.appName &&
                 channelConfig?.configData?.apikey &&
-                channelConfig?.configData?.phoneNumber
+                channelConfig?.configData?.phoneNumber &&
+                (!channelConfig?.whatsappProvider ||
+                    channelConfig?.whatsappProvider == ChannelConfigWhatsappProvider.gupshupv3)
             ) {
+                const version = channelConfig?.whatsappProvider === ChannelConfigWhatsappProvider.gupshupv3 ? 3 : 2;
+                let url = 'https://conversation-manager.botdesigner.io';
+                if (process.env.NODE_ENV == 'development') {
+                    url = 'https://dev-conversation-manager.botdesigner.io';
+                }
                 if (channelConfig.configData.appName !== existsChannelConfig?.configData?.appName) {
                     await this.updateCallbackUrlGupshup(
                         existsChannelConfig.token,
                         channelConfig.configData.appName,
                         existsChannelConfig.workspaceId,
                         castObjectIdToString(existsChannelConfig._id),
+                        version,
+                        url,
+                    );
+                } else if (channelConfig?.whatsappProvider !== existsChannelConfig?.whatsappProvider) {
+                    await this.updateCallbackUrlGupshup(
+                        existsChannelConfig.token,
+                        channelConfig.configData.appName,
+                        existsChannelConfig.workspaceId,
+                        castObjectIdToString(existsChannelConfig._id),
+                        version,
+                        url,
                     );
                 }
             }
         }
 
         await this.updateRaw({ _id: channelConfigId }, channelConfig);
+
+        const updatedChannel = await this.getOne(channelConfigId);
+
+        // Nova lógica: criar activeMessageSetting na atualização se necessário
+        if (updatedChannel.channelId === ChannelIdConfig.gupshup) {
+            try {
+                await this.externalDataService.createActiveMessageSettingIfNeeded(updatedChannel);
+            } catch (error) {
+                console.log(`[CreateActiveMessageSettingError] - ${error}`);
+            }
+        }
 
         const channel = await this.getOne(channelConfigId);
 
@@ -278,6 +388,18 @@ export class ChannelConfigService extends MongooseAbstractionService<ChannelConf
         }
     }
 
+    async getD360ChannelConfigByPhoneNumber(phoneNumber) {
+        const result = await this.model.findOne({
+            whatsappProvider: 'd360',
+            'configData.phoneNumber': phoneNumber,
+        });
+        if (!result) return null;
+        return {
+            workspaceId: result?.workspaceId,
+            token: result?.token,
+        };
+    }
+
     async getOneBtIdOrToken(idOrToken: string): Promise<CompleteChannelConfig> {
         try {
             const completeChannelConfig: CompleteChannelConfig = await this.getChannelConfigByIdOrTokenOnCache(
@@ -328,6 +450,7 @@ export class ChannelConfigService extends MongooseAbstractionService<ChannelConf
             '_id',
             'id',
             'featureFlag',
+            'generalConfigs',
             'timezone',
         ]);
 
@@ -518,5 +641,84 @@ export class ChannelConfigService extends MongooseAbstractionService<ChannelConf
                 },
             },
         );
+    }
+
+    @CatchError()
+    async setWebhookD360(channelConfigId: string) {
+        const channelConfig = await this.getOne(channelConfigId);
+
+        if (!channelConfig) {
+            throw Exceptions.CHANNEL_CONFIG_NOT_FOUND;
+        }
+
+        if (channelConfig.whatsappProvider !== ChannelConfigWhatsappProvider.d360) {
+            throw new Error('Channel config is not a D360 provider');
+        }
+
+        const d360ApiKey = channelConfig.configData?.d360ApiKey;
+        if (!d360ApiKey) {
+            throw new Error('D360 API Key not found in channel config');
+        }
+
+        // Determinar URL base baseado no ambiente
+        let baseUrl = process.env.CONVERSATION_MANAGER_URL;
+
+        if (!baseUrl) {
+            throw new Error('Conversation Manager URL not found');
+        }
+        // Construir URL do webhook
+        const webhookUrl = `${baseUrl}/channels/${channelConfig.token}/whatsapp/d360/${channelConfig.workspaceId}`;
+
+        try {
+            const response = await axios.post(
+                'https://waba-v2.360dialog.io/v1/configs/webhook',
+                { url: webhookUrl },
+                {
+                    headers: {
+                        'D360-API-KEY': d360ApiKey,
+                        'Content-Type': 'application/json',
+                    },
+                },
+            );
+
+            // Salvar informações do webhook no configData
+            const webhookInfo = {
+                lastUpdate: Date.now(),
+                lastWebhookUrl: response.data.url || webhookUrl,
+            };
+
+            const updatedChannelConfig = await this.model.findOneAndUpdate(
+                { _id: channelConfigId },
+                {
+                    $set: {
+                        'configData.webhookInfo': webhookInfo,
+                    },
+                },
+                {
+                    new: true,
+                    runValidators: true,
+                },
+            );
+
+            if (!updatedChannelConfig) {
+                throw new Error('Failed to update channel config');
+            }
+
+            this.removeChannelConfigByIdOrTokenOnCache(castObjectIdToString(channelConfig._id));
+            this.removeChannelConfigByIdOrTokenOnCache(channelConfig.token);
+
+            return webhookInfo;
+        } catch (error) {
+            this.logger.error('Error setting D360 webhook:', error);
+            Sentry.captureEvent({
+                message: 'Error ChannelConfigService.setWebhookD360',
+                extra: {
+                    error: error,
+                    channelConfigId,
+                    webhookUrl,
+                },
+            });
+            throw new Error(`Failed to set D360 webhook: ${error.response?.data?.message || error.message}`);
+        }
     }
 }

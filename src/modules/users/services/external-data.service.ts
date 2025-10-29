@@ -5,11 +5,14 @@ import { SendEmailDto } from '../../email-sender/dto/send-email.dto';
 
 @Injectable()
 export class ExternalDataService {
-    private emailSenderService: EmailSenderService;
+    private _emailSenderService: EmailSenderService;
     constructor(private readonly moduleRef: ModuleRef) {}
 
-    async onApplicationBootstrap() {
-        this.emailSenderService = this.moduleRef.get<EmailSenderService>(EmailSenderService, { strict: false });
+    private get emailSenderService(): EmailSenderService {
+        if (!this._emailSenderService) {
+            this._emailSenderService = this.moduleRef.get<EmailSenderService>(EmailSenderService, { strict: false });
+        }
+        return this._emailSenderService;
     }
 
     private getBaseUrl(): string {
@@ -33,7 +36,7 @@ export class ExternalDataService {
         const baseUrl = this.getBaseUrl();
 
         const data: SendEmailDto = {
-            fromEmail: 'confirmacao@atend.clinic',
+            fromEmail: 'no-reply@contato.botdesigner.io',
             fromTitle: 'Recuperação de Senha - Botdesigner',
             to: email,
             subject: 'Recuperação de Senha - Botdesigner',
@@ -58,7 +61,7 @@ export class ExternalDataService {
     ): Promise<{ ok: boolean }> {
         const baseUrl = this.getBaseUrl();
         const data: SendEmailDto = {
-            fromEmail: 'confirmacao@atend.clinic',
+            fromEmail: 'no-reply@contato.botdesigner.io',
             fromTitle: 'Alteração de Email - Botdesigner',
             to: newMail,
             subject: 'Alteração de Email - Botdesigner',
@@ -80,7 +83,7 @@ export class ExternalDataService {
     ): Promise<{ ok: boolean }> {
         const baseUrl = this.getBaseUrl();
         const data: SendEmailDto = {
-            fromEmail: 'confirmacao@atend.clinic',
+            fromEmail: 'no-reply@contato.botdesigner.io',
             fromTitle: 'Verificação de Email',
             to: email,
             subject: 'Verificação de Email',

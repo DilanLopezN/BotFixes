@@ -7,7 +7,7 @@ import { PredefinedRoles } from './../../common/utils/utils';
 import { RolesGuard } from './../users/guards/roles.guard';
 import { AuthGuard } from './../auth/guard/auth.guard';
 import { ActivityService } from './services/activity.service';
-import { Controller, Get, UseGuards, Param, Query, UseInterceptors, Post, ValidationPipe, Body } from '@nestjs/common';
+import { Controller, Get, UseGuards, Param, Query, Post, ValidationPipe, Body } from '@nestjs/common';
 import { ActivitySearchQueryDto } from './dto/activity-search.dto';
 import { AudioTranscriptionFeatureFlagGuard } from './guards/audio-transcription-feature-flag.guard';
 
@@ -67,13 +67,6 @@ export class ActivityController {
     ) {
         const { limit = 25, q, skip = 0 } = query;
         return this.activityService.searchActivities(user, workspaceId, q, limit, skip);
-    }
-
-    @Post('/activities/process-redis-acks')
-    @UseGuards(AuthGuard, RolesGuard)
-    @RolesDecorator([PredefinedRoles.SYSTEM_ADMIN])
-    processRedisSavedAcks() {
-        // return this.activityService.processAcksOnRedis();
     }
 
     @Post('/:workspaceId/activities/audio-transcription')

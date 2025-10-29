@@ -58,15 +58,34 @@ export class ZSetEventManagerService {
         try {
             const client = this.cacheService.getClient();
             const zsetKey = this.getZSetKey();
-            const eventKey = this.createEventKey(type, workspaceId, userId);
+            const eventPrefix = this.createEventKey(type, workspaceId, userId) + ':';
 
-            // Remove todos os eventos que começam com o eventKey
-            const members = await client.zrange(zsetKey, 0, -1);
-            const toRemove = members.filter((member: string) => member.startsWith(`${eventKey}:`));
+            this.logger.debug(`start removeEvent ${eventPrefix}`);
+
+            // usa ZSCAN para não carregar tudo
+            let cursor = '0';
+            const toRemove: string[] = [];
+
+            do {
+                const [nextCursor, results] = await client.zscan(
+                    zsetKey,
+                    cursor,
+                    'MATCH',
+                    `${eventPrefix}*`,
+                    'COUNT',
+                    100,
+                );
+                cursor = nextCursor;
+
+                // results é [member1, score1, member2, score2...]
+                for (let i = 0; i < results.length; i += 2) {
+                    toRemove.push(results[i]);
+                }
+            } while (cursor !== '0');
 
             if (toRemove.length > 0) {
                 await client.zrem(zsetKey, ...toRemove);
-                this.logger.debug(`Removed ${toRemove.length} events for ${eventKey}`);
+                this.logger.debug(`Removed ${toRemove.length} events for ${eventPrefix}`);
             }
         } catch (error) {
             this.logger.error('Error removing event from ZSet:', error);
@@ -77,6 +96,10 @@ export class ZSetEventManagerService {
     async getExpiredEvents(currentTimestamp: number = Date.now()): Promise<ZSetEvent[]> {
         try {
             const client = this.cacheService.getClient();
+            if (!client) {
+                this.logger.error('Redis client is null - cannot get expired events');
+                return [];
+            }
             const zsetKey = this.getZSetKey();
 
             // Busca eventos com score (timestamp) menor ou igual ao atual
@@ -112,22 +135,6 @@ export class ZSetEventManagerService {
             return events;
         } catch (error) {
             this.logger.error('Error getting expired events:', error);
-            throw error;
-        }
-    }
-
-    async removeExpiredEvents(currentTimestamp: number = Date.now()): Promise<number> {
-        try {
-            const client = this.cacheService.getClient();
-            const zsetKey = this.getZSetKey();
-
-            // Remove eventos com score menor ou igual ao timestamp atual
-            const removed = await client.zremrangebyscore(zsetKey, '-inf', currentTimestamp);
-
-            this.logger.debug(`Removed ${removed} expired events`);
-            return removed;
-        } catch (error) {
-            this.logger.error('Error removing expired events:', error);
             throw error;
         }
     }
@@ -219,6 +226,6 @@ export class ZSetEventManagerService {
 
     async getLastAccessTimestamp(workspaceId: string, userId: string): Promise<number | null> {
         const event = await this.getLastAccessEvent(workspaceId, userId);
-        return event ? event.timestamp : null;
+        return event ? event?.timestamp : null;
     }
 }

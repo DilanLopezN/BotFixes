@@ -9,4 +9,5 @@ export interface HealthAnalyticsFilters {
     workspaceId: string;
     ommitFields?: boolean;
     pivotConfig?: string[];
+    pivotValueFilter?: Record<string, Record<string, boolean>>;
 }

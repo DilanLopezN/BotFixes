@@ -4,11 +4,14 @@ import { InteractionsService } from '../../interactions/services/interactions.se
 
 @Injectable()
 export class ExternalDataService {
-    private interactionsService: InteractionsService;
+    private _interactionsService: InteractionsService;
     constructor(private readonly moduleRef: ModuleRef) {}
 
-    async onApplicationBootstrap() {
-        this.interactionsService = this.moduleRef.get<InteractionsService>(InteractionsService, { strict: false });
+    private get interactionsService(): InteractionsService {
+        if (!this._interactionsService) {
+            this._interactionsService = this.moduleRef.get<InteractionsService>(InteractionsService, { strict: false });
+        }
+        return this._interactionsService;
     }
 
     async setBotInteractionToCache(botId: string) {

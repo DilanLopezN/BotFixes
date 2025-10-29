@@ -88,9 +88,11 @@ export class ContextMessageService {
             .addSelect('userMsg.id', 'userMessageId')
             .addSelect('userMsg.content', 'userContent')
             .addSelect('userMsg.createdAt', 'userCreatedAt')
+            .addSelect('userMsg.contextId', 'userContextId')
             .addSelect('systemMsg.id', 'systemMessageId')
             .addSelect('systemMsg.content', 'systemContent')
             .addSelect('systemMsg.createdAt', 'systemCreatedAt')
+            .addSelect('systemMsg.contextId', 'systemContextId')
             .where('userMsg.workspaceId = :workspaceId', { workspaceId })
             .andWhere('userMsg.role = :userRole', { userRole: ContextMessageRole.user })
             .andWhere('userMsg.isFallback = :isFallback', { isFallback: false })
@@ -127,12 +129,14 @@ export class ContextMessageService {
                 id: row.userMessageId,
                 content: row.userContent,
                 createdAt: row.userCreatedAt,
+                contextId: row.userContextId,
             },
             systemMessage: row.systemMessageId
                 ? {
                       id: row.systemMessageId,
                       content: row.systemContent,
                       createdAt: row.systemCreatedAt,
+                      contextId: row.systemContextId,
                   }
                 : null,
         }));

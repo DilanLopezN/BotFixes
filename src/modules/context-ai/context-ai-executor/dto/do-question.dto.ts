@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsBoolean, IsObject, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsEnum, IsObject, IsOptional, IsString } from 'class-validator';
+import { AgentContext } from '../../agent/interfaces/agent.interface';
 
 export class DoQuestionDto {
     @ApiProperty()
@@ -11,10 +12,6 @@ export class DoQuestionDto {
     question: string;
 
     @ApiProperty()
-    @IsBoolean()
-    useHistoricMessages: boolean;
-
-    @ApiProperty()
     @IsOptional()
     @IsString()
     fromInteractionId?: string;
@@ -22,10 +19,20 @@ export class DoQuestionDto {
     @ApiProperty()
     @IsOptional()
     @IsString()
-    botIdId?: string;
+    botId?: string;
+
+    @ApiProperty()
+    @IsOptional()
+    @IsBoolean()
+    fromAudio?: boolean;
 
     @ApiProperty()
     @IsOptional()
     @IsObject()
     parameters?: Record<string, any>;
+
+    @ApiProperty()
+    @IsOptional()
+    @IsBoolean()
+    isStartMessage?: boolean;
 }

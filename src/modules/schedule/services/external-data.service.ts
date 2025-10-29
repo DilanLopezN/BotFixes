@@ -4,11 +4,14 @@ import { WorkspacesService } from '../../workspaces/services/workspaces.service'
 
 @Injectable()
 export class ExternalDataService {
-    private workspacesService: WorkspacesService;
+    private _workspacesService: WorkspacesService;
     constructor(private readonly moduleRef: ModuleRef) {}
 
-    async onApplicationBootstrap() {
-        this.workspacesService = this.moduleRef.get<WorkspacesService>(WorkspacesService, { strict: false });
+    private get workspacesService(): WorkspacesService {
+        if (!this._workspacesService) {
+            this._workspacesService = this.moduleRef.get<WorkspacesService>(WorkspacesService, { strict: false });
+        }
+        return this._workspacesService;
     }
 
     async isWorkspaceDisabled(workspaceId: string) {

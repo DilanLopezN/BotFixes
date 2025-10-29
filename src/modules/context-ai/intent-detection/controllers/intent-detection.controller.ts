@@ -10,6 +10,7 @@ import {
     DeleteIntentDetectionDto,
     GetIntentDetectionDto,
     ListIntentDetectionByAgentDto,
+    ImportIntentDetectionFromLibraryDto,
 } from '../dto/intent-detection.dto';
 import { ListIntentDetectionUserHistoryDto } from '../dto/intent-detection-user-history.dto';
 import { RolesGuard } from '../../../users/guards/roles.guard';
@@ -17,7 +18,6 @@ import { AuthGuard } from '../../../auth/guard/auth.guard';
 import { RoleData, RolesDecorator } from '../../../users/decorators/roles.decorator';
 import { PredefinedRoles } from '../../../../common/utils/utils';
 import { IIntentDetection } from '../interfaces/intent-detection.interface';
-import { IIntentActions } from '../interfaces/intent-actions.interface';
 import { IIntentDetectionUserHistory } from '../interfaces/intent-detection-user-history.interface';
 
 const defaultPermissionRoutes: RoleData[] = [
@@ -108,8 +108,25 @@ export class IntentDetectionController {
     @UseGuards(AuthGuard, RolesGuard)
     async listIntentDetectionByAgent(
         @Body(new ValidationPipe()) dto: ListIntentDetectionByAgentDto,
+        @Param('workspaceId') workspaceId: string,
     ): Promise<DefaultResponse<IIntentDetection[]>> {
-        const intentDetection = await this.intentDetectionService.findByAgentId(dto.agentId);
+        const intentDetection = await this.intentDetectionService.findByAgentId(workspaceId, dto.agentId);
+        return { data: intentDetection };
+    }
+
+    @HttpCode(HttpStatus.OK)
+    @Post('importIntentFromLibrary')
+    @RolesDecorator(defaultPermissionRoutes)
+    @UseGuards(AuthGuard, RolesGuard)
+    async importIntentFromLibrary(
+        @Body(new ValidationPipe()) dto: ImportIntentDetectionFromLibraryDto,
+        @Param('workspaceId') workspaceId: string,
+    ): Promise<DefaultResponse<IIntentDetection>> {
+        const intentDetection = await this.intentDetectionService.importFromLibrary({
+            intentLibraryId: dto.intentLibraryId,
+            agentId: dto.agentId,
+            workspaceId,
+        });
         return { data: intentDetection };
     }
 

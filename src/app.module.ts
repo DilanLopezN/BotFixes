@@ -71,6 +71,8 @@ import { APP_GUARD } from '@nestjs/core';
 import { WhatsappFlowModule } from './modules/whatsapp-flow/whatsapp-flow.module';
 import { DatabaseMigrationsModule } from './modules/database-migrations/database-migrations.module';
 import { ConversationAutomaticDistributionModule } from './modules/conversation-automatic-distribution/conversation-automatic-distribution.module';
+import { ActiveMailMarketingModule } from './modules/active-mail-marketing/active-mail-marketing.module';
+import { UserSettingsModule } from './modules/user-settings/user-settings.module';
 
 @Module({
     imports: [
@@ -165,6 +167,8 @@ import { ConversationAutomaticDistributionModule } from './modules/conversation-
         DatabaseMigrationsModule,
         WhatsappFlowModule,
         ConversationAutomaticDistributionModule,
+        ActiveMailMarketingModule,
+        UserSettingsModule,
     ],
     controllers: [AppController, PromMetricsController, AtendClinicController],
     providers: [

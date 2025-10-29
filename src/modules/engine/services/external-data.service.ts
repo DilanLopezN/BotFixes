@@ -12,10 +12,10 @@ import * as Sentry from '@sentry/node';
 export class ExternalDataService {
     private readonly axiosInstance: AxiosInstance;
 
-    private contactsAcceptedPrivacyPolicyService: ContactsAcceptedPrivacyPolicyService;
-    private privacyPolicyService: PrivacyPolicyService;
-    private templateMessageService: TemplateMessageService;
-    private activityService: ActivityService;
+    private _contactsAcceptedPrivacyPolicyService: ContactsAcceptedPrivacyPolicyService;
+    private _privacyPolicyService: PrivacyPolicyService;
+    private _templateMessageService: TemplateMessageService;
+    private _activityService: ActivityService;
 
     constructor(private readonly moduleRef: ModuleRef) {
         this.axiosInstance = axios.create();
@@ -28,18 +28,39 @@ export class ExternalDataService {
         });
     }
 
-    async onApplicationBootstrap() {
-        this.contactsAcceptedPrivacyPolicyService = this.moduleRef.get<ContactsAcceptedPrivacyPolicyService>(
-            ContactsAcceptedPrivacyPolicyService,
-            { strict: false },
-        );
-        this.privacyPolicyService = this.moduleRef.get<PrivacyPolicyService>(PrivacyPolicyService, { strict: false });
-        this.templateMessageService = this.moduleRef.get<TemplateMessageService>(TemplateMessageService, {
-            strict: false,
-        });
-        this.activityService = this.moduleRef.get<ActivityService>(ActivityService, {
-            strict: false,
-        });
+    private get contactsAcceptedPrivacyPolicyService(): ContactsAcceptedPrivacyPolicyService {
+        if (!this._contactsAcceptedPrivacyPolicyService) {
+            this._contactsAcceptedPrivacyPolicyService = this.moduleRef.get<ContactsAcceptedPrivacyPolicyService>(
+                ContactsAcceptedPrivacyPolicyService,
+                { strict: false },
+            );
+        }
+        return this._contactsAcceptedPrivacyPolicyService;
+    }
+
+    private get privacyPolicyService(): PrivacyPolicyService {
+        if (!this._privacyPolicyService) {
+            this._privacyPolicyService = this.moduleRef.get<PrivacyPolicyService>(PrivacyPolicyService, { strict: false });
+        }
+        return this._privacyPolicyService;
+    }
+
+    private get templateMessageService(): TemplateMessageService {
+        if (!this._templateMessageService) {
+            this._templateMessageService = this.moduleRef.get<TemplateMessageService>(TemplateMessageService, {
+                strict: false,
+            });
+        }
+        return this._templateMessageService;
+    }
+
+    private get activityService(): ActivityService {
+        if (!this._activityService) {
+            this._activityService = this.moduleRef.get<ActivityService>(ActivityService, {
+                strict: false,
+            });
+        }
+        return this._activityService;
     }
 
     async setAcceptedPrivacyPolicy(workspaceId: string, data: SetAcceptedPrivacyPolicyDto): Promise<void> {

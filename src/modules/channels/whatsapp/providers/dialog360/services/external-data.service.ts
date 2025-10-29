@@ -19,40 +19,103 @@ import { TemplateMessageService } from '../../../../../../modules/template-messa
 import { TemplateStatus } from '../../../../../../modules/template-message/schema/template-message.schema';
 import { TemplateRejectionReason } from '../../../../../../modules/template-message/schema/template-message.schema';
 import { TemplateCategory } from '../../../../../../modules/channels/gupshup/services/partner-api.service';
+import { WhatsappBillingEventService } from '../../../services/whatsapp-billing-event.service';
 
 @Injectable()
 export class ExternalDataService {
-    private fileUploaderService: FileUploaderService;
-    private whatsappIdHashService: WhatsappIdHashService;
-    private attachmentService: AttachmentService;
-    private activityService: ActivityService;
-    private activeMessageService: ActiveMessageService;
-    private createConversationService: CreateConversationService;
-    private conversationService: ConversationService;
-    private channelConfigService: ChannelConfigService;
-    private templateMessageService: TemplateMessageService;
+    private _fileUploaderService: FileUploaderService;
+    private _whatsappIdHashService: WhatsappIdHashService;
+    private _whatsappBillingEventService: WhatsappBillingEventService;
+    private _attachmentService: AttachmentService;
+    private _activityService: ActivityService;
+    private _activeMessageService: ActiveMessageService;
+    private _createConversationService: CreateConversationService;
+    private _conversationService: ConversationService;
+    private _channelConfigService: ChannelConfigService;
+    private _templateMessageService: TemplateMessageService;
     constructor(private readonly moduleRef: ModuleRef) {}
 
-    async onApplicationBootstrap() {
-        this.attachmentService = this.moduleRef.get<AttachmentService>(AttachmentService, { strict: false });
-        this.fileUploaderService = this.moduleRef.get<FileUploaderService>(FileUploaderService, { strict: false });
-        this.whatsappIdHashService = this.moduleRef.get<WhatsappIdHashService>(WhatsappIdHashService, {
-            strict: false,
-        });
-        this.activityService = this.moduleRef.get<ActivityService>(ActivityService, { strict: false });
-        this.activeMessageService = this.moduleRef.get<ActiveMessageService>(ActiveMessageService, { strict: false });
-        this.createConversationService = this.moduleRef.get<CreateConversationService>(CreateConversationService, {
-            strict: false,
-        });
-        this.conversationService = this.moduleRef.get<ConversationService>(ConversationService, {
-            strict: false,
-        });
-        this.templateMessageService = this.moduleRef.get<TemplateMessageService>(TemplateMessageService, {
-            strict: false,
-        });
-        this.channelConfigService = this.moduleRef.get<ChannelConfigService>(ChannelConfigService, {
-            strict: false,
-        });
+    private get attachmentService(): AttachmentService {
+        if (!this._attachmentService) {
+            this._attachmentService = this.moduleRef.get<AttachmentService>(AttachmentService, { strict: false });
+        }
+        return this._attachmentService;
+    }
+
+    private get fileUploaderService(): FileUploaderService {
+        if (!this._fileUploaderService) {
+            this._fileUploaderService = this.moduleRef.get<FileUploaderService>(FileUploaderService, { strict: false });
+        }
+        return this._fileUploaderService;
+    }
+
+    private get whatsappIdHashService(): WhatsappIdHashService {
+        if (!this._whatsappIdHashService) {
+            this._whatsappIdHashService = this.moduleRef.get<WhatsappIdHashService>(WhatsappIdHashService, {
+                strict: false,
+            });
+        }
+        return this._whatsappIdHashService;
+    }
+
+    private get whatsappBillingEventService(): WhatsappBillingEventService {
+        if (!this._whatsappBillingEventService) {
+            this._whatsappBillingEventService = this.moduleRef.get<WhatsappBillingEventService>(
+                WhatsappBillingEventService,
+                { strict: false },
+            );
+        }
+        return this._whatsappBillingEventService;
+    }
+
+    private get activityService(): ActivityService {
+        if (!this._activityService) {
+            this._activityService = this.moduleRef.get<ActivityService>(ActivityService, { strict: false });
+        }
+        return this._activityService;
+    }
+
+    private get activeMessageService(): ActiveMessageService {
+        if (!this._activeMessageService) {
+            this._activeMessageService = this.moduleRef.get<ActiveMessageService>(ActiveMessageService, { strict: false });
+        }
+        return this._activeMessageService;
+    }
+
+    private get createConversationService(): CreateConversationService {
+        if (!this._createConversationService) {
+            this._createConversationService = this.moduleRef.get<CreateConversationService>(CreateConversationService, {
+                strict: false,
+            });
+        }
+        return this._createConversationService;
+    }
+
+    private get conversationService(): ConversationService {
+        if (!this._conversationService) {
+            this._conversationService = this.moduleRef.get<ConversationService>(ConversationService, {
+                strict: false,
+            });
+        }
+        return this._conversationService;
+    }
+
+    private get templateMessageService(): TemplateMessageService {
+        if (!this._templateMessageService) {
+            this._templateMessageService = this.moduleRef.get<TemplateMessageService>(TemplateMessageService, {
+                strict: false,
+            });
+        }
+        return this._templateMessageService;
+    }
+
+    private get channelConfigService(): ChannelConfigService {
+        if (!this._channelConfigService) {
+            this._channelConfigService = this.moduleRef.get<ChannelConfigService>(ChannelConfigService, {
+                strict: false,
+            });
+        }
+        return this._channelConfigService;
     }
 
     async getAuthUrl(fileKey: string, options?: any) {
@@ -135,7 +198,7 @@ export class ExternalDataService {
         memberId,
         isStartActivity,
         messageText?,
-        tempalteId?,
+        templateId?,
         user?,
         hash?,
     ) {
@@ -145,7 +208,7 @@ export class ExternalDataService {
             memberId,
             isStartActivity,
             messageText,
-            tempalteId,
+            templateId,
             user,
             hash,
         );
@@ -240,5 +303,9 @@ export class ExternalDataService {
     async getTemplateName(templateId: string) {
         const template = await this.templateMessageService.getTemplateById(templateId);
         return template;
+    }
+
+    async createWhatsappBillingEvent(data: any) {
+        return await this.whatsappBillingEventService.create(data);
     }
 }

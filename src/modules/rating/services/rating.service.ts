@@ -495,6 +495,7 @@ export class RatingService {
                 Agente: user?.name,
                 Avaliação: rating.value,
                 Feedback: rating.ratingFeedback,
+                Etiquetas: Array.isArray(rating.tags) ? rating.tags.join(', ') : rating.tags || '',
                 ID: rating?.iid ? `#${rating.iid}` : null,
                 'Link da conversa': rating.conversationId
                     ? `https://app.botdesigner.io/live-agent?workspace=${workspaceId}&conversation=${rating.conversationId}`

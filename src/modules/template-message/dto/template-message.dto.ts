@@ -180,5 +180,5 @@ export class TemplateMessageDto {
     @ApiProperty()
     @IsOptional()
     @IsBoolean()
-    aiSuggestion?: string;
+    aiSuggestion?: boolean;
 }

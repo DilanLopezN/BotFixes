@@ -109,4 +109,12 @@ export class ChannelConfigController {
     setDefaultExpirationInEmulator() {
         return this.channelService.setDefaultExpirationInEmulator();
     }
+
+    @Post('/:channelConfigId/set-webhook-d360')
+    @UseGuards(AuthGuard)
+    @ApiParam({ name: 'channelConfigId', type: String, required: true })
+    @ApiResponse({ status: 200, description: 'Webhook D360 configured successfully' })
+    async setWebhookD360(@Param('channelConfigId') channelConfigId: string) {
+        return await this.channelService.setWebhookD360(channelConfigId);
+    }
 }

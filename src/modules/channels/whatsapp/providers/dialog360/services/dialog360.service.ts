@@ -228,6 +228,10 @@ export class Dialog360Service implements WhatsappInterfaceService {
             link: mediaUrl,
         };
 
+        if (payloadData?.activity?.attachmentFile?.contentType === 'audio/ogg') {
+            payload.voice = true;
+        }
+
         const data: MetaWhatsappOutcomingBaseMessage = {
             messaging_product: 'whatsapp',
             recipient_type: 'individual',
@@ -396,6 +400,50 @@ export class Dialog360Service implements WhatsappInterfaceService {
         // return await this.sendOutcomingMessageApi(appId, partnerToken, data);
     }
 
+    async sendOutcomingCtaUrl(
+        payloadData: PayloadMessageWhatsapp,
+        channelConfig: CompleteChannelConfig,
+    ): Promise<ResponseMessageWhatsapp | any> {
+        const { d360ApiKey } = this.dialog360UtilService.getChannelData(channelConfig);
+        const { activity } = payloadData;
+
+        const attachment = activity.attachments?.[0];
+        if (!attachment?.content?.buttons) {
+            throw new Error('CTA url message requires buttons in attachment');
+        }
+
+        const button = attachment.content.buttons[0];
+
+        const checkIfButtonIsValid = button.value.startsWith('https');
+        if (!checkIfButtonIsValid) {
+            button.value = `https://${button.value}`;
+        }
+
+        const payload: MetaWhatsappOutcomingInteractiveContent = {
+            type: 'cta_url',
+            body: {
+                text: attachment.content.text || attachment.content.subtitle || activity.text || '',
+            },
+            action: {
+                name: 'cta_url',
+                parameters: {
+                    display_text: button?.title || button?.value,
+                    url: button.value,
+                },
+            },
+        };
+
+        const data: MetaWhatsappOutcomingBaseMessage = {
+            messaging_product: 'whatsapp',
+            recipient_type: 'individual',
+            to: activity.to.phone,
+            type: MetaWhatsappOutcomingMessageType.INTERACTIVE,
+            interactive: payload,
+        };
+
+        return await this.sendOutcomingMessageApi(d360ApiKey, data);
+    }
+
     async sendOutcomingTemplateMessage(
         payloadData: PayloadMessageWhatsapp,
         channelConfig: CompleteChannelConfig,
@@ -434,7 +482,7 @@ export class Dialog360Service implements WhatsappInterfaceService {
         }
 
         const payload: MetaWhatsappOutcomingTemplateContent = {
-            name: activity.templateId,
+            name: activity?.data?.elementName || activity?.templateId,
             language: {
                 code: 'pt_BR',
             },

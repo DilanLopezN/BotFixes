@@ -9,7 +9,7 @@ import { SmtReSettingService } from './services/smt-re-setting.service';
 import { SmtReCronService } from './services/smt-re-cron.service';
 import { SmtReAnalyticsService } from './services/smt-re-analytics.service';
 import { ExternalDataService } from './services/external-data.service';
-import { CONVERSATION_SMT_RE_CONNECTION_NAME } from './ormconfig';
+import { CONVERSATION_SMT_RE_CONNECTION_NAME, CONVERSATION_SMT_RE_READ_CONNECTION_NAME } from './ormconfig';
 import { synchronizePostgres } from '../../common/utils/sync';
 import { AuthMiddleware } from '../auth/middleware/auth.middleware';
 import { SmtRe } from './models/smt-re.entity';
@@ -28,7 +28,18 @@ import { ConversationClosedConsumerService } from './services/conversation-close
             migrations: [__dirname + '/migrations/**/*{.ts,.js}'],
             schema: 'conversation_smart_reengagement',
         }),
+        TypeOrmModule.forRoot({
+            type: 'postgres',
+            name: CONVERSATION_SMT_RE_READ_CONNECTION_NAME,
+            url: process.env.POSTGRESQL_READ_URI,
+            entities: [__dirname + '/**/*.entity{.ts,.js}'],
+            synchronize: synchronizePostgres,
+            migrationsRun: false,
+            migrations: [__dirname + '/migrations/**/*{.ts,.js}'],
+            schema: 'conversation_smart_reengagement',
+        }),
         TypeOrmModule.forFeature([SmtRe, SmtReSetting], CONVERSATION_SMT_RE_CONNECTION_NAME),
+        TypeOrmModule.forFeature([SmtRe, SmtReSetting], CONVERSATION_SMT_RE_READ_CONNECTION_NAME),
         ScheduleModule.forRoot(),
     ],
     controllers: [SmtReSettingController, SmtReAnalyticsController, SmtReController],

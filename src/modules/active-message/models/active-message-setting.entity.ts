@@ -13,6 +13,7 @@ export enum ObjectiveType {
     'confirmation' = ChannelIdConfig.confirmation,
     'reminder' = ChannelIdConfig.reminder,
     'nps' = ChannelIdConfig.nps,
+    'nps_score' = ChannelIdConfig.nps_score,
     'medical_report' = ChannelIdConfig.medical_report,
     'api_ivr' = ChannelIdConfig.api_ivr,
     'schedule_notification' = ChannelIdConfig.schedule_notification,

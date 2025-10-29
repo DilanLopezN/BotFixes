@@ -1,22 +1,24 @@
-import { Body, Controller, Param, Post, UseGuards, ValidationPipe } from '@nestjs/common';
+import { Body, Controller, Param, Post, Res, UseGuards, ValidationPipe } from '@nestjs/common';
+import { ApiBearerAuth, ApiParam, ApiTags } from '@nestjs/swagger';
+import { DefaultRequest, DefaultResponse } from '../../../../common/interfaces/default';
+import { downloadFileType, typeDownloadEnum } from '../../../../common/utils/downloadFileType';
+import { PredefinedRoles } from '../../../../common/utils/utils';
+import { AuthGuard } from '../../../auth/guard/auth.guard';
+import { RolesDecorator } from '../../../users/decorators/roles.decorator';
+import { RolesGuard } from '../../../users/guards/roles.guard';
+import { AgentStatusFeatureFlagGuard } from '../../guards/agent-status-feature-flag.guard';
+import { WorkingTime } from '../../models/working-time.entity';
 import {
     AgentStatusAnalyticsFilterDto,
     AgentStatusAnalyticsFilterListBreakOvertimeDto,
 } from '../dto/agent-status-analytics-filter.dto';
-import { AgentStatusAnalyticsService } from '../service/agent-status-analytics.service';
-import { AuthGuard } from '../../../auth/guard/auth.guard';
-import { AgentStatusFeatureFlagGuard } from '../../guards/agent-status-feature-flag.guard';
-import { RolesGuard } from '../../../users/guards/roles.guard';
-import { RolesDecorator } from '../../../users/decorators/roles.decorator';
-import { PredefinedRoles } from '../../../../common/utils/utils';
-import { ApiBearerAuth, ApiParam, ApiTags } from '@nestjs/swagger';
-import { DefaultRequest, DefaultResponse } from '../../../../common/interfaces/default';
+import { AgentStatusAnalyticsCSVParams } from '../interface/agent-status-analytics-csv.interface';
 import {
     AgentStatusResponse,
     AgentTimeAggregation,
     AgentTimeAggregationTotal,
 } from '../interface/agent-status-analytics.interface';
-import { WorkingTime } from '../../models/working-time.entity';
+import { AgentStatusAnalyticsService } from '../service/agent-status-analytics.service';
 
 @ApiTags('Analytics agent status')
 @ApiBearerAuth()
@@ -50,6 +52,7 @@ export class AgentStatusAnalyticsController {
             workspaceId,
             filterDto.teamId,
             filterDto.userId,
+            filterDto.breakSettingId ? Number(filterDto.breakSettingId) : null,
         );
 
         return { data: result };
@@ -150,6 +153,7 @@ export class AgentStatusAnalyticsController {
             filterDto.userId,
             filterDto.groupDateBy,
             filterDto.groupBy,
+            filterDto.breakSettingId ? Number(filterDto.breakSettingId) : null,
         );
 
         return { data: result };
@@ -182,6 +186,7 @@ export class AgentStatusAnalyticsController {
             filterDto.endDate,
             filterDto.teamId,
             filterDto.userId,
+            filterDto.breakSettingId ? Number(filterDto.breakSettingId) : null,
         );
 
         return { data: result };
@@ -285,5 +290,32 @@ export class AgentStatusAnalyticsController {
         );
 
         return result;
+    }
+
+    @Post('/getBreakOvertimeCsv')
+    @ApiParam({ name: 'workspaceId', description: 'Workspace ID', type: String })
+    @UseGuards(RolesGuard)
+    @RolesDecorator([
+        PredefinedRoles.SYSTEM_ADMIN,
+        PredefinedRoles.SYSTEM_DEV_ADMIN,
+        PredefinedRoles.SYSTEM_CS_ADMIN,
+        PredefinedRoles.SYSTEM_UX_ADMIN,
+        PredefinedRoles.WORKSPACE_ADMIN,
+    ])
+    async getBreakOvertimeCsv(
+        @Param('workspaceId') workspaceId: string,
+        @Body(
+            new ValidationPipe({
+                whitelist: true,
+                forbidNonWhitelisted: true,
+                transform: true,
+            }),
+        )
+        filterDto: AgentStatusAnalyticsCSVParams,
+        @Res() response,
+    ): Promise<void> {
+        const result = await this.agentStatusAnalyticsService.getBreakOvertimeCsv(workspaceId, filterDto);
+
+        return downloadFileType(filterDto.downloadType || typeDownloadEnum.XLSX, result, response, 'break-overtime');
     }
 }

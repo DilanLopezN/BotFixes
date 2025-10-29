@@ -56,6 +56,10 @@ export interface WhatsappInterfaceService {
         payloadData: PayloadMessageWhatsapp,
         channelConfig: CompleteChannelConfig,
     ): Promise<ResponseMessageWhatsapp>;
+    sendOutcomingCtaUrl?(
+        payloadData: PayloadMessageWhatsapp,
+        channelConfig: CompleteChannelConfig,
+    ): Promise<ResponseMessageWhatsapp>;
     sendOutcomingListMessage(
         payloadData: PayloadMessageWhatsapp,
         channelConfig: CompleteChannelConfig,

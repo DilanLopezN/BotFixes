@@ -25,6 +25,10 @@ import { HealthIntegrationStatusController } from './controllers/health/health-i
 import { HealthIntegrationMessagesService } from './services/health/health-integration-messages.service';
 import { HealthIntegrationMessagesSchema } from './schemas/health/health-integration-messages.schema';
 import { HealthIntegrationMessagesController } from './controllers/health/health-integration-messages.controller';
+import { HealthDocumentsController } from './controllers/health/health-documents.controller';
+import { HealthDocumentsService } from './services/health/health-documents.service';
+import { QueryExecutorController } from './controllers/health/query-executor.controller';
+import { QueryExecutorService } from './services/health/query-executor.service';
 
 @Module({
     controllers: [
@@ -34,6 +38,8 @@ import { HealthIntegrationMessagesController } from './controllers/health/health
         HealthPedingPublicationController,
         HealthIntegrationStatusController,
         HealthIntegrationMessagesController,
+        HealthDocumentsController,
+        QueryExecutorController,
     ],
     imports: [
         MongooseModule.forFeature([
@@ -64,6 +70,8 @@ import { HealthIntegrationMessagesController } from './controllers/health/health
         HealthIntegrationMessagesService,
         HealthIntegrationStatusService,
         ExternalDataService,
+        HealthDocumentsService,
+        QueryExecutorService,
     ],
 })
 export class IntegrationsModule {
@@ -78,6 +86,8 @@ export class IntegrationsModule {
                 HealthPedingPublicationController,
                 HealthIntegrationStatusController,
                 HealthIntegrationMessagesController,
+                HealthDocumentsController,
+                QueryExecutorController,
             );
     }
 }

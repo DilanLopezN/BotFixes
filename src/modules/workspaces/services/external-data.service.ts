@@ -21,49 +21,124 @@ import { ConversationOutcomeService } from '../../conversation-outcome-v2/servic
 import { InteractionsService } from '../../interactions/services/interactions.service';
 import { FixedResponsesWelcome } from '../../interactions/interfaces/response.interface';
 import { BreakSettingService } from '../../agent-status/services/break-setting.service';
+import { RatingSettingService } from '../../rating/services/rating-setting.service';
 
 @Injectable()
 export class ExternalDataService {
-    private workspaceService: WorkspaceService;
-    private channelConfigService: ChannelConfigService;
-    private healthIntegrationStatusService: HealthIntegrationStatusService;
-    private templateGroupService: TemplateGroupService;
-    private conversationTemplateService: ConversationTemplateService;
-    private activeMessageSettingService: ActiveMessageSettingService;
-    private conversationObjectiveService: ConversationObjectiveService;
-    private conversationOutcomeService: ConversationOutcomeService;
-    private interactionsService: InteractionsService;
-    private breakSettingService: BreakSettingService;
+    private _workspaceService: WorkspaceService;
+    private _channelConfigService: ChannelConfigService;
+    private _healthIntegrationStatusService: HealthIntegrationStatusService;
+    private _templateGroupService: TemplateGroupService;
+    private _conversationTemplateService: ConversationTemplateService;
+    private _activeMessageSettingService: ActiveMessageSettingService;
+    private _conversationObjectiveService: ConversationObjectiveService;
+    private _conversationOutcomeService: ConversationOutcomeService;
+    private _interactionsService: InteractionsService;
+    private _breakSettingService: BreakSettingService;
+    private _ratingSettingService: RatingSettingService;
 
     constructor(private readonly moduleRef: ModuleRef) {}
 
-    async onApplicationBootstrap() {
-        this.channelConfigService = this.moduleRef.get<ChannelConfigService>(ChannelConfigService, { strict: false });
-        this.healthIntegrationStatusService = this.moduleRef.get<HealthIntegrationStatusService>(
-            HealthIntegrationStatusService,
-            {
+    private get workspaceService(): WorkspaceService {
+        if (!this._workspaceService) {
+            this._workspaceService = this.moduleRef.get<WorkspaceService>(WorkspaceService, { strict: false });
+        }
+        return this._workspaceService;
+    }
+
+    private get channelConfigService(): ChannelConfigService {
+        if (!this._channelConfigService) {
+            this._channelConfigService = this.moduleRef.get<ChannelConfigService>(ChannelConfigService, {
                 strict: false,
-            },
-        );
-        this.workspaceService = this.moduleRef.get<WorkspaceService>(WorkspaceService, { strict: false });
-        this.templateGroupService = this.moduleRef.get<TemplateGroupService>(TemplateGroupService, { strict: false });
-        this.conversationTemplateService = this.moduleRef.get<ConversationTemplateService>(
-            ConversationTemplateService,
-            { strict: false },
-        );
-        this.activeMessageSettingService = this.moduleRef.get<ActiveMessageSettingService>(
-            ActiveMessageSettingService,
-            { strict: false },
-        );
-        this.conversationObjectiveService = this.moduleRef.get<ConversationObjectiveService>(
-            ConversationObjectiveService,
-            { strict: false },
-        );
-        this.conversationOutcomeService = this.moduleRef.get<ConversationOutcomeService>(ConversationOutcomeService, {
-            strict: false,
-        });
-        this.interactionsService = this.moduleRef.get<InteractionsService>(InteractionsService, { strict: false });
-        this.breakSettingService = this.moduleRef.get<BreakSettingService>(BreakSettingService, { strict: false });
+            });
+        }
+        return this._channelConfigService;
+    }
+
+    private get healthIntegrationStatusService(): HealthIntegrationStatusService {
+        if (!this._healthIntegrationStatusService) {
+            this._healthIntegrationStatusService = this.moduleRef.get<HealthIntegrationStatusService>(
+                HealthIntegrationStatusService,
+                {
+                    strict: false,
+                },
+            );
+        }
+        return this._healthIntegrationStatusService;
+    }
+
+    private get templateGroupService(): TemplateGroupService {
+        if (!this._templateGroupService) {
+            this._templateGroupService = this.moduleRef.get<TemplateGroupService>(TemplateGroupService, {
+                strict: false,
+            });
+        }
+        return this._templateGroupService;
+    }
+
+    private get conversationTemplateService(): ConversationTemplateService {
+        if (!this._conversationTemplateService) {
+            this._conversationTemplateService = this.moduleRef.get<ConversationTemplateService>(
+                ConversationTemplateService,
+                { strict: false },
+            );
+        }
+        return this._conversationTemplateService;
+    }
+
+    private get activeMessageSettingService(): ActiveMessageSettingService {
+        if (!this._activeMessageSettingService) {
+            this._activeMessageSettingService = this.moduleRef.get<ActiveMessageSettingService>(
+                ActiveMessageSettingService,
+                { strict: false },
+            );
+        }
+        return this._activeMessageSettingService;
+    }
+
+    private get conversationObjectiveService(): ConversationObjectiveService {
+        if (!this._conversationObjectiveService) {
+            this._conversationObjectiveService = this.moduleRef.get<ConversationObjectiveService>(
+                ConversationObjectiveService,
+                { strict: false },
+            );
+        }
+        return this._conversationObjectiveService;
+    }
+
+    private get conversationOutcomeService(): ConversationOutcomeService {
+        if (!this._conversationOutcomeService) {
+            this._conversationOutcomeService = this.moduleRef.get<ConversationOutcomeService>(
+                ConversationOutcomeService,
+                {
+                    strict: false,
+                },
+            );
+        }
+        return this._conversationOutcomeService;
+    }
+
+    private get interactionsService(): InteractionsService {
+        if (!this._interactionsService) {
+            this._interactionsService = this.moduleRef.get<InteractionsService>(InteractionsService, { strict: false });
+        }
+        return this._interactionsService;
+    }
+
+    private get breakSettingService(): BreakSettingService {
+        if (!this._breakSettingService) {
+            this._breakSettingService = this.moduleRef.get<BreakSettingService>(BreakSettingService, { strict: false });
+        }
+        return this._breakSettingService;
+    }
+
+    private get ratingSettingService(): RatingSettingService {
+        if (!this._ratingSettingService) {
+            this._ratingSettingService = this.moduleRef.get<RatingSettingService>(RatingSettingService, {
+                strict: false,
+            });
+        }
+        return this._ratingSettingService;
     }
 
     async updateWorkspaceName(workspaceId: string, name: string) {
@@ -477,5 +552,28 @@ export class ExternalDataService {
             workspaceId,
             FixedResponsesWelcome.REASSIGN_CONVERSATION,
         );
+    }
+
+    async createDefaultRatingSettingIfNotExist(workspaceId: string): Promise<[any, Error | null]> {
+        try {
+            const ratingSetting = await this.ratingSettingService.findOneByWorkspaceId(workspaceId);
+
+            if (ratingSetting) {
+                return [ratingSetting, null];
+            }
+
+            const newRatingSetting = await this.ratingSettingService.create({
+                workspaceId,
+                ratingText: 'Como foi seu atendimento conosco?',
+                feedbackText: 'Deixe sua mensagem para nós:',
+                linkText: 'Avalie seu atendimento no link abaixo',
+                disableLinkAfterRating: false,
+                expiresIn: null,
+            });
+
+            return [newRatingSetting, null];
+        } catch (error) {
+            return [null, error as Error];
+        }
     }
 }

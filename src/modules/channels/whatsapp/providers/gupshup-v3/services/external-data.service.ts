@@ -1,4 +1,4 @@
-import { Injectable, OnApplicationBootstrap } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
 import { FileUploaderService } from '../../../../../../common/file-uploader/file-uploader.service';
 import { FlowService } from '../../../../../whatsapp-flow/services/flow.service';
@@ -25,56 +25,125 @@ import { WhatsappIdHashService } from '../../../services/whatsapp-id-hash.servic
 import { TemplateMessageService } from '../../../../../template-message/services/template-message.service';
 
 @Injectable()
-export class ExternalDataService implements OnApplicationBootstrap {
-    private fileUploaderService: FileUploaderService;
-    private flowService: FlowService;
-    private flowDataService: FlowDataService;
-    private gupshupIdHashService: GupshupIdHashService;
-    private activityService: ActivityService;
-    private activeMessageService: ActiveMessageService;
-    private mismatchWaidService: MismatchWaidService;
-    private createConversationService: CreateConversationService;
-    private conversationService: ConversationService;
-    private channelConfigService: ChannelConfigService;
-    private attachmentService: AttachmentService;
-    private whatsappIdHashService: WhatsappIdHashService;
-    private templateMessageService: TemplateMessageService;
+export class ExternalDataService {
+    private _fileUploaderService: FileUploaderService;
+    private _flowService: FlowService;
+    private _flowDataService: FlowDataService;
+    private _gupshupIdHashService: GupshupIdHashService;
+    private _activityService: ActivityService;
+    private _activeMessageService: ActiveMessageService;
+    private _mismatchWaidService: MismatchWaidService;
+    private _createConversationService: CreateConversationService;
+    private _conversationService: ConversationService;
+    private _channelConfigService: ChannelConfigService;
+    private _attachmentService: AttachmentService;
+    private _whatsappIdHashService: WhatsappIdHashService;
+    private _templateMessageService: TemplateMessageService;
     constructor(private readonly moduleRef: ModuleRef) {}
 
-    async onApplicationBootstrap() {
-        try {
-            this.fileUploaderService = this.moduleRef.get<FileUploaderService>(FileUploaderService, { strict: false });
-            this.flowService = this.moduleRef.get<FlowService>(FlowService, { strict: false });
-            this.flowDataService = this.moduleRef.get<FlowDataService>(FlowDataService, { strict: false });
-            this.gupshupIdHashService = this.moduleRef.get<GupshupIdHashService>(GupshupIdHashService, {
-                strict: false,
-            });
-            this.activityService = this.moduleRef.get<ActivityService>(ActivityService, { strict: false });
-            this.activeMessageService = this.moduleRef.get<ActiveMessageService>(ActiveMessageService, {
-                strict: false,
-            });
-            this.mismatchWaidService = this.moduleRef.get<MismatchWaidService>(MismatchWaidService, { strict: false });
-            this.createConversationService = this.moduleRef.get<CreateConversationService>(CreateConversationService, {
-                strict: false,
-            });
-            this.conversationService = this.moduleRef.get<ConversationService>(ConversationService, {
-                strict: false,
-            });
-            this.channelConfigService = this.moduleRef.get<ChannelConfigService>(ChannelConfigService, {
-                strict: false,
-            });
-            this.attachmentService = this.moduleRef.get<AttachmentService>(AttachmentService, { strict: false });
-            this.whatsappIdHashService = this.moduleRef.get<WhatsappIdHashService>(WhatsappIdHashService, {
-                strict: false,
-            });
-            this.templateMessageService = this.moduleRef.get<TemplateMessageService>(TemplateMessageService, {
-                strict: false,
-            });
-
-            console.log('ExternalDataService initialized successfully');
-        } catch (error) {
-            console.error('Error initializing ExternalDataService:', error);
+    private get fileUploaderService(): FileUploaderService {
+        if (!this._fileUploaderService) {
+            this._fileUploaderService = this.moduleRef.get<FileUploaderService>(FileUploaderService, { strict: false });
         }
+        return this._fileUploaderService;
+    }
+
+    private get flowService(): FlowService {
+        if (!this._flowService) {
+            this._flowService = this.moduleRef.get<FlowService>(FlowService, { strict: false });
+        }
+        return this._flowService;
+    }
+
+    private get flowDataService(): FlowDataService {
+        if (!this._flowDataService) {
+            this._flowDataService = this.moduleRef.get<FlowDataService>(FlowDataService, { strict: false });
+        }
+        return this._flowDataService;
+    }
+
+    private get gupshupIdHashService(): GupshupIdHashService {
+        if (!this._gupshupIdHashService) {
+            this._gupshupIdHashService = this.moduleRef.get<GupshupIdHashService>(GupshupIdHashService, {
+                strict: false,
+            });
+        }
+        return this._gupshupIdHashService;
+    }
+
+    private get activityService(): ActivityService {
+        if (!this._activityService) {
+            this._activityService = this.moduleRef.get<ActivityService>(ActivityService, { strict: false });
+        }
+        return this._activityService;
+    }
+
+    private get activeMessageService(): ActiveMessageService {
+        if (!this._activeMessageService) {
+            this._activeMessageService = this.moduleRef.get<ActiveMessageService>(ActiveMessageService, {
+                strict: false,
+            });
+        }
+        return this._activeMessageService;
+    }
+
+    private get mismatchWaidService(): MismatchWaidService {
+        if (!this._mismatchWaidService) {
+            this._mismatchWaidService = this.moduleRef.get<MismatchWaidService>(MismatchWaidService, { strict: false });
+        }
+        return this._mismatchWaidService;
+    }
+
+    private get createConversationService(): CreateConversationService {
+        if (!this._createConversationService) {
+            this._createConversationService = this.moduleRef.get<CreateConversationService>(CreateConversationService, {
+                strict: false,
+            });
+        }
+        return this._createConversationService;
+    }
+
+    private get conversationService(): ConversationService {
+        if (!this._conversationService) {
+            this._conversationService = this.moduleRef.get<ConversationService>(ConversationService, {
+                strict: false,
+            });
+        }
+        return this._conversationService;
+    }
+
+    private get channelConfigService(): ChannelConfigService {
+        if (!this._channelConfigService) {
+            this._channelConfigService = this.moduleRef.get<ChannelConfigService>(ChannelConfigService, {
+                strict: false,
+            });
+        }
+        return this._channelConfigService;
+    }
+
+    private get attachmentService(): AttachmentService {
+        if (!this._attachmentService) {
+            this._attachmentService = this.moduleRef.get<AttachmentService>(AttachmentService, { strict: false });
+        }
+        return this._attachmentService;
+    }
+
+    private get whatsappIdHashService(): WhatsappIdHashService {
+        if (!this._whatsappIdHashService) {
+            this._whatsappIdHashService = this.moduleRef.get<WhatsappIdHashService>(WhatsappIdHashService, {
+                strict: false,
+            });
+        }
+        return this._whatsappIdHashService;
+    }
+
+    private get templateMessageService(): TemplateMessageService {
+        if (!this._templateMessageService) {
+            this._templateMessageService = this.moduleRef.get<TemplateMessageService>(TemplateMessageService, {
+                strict: false,
+            });
+        }
+        return this._templateMessageService;
     }
 
     async getAuthUrl(fileKey: string, options?: any) {
@@ -213,7 +282,7 @@ export class ExternalDataService implements OnApplicationBootstrap {
         memberId,
         isStartActivity,
         messageText?,
-        tempalteId?,
+        templateId?,
         user?,
         hash?,
     ) {
@@ -223,7 +292,7 @@ export class ExternalDataService implements OnApplicationBootstrap {
             memberId,
             isStartActivity,
             messageText,
-            tempalteId,
+            templateId,
             user,
             hash,
         );
@@ -271,14 +340,6 @@ export class ExternalDataService implements OnApplicationBootstrap {
     ) {
         try {
             console.log('Updating template approval status:', { templateId, whatsappTemplateId, status });
-            if (!this.templateMessageService) {
-                console.error('TemplateMessageService not initialized');
-                return;
-            }
-            if (!this.templateMessageService.updateTemplateApprovalStatusAndWhatsappId) {
-                console.error('updateTemplateApprovalStatusAndWhatsappId method not found on TemplateMessageService');
-                return;
-            }
             await this.templateMessageService.updateTemplateApprovalStatusAndWhatsappId(
                 channelConfigToken,
                 templateId,
@@ -296,14 +357,6 @@ export class ExternalDataService implements OnApplicationBootstrap {
     async updateTemplateCategory(channelConfigToken: string, templateId: string, category: TemplateCategory) {
         try {
             console.log('Updating template category:', { templateId, category });
-            if (!this.templateMessageService) {
-                console.error('TemplateMessageService not initialized');
-                return;
-            }
-            if (!this.templateMessageService.updateCategoryTemplate) {
-                console.error('updateCategoryTemplate method not found on TemplateMessageService');
-                return;
-            }
             const channelConfig = await this.channelConfigService.getOneByToken(channelConfigToken);
             const result = await this.templateMessageService.updateCategoryTemplate(
                 channelConfig,

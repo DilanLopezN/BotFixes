@@ -19,4 +19,7 @@ export class GeneralBreakSetting {
 
     @Column({ name: 'max_inactive_duration_seconds', default: DEFAULT_MAX_INACTIVE_DURATION_SECONDS })
     maxInactiveDurationSeconds: number;
+
+    @Column({ name: 'excluded_user_ids', type: 'character varying', array: true, nullable: true })
+    excludedUserIds: string[];
 }

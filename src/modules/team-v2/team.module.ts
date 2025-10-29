@@ -10,6 +10,7 @@ import { ExternalDataService } from '../team-v2/services/external-data.service';
 import { TeamCacheService } from './services/team-cache.service';
 import { TeamHistorySchema } from '../team/schemas/teamHistory.schema';
 import { TeamHistoryService } from './services/teamHistory.service';
+import { InternalTeamController } from './controllers/internal-team.controller';
 
 @Module({
     imports: [
@@ -20,7 +21,7 @@ import { TeamHistoryService } from './services/teamHistory.service';
             { name: 'TeamHistory', schema: TeamHistorySchema },
         ]),
     ],
-    controllers: [TeamController],
+    controllers: [TeamController, InternalTeamController],
     providers: [TeamService, ExternalDataService, TeamCacheService, TeamHistoryService],
     exports: [TeamService, TeamHistoryService],
 })

@@ -417,8 +417,17 @@ export class ContactService extends MongooseAbstractionService<Contact> {
 
     @CatchError()
     public async _create(contact: IContactCreate, workspaceId: string) {
+        const phones = getWithAndWithout9PhoneNumber(getCompletePhone(String(contact.phone), contact.ddi));
         const query: FilterQuery<Contact> = {
-            $and: [{ $or: [{ phone: String(contact.phone) }] }, { workspaceId }],
+            $and: [
+                {
+                    $or: [
+                        ...[...new Set(phones)].map((phone) => ({ phone: String(phone) })),
+                        ...[...new Set(phones)].map((phone) => ({ whatsapp: String(phone) })),
+                    ],
+                },
+                { workspaceId },
+            ],
         };
 
         if (contact.email) {

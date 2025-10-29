@@ -77,7 +77,8 @@ export class ConversationAutomaticDistributionService {
         }
 
         const newTeamId = event.team?._id || event.teamId;
-        const hasActiveAgent = event.members?.some((member: any) => member.type === 'agent' && !member.disabled);
+        const conversationMembers = event.members || event.conversation?.members;
+        const hasActiveAgent = conversationMembers?.some((member: any) => member.type === 'agent' && !member.disabled);
 
         const updateData: Partial<ConversationAutomaticDistribution> = {};
 

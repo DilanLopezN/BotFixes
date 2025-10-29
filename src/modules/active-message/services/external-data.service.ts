@@ -12,32 +12,78 @@ import { WorkspacesService } from '../../workspaces/services/workspaces.service'
 
 @Injectable()
 export class ExternalDataService {
-    private channelConfigService: ChannelConfigService;
-    private conversationContactService: ContactService;
-    private conversationService: ConversationService;
-    private whatsappSessionControlService: WhatsappSessionControlService;
-    private botsService: BotsService;
-    private templateMessageService: TemplateMessageService;
-    private tagsService: TagsService;
-    private workspacesService: WorkspacesService;
+    private _channelConfigService: ChannelConfigService;
+    private _conversationContactService: ContactService;
+    private _conversationService: ConversationService;
+    private _whatsappSessionControlService: WhatsappSessionControlService;
+    private _botsService: BotsService;
+    private _templateMessageService: TemplateMessageService;
+    private _tagsService: TagsService;
+    private _workspacesService: WorkspacesService;
 
     constructor(private readonly moduleRef: ModuleRef) {}
 
-    async onApplicationBootstrap() {
-        this.channelConfigService = this.moduleRef.get<ChannelConfigService>(ChannelConfigService, { strict: false });
-        this.conversationContactService = this.moduleRef.get<ContactService>(ContactService, { strict: false });
-        this.conversationService = this.moduleRef.get<ConversationService>(ConversationService, { strict: false });
-        this.whatsappSessionControlService = this.moduleRef.get<WhatsappSessionControlService>(
-            WhatsappSessionControlService,
-            { strict: false },
-        );
-        this.botsService = this.moduleRef.get<BotsService>(BotsService, { strict: false });
-        this.templateMessageService = this.moduleRef.get<TemplateMessageService>(TemplateMessageService, {
-            strict: false,
-        });
-        this.tagsService = this.moduleRef.get<TagsService>(TagsService, { strict: false });
-        this.workspacesService = this.moduleRef.get<WorkspacesService>(WorkspacesService, { strict: false });
+    private get channelConfigService(): ChannelConfigService {
+        if (!this._channelConfigService) {
+            this._channelConfigService = this.moduleRef.get<ChannelConfigService>(ChannelConfigService, { strict: false });
+        }
+        return this._channelConfigService;
     }
+
+    private get conversationContactService(): ContactService {
+        if (!this._conversationContactService) {
+            this._conversationContactService = this.moduleRef.get<ContactService>(ContactService, { strict: false });
+        }
+        return this._conversationContactService;
+    }
+
+    private get conversationService(): ConversationService {
+        if (!this._conversationService) {
+            this._conversationService = this.moduleRef.get<ConversationService>(ConversationService, { strict: false });
+        }
+        return this._conversationService;
+    }
+
+    private get whatsappSessionControlService(): WhatsappSessionControlService {
+        if (!this._whatsappSessionControlService) {
+            this._whatsappSessionControlService = this.moduleRef.get<WhatsappSessionControlService>(
+                WhatsappSessionControlService,
+                { strict: false },
+            );
+        }
+        return this._whatsappSessionControlService;
+    }
+
+    private get botsService(): BotsService {
+        if (!this._botsService) {
+            this._botsService = this.moduleRef.get<BotsService>(BotsService, { strict: false });
+        }
+        return this._botsService;
+    }
+
+    private get templateMessageService(): TemplateMessageService {
+        if (!this._templateMessageService) {
+            this._templateMessageService = this.moduleRef.get<TemplateMessageService>(TemplateMessageService, {
+                strict: false,
+            });
+        }
+        return this._templateMessageService;
+    }
+
+    private get tagsService(): TagsService {
+        if (!this._tagsService) {
+            this._tagsService = this.moduleRef.get<TagsService>(TagsService, { strict: false });
+        }
+        return this._tagsService;
+    }
+
+    private get workspacesService(): WorkspacesService {
+        if (!this._workspacesService) {
+            this._workspacesService = this.moduleRef.get<WorkspacesService>(WorkspacesService, { strict: false });
+        }
+        return this._workspacesService;
+    }
+
     async getCanValidateLoggedInWrapperChannelConfig() {
         const result = await this.channelConfigService.getCanValidateLoggedInWrapperChannelConfig();
         return result;

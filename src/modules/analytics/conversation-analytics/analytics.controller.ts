@@ -1,7 +1,11 @@
 import { Body, Controller, Param, Post, Res, UseGuards, UseInterceptors } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { AuthGuard } from '../../auth/guard/auth.guard';
-import { ActivityQueryFilter, AgentConversationMetricsQueryFilterDto, ConversationQueryFilter } from './interfaces/analytics.interface';
+import {
+    ActivityQueryFilter,
+    AgentConversationMetricsQueryFilterDto,
+    ConversationQueryFilter,
+} from './interfaces/analytics.interface';
 import { ActivityService } from './services/activity.service';
 import { ConversationService } from './services/conversation.service';
 import { PredefinedRoles } from './../../../common/utils/utils';
@@ -11,6 +15,13 @@ import { downloadFileType, typeDownloadEnum } from '../../../common/utils/downlo
 import { TimeoutInterceptor } from '../../../common/interceptors/timeout.interceptor';
 import { Exceptions } from '../../../modules/auth/exceptions';
 import { AgentConversationMetricsService } from './services/agent-conversation-metrics.service';
+import { ConversationAppointmentService } from './services/conversation-appointment.service';
+import {
+    ConversationAppointmentFilterDto,
+    ConversationAppointmentFilterDtoCSVParams,
+} from './dto/conversation-appointment-filter.dto';
+import { DefaultRequest, DefaultResponse } from '../../../common/interfaces/default';
+import { ConversationAppointmentResult } from './interfaces/conversation-appointment.interface';
 
 @ApiTags('Analytics')
 @Controller('workspaces')
@@ -20,6 +31,7 @@ export class AnalyticsController {
         private readonly activityV2Service: ActivityService,
         private readonly conversationV2Service: ConversationService,
         private readonly agentConversationMetricsService: AgentConversationMetricsService,
+        private readonly conversationAppointmentService: ConversationAppointmentService,
     ) {}
     @Post(':workspaceId/analytics/activities')
     @RolesDecorator([
@@ -164,5 +176,62 @@ export class AnalyticsController {
         });
 
         return downloadFileType(downloadType, result, response, 'relatorio-performance-agentes');
+    }
+
+    @Post(':workspaceId/analytics/get-conversations-appointments')
+    @RolesDecorator([
+        PredefinedRoles.SYSTEM_ADMIN,
+        PredefinedRoles.SYSTEM_CS_ADMIN,
+        PredefinedRoles.SYSTEM_UX_ADMIN,
+        PredefinedRoles.WORKSPACE_ADMIN,
+        PredefinedRoles.DASHBOARD_ADMIN,
+    ])
+    @UseGuards(RolesGuard)
+    @UseInterceptors(new TimeoutInterceptor(120000))
+    async getConversationAppointments(
+        @Param('workspaceId') workspaceId: string,
+        @Body() queryFilterDto: DefaultRequest<ConversationAppointmentFilterDto>,
+    ): Promise<ConversationAppointmentResult[] | DefaultResponse<ConversationAppointmentResult[]>> {
+        const queryFilter: DefaultRequest<ConversationAppointmentFilterDto> = {
+            ...queryFilterDto,
+            data: {
+                ...(queryFilterDto?.data || ({} as any)),
+                workspaceId,
+            },
+        };
+        return await this.conversationAppointmentService.getConversationAppointments(queryFilter);
+    }
+
+    @Post(':workspaceId/analytics/get-conversations-appointments-download')
+    @RolesDecorator([
+        PredefinedRoles.SYSTEM_ADMIN,
+        PredefinedRoles.SYSTEM_CS_ADMIN,
+        PredefinedRoles.SYSTEM_UX_ADMIN,
+        PredefinedRoles.WORKSPACE_ADMIN,
+        PredefinedRoles.DASHBOARD_ADMIN,
+    ])
+    @UseGuards(RolesGuard)
+    @UseInterceptors(new TimeoutInterceptor(120000))
+    async getConversationAppointmentsDownload(
+        @Param('workspaceId') workspaceId: string,
+        @Body() queryFilterDto: DefaultRequest<ConversationAppointmentFilterDtoCSVParams>,
+        @Res() response,
+    ) {
+        // Remover parâmetros de paginação para download de CSV (precisa retornar todos os registros)
+        const queryFilter: DefaultRequest<ConversationAppointmentFilterDtoCSVParams> = {
+            data: {
+                ...(queryFilterDto?.data || ({} as any)),
+                includeAppointmentDetails: true,
+                workspaceId,
+            },
+        };
+        const result = await this.conversationAppointmentService.getConversationAppointments(queryFilter);
+
+        return downloadFileType(
+            queryFilterDto?.data?.downloadType || typeDownloadEnum.XLSX,
+            result as any[],
+            response,
+            'conversations',
+        );
     }
 }

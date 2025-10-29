@@ -18,7 +18,7 @@ export interface CreateReminderSettingDto {
 export interface UpdateReminderSettingDto {
     apiToken: string;
     templateId: string;
-    active: boolean;
+    // active: boolean;
     sendBeforeScheduleDate?: number;
     retryInvalid?: boolean;
     erpParams?: string;

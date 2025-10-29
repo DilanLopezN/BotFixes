@@ -20,7 +20,7 @@ export interface CreateSendSettingDto {
 export interface UpdateSendSettingDto {
     apiToken: string;
     templateId: string;
-    active: boolean;
+    // active: boolean;
     sendBeforeScheduleDate?: number;
     retryInvalid?: boolean;
     resendMsgNoMatch?: boolean;

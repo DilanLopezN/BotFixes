@@ -19,6 +19,7 @@ export class ActiveMessageSettingController {
         PredefinedRoles.WORKSPACE_ADMIN,
         PredefinedRoles.WORKSPACE_AGENT,
         PredefinedRoles.SYSTEM_DEV_ADMIN,
+        PredefinedRoles.SYSTEM_SUPPORT_ADMIN,
     ])
     @UseGuards(AuthGuard, RolesGuard)
     async listByWorkspaceId(@Param('workspaceId') workspaceId: string, @Query('objective') objective: ObjectiveType) {
@@ -27,24 +28,37 @@ export class ActiveMessageSettingController {
     }
 
     @Get('/:workspaceId/active-message-settings/:activeMessageId')
-    @RolesDecorator([PredefinedRoles.SYSTEM_ADMIN, PredefinedRoles.SYSTEM_DEV_ADMIN])
+    @RolesDecorator([
+        PredefinedRoles.SYSTEM_ADMIN,
+        PredefinedRoles.SYSTEM_DEV_ADMIN,
+        PredefinedRoles.SYSTEM_SUPPORT_ADMIN,
+    ])
     @UseGuards(AuthGuard, RolesGuard)
     async getOne(@Param('activeMessageId') id: string) {
         return this.activeMessageSettingService.getOne(parseInt(id));
     }
 
     @Post('/:workspaceId/active-message-settings')
-    @RolesDecorator([PredefinedRoles.SYSTEM_ADMIN, PredefinedRoles.SYSTEM_DEV_ADMIN])
+    @RolesDecorator([
+        PredefinedRoles.SYSTEM_ADMIN,
+        PredefinedRoles.SYSTEM_DEV_ADMIN,
+        PredefinedRoles.SYSTEM_SUPPORT_ADMIN,
+    ])
     @UseGuards(AuthGuard, RolesGuard)
     async createSetting(@Body() body: CreateActiveMessageSettingDto, @Param('workspaceId') workspaceId: string) {
-        return this.activeMessageSettingService.create({
+        return this.activeMessageSettingService.createAndUpdateFlags({
             ...body,
             workspaceId,
         });
     }
 
     @Put('/:workspaceId/active-message-settings')
-    @RolesDecorator([PredefinedRoles.SYSTEM_ADMIN, PredefinedRoles.WORKSPACE_ADMIN, PredefinedRoles.SYSTEM_DEV_ADMIN])
+    @RolesDecorator([
+        PredefinedRoles.SYSTEM_ADMIN,
+        PredefinedRoles.WORKSPACE_ADMIN,
+        PredefinedRoles.SYSTEM_DEV_ADMIN,
+        PredefinedRoles.SYSTEM_SUPPORT_ADMIN,
+    ])
     @UseGuards(AuthGuard, RolesGuard)
     async updateSetting(@Body() body: UpdateActiveMessageSettingData) {
         return this.activeMessageSettingService.update({
@@ -53,7 +67,7 @@ export class ActiveMessageSettingController {
     }
 
     @Delete(':workspaceId/active-message-settings/:activeMessageId')
-    @RolesDecorator([PredefinedRoles.SYSTEM_ADMIN, PredefinedRoles.WORKSPACE_ADMIN, PredefinedRoles.SYSTEM_DEV_ADMIN])
+    @RolesDecorator([PredefinedRoles.SYSTEM_ADMIN, PredefinedRoles.SYSTEM_DEV_ADMIN])
     @UseGuards(AuthGuard, RolesGuard)
     async delete(@Param('activeMessageId') id: string) {
         return await this.activeMessageSettingService.delete(parseInt(id));

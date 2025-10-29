@@ -417,6 +417,11 @@ export class ConversationService {
                         `CASE WHEN mem.type = 'bot' OR mem.type = 'system' THEN 'Bot' ELSE mem.name END AS agg_field`,
                     )
                     .addGroupBy('agg_field');
+            } else if (
+                template.groupField == TemplateGroupField.assigned_to_team_id &&
+                template.metric == TemplateMetrics.average_team_time_attendance
+            ) {
+                query = query.addSelect(`tt.team_id as agg_field`).addGroupBy('agg_field');
             } else {
                 query = query.addSelect(`conv.${template.groupField} as agg_field`).addGroupBy('agg_field');
             }
@@ -737,6 +742,25 @@ export class ConversationService {
             queryBuilder = queryBuilder.andWhere(`conv.created_by_channel <> 'webemulator'`);
         }
 
+        if (
+            template.groupField == TemplateGroupField.assigned_to_team_id &&
+            template.metric == TemplateMetrics.average_team_time_attendance
+        ) {
+            queryBuilder.innerJoin(
+                (sub) => {
+                    return sub
+                        .select('tt_inner.conversation_id', 'conversation_id')
+                        .addSelect('tt_inner.team_id', 'team_id')
+                        .addSelect('SUM(tt_inner.metrics_attendance_time)', 'team_sum')
+                        .from('analytics.team_time', 'tt_inner')
+                        .groupBy('tt_inner.conversation_id')
+                        .addGroupBy('tt_inner.team_id');
+                },
+                'tt',
+                'tt.conversation_id = conv.id',
+            );
+        }
+
         return { query: queryBuilder, inTags, notInTags };
     }
 
@@ -744,6 +768,16 @@ export class ConversationService {
         switch (template.metric) {
             case TemplateMetrics.first_agent_reply_avg:
                 return `AVG(conv.metrics_time_to_agent_reply) agg_result`;
+            case TemplateMetrics.average_team_time_attendance:
+                if (
+                    template.groupField == TemplateGroupField.assigned_to_team_id &&
+                    template.metric == TemplateMetrics.average_team_time_attendance
+                ) {
+                    const selectClause = `AVG(tt.team_sum) agg_result`;
+                    return selectClause;
+                } else {
+                    return `AVG(conv.metrics_time_to_close) agg_result`;
+                }
             case TemplateMetrics.time_to_close:
                 return `AVG(conv.metrics_time_to_close) agg_result`;
             case TemplateMetrics.rating_avg:

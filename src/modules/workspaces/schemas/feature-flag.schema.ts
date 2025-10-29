@@ -2,6 +2,7 @@ import * as mongoose from 'mongoose';
 
 export const FeatureFlagSchema = new mongoose.Schema(
     {
+        //manter a flag pra compatibilidade com os que já usam precisa fazer migração via SQL
         rating: Boolean,
         enableChannelApi: Boolean,
         dashboardNewVersion: Boolean,
@@ -29,7 +30,6 @@ export const FeatureFlagSchema = new mongoose.Schema(
         enableAudioTranscription: { type: Boolean, default: true },
         enableBotAudioTranscription: Boolean,
         enableUploadErpDocuments: Boolean,
-        enableConcatAgentNameInMessage: Boolean,
         enableContactV2: Boolean,
     },
     { versionKey: false, _id: false, strict: false }, // com strict = false permite adicionar outras chaves que não estejam listadas no enum

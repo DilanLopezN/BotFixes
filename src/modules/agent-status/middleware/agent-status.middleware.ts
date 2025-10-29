@@ -55,10 +55,14 @@ export class AgentStatusMiddleware implements NestMiddleware {
                 this.generalBreakSettingService.getByWorkspaceId(workspaceId),
             ]);
 
+            // Verifica se o usuário está na lista de excluídos da pausa automática
+            const isExcludedUser = generalBreakSettingByWorkspace?.excludedUserIds?.includes(userId);
+
             if (
                 workspace?.advancedModuleFeatures?.enableAgentStatus &&
                 workspace?.generalConfigs?.enableAgentStatusForAgents &&
-                generalBreakSettingByWorkspace?.enabled
+                generalBreakSettingByWorkspace?.enabled &&
+                !isExcludedUser
             ) {
                 const activeRecord = await this.workingTimeService.findActiveByUser(userId);
 

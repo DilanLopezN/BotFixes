@@ -6,13 +6,22 @@ import { ChannelConfigService } from '../../channel-config/channel-config.servic
 
 @Injectable()
 export class ExternalDataService {
-    private interactionsService: InteractionsService;
-    private channelConfigService: ChannelConfigService;
+    private _interactionsService: InteractionsService;
+    private _channelConfigService: ChannelConfigService;
     constructor(private readonly moduleRef: ModuleRef) {}
 
-    async onApplicationBootstrap() {
-        this.interactionsService = this.moduleRef.get<InteractionsService>(InteractionsService, { strict: false });
-        this.channelConfigService = this.moduleRef.get<ChannelConfigService>(ChannelConfigService, { strict: false });
+    private get interactionsService(): InteractionsService {
+        if (!this._interactionsService) {
+            this._interactionsService = this.moduleRef.get<InteractionsService>(InteractionsService, { strict: false });
+        }
+        return this._interactionsService;
+    }
+
+    private get channelConfigService(): ChannelConfigService {
+        if (!this._channelConfigService) {
+            this._channelConfigService = this.moduleRef.get<ChannelConfigService>(ChannelConfigService, { strict: false });
+        }
+        return this._channelConfigService;
     }
 
     async updateInteractionWelcome(workspaceId: string) {

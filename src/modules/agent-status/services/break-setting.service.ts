@@ -21,6 +21,16 @@ export class BreakSettingService {
     ) {}
 
     async create(data: CreateBreakSettingData): Promise<BreakSetting> {
+        const existingBreakSetting = await this.breakSettingRepository
+            .createQueryBuilder('breakSetting')
+            .where('breakSetting.workspaceId = :workspaceId', { workspaceId: data.workspaceId })
+            .andWhere('unaccent(LOWER(breakSetting.name)) = unaccent(LOWER(:name))', { name: data.name })
+            .getOne();
+
+        if (existingBreakSetting) {
+            throw Exceptions.ALREADY_EXIST_GENERAL_BREAK_SETTING;
+        }
+
         const breakSetting = this.breakSettingRepository.create({
             name: data.name,
             durationSeconds: data.durationSeconds,
@@ -36,6 +46,19 @@ export class BreakSettingService {
 
         if (!breakSetting) {
             throw Exceptions.NOT_FOUND;
+        }
+
+        if (data.name && data.name !== breakSetting.name) {
+            const existingBreakSetting = await this.breakSettingRepository
+                .createQueryBuilder('breakSetting')
+                .where('breakSetting.workspaceId = :workspaceId', { workspaceId })
+                .andWhere('unaccent(LOWER(breakSetting.name)) = unaccent(LOWER(:name))', { name: data.name })
+                .andWhere('breakSetting.id != :id', { id })
+                .getOne();
+
+            if (existingBreakSetting) {
+                throw Exceptions.ALREADY_EXIST_GENERAL_BREAK_SETTING;
+            }
         }
 
         Object.assign(breakSetting, data);

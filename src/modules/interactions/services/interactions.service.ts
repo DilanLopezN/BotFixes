@@ -1110,30 +1110,9 @@ export class InteractionsService extends MongooseAbstractionService<Interaction>
                 botId,
                 type: { $in: [InteractionType.welcome, InteractionType.interaction, InteractionType.fallback] },
                 $or: [
-                    {
-                        $expr: {
-                            $gt: [
-                                { $toDate: '$deletedAt' },
-                                { $toDate: { $ifNull: ['$publishedAt', botPublicationDate] } },
-                            ],
-                        },
-                    },
-                    {
-                        $expr: {
-                            $gt: [
-                                { $toDate: '$updatedAt' },
-                                { $toDate: { $ifNull: ['$publishedAt', botPublicationDate] } },
-                            ],
-                        },
-                    },
-                    {
-                        $expr: {
-                            $gt: [
-                                { $toDate: '$createdAt' },
-                                { $toDate: { $ifNull: ['$publishedAt', botPublicationDate] } },
-                            ],
-                        },
-                    },
+                    { $expr: { $gt: [{ $toDate: '$deletedAt' }, { $literal: botPublicationDate }] } },
+                    { $expr: { $gt: [{ $toDate: '$updatedAt' }, { $literal: botPublicationDate }] } },
+                    { $expr: { $gt: [{ $toDate: '$createdAt' }, { $literal: botPublicationDate }] } },
                 ],
             })
             .exec();

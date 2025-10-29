@@ -14,25 +14,58 @@ import { ActiveMessageStatusService } from '../../active-message/services/active
 
 @Injectable()
 export class ExternalDataService {
-    private activeMessageSettingService: ActiveMessageSettingService;
-    private activeMessageService: ActiveMessageService;
-    private sendMessageService: SendMessageService;
-    private templateMessageService: TemplateMessageService;
-    private interactionsService: InteractionsService;
-    private activeMessageStatusService: ActiveMessageStatusService;
+    private _activeMessageSettingService: ActiveMessageSettingService;
+    private _activeMessageService: ActiveMessageService;
+    private _sendMessageService: SendMessageService;
+    private _templateMessageService: TemplateMessageService;
+    private _interactionsService: InteractionsService;
+    private _activeMessageStatusService: ActiveMessageStatusService;
 
     constructor(private readonly moduleRef: ModuleRef) {}
 
-    async onApplicationBootstrap() {
-        this.activeMessageSettingService = this.moduleRef.get<ActiveMessageSettingService>(
-            ActiveMessageSettingService,
-            { strict: false },
-        );
-        this.activeMessageService = this.moduleRef.get<ActiveMessageService>(ActiveMessageService, { strict: false });
-        this.activeMessageStatusService = this.moduleRef.get<ActiveMessageStatusService>(ActiveMessageStatusService, { strict: false });
-        this.sendMessageService = this.moduleRef.get<SendMessageService>(SendMessageService, { strict: false });
-        this.templateMessageService = this.moduleRef.get<TemplateMessageService>(TemplateMessageService, { strict: false });
-        this.interactionsService = this.moduleRef.get<InteractionsService>(InteractionsService, { strict: false });
+    private get activeMessageSettingService(): ActiveMessageSettingService {
+        if (!this._activeMessageSettingService) {
+            this._activeMessageSettingService = this.moduleRef.get<ActiveMessageSettingService>(
+                ActiveMessageSettingService,
+                { strict: false },
+            );
+        }
+        return this._activeMessageSettingService;
+    }
+
+    private get activeMessageService(): ActiveMessageService {
+        if (!this._activeMessageService) {
+            this._activeMessageService = this.moduleRef.get<ActiveMessageService>(ActiveMessageService, { strict: false });
+        }
+        return this._activeMessageService;
+    }
+
+    private get sendMessageService(): SendMessageService {
+        if (!this._sendMessageService) {
+            this._sendMessageService = this.moduleRef.get<SendMessageService>(SendMessageService, { strict: false });
+        }
+        return this._sendMessageService;
+    }
+
+    private get templateMessageService(): TemplateMessageService {
+        if (!this._templateMessageService) {
+            this._templateMessageService = this.moduleRef.get<TemplateMessageService>(TemplateMessageService, { strict: false });
+        }
+        return this._templateMessageService;
+    }
+
+    private get interactionsService(): InteractionsService {
+        if (!this._interactionsService) {
+            this._interactionsService = this.moduleRef.get<InteractionsService>(InteractionsService, { strict: false });
+        }
+        return this._interactionsService;
+    }
+
+    private get activeMessageStatusService(): ActiveMessageStatusService {
+        if (!this._activeMessageStatusService) {
+            this._activeMessageStatusService = this.moduleRef.get<ActiveMessageStatusService>(ActiveMessageStatusService, { strict: false });
+        }
+        return this._activeMessageStatusService;
     }
 
     async listEnabledByWorkspaceId(workspaceId: string, objective?: ObjectiveType) {

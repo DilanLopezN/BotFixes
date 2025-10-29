@@ -40,6 +40,7 @@ export const PredefinedRoles: {
     SYSTEM_DEV_ADMIN: RoleData;
     DASHBOARD_ADMIN: RoleData;
     SYSTEM_FARMER_ADMIN: RoleData;
+    SYSTEM_SUPPORT_ADMIN: RoleData;
 } = {
     SYSTEM_ADMIN: {
         role: UserRoles.SYSTEM_ADMIN,
@@ -103,6 +104,12 @@ export const PredefinedRoles: {
     },
     SYSTEM_FARMER_ADMIN: {
         role: UserRoles.SYSTEM_FARMER_ADMIN,
+        idLocation: RoleDataType.NONE,
+        resource: PermissionResources.ANY,
+        resourceIdName: '',
+    },
+    SYSTEM_SUPPORT_ADMIN: {
+        role: UserRoles.SYSTEM_SUPPORT_ADMIN,
         idLocation: RoleDataType.NONE,
         resource: PermissionResources.ANY,
         resourceIdName: '',

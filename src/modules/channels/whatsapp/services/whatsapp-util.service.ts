@@ -6,6 +6,7 @@ import { CustomBadRequestException, INTERNAL_ERROR_THROWER } from '../../../auth
 import { CompleteChannelConfig } from '../../../channel-config/channel-config.service';
 import { Dialog360Service } from '../providers/dialog360/services/dialog360.service';
 import { ChannelConfigWhatsappProvider } from '../../../channel-config/schemas/channel-config.schema';
+import { GupshupV2Service } from '../providers/gupshup-v2/services/gupshup-v2.service';
 
 @Injectable()
 export class WhatsappUtilService {
@@ -20,10 +21,12 @@ export class WhatsappUtilService {
             case ChannelConfigWhatsappProvider.d360:
                 return this.moduleRef.get<Dialog360Service>(Dialog360Service, { strict: false });
             default:
-                throw INTERNAL_ERROR_THROWER(
-                    'Invalid channel',
-                    new CustomBadRequestException('Invalid channelIdConfig in WhatsappService', 'INVALID_CHANNEL'),
-                );
+                return this.moduleRef.get<GupshupV2Service>(GupshupV2Service, { strict: false });
+
+            // throw INTERNAL_ERROR_THROWER(
+            //     'Invalid channel',
+            //     new CustomBadRequestException('Invalid channelIdConfig in WhatsappService', 'INVALID_CHANNEL'),
+            // );
         }
     }
 }

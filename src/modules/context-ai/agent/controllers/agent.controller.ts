@@ -91,4 +91,13 @@ export class AgentController {
             data: result,
         };
     }
+
+    @HttpCode(HttpStatus.OK)
+    @Post('canAgentRespondWelcome')
+    @RolesDecorator(defaultPermissionRoutes)
+    @UseGuards(AuthGuard, RolesGuard)
+    async canAgentRespondWelcome(@Param('workspaceId') workspaceId: string): Promise<DefaultResponse<boolean>> {
+        const canRespond = await this.agentService.canAgentRespondWelcome(workspaceId);
+        return { data: canRespond };
+    }
 }

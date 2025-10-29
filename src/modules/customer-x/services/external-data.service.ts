@@ -5,13 +5,22 @@ import { ConversationService } from '../../conversation/services/conversation.se
 
 @Injectable()
 export class ExternalDataService {
-    private workspaceService: WorkspaceService;
-    private conversationService: ConversationService;
+    private _workspaceService: WorkspaceService;
+    private _conversationService: ConversationService;
     constructor(private readonly moduleRef: ModuleRef) {}
 
-    async onApplicationBootstrap() {
-        this.workspaceService = this.moduleRef.get<WorkspaceService>(WorkspaceService, { strict: false });
-        this.conversationService = this.moduleRef.get<ConversationService>(ConversationService, { strict: false });
+    private get workspaceService(): WorkspaceService {
+        if (!this._workspaceService) {
+            this._workspaceService = this.moduleRef.get<WorkspaceService>(WorkspaceService, { strict: false });
+        }
+        return this._workspaceService;
+    }
+
+    private get conversationService(): ConversationService {
+        if (!this._conversationService) {
+            this._conversationService = this.moduleRef.get<ConversationService>(ConversationService, { strict: false });
+        }
+        return this._conversationService;
     }
 
     async getWorkspaces() {
@@ -22,17 +31,17 @@ export class ExternalDataService {
         }
     }
 
-    async getWorkspaceById(wokspaceId: string) {
+    async getWorkspaceById(workspaceId: string) {
         try {
-            return await this.workspaceService.getOneByIdAndVinculedAccount(wokspaceId);
+            return await this.workspaceService.getOneByIdAndVinculedAccount(workspaceId);
         } catch (e) {
             return null;
         }
     }
 
-    async getCountAttendanceWaitingTimeGroupedBy(wokspaceId: string) {
+    async getCountAttendanceWaitingTimeGroupedBy(workspaceId: string) {
         try {
-            return await this.conversationService.getCountAttendanceWaitingTimeGroupedBy(wokspaceId);
+            return await this.conversationService.getCountAttendanceWaitingTimeGroupedBy(workspaceId);
         } catch (e) {
             return [];
         }

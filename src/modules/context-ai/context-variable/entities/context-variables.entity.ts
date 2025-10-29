@@ -31,7 +31,4 @@ export class ContextVariable implements IContextVariable {
 
     @Column({ name: 'updated_at', nullable: true, type: 'timestamp without time zone' })
     updatedAt: Date;
-
-    @Column({ name: 'deleted_at', nullable: true, type: 'timestamp without time zone' })
-    deletedAt: Date;
 }

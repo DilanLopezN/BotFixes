@@ -13,6 +13,7 @@ export enum StatusScheduleEnum {
     open_cvs = 'open_cvs',
     no_recipient = 'no_recipient',
     invalid_recipient = 'invalid_recipient',
+    confirm_reschedule = 'confirm_reschedule',
 }
 
 export enum feedbackEnum {
@@ -88,6 +89,11 @@ export class ScheduleFilterListDto {
     @IsOptional()
     @IsString()
     patientCode?: string;
+
+    @ApiProperty({ required: false })
+    @IsOptional()
+    @IsString()
+    aliasSettingId?: string;
 
     @ApiProperty({ required: false })
     @IsOptional()

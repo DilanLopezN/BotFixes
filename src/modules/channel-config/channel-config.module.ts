@@ -10,9 +10,11 @@ import { EventsModule } from './../events/events.module';
 import { StorageModule } from '../storage/storage.module';
 import { Amqpv2Module } from '../_core/amqpv2/amqpv2.module';
 import { CacheModule } from '../_core/cache/cache.module';
+import { ChannelConfigPrivateController } from './channel-config-private.controller';
+import { ExternalDataService } from './external-data.service';
 
 @Module({
-    controllers: [ChannelConfigController],
+    controllers: [ChannelConfigController, ChannelConfigPrivateController],
     imports: [
         MongooseModule.forFeature([{ name: 'ChannelConfig', schema: ChannelConfigSchema }]),
         forwardRef(() => BotsModule),
@@ -22,7 +24,7 @@ import { CacheModule } from '../_core/cache/cache.module';
         Amqpv2Module,
         CacheModule,
     ],
-    providers: [ChannelConfigService],
+    providers: [ChannelConfigService, ExternalDataService],
     exports: [ChannelConfigService],
 })
 export class ChannelConfigModule {

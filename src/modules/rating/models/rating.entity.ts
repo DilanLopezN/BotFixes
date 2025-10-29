@@ -25,8 +25,8 @@ export class Rating {
     @Column({ name: 'closed_id', nullable: true })
     closedBy?: string;
 
-    @Column({ array: true, nullable: true, length: 31, type: 'varchar' })
-    tags?: string|string[];
+    @Column({ array: true, nullable: true, type: 'varchar' })
+    tags?: string | string[];
 
     @Column()
     channel: string;

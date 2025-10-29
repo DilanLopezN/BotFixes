@@ -14,8 +14,8 @@ import * as moment from 'moment';
 import { Model, Types } from 'mongoose';
 import { isAnySystemAdmin, isSystemAdmin, isWorkspaceAdmin } from '../../common/utils/roles';
 import { castObjectId, castObjectIdToString } from '../../common/utils/utils';
-import { TeamService } from '../team-v2/services/team.service';
 import { CacheService } from '../_core/cache/cache.service';
+import { TeamService } from '../team-v2/services/team.service';
 import { RoleDto, UserLanguage } from '../users/dtos/user.dto';
 import { CognitoIdentityService } from '../users/services/cognito-identity.service';
 import { UsersHistoryService } from '../users/services/users-history.service';
@@ -716,5 +716,91 @@ export class WorkspaceUserService {
     async getUserTeams(workspaceId: string, userId: string) {
         const teams = await this.teamService.getUserTeams(userId, workspaceId);
         return { data: teams };
+    }
+
+    async getUsersForExport(
+        workspaceId: string,
+        status: 'active' | 'inactive' | 'all' = 'all',
+        search?: string,
+    ): Promise<
+        Array<{
+            Nome: string;
+            'Tipo de usuário': string;
+            Email: string;
+            Expiração: string;
+            Times: string;
+            Status: string;
+        }>
+    > {
+        const baseElemMatch: any = {
+            resourceId: new Types.ObjectId(workspaceId),
+            role: { $in: this.workspaceRoles },
+        };
+
+        let roleFilter: any = { roles: { $elemMatch: baseElemMatch } };
+        if (status === 'active') {
+            roleFilter = {
+                roles: {
+                    $elemMatch: {
+                        resourceId: new Types.ObjectId(workspaceId),
+                        role: { $in: [UserRoles.WORKSPACE_ADMIN, UserRoles.WORKSPACE_AGENT] },
+                    },
+                },
+            };
+        } else if (status === 'inactive') {
+            roleFilter = {
+                roles: {
+                    $elemMatch: {
+                        resourceId: new Types.ObjectId(workspaceId),
+                        role: UserRoles.WORKSPACE_INACTIVE,
+                    },
+                },
+            };
+        }
+
+        const users = await this.userService
+            .getModel()
+            .find({
+                ...roleFilter,
+                ...(search ? this.userService.getSearchFilter(search) : {}),
+                deletedAt: { $eq: null },
+            })
+            .select('_id name email roles passwordExpires')
+            .lean();
+
+        const rows = [] as Array<{
+            Nome: string;
+            'Tipo de usuário': string;
+            Email: string;
+            Expiração: string;
+            Times: string;
+            Status: string;
+        }>;
+
+        for (const user of users) {
+            const hasWorkspaceAdmin = (user.roles || []).some(
+                (r) => r.role === UserRoles.WORKSPACE_ADMIN && String(r.resourceId) === String(workspaceId),
+            );
+            const isInactive = (user.roles || []).some(
+                (r) => r.role === UserRoles.WORKSPACE_INACTIVE && String(r.resourceId) === String(workspaceId),
+            );
+
+            const tipoUsuario = hasWorkspaceAdmin ? 'adm' : 'agente';
+            const statusLabel = isInactive ? 'inativo' : 'ativo';
+
+            const teams = await this.teamService.getUserTeams(String(user._id), workspaceId);
+            const teamNames = (teams || []).map((t: any) => t.name).join(', ');
+
+            rows.push({
+                Nome: user.name || '',
+                'Tipo de usuário': tipoUsuario,
+                Email: user.email || '',
+                Expiração: user.passwordExpires ? moment(user.passwordExpires).format('DD/MM/YYYY') : '',
+                Times: teamNames,
+                Status: statusLabel,
+            });
+        }
+
+        return rows;
     }
 }

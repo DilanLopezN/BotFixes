@@ -8,17 +8,20 @@ import axios, { AxiosInstance } from 'axios';
 @Injectable()
 export class ExternalDataService {
     private dockerHubApi: AxiosInstance;
-    private healthIntegrationService: HealthIntegrationService;
+    private _healthIntegrationService: HealthIntegrationService;
     constructor(private readonly moduleRef: ModuleRef) {
         this.dockerHubApi = axios.create({
             baseURL: 'https://hub.docker.com/v2',
         });
     }
 
-    async onApplicationBootstrap() {
-        this.healthIntegrationService = this.moduleRef.get<HealthIntegrationService>(HealthIntegrationService, {
-            strict: false,
-        });
+    private get healthIntegrationService(): HealthIntegrationService {
+        if (!this._healthIntegrationService) {
+            this._healthIntegrationService = this.moduleRef.get<HealthIntegrationService>(HealthIntegrationService, {
+                strict: false,
+            });
+        }
+        return this._healthIntegrationService;
     }
 
     async getIntegrationById(integrationId: string) {

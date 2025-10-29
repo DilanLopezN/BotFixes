@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { KissbotEventDataType, KissbotEventSource, KissbotEventType } from 'kissbot-core';
 import { omit } from 'lodash';
@@ -136,39 +136,67 @@ export class WorkspacesService extends MongooseAbstractionService<Workspace> {
         }
     }
 
-    async updateFlagsAndConfigs(workspaceId: string, dto: UpdateWorkspaceFlagsDto, user?: User): Promise<Workspace> {
-        const updatePayload = { $set: {} };
+    async updateFlagsAndConfigs(
+        workspaceId: string,
+        dto: UpdateWorkspaceFlagsDto,
+        user?: User,
+        internalRequest: boolean = false,
+    ): Promise<Workspace> {
+        const updatePayload = { $set: {} as Record<string, any> };
 
-        if (dto.featureFlag) {
-            if (!isAnySystemAdmin(user)) {
-                throw new ForbiddenException('Você não tem permissão para atualizar featureFlag.');
-            }
-            for (const key in dto.featureFlag) {
-                if (Object.prototype.hasOwnProperty.call(dto.featureFlag, key)) {
-                    updatePayload.$set[`featureFlag.${key}`] = dto.featureFlag[key];
-                }
-            }
-        }
-
-        if (dto.generalConfigs) {
-            for (const key in dto.generalConfigs) {
-                if (Object.prototype.hasOwnProperty.call(dto.generalConfigs, key)) {
-                    updatePayload.$set[`generalConfigs.${key}`] = dto.generalConfigs[key];
-                }
+        // Executar operações externas em sequência
+        if (dto?.generalConfigs?.enableRating) {
+            const [ratingSetting, err] = await this.externalDataService.createDefaultRatingSettingIfNotExist(
+                workspaceId,
+            );
+            if (err) {
+                throw new InternalServerErrorException('Erro ao criar configuração de avaliação padrão', err.message);
             }
         }
 
+        if (dto?.featureFlag?.campaign) {
+            dto.featureFlag.activeMessage = true;
+            await this.externalDataService.createDefaultActiveMessages(workspaceId);
+        }
+
+        if (dto?.featureFlag?.dashboardNewVersion) {
+            dto.featureFlag.dashboardNewVersion = true;
+            await this.externalDataService.createDefaultConversationTemplates(workspaceId);
+        }
+
+        if (dto?.featureFlag && !internalRequest && !isAnySystemAdmin(user)) {
+            throw new ForbiddenException('Você não tem permissão para atualizar featureFlag.');
+        }
+
+        // Construir payload de atualização para featureFlags
+        if (dto?.featureFlag) {
+            Object.entries(dto.featureFlag).forEach(([key, value]) => {
+                updatePayload.$set[`featureFlag.${key}`] = value;
+            });
+        }
+
+        // Construir payload de atualização para generalConfigs
+        if (dto?.generalConfigs) {
+            Object.entries(dto.generalConfigs).forEach(([key, value]) => {
+                updatePayload.$set[`generalConfigs.${key}`] = value;
+            });
+        }
+
+        // Se não há mudanças, retorna workspace atual
         if (Object.keys(updatePayload.$set).length === 0) {
             return this.getOne(workspaceId);
         }
 
+        // Executar atualização do banco e limpeza de cache em sequência
         const updatedWorkspace = await this.model.findByIdAndUpdate(workspaceId, updatePayload, { new: true }).exec();
+
+        await (this.cacheService?.remove(workspaceId) || Promise.resolve());
 
         if (!updatedWorkspace) {
             throw new NotFoundException(`Workspace com ID "${workspaceId}" não encontrado ao tentar atualizar.`);
         }
 
-        this.eventsService.sendEvent({
+        await this.eventsService.sendEvent({
             data: updatedWorkspace,
             dataType: KissbotEventDataType.WORKSPACE,
             source: KissbotEventSource.KISSBOT_API,
@@ -361,7 +389,7 @@ export class WorkspacesService extends MongooseAbstractionService<Workspace> {
     async isWorkspaceRatingEnabled(workspaceId: string): Promise<boolean> {
         try {
             const result = await this.model.findOne({ _id: workspaceId }, { featureFlag: 1 });
-            return result?.featureFlag?.rating;
+            return result?.generalConfigs?.enableRating;
         } catch (error) {
             console.log('Error workspaceService.isWorkspaceRatingEnabled: ', error);
             return false;

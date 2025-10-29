@@ -5,14 +5,17 @@ import { AIProviderType } from '../../context-ai/ai-provider/interfaces';
 
 @Injectable()
 export class ExternalDataService {
-    private aiProviderService: AiProviderService;
+    private _aiProviderService: AiProviderService;
 
     constructor(private readonly moduleRef: ModuleRef) {}
 
-    async onApplicationBootstrap() {
-        this.aiProviderService = this.moduleRef.get<AiProviderService>(AiProviderService, {
-            strict: false,
-        });
+    private get aiProviderService(): AiProviderService {
+        if (!this._aiProviderService) {
+            this._aiProviderService = this.moduleRef.get<AiProviderService>(AiProviderService, {
+                strict: false,
+            });
+        }
+        return this._aiProviderService;
     }
 
     async sendMessageToAi(messageOptions: {

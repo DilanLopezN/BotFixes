@@ -22,30 +22,75 @@ import { FlowDataService } from '../../whatsapp-flow/services/flow-data.service'
 
 @Injectable()
 export class ExternalDataService {
-    private channelConfigService: ChannelConfigService;
-    private partnerApiService: PartnerApiService;
-    private workspacesService: WorkspacesService;
-    private teamService: TeamService;
-    private activeMessageSettingService: ActiveMessageSettingService;
-    private campaignService: CampaignService;
-    private flowDataService: FlowDataService;
-    private whatsappBridgeService: WhatsappBridgeService;
+    private _channelConfigService: ChannelConfigService;
+    private _partnerApiService: PartnerApiService;
+    private _workspacesService: WorkspacesService;
+    private _teamService: TeamService;
+    private _activeMessageSettingService: ActiveMessageSettingService;
+    private _campaignService: CampaignService;
+    private _flowDataService: FlowDataService;
+    private _whatsappBridgeService: WhatsappBridgeService;
     constructor(private readonly moduleRef: ModuleRef) {}
 
-    async onApplicationBootstrap() {
-        this.channelConfigService = this.moduleRef.get<ChannelConfigService>(ChannelConfigService, { strict: false });
-        this.partnerApiService = this.moduleRef.get<PartnerApiService>(PartnerApiService, { strict: false });
-        this.workspacesService = this.moduleRef.get<WorkspacesService>(WorkspacesService, { strict: false });
-        this.teamService = this.moduleRef.get<TeamService>(TeamService, { strict: false });
-        this.activeMessageSettingService = this.moduleRef.get<ActiveMessageSettingService>(
-            ActiveMessageSettingService,
-            { strict: false },
-        );
-        this.campaignService = this.moduleRef.get<CampaignService>(CampaignService, { strict: false });
-        this.flowDataService = this.moduleRef.get<FlowDataService>(FlowDataService, { strict: false });
-        this.whatsappBridgeService = this.moduleRef.get<WhatsappBridgeService>(WhatsappBridgeService, {
-            strict: false,
-        });
+    private get channelConfigService(): ChannelConfigService {
+        if (!this._channelConfigService) {
+            this._channelConfigService = this.moduleRef.get<ChannelConfigService>(ChannelConfigService, { strict: false });
+        }
+        return this._channelConfigService;
+    }
+
+    private get partnerApiService(): PartnerApiService {
+        if (!this._partnerApiService) {
+            this._partnerApiService = this.moduleRef.get<PartnerApiService>(PartnerApiService, { strict: false });
+        }
+        return this._partnerApiService;
+    }
+
+    private get workspacesService(): WorkspacesService {
+        if (!this._workspacesService) {
+            this._workspacesService = this.moduleRef.get<WorkspacesService>(WorkspacesService, { strict: false });
+        }
+        return this._workspacesService;
+    }
+
+    private get teamService(): TeamService {
+        if (!this._teamService) {
+            this._teamService = this.moduleRef.get<TeamService>(TeamService, { strict: false });
+        }
+        return this._teamService;
+    }
+
+    private get activeMessageSettingService(): ActiveMessageSettingService {
+        if (!this._activeMessageSettingService) {
+            this._activeMessageSettingService = this.moduleRef.get<ActiveMessageSettingService>(
+                ActiveMessageSettingService,
+                { strict: false },
+            );
+        }
+        return this._activeMessageSettingService;
+    }
+
+    private get campaignService(): CampaignService {
+        if (!this._campaignService) {
+            this._campaignService = this.moduleRef.get<CampaignService>(CampaignService, { strict: false });
+        }
+        return this._campaignService;
+    }
+
+    private get flowDataService(): FlowDataService {
+        if (!this._flowDataService) {
+            this._flowDataService = this.moduleRef.get<FlowDataService>(FlowDataService, { strict: false });
+        }
+        return this._flowDataService;
+    }
+
+    private get whatsappBridgeService(): WhatsappBridgeService {
+        if (!this._whatsappBridgeService) {
+            this._whatsappBridgeService = this.moduleRef.get<WhatsappBridgeService>(WhatsappBridgeService, {
+                strict: false,
+            });
+        }
+        return this._whatsappBridgeService;
     }
 
     async getChannelConfigByWorkspaceIdAndGupshup(workspaceId: string) {

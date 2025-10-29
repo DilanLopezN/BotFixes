@@ -2,6 +2,7 @@ export interface CreateScheduleSettingDto {
     getScheduleInterval: number;
     integrationId: string;
     name: string;
+    alias?: string;
     active: boolean;
     extractAt: number;
     extractRule: string;
@@ -24,8 +25,9 @@ export interface CreateScheduleSettingDto {
 export interface UpdateScheduleSettingDto {
     getScheduleInterval: number;
     integrationId: string;
-    active: boolean;
+    // active: boolean;
     name: string;
+    alias?: string;
     extractAt: number;
     extractRule: string;
     useSpecialityOnExamMessage?: boolean;

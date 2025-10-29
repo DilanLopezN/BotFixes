@@ -25,6 +25,7 @@ import { AnalyticsHealthCheckService } from './services/analytics-health-check.s
 import { AgentConversationMetricsService } from './services/agent-conversation-metrics.service';
 import { ExternalDataService } from './services/external-data.service';
 import { AgentStatusMiddleware } from '../../agent-status/middleware/agent-status.middleware';
+import { ConversationAppointmentService } from './services/conversation-appointment.service';
 
 @Module({
     providers: [
@@ -37,6 +38,7 @@ import { AgentStatusMiddleware } from '../../agent-status/middleware/agent-statu
         AnalyticsHealthCheckService,
         AgentConversationMetricsService,
         ExternalDataService,
+        ConversationAppointmentService,
     ],
     controllers: [AnalyticsController],
     imports: [

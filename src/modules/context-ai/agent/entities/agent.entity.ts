@@ -1,10 +1,12 @@
 import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
-import { AgentMode, IAgent } from '../interfaces/agent.interface';
+import { AgentMode, AgentContext, IAgent } from '../interfaces/agent.interface';
 
 export enum AgentType {
     REPORT_PROCESSOR_DETECTION = 'report_processor_detection',
     RAG = 'rag',
     ENTITIES_DETECTION = 'entities_detection',
+    CONFIRMATION_DETECTION = 'confirmation_detection',
+    CONVERSATIONAL = 'conversational',
 }
 
 @Index(['workspaceId', 'botId'])
@@ -41,7 +43,6 @@ export class Agent implements IAgent {
         name: 'agent_type',
         type: 'enum',
         enum: AgentType,
-        default: AgentType.RAG,
     })
     agentType: AgentType;
 
@@ -49,13 +50,31 @@ export class Agent implements IAgent {
         name: 'agent_mode',
         type: 'enum',
         enum: AgentMode,
-        default: AgentMode.RAG_ONLY,
+        default: null,
         nullable: true,
     })
     agentMode: AgentMode;
 
+    @Column({
+        name: 'agent_context',
+        type: 'enum',
+        enum: AgentContext,
+        default: null,
+        nullable: true,
+    })
+    agentContext: AgentContext | null;
+
     @Column({ name: 'model_name', nullable: true })
     modelName: string;
+
+    @Column({ name: 'integration_id', nullable: true })
+    integrationId: string;
+
+    @Column({ name: 'allow_send_audio', default: false })
+    allowSendAudio: boolean;
+
+    @Column({ name: 'allow_response_welcome', default: false })
+    allowResponseWelcome: boolean;
 
     @Column({ name: 'created_at', type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
     createdAt: Date;

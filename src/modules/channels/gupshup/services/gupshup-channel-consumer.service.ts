@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-misused-promises */
 /* eslint-disable @typescript-eslint/no-floating-promises */
 import { Injectable, Logger } from '@nestjs/common';
-import { AckType, ActivityType } from 'kissbot-core';
+import { AckType, ActivityType, IResponseElementBillingCard } from 'kissbot-core';
 import { CacheService } from './../../../_core/cache/cache.service';
 import { Activity } from './../../../activity/interfaces/activity';
 import { ChannelIdConfig } from './../../../channel-config/interfaces/channel-config.interface';
@@ -21,6 +21,7 @@ import { rabbitMsgCounter, rabbitMsgCounterError, rabbitMsgLatency } from '../..
 import { castObjectIdToString } from '../../../../common/utils/utils';
 import { ExternalDataService } from './external-data.service';
 import { ChannelConfigService } from './../../../channel-config/channel-config.service';
+import { PartnerApiService } from './partner-api.service';
 interface GupshupData {
     apikey: string;
     phoneNumber: string;
@@ -40,6 +41,7 @@ export class GupshupChannelConsumer {
         private readonly gupshupIdHashService: GupshupIdHashService,
         private readonly externalDataService: ExternalDataService,
         private readonly channelConfigService: ChannelConfigService,
+        private readonly partnerApiService: PartnerApiService,
     ) {}
 
     @RabbitSubscribe({
@@ -72,7 +74,9 @@ export class GupshupChannelConsumer {
             let response: { messageId: string };
             try {
                 try {
-                    if (activity.isHsm && activity.data?.wabaTemplateId) {
+                    if (activity?.attachments?.[0]?.contentType == 'billing_card') {
+                        response = await this.sendBillingMessageToGupshup(conversation, activity);
+                    } else if (activity.isHsm && activity.data?.wabaTemplateId) {
                         response = await this.sendTemplateMessage(activity);
                     } else if (
                         activity.attachments?.[0]?.content?.buttons.length === 1 &&
@@ -718,5 +722,75 @@ export class GupshupChannelConsumer {
         // Fallback para o método antigo caso não consiga obter do channelConfig
         const privateConversationData = await this.privateDataService.findOne({ conversationId });
         return privateConversationData.privateData;
+    }
+
+    /**
+     * Envia mensagem de cobrança usando a nova API v3 do Gupshup
+     * @param conversation - Conversação atual
+     * @param activity - Activity com os dados da mensagem
+     */
+    private async sendBillingMessageToGupshup(conversation: Conversation, activity: Activity) {
+        try {
+            const gupshupData = await this.getGupshupAccountInfos(
+                castObjectIdToString(conversation._id),
+                conversation.token,
+            );
+
+            const destination = activity.to.id;
+
+            // Obtém o appId e token da Partner API usando o gupshupAppName
+            const { appId, token } = await this.partnerApiService.getPartnerAppToken(gupshupData.gupshupAppName);
+            const attachment = activity.attachments[0] as IResponseElementBillingCard;
+            // const totalValue = attachment.items.reduce((item) => item.amount.value + total)
+            // Monta o payload no formato da nova API v3 com valores default
+            const payload = {
+                messaging_product: 'whatsapp',
+                recipient_type: 'individual',
+                to: Number(destination),
+                type: 'interactive',
+                interactive: {
+                    type: 'order_details',
+                    body: {
+                        text: attachment.text,
+                    },
+                    action: {
+                        name: 'review_and_pay',
+                        parameters: {
+                            payment_settings: attachment.buttons,
+                            ...attachment.metadata,
+                        },
+                    },
+                },
+            };
+
+            // Monta a URL com o appId obtido da Partner API
+            const url = `https://partner.gupshup.io/partner/app/${appId}/v3/message`;
+
+            const instance = this.gupshupUtilService.getAxiosInstance();
+            const response = await instance.post(url, payload, {
+                headers: {
+                    Authorization: token,
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            this.handleAxiosError(response, 'sendBillingMessage');
+
+            // O response da nova API pode ter um formato diferente, ajuste conforme necessário
+            return {
+                messageId: response?.data?.messages?.[0]?.id || response?.data?.id || response?.data?.message_id,
+            };
+        } catch (error) {
+            console.log('ERROR GupshupChannelConsumer.sendBillingMessageToGupshup: ', error);
+            Sentry.captureEvent({
+                message: 'GupshupChannelConsumer.sendBillingMessageToGupshup',
+                extra: {
+                    error,
+                    activity,
+                    conversation,
+                },
+            });
+            throw error;
+        }
     }
 }

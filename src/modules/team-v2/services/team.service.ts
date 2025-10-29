@@ -183,6 +183,17 @@ export class TeamService {
         return { data: team };
     }
 
+    async getTeamsByIds(workspaceId: string, teamIds: string[]): Promise<DefaultResponse<Team[]>> {
+        const teams = await this.model
+            .find({
+                workspaceId: castObjectId(workspaceId),
+                _id: { $in: teamIds.map((id) => castObjectId(id)) },
+            })
+            .exec();
+
+        return { data: teams };
+    }
+
     async createTeam(workspaceId: string, teamParams: CreateTeamParams): Promise<DefaultResponse<Team>> {
         let team: Team;
         try {

@@ -19,7 +19,7 @@ export interface CreateConfirmationSettingData {
 export interface UpdateConfirmationSettingData {
     id: number;
     workspaceId: string;
-    active: boolean;
+    // active: boolean;
     templateId: string;
     apiToken: string;
     sendWhatsBeforeScheduleDate?: number;

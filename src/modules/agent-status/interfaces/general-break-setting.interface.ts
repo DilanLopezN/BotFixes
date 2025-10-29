@@ -4,6 +4,7 @@ export interface GeneralBreakSettingData {
     notificationIntervalSeconds?: number;
     breakStartDelaySeconds?: number;
     maxInactiveDurationSeconds?: number;
+    excludedUserIds?: string[];
 }
 
 export interface CreateGeneralBreakSettingData {
@@ -12,6 +13,7 @@ export interface CreateGeneralBreakSettingData {
     notificationIntervalSeconds?: number;
     breakStartDelaySeconds?: number;
     maxInactiveDurationSeconds?: number;
+    excludedUserIds?: string[];
 }
 
 export interface UpdateGeneralBreakSettingData {
@@ -19,4 +21,5 @@ export interface UpdateGeneralBreakSettingData {
     notificationIntervalSeconds?: number;
     breakStartDelaySeconds?: number;
     maxInactiveDurationSeconds?: number;
+    excludedUserIds?: string[];
 }

@@ -107,6 +107,14 @@ export const HealthFlowSchema = new mongoose.Schema(
             required: false,
             enum: [...Object.values(FlowTriggerType)],
         },
+        lastPublishedToDraft: {
+            required: false,
+            type: Number,
+        },
+        lastPublishedToProd: {
+            required: false,
+            type: Number,
+        },
     },
     { versionKey: false, collection: 'health_flow', autoIndex: true, strictQuery: true },
 );

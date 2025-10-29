@@ -1152,6 +1152,8 @@ export class ConversationService extends MongooseAbstractionService<Conversation
 
                 activity.data.wabaTemplateId =
                     templateMessage?.wabaResult?.[castObjectIdToString(channel._id)]?.wabaTemplateId;
+                activity.data.elementName =
+                    templateMessage?.wabaResult?.[castObjectIdToString(channel._id)]?.elementName;
                 activity.data.templateVariableValues = activityDto.templateVariableValues;
 
                 try {
@@ -1214,7 +1216,7 @@ export class ConversationService extends MongooseAbstractionService<Conversation
                 activity.isHsm = false;
                 delete activity?.data?.wabaTemplateId;
                 delete activity?.data?.templateVariableValues;
-                delete activity?.templateId;
+                // delete activity?.templateId;
             }
 
             try {
@@ -1225,7 +1227,7 @@ export class ConversationService extends MongooseAbstractionService<Conversation
                         IdentityType.agent;
                     if (
                         workspace &&
-                        workspace?.featureFlag?.enableConcatAgentNameInMessage &&
+                        workspace?.generalConfigs?.enableConcatAgentNameInMessage &&
                         isAgent &&
                         activity?.from?.name &&
                         !activity?.quoted
@@ -2983,7 +2985,7 @@ export class ConversationService extends MongooseAbstractionService<Conversation
             assignedToTeamId: liveAgentConversation.assignedToTeamId,
             privateData,
             whatsappExpiration,
-            shouldRequestRating: !!channelConfig.workspace?.featureFlag?.rating,
+            shouldRequestRating: !!channelConfig.workspace?.generalConfigs?.enableRating,
             members: [
                 agentMember,
                 {
@@ -4639,7 +4641,7 @@ export class ConversationService extends MongooseAbstractionService<Conversation
             assignedToTeamId: team._id,
             privateData,
             whatsappExpiration,
-            shouldRequestRating: !!channelConfig.workspace?.featureFlag?.rating,
+            shouldRequestRating: !!channelConfig.workspace?.generalConfigs?.enableRating,
             members: [agentMember, contactMember],
         };
 
@@ -4977,7 +4979,7 @@ export class ConversationService extends MongooseAbstractionService<Conversation
 
     async updateDeliveredMessageInConversation(conversationId: string) {
         try {
-            await this.updateRaw(
+            const result = await this.updateRaw(
                 {
                     _id: conversationId,
                     deliveredMessage: { $ne: true },
@@ -4986,6 +4988,15 @@ export class ConversationService extends MongooseAbstractionService<Conversation
                     deliveredMessage: true,
                 },
             );
+
+            if (result?.modifiedCount > 0) {
+                this.eventsService.sendEvent({
+                    data: { conversationId: conversationId },
+                    dataType: KissbotEventDataType.CONVERSATION,
+                    source: KissbotEventSource.KISSBOT_API,
+                    type: KissbotEventType.CONVERSATION_MESSAGE_DELIVERED,
+                });
+            }
         } catch (e) {
             this.logger.log('Error on updateDeliveredMessageInConversation', { error: e });
             Sentry.captureEvent({
@@ -5121,6 +5132,8 @@ export class ConversationService extends MongooseAbstractionService<Conversation
                 message: 'ConversationService.deactivateSmtRe',
                 extra: {
                     error: e,
+                    workspaceId,
+                    conversationId,
                 },
             });
         }
@@ -5230,7 +5243,7 @@ export class ConversationService extends MongooseAbstractionService<Conversation
             }
 
             // Verificar se já existe attachment com este ID
-            if (activity.attachmentFile?.id && activity.attachmentFile.id.length === 24) {
+            if (activity.attachmentFile?.id && castObjectIdToString(activity.attachmentFile.id)?.length === 24) {
                 try {
                     const existingAttachment = await this.attachmentService.findOne({
                         _id: activity.attachmentFile.id,

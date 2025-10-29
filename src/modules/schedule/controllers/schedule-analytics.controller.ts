@@ -11,6 +11,7 @@ import { ScheduleAnalyticsFiltersDto } from '../dto/schedule-analytics-filters.d
 import axios, { AxiosInstance } from 'axios';
 import axiosRetry from 'axios-retry';
 import * as Sentry from '@sentry/node';
+import { ScheduleExportDto } from '../dto/schedule-export.dto';
 // import { AgentStatusVerifyBreakGuard } from '../../agent-status/guards/agent-status-verify-break.guard';
 
 @Controller('workspaces/:workspaceId/schedule-analytics')
@@ -105,17 +106,24 @@ export class ScheduleAnalyticsController {
     @UseInterceptors(new TimeoutInterceptor(120000))
     async listSchedulesCsv(
         @Param('workspaceId') workspaceId: string,
-        @Body() filter: ScheduleFilterListDto,
-        @Body('downloadType') downloadType: typeDownloadEnum,
+        @Body() dto: ScheduleExportDto,
         @Res() response,
     ): Promise<any> {
+        const { filter, selectedColumns, downloadType } = dto;
+
         const requestData = {
-            ...filter,
-            workspaceId,
+            filter: {
+                ...(dto?.filter || dto || {}),
+                workspaceId,
+            },
+            selectedColumns: selectedColumns || [],
+            downloadType: downloadType || typeDownloadEnum.CSV,
         };
         try {
             const url = process.env.AUTOMATIC_MESSAGE_URL + `/schedule-analytics/exportCsv`;
             const data = await axios.post(url, requestData);
+            //dependendo do tamanho do arquivo, isso deveria ser devolvido em forma de stream pra acontecer o efeito de "baixando"
+            // para o usuário. esse retorno da a sensação de que está demorando por não ter feedback
             return downloadFileType(downloadType, data.data, response, 'relatorio-atendimentos');
         } catch (error) {
             Sentry.captureEvent({

@@ -1,5 +1,6 @@
 import { getAwaitingWorkingTime } from '../services/getAwaitingWorkingTime';
 import { Team } from '../../team/interfaces/team.interface';
+import * as moment from 'moment';
 
 describe('getAwaitingWorkingTime - casos extras', () => {
     const createTeam = (attendancePeriods: any, offDays: any[] = []): Team =>
@@ -18,7 +19,7 @@ describe('getAwaitingWorkingTime - casos extras', () => {
             mon: [{ start: 9 * 3600000, end: 17 * 3600000 }],
         });
 
-        const result = await getAwaitingWorkingTime(start, end, team);
+        const result = await getAwaitingWorkingTime(start, end, team, moment);
         expect(result).toBe(3 * 3600000);
     });
 
@@ -32,7 +33,7 @@ describe('getAwaitingWorkingTime - casos extras', () => {
             ],
         });
 
-        const result = await getAwaitingWorkingTime(start, end, team);
+        const result = await getAwaitingWorkingTime(start, end, team, moment);
         expect(result).toBe(7 * 3600000);
     });
 
@@ -55,7 +56,7 @@ describe('getAwaitingWorkingTime - casos extras', () => {
             ],
         );
 
-        const result = await getAwaitingWorkingTime(start, end, team);
+        const result = await getAwaitingWorkingTime(start, end, team, moment);
         expect(result).toBe(3 * 3600000);
     });
 
@@ -64,7 +65,7 @@ describe('getAwaitingWorkingTime - casos extras', () => {
         const end = new Date('2025-08-06T17:00:00-03:00').getTime();
         const team = createTeam({ mon: [], wed: [] });
 
-        const result = await getAwaitingWorkingTime(start, end, team);
+        const result = await getAwaitingWorkingTime(start, end, team, moment);
         expect(result).toBe(0);
     });
 
@@ -79,7 +80,7 @@ describe('getAwaitingWorkingTime - casos extras', () => {
             },
         ]);
 
-        const result = await getAwaitingWorkingTime(start, end, team);
+        const result = await getAwaitingWorkingTime(start, end, team, moment);
         expect(result).toBe(0);
     });
 
@@ -91,7 +92,7 @@ describe('getAwaitingWorkingTime - casos extras', () => {
             tue: [{ start: 8 * 3600000, end: 12 * 3600000 }],
         });
 
-        const result = await getAwaitingWorkingTime(start, end, team);
+        const result = await getAwaitingWorkingTime(start, end, team, moment);
         expect(result).toBe(5 * 3600000);
     });
 
@@ -102,7 +103,7 @@ describe('getAwaitingWorkingTime - casos extras', () => {
             mon: [{ start: 9 * 3600000, end: 17 * 3600000 }],
         });
 
-        const result = await getAwaitingWorkingTime(start, end, team);
+        const result = await getAwaitingWorkingTime(start, end, team, moment);
         expect(result).toBe(0);
     });
 
@@ -127,7 +128,7 @@ describe('getAwaitingWorkingTime - casos extras', () => {
             ],
         );
 
-        const result = await getAwaitingWorkingTime(start, end, team);
+        const result = await getAwaitingWorkingTime(start, end, team, moment);
         expect(Math.abs(result - 3 * 3600000)).toBeLessThanOrEqual(1);
     });
 
@@ -138,7 +139,7 @@ describe('getAwaitingWorkingTime - casos extras', () => {
             mon: [{ start: 10 * 3600000 + 15 * 60000, end: 12 * 3600000 + 45 * 60000 }],
         });
 
-        const result = await getAwaitingWorkingTime(start, end, team);
+        const result = await getAwaitingWorkingTime(start, end, team, moment);
         expect(result).toBe(2.5 * 3600000);
     });
 });

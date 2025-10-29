@@ -1,8 +1,7 @@
-import { Document } from "mongoose";
-import { AnalyticsInterval } from "../../conversation-analytics/interfaces/analytics.interface";
+import { Document } from 'mongoose';
+import { AnalyticsInterval } from '../../conversation-analytics/interfaces/analytics.interface';
 
 export enum TemplateMetrics {
- 
     // média em cima do campo 'metrics_time_to_agent_reply'
     first_agent_reply_avg = 'first_agent_reply_avg',
     metrics_median_time_to_agent_reply = 'metrics_median_time_to_agent_reply',
@@ -12,6 +11,7 @@ export enum TemplateMetrics {
     awaiting_working_time_avg = 'awaiting_working_time_avg',
     total_assumed_by_agent = 'total_assumed_by_agent',
     total = 'total',
+    average_team_time_attendance = 'average_team_time_attendance',
 }
 
 export enum FixedClosedBy {

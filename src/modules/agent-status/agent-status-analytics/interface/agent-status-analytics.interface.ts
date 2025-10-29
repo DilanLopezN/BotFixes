@@ -1,3 +1,5 @@
+import { WorkingTimeType } from '../../interfaces/working-time.interface';
+
 export interface AgentOnlineStatus {
     userName: string;
     userId: string;
@@ -34,4 +36,17 @@ export interface AgentTimeAggregation {
 
 export interface AgentTimeAggregationTotal {
     total: number;
+}
+
+export interface BreakOvertimeCSVItem {
+    id: number;
+    userId: string;
+    userName?: string;
+    startedAt: string;
+    breakName?: string;
+    overtimeSeconds: number;
+    justification?: string;
+    type?: WorkingTimeType;
+    workspaceId?: string;
+    breakSettingId?: number | null;
 }

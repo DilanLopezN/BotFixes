@@ -10,14 +10,31 @@ import { ActivityType, ConversationCloseType } from 'kissbot-core';
 
 @Injectable()
 export class ExternalDataService {
-    private conversationService: ConversationService;
-    private workspaceService: WorkspacesService;
-    private conversationCategorizationService: ConversationCategorizationService;
+    private _conversationService: ConversationService;
+    private _workspaceService: WorkspacesService;
+    private _conversationCategorizationService: ConversationCategorizationService;
 
     constructor(private readonly moduleRef: ModuleRef) {}
 
-    async onApplicationBootstrap() {
-        this.conversationService = this.moduleRef.get<ConversationService>(ConversationService, { strict: false });
+    private get conversationService(): ConversationService {
+        if (!this._conversationService) {
+            this._conversationService = this.moduleRef.get<ConversationService>(ConversationService, { strict: false });
+        }
+        return this._conversationService;
+    }
+
+    private get workspaceService(): WorkspacesService {
+        if (!this._workspaceService) {
+            this._workspaceService = this.moduleRef.get<WorkspacesService>(WorkspacesService, { strict: false });
+        }
+        return this._workspaceService;
+    }
+
+    private get conversationCategorizationService(): ConversationCategorizationService {
+        if (!this._conversationCategorizationService) {
+            this._conversationCategorizationService = this.moduleRef.get<ConversationCategorizationService>(ConversationCategorizationService, { strict: false });
+        }
+        return this._conversationCategorizationService;
     }
 
     async getConversationById(conversationId: string) {

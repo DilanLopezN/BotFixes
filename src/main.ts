@@ -18,6 +18,7 @@ collectDefaultMetrics({
 if (fs.existsSync('../.env')) {
     dotenv.config({ path: '../.env' });
 }
+
 if (fs.existsSync('../../.env')) {
     dotenv.config({ path: '../../.env' });
 }

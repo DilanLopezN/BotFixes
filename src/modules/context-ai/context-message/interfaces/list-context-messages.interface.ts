@@ -13,10 +13,12 @@ export interface ContextMessagePair {
         id: string;
         content: string;
         createdAt: Date;
+        contextId: string;
     };
     systemMessage: {
         id: string;
         content: string;
         createdAt: Date;
+        contextId: string;
     } | null;
 }

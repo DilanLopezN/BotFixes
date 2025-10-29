@@ -1,5 +1,6 @@
-import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, Index, PrimaryGeneratedColumn, ManyToOne, JoinColumn } from 'typeorm';
 import { ITrainingEntry } from '../interfaces/training-entry.interface';
+import { TrainingEntryType } from './training-entry-type.entity';
 
 @Index(['workspaceId', 'agentId'])
 @Entity('training_entry')
@@ -25,6 +26,9 @@ export class TrainingEntry implements ITrainingEntry {
     @Column({ name: 'agent_id', nullable: false, length: 36 })
     agentId: string;
 
+    @Column({ name: 'is_active', nullable: false, default: true })
+    isActive: boolean;
+
     @Column({ name: 'created_at', nullable: false, type: 'timestamp without time zone' })
     createdAt: Date;
 
@@ -33,4 +37,14 @@ export class TrainingEntry implements ITrainingEntry {
 
     @Column({ name: 'deleted_at', nullable: true, type: 'timestamp without time zone' })
     deletedAt: Date;
+
+    @Column({ name: 'training_entry_type_id', nullable: true })
+    trainingEntryTypeId: string;
+
+    @Column({ name: 'expires_at', nullable: true, type: 'timestamp without time zone' })
+    expiresAt: Date;
+
+    @ManyToOne(() => TrainingEntryType)
+    @JoinColumn({ name: 'training_entry_type_id' })
+    trainingEntryType: TrainingEntryType;
 }

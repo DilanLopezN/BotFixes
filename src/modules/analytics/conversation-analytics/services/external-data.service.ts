@@ -5,12 +5,15 @@ import { UsersService } from '../../../../modules/users/services/users.service';
 
 @Injectable()
 export class ExternalDataService {
-    private usersService: UsersService;
+    private _usersService: UsersService;
 
     constructor(private readonly moduleRef: ModuleRef) {}
 
-    async onApplicationBootstrap() {
-        this.usersService = this.moduleRef.get<UsersService>(UsersService, { strict: false });
+    private get usersService(): UsersService {
+        if (!this._usersService) {
+            this._usersService = this.moduleRef.get<UsersService>(UsersService, { strict: false });
+        }
+        return this._usersService;
     }
 
     async getUsersByIds(userIds: string[]) {

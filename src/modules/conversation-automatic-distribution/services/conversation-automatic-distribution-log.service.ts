@@ -26,6 +26,10 @@ export class ConversationAutomaticDistributionLogService {
     }
 
     async getAssignmentsByAgentIdList(agentIds: string[]) {
+        if (!agentIds || agentIds.length === 0) {
+            return [];
+        }
+
         return await this.conversationAutomaticDistributionLogRepository
             .createQueryBuilder('log')
             .select(['log.assignedAgentId', 'MAX(log.createdAt) as lastAssignedAt'])

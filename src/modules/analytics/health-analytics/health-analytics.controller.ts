@@ -70,6 +70,7 @@ export class HealthAnalyticsController {
                 teamIds: dto.teamIds,
                 ommitFields: dto.ommitFields,
                 pivotConfig: dto.pivotConfig,
+                pivotValueFilter: dto.pivotValueFilter,
             },
             user,
         );

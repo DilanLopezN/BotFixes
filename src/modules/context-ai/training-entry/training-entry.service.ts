@@ -35,6 +35,10 @@ export class TrainingEntryService {
             workspaceId,
             createdAt: new Date(),
             pendingTraining: true,
+            trainingEntryTypeId:
+                data.trainingEntryTypeId && data.trainingEntryTypeId.trim() !== '' ? data.trainingEntryTypeId : null,
+            expiresAt: data.expiresAt ? new Date(data.expiresAt) : null,
+            isActive: data.isActive !== undefined ? data.isActive : true,
         });
 
         return {
@@ -62,6 +66,10 @@ export class TrainingEntryService {
             identifier: data.identifier,
             pendingTraining: true,
             updatedAt: new Date(),
+            trainingEntryTypeId:
+                data.trainingEntryTypeId && data.trainingEntryTypeId.trim() !== '' ? data.trainingEntryTypeId : null,
+            expiresAt: data.expiresAt ? new Date(data.expiresAt) : null,
+            isActive: data.isActive !== undefined ? data.isActive : trainingEntry.isActive,
         });
 
         return {
@@ -95,13 +103,13 @@ export class TrainingEntryService {
     }
 
     public async listTrainingEntries(workspaceId: string, agentId: string): Promise<DefaultResponse<TrainingEntry[]>> {
-        const result = await this.trainingEntryRepository.find({
-            where: {
-                workspaceId,
-                agentId,
-                deletedAt: null,
-            },
-        });
+        const result = await this.trainingEntryRepository
+            .createQueryBuilder('trainingEntry')
+            .leftJoinAndSelect('trainingEntry.trainingEntryType', 'trainingEntryType')
+            .where('trainingEntry.workspaceId = :workspaceId', { workspaceId })
+            .andWhere('trainingEntry.agentId = :agentId', { agentId })
+            .andWhere('trainingEntry.deletedAt IS NULL')
+            .getMany();
 
         return {
             data: result,
@@ -127,6 +135,7 @@ export class TrainingEntryService {
 
     public async listTrainingEntriesContent(
         workspaceId: string,
+        agentId: string,
         trainingEntryIds: string[],
     ): Promise<Pick<TrainingEntry, 'identifier' | 'content' | 'id'>[]> {
         if (!trainingEntryIds?.length) {
@@ -135,10 +144,13 @@ export class TrainingEntryService {
 
         const result = await this.trainingEntryRepository
             .createQueryBuilder('trainingEntry')
-            .select(['trainingEntry.content', 'trainingEntry.identifier', 'id'])
+            .select(['trainingEntry.content', 'trainingEntry.identifier', 'trainingEntry.id'])
             .where('trainingEntry.workspaceId = :workspaceId', { workspaceId })
+            .andWhere('trainingEntry.agentId = :agentId', { agentId })
             .andWhere('trainingEntry.id IN(:...trainingEntryIds)', { trainingEntryIds })
             .andWhere('trainingEntry.deletedAt IS NULL')
+            .andWhere('trainingEntry.isActive = :isActive', { isActive: true })
+            .andWhere('trainingEntry.expiresAt IS NULL OR trainingEntry.expiresAt > NOW()')
             .getMany();
 
         return result.map((result) => ({

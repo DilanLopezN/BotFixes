@@ -7,6 +7,11 @@ export enum AgentMode {
     RAG_ONLY = 'rag_only', // usa apenas o conteúdo do RAG
 }
 
+export enum AgentContext {
+    FAQ = 'faq',
+    GENERAL = 'general',
+}
+
 export interface IAgent {
     id: string;
     name: string;
@@ -18,8 +23,12 @@ export interface IAgent {
     isDefault: boolean;
     isActive: boolean;
     agentMode: AgentMode;
+    agentContext: AgentContext | null;
     modelName: string;
     agentType: AgentType;
+    integrationId?: string;
+    allowSendAudio: boolean;
+    allowResponseWelcome: boolean;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -27,23 +36,29 @@ export interface IAgent {
 export interface CreateAgentData {
     name: string;
     description: string;
-    personality: string;
     prompt?: string;
     workspaceId: string;
     botId: string;
     isDefault?: boolean;
     agentType?: AgentType;
+    agentContext?: AgentContext;
+    integrationId?: string;
+    allowSendAudio?: boolean;
+    allowResponseWelcome?: boolean;
 }
 
 export interface UpdateAgentData {
     agentId: string;
     name?: string;
     description?: string;
-    personality?: string;
     prompt?: string;
     isDefault?: boolean;
     isActive?: boolean;
     agentType?: AgentType;
+    agentContext?: AgentContext;
+    integrationId?: string;
+    allowSendAudio?: boolean;
+    allowResponseWelcome?: boolean;
 }
 
 export interface DeleteAgentData {

@@ -9,6 +9,7 @@ import {
 } from '../interfaces/general-break-setting.interface';
 import { Exceptions } from '../../auth/exceptions';
 import { CacheService } from '../../_core/cache/cache.service';
+import { ZSetEventManagerService, EventType } from './zset-event-manager.service';
 
 @Injectable()
 export class GeneralBreakSettingService {
@@ -16,6 +17,7 @@ export class GeneralBreakSettingService {
         @InjectRepository(GeneralBreakSetting, AGENT_STATUS_CONNECTION)
         private readonly generalBreakSettingRepository: Repository<GeneralBreakSetting>,
         public cacheService: CacheService,
+        private readonly zsetEventManager: ZSetEventManagerService,
     ) {}
 
     private async getFromCache(workspaceId: string): Promise<GeneralBreakSetting | null> {
@@ -54,6 +56,7 @@ export class GeneralBreakSettingService {
             notificationIntervalSeconds: data.notificationIntervalSeconds || 10,
             breakStartDelaySeconds: data.breakStartDelaySeconds || 10,
             maxInactiveDurationSeconds: data.maxInactiveDurationSeconds || 120,
+            excludedUserIds: data.excludedUserIds || [],
         });
 
         return this.generalBreakSettingRepository.save(generalBreakSetting);
@@ -82,6 +85,22 @@ export class GeneralBreakSettingService {
 
         if (data.maxInactiveDurationSeconds !== undefined) {
             setting.maxInactiveDurationSeconds = data.maxInactiveDurationSeconds;
+        }
+
+        if (data.excludedUserIds !== undefined) {
+            // Identifica novos usuários adicionados à lista de exclusão
+            const previousExcludedUserIds = setting.excludedUserIds || [];
+            const newExcludedUserIds = data.excludedUserIds.filter(
+                (userId) => !previousExcludedUserIds.includes(userId),
+            );
+
+            // Remove eventos do Redis para os novos usuários excluídos
+            for (const userId of newExcludedUserIds) {
+                await this.zsetEventManager.removeEvent(EventType.LAST_ACCESS, workspaceId, userId);
+                await this.zsetEventManager.removeEvent(EventType.BREAK_EXPIRATION, workspaceId, userId);
+            }
+
+            setting.excludedUserIds = data.excludedUserIds;
         }
 
         return this.generalBreakSettingRepository.save(setting);

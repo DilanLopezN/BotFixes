@@ -26,6 +26,9 @@ export class AudioTranscription {
     @Column({ name: 'created_by', nullable: true })
     createdBy?: string;
 
+    @Column({ name: 'created_from', nullable: true })
+    createdFrom?: string;
+
     @CreateDateColumn({ name: 'created_at' })
     createdAt: Date;
 }

@@ -6,13 +6,17 @@ import { Result_getUserList } from '../interfaces/result_get_user_list.interface
 
 @Injectable()
 export class ExternalDataService {
-    private workspaceUserService: WorkspaceUserService;
+    private _workspaceUserService: WorkspaceUserService;
 
     constructor(private readonly moduleRef: ModuleRef) {}
 
-    async onApplicationBootstrap() {
-        this.workspaceUserService = this.moduleRef.get<WorkspaceUserService>(WorkspaceUserService, { strict: false });
+    private get workspaceUserService(): WorkspaceUserService {
+        if (!this._workspaceUserService) {
+            this._workspaceUserService = this.moduleRef.get<WorkspaceUserService>(WorkspaceUserService, { strict: false });
+        }
+        return this._workspaceUserService;
     }
+
     async reportGetAllWorkspaceUser(workspaceId: string): Promise<Result_getUserList[]> {
         const result = await this.workspaceUserService.getAllWorkspaceUser(
             {

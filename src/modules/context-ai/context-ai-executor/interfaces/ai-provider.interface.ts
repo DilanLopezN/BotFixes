@@ -1,19 +1,3 @@
-// isso aqui futuramente pode ser um detector de entidades do agente
-export enum UserIntent {
-    Agendamento = 'agendamento',
-    ConsultaPreco = 'consulta_preco',
-    VerificacaoPlano = 'verificacao_plano',
-    InformacaoProcedimento = 'informacao_procedimento',
-    InformacaoMedico = 'informacao_medico',
-    InformacaoGeral = 'informacao_geral',
-    DuvidaGenerica = 'duvida_generica',
-    Cancelamento = 'cancelamento',
-    ReclamacaoElogio = 'reclamacao_elogio',
-    SuporteTecnico = 'suporte_tecnico',
-    ResultadoExame = 'resultado_exame',
-    FormaPagamento = 'forma_pagamento',
-}
-
 export type NextStepMapEntities = {
     doctor_name: string | null;
     procedure_name: string | null;
@@ -22,7 +6,7 @@ export type NextStepMapEntities = {
 };
 
 export type NextStepMap = {
-    intent: UserIntent;
+    intent: string;
     entities: NextStepMapEntities;
 };
 

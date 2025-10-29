@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ExternalDataService } from './services/external-data.service';
 import { WhatsappOutcomingConsumerService } from './services/whatsapp-outcoming-consumer.service';
 import { Gupshupv3Module } from './providers/gupshup-v3/gupshup-v3.module';
+import { Gupshupv2Module } from './providers/gupshup-v2/gupshup-v2.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { WHATSAPP_CONNECTION } from './ormconfig';
 import { synchronizePostgres } from '../../../common/utils/sync';
@@ -13,6 +14,8 @@ import { MetaWhatsappIncomingAckConsumer } from './services/whatsapp-incoming-ac
 import { WhatsappBridgeService } from './services/whatsapp-bridge.service';
 import { WppIdHash } from './models/wpp-id-hash.entity';
 import { MetaWhatsappIncomingPartnerEventConsumer } from './services/whatsapp-incoming-partner-event-consumer.service';
+import { WhatsappBillingEventService } from './services/whatsapp-billing-event.service';
+import { WhatsappBillingEvent } from './models/whatsapp-billing-event.entity';
 
 @Module({
     controllers: [],
@@ -21,6 +24,7 @@ import { MetaWhatsappIncomingPartnerEventConsumer } from './services/whatsapp-in
         ExternalDataService,
         WhatsappUtilService,
         WhatsappIdHashService,
+        WhatsappBillingEventService,
         MetaWhatsappIncomingMessageConsumer,
         MetaWhatsappIncomingAckConsumer,
         MetaWhatsappIncomingPartnerEventConsumer,
@@ -37,9 +41,10 @@ import { MetaWhatsappIncomingPartnerEventConsumer } from './services/whatsapp-in
             migrations: [__dirname + '/migrations/**/*{.ts,.js}'],
             schema: 'whatsapp',
         }),
-        TypeOrmModule.forFeature([WppIdHash], WHATSAPP_CONNECTION),
+        TypeOrmModule.forFeature([WppIdHash, WhatsappBillingEvent], WHATSAPP_CONNECTION),
         Gupshupv3Module,
         Dialog360Module,
+        Gupshupv2Module,
     ],
 })
 export class WhatsappModule {}

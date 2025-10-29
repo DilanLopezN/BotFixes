@@ -5,22 +5,37 @@ import { WhatsappBridgeService } from '../../channels/whatsapp/services/whatsapp
 import { ChannelConfigService } from '../../../modules/channel-config/channel-config.service';
 @Injectable()
 export class ExternalDataService {
-    private templateMessageService: TemplateMessageService;
-    private whatsappBridgeService: WhatsappBridgeService;
-    private channelConfigService: ChannelConfigService;
+    private _templateMessageService: TemplateMessageService;
+    private _whatsappBridgeService: WhatsappBridgeService;
+    private _channelConfigService: ChannelConfigService;
 
     constructor(private readonly moduleRef: ModuleRef) {}
 
-    async onApplicationBootstrap() {
-        this.templateMessageService = this.moduleRef.get<TemplateMessageService>(TemplateMessageService, {
-            strict: false,
-        });
-        this.whatsappBridgeService = this.moduleRef.get<WhatsappBridgeService>(WhatsappBridgeService, {
-            strict: false,
-        });
-        this.channelConfigService = this.moduleRef.get<ChannelConfigService>(ChannelConfigService, {
-            strict: false,
-        });
+    private get templateMessageService(): TemplateMessageService {
+        if (!this._templateMessageService) {
+            this._templateMessageService = this.moduleRef.get<TemplateMessageService>(TemplateMessageService, {
+                strict: false,
+            });
+        }
+        return this._templateMessageService;
+    }
+
+    private get whatsappBridgeService(): WhatsappBridgeService {
+        if (!this._whatsappBridgeService) {
+            this._whatsappBridgeService = this.moduleRef.get<WhatsappBridgeService>(WhatsappBridgeService, {
+                strict: false,
+            });
+        }
+        return this._whatsappBridgeService;
+    }
+
+    private get channelConfigService(): ChannelConfigService {
+        if (!this._channelConfigService) {
+            this._channelConfigService = this.moduleRef.get<ChannelConfigService>(ChannelConfigService, {
+                strict: false,
+            });
+        }
+        return this._channelConfigService;
     }
 
     async createTemplateMessage(data: any) {
@@ -47,14 +62,17 @@ export class ExternalDataService {
     }
 
     async getPreviewFlowURL(channelConfigId: string, flowId: string) {
-        // try {
-        //     const channelConfig = await this.channelConfigService.getOneBtIdOrToken(channelConfigId);
-        //     return await this.whatsappOutcomingConsumerService.getPreviewFlowURL(channelConfig, flowId);
-        // } catch (error) {
-        //     console.log('Error getPreviewFlowURL: ', JSON.stringify(error));
-        //     return null;
-        // }
-        return {} as any;
+        try {
+            const channelConfig = await this.channelConfigService.getOneBtIdOrToken(channelConfigId);
+            return await this.whatsappBridgeService.getPreviewFlowURL(channelConfig, flowId);
+        } catch (error) {
+            console.log('Error getPreviewFlowURL: ', JSON.stringify(error));
+            return null;
+        }
+    }
+
+    async updateProviderByActiveFlow(channelConfigId: string) {
+        return await this.channelConfigService.updateProviderByActiveFlow(channelConfigId);
     }
 
     async updateTemplateFlowInactivated(workspaceId: string, flowDataId: number) {

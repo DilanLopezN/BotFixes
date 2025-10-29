@@ -39,20 +39,28 @@ export class ZSetEventConsumerService implements OnModuleInit, OnModuleDestroy {
             const expiredEvents = await this.zsetEventManager.getExpiredEvents(now);
 
             if (expiredEvents.length === 0) {
-                this.logger.debug('No expired events to process');
+                this.logger.debug(`No expired events to process (searched with timestamp: ${now})`);
                 return;
             }
 
-            this.logger.log(`Processing ${expiredEvents.length} expired events`);
+            this.logger.log(`Processing ${expiredEvents.length} expired events (timestamp: ${now})`);
+
+            let successfullyProcessed = 0;
+            let failedToProcess = 0;
 
             for (const event of expiredEvents) {
-                await this.processEvent(event);
+                try {
+                    await this.processEvent(event);
+                    successfullyProcessed++;
+                } catch (error) {
+                    failedToProcess++;
+                    this.logger.error(`Failed to process event ${event.type} for user ${event.userId}:`, error);
+                }
             }
 
-            // Remove eventos processados
-            await this.zsetEventManager.removeExpiredEvents(now);
-
-            this.logger.log(`Successfully processed ${expiredEvents.length} events`);
+            this.logger.log(
+                `Sent ${successfullyProcessed}/${expiredEvents.length} events to queue (${failedToProcess} failed). Events will be removed from Redis after successful processing by consumer.`,
+            );
         } catch (error) {
             this.logger.error('Error processing expired events:', error);
         } finally {
@@ -61,19 +69,15 @@ export class ZSetEventConsumerService implements OnModuleInit, OnModuleDestroy {
     }
 
     private async processEvent(event: ZSetEvent): Promise<void> {
-        try {
-            switch (event.type) {
-                case EventType.LAST_ACCESS:
-                    await this.processLastAccessEvent(event);
-                    break;
-                case EventType.BREAK_EXPIRATION:
-                    await this.processBreakExpirationEvent(event);
-                    break;
-                default:
-                    this.logger.warn(`Unknown event type: ${event.type}`);
-            }
-        } catch (error) {
-            this.logger.error(`Error processing event ${event.type} for user ${event.userId}:`, error);
+        switch (event.type) {
+            case EventType.LAST_ACCESS:
+                await this.processLastAccessEvent(event);
+                break;
+            case EventType.BREAK_EXPIRATION:
+                await this.processBreakExpirationEvent(event);
+                break;
+            default:
+                this.logger.warn(`Unknown event type: ${event.type}`);
         }
     }
 

@@ -6,13 +6,22 @@ import { InteractionsService } from '../../interactions/services/interactions.se
 
 @Injectable()
 export class ExternalDataService {
-    private usersService: UsersService;
-    private interactionsService: InteractionsService;
+    private _usersService: UsersService;
+    private _interactionsService: InteractionsService;
     constructor(private readonly moduleRef: ModuleRef) {}
 
-    async onApplicationBootstrap() {
-        this.usersService = this.moduleRef.get<UsersService>(UsersService, { strict: false });
-        this.interactionsService = this.moduleRef.get<InteractionsService>(InteractionsService, { strict: false });
+    private get usersService(): UsersService {
+        if (!this._usersService) {
+            this._usersService = this.moduleRef.get<UsersService>(UsersService, { strict: false });
+        }
+        return this._usersService;
+    }
+
+    private get interactionsService(): InteractionsService {
+        if (!this._interactionsService) {
+            this._interactionsService = this.moduleRef.get<InteractionsService>(InteractionsService, { strict: false });
+        }
+        return this._interactionsService;
     }
 
     async getUser(userId: string, workspaceId?: string) {

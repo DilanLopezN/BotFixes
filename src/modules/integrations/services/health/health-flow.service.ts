@@ -79,11 +79,23 @@ export class HealthFlowService extends MongooseAbstractionService<HealthFlow & D
             query = {};
         }
 
-        const flows = await this.model.find({
+        let flows = await this.model.find({
             integrationId,
             workspaceId,
             ...query,
         });
+
+        if (!forceSync) {
+            flows = flows.filter((flow) => {
+                const lastPublishedToDraft = flow.lastPublishedToDraft || 0;
+                return (
+                    !lastPublishedToDraft ||
+                    (flow.deletedAt && flow.deletedAt > lastPublishedToDraft) ||
+                    (flow.updatedAt && flow.updatedAt > lastPublishedToDraft) ||
+                    (flow.createdAt && flow.createdAt > lastPublishedToDraft)
+                );
+            });
+        }
 
         if (!flows.length) {
             throw Exceptions.NO_DATA_TO_SYNC;
@@ -107,6 +119,89 @@ export class HealthFlowService extends MongooseAbstractionService<HealthFlow & D
                     },
                 },
             );
+
+            const flowIds = flows.map((flow) => flow._id);
+            await this.model.updateMany(
+                {
+                    _id: { $in: flowIds },
+                },
+                {
+                    $set: {
+                        lastPublishedToDraft: publishedFlowDate,
+                    },
+                },
+            );
+
+            return response?.data ?? [];
+        } catch (error) {
+            this.logger.error(error);
+            throw error;
+        }
+    }
+
+    @CatchError()
+    async syncOneDraft(integrationId: string, workspaceId: string, flowId: string) {
+        const integration = await this.healthIntegrationService.findOne({
+            workspaceId,
+            _id: integrationId,
+        });
+
+        const lastPublishFlowDraft = integration.lastPublishFlowDraft || 1;
+
+        const flowsAfterDraftPublish = await this.model.find({
+            integrationId,
+            workspaceId,
+            $or: [
+                { deletedAt: { $gte: lastPublishFlowDraft } },
+                { updatedAt: { $gte: lastPublishFlowDraft } },
+                { createdAt: { $gte: lastPublishFlowDraft } },
+            ],
+        });
+
+        const pendingFlowsDraft = flowsAfterDraftPublish.filter((flow) => {
+            const lastPublishedToDraft = flow.lastPublishedToDraft || 0;
+            return (
+                !lastPublishedToDraft ||
+                (flow.deletedAt && flow.deletedAt > lastPublishedToDraft) ||
+                (flow.updatedAt && flow.updatedAt > lastPublishedToDraft) ||
+                (flow.createdAt && flow.createdAt > lastPublishedToDraft)
+            );
+        });
+
+        if (pendingFlowsDraft.length === 1) {
+            return await this.syncDraft(integrationId, workspaceId, true);
+        }
+
+        const flow = await this.model.findOne({
+            _id: flowId,
+            integrationId,
+            workspaceId,
+        });
+
+        if (!flow) {
+            throw Exceptions.NO_DATA_TO_SYNC;
+        }
+
+        const flowLastPublishedToDraft = flow.lastPublishedToDraft || 0;
+
+        const flowNeedsSyncToDraft =
+            !flowLastPublishedToDraft ||
+            (flow.deletedAt && flow.deletedAt > flowLastPublishedToDraft) ||
+            (flow.updatedAt && flow.updatedAt > flowLastPublishedToDraft) ||
+            (flow.createdAt && flow.createdAt > flowLastPublishedToDraft);
+
+        if (!flowNeedsSyncToDraft) {
+            throw Exceptions.NO_DATA_TO_SYNC;
+        }
+
+        try {
+            const response = await lastValueFrom(
+                this.httpService.post(`/integration/${integrationId}/health/flow/sync-draft`, [flow], {
+                    timeout: 60_000,
+                }),
+            );
+
+            await this.model.updateOne({ _id: flowId }, { $set: { lastPublishedToDraft: +new Date() } });
 
             return response?.data ?? [];
         } catch (error) {
@@ -185,11 +280,27 @@ export class HealthFlowService extends MongooseAbstractionService<HealthFlow & D
             query = {};
         }
 
-        const flows = await this.model.find({
+        let flows = await this.model.find({
             integrationId,
             workspaceId,
             ...query,
         });
+
+        if (!forceSync) {
+            flows = flows.filter((flow) => {
+                const lastPublishedToProd = flow.lastPublishedToProd || 0;
+                return (
+                    !lastPublishedToProd ||
+                    (flow.deletedAt && flow.deletedAt > lastPublishedToProd) ||
+                    (flow.updatedAt && flow.updatedAt > lastPublishedToProd) ||
+                    (flow.createdAt && flow.createdAt > lastPublishedToProd)
+                );
+            });
+        }
+
+        if (!flows.length) {
+            throw Exceptions.NO_DATA_TO_PUBLISH;
+        }
 
         await this.flowHistoryService.bulkCreate(userId, flows);
 
@@ -211,6 +322,115 @@ export class HealthFlowService extends MongooseAbstractionService<HealthFlow & D
                     },
                 },
             );
+
+            const flowIds = flows.map((flow) => flow._id);
+            await this.model.updateMany(
+                {
+                    _id: { $in: flowIds },
+                },
+                {
+                    $set: {
+                        lastPublishedToProd: publishedFlowDate,
+                    },
+                },
+            );
+
+            await this.flowPublicationHistoryService.create({
+                userId,
+                workspaceId,
+                integrationId,
+            });
+
+            return response?.data ?? [];
+        } catch (error) {
+            this.logger.error(error);
+            throw error;
+        }
+    }
+
+    @CatchError()
+    async syncOne(integrationId: string, workspaceId: string, flowId: string, userId: string, forceSync?: boolean) {
+        const integration = await this.healthIntegrationService.findOne({
+            workspaceId,
+            _id: integrationId,
+        });
+
+        const lastPublishFlowDraft = integration.lastPublishFlowDraft || 1;
+        const lastPublishFlow = integration.lastPublishFlow || 0;
+
+        const flow = await this.model.findOne({
+            _id: flowId,
+            integrationId,
+            workspaceId,
+        });
+
+        if (!flow) {
+            throw Exceptions.NO_DATA_TO_SYNC;
+        }
+
+        const flowLastPublishedToDraft = flow.lastPublishedToDraft || 0;
+
+        if (!flowLastPublishedToDraft && !forceSync) {
+            throw Exceptions.CANT_PUBLISH_PRODUCTION_FLOWS_NEW_HOMOLOG_VERSION;
+        }
+
+        const flowModifiedAfterDraft =
+            (flow.updatedAt && flow.updatedAt > flowLastPublishedToDraft) ||
+            (flow.deletedAt && flow.deletedAt > flowLastPublishedToDraft) ||
+            (flow.createdAt && flow.createdAt > flowLastPublishedToDraft);
+
+        if (flowModifiedAfterDraft && !forceSync) {
+            throw Exceptions.CANT_PUBLISH_PRODUCTION_FLOWS_NEW_HOMOLOG_VERSION;
+        }
+
+        const flowsAfterDraftPublishCount = await this.model.countDocuments({
+            integrationId,
+            workspaceId,
+            $or: [
+                { deletedAt: { $gte: lastPublishFlowDraft } },
+                { updatedAt: { $gte: lastPublishFlowDraft } },
+                { createdAt: { $gte: lastPublishFlowDraft } },
+            ],
+        });
+
+        if (lastPublishFlowDraft < lastPublishFlow && !flowsAfterDraftPublishCount) {
+            throw Exceptions.NO_DATA_TO_PUBLISH;
+        }
+
+        const flowsAfterPublish = await this.model.find({
+            integrationId,
+            workspaceId,
+            $or: [
+                { deletedAt: { $gte: lastPublishFlow } },
+                { updatedAt: { $gte: lastPublishFlow } },
+                { createdAt: { $gte: lastPublishFlow } },
+            ],
+        });
+
+        const pendingFlows = flowsAfterPublish.filter((flow) => {
+            const lastPublishedToProd = flow.lastPublishedToProd || 0;
+            return (
+                !lastPublishedToProd ||
+                (flow.deletedAt && flow.deletedAt > lastPublishedToProd) ||
+                (flow.updatedAt && flow.updatedAt > lastPublishedToProd) ||
+                (flow.createdAt && flow.createdAt > lastPublishedToProd)
+            );
+        });
+
+        if (pendingFlows.length === 1) {
+            return await this.sync(integrationId, workspaceId, userId, forceSync);
+        }
+
+        await this.flowHistoryService.bulkCreate(userId, [flow]);
+
+        try {
+            const response = await lastValueFrom(
+                this.httpService.post(`/integration/${integrationId}/health/flow/sync`, [flow], {
+                    timeout: 60_000,
+                }),
+            );
+
+            await this.model.updateOne({ _id: flowId }, { $set: { lastPublishedToProd: +new Date() } });
 
             await this.flowPublicationHistoryService.create({
                 userId,
@@ -311,7 +531,7 @@ export class HealthFlowService extends MongooseAbstractionService<HealthFlow & D
         let pendingFlowsDraft: HealthFlow[] = [];
         const integration = await this.healthIntegrationService.findOne({
             workspaceId: castObjectId(workspaceId),
-            integrationId: castObjectId(integrationId),
+            _id: castObjectId(integrationId),
         });
 
         if (!!integration) {
@@ -319,47 +539,43 @@ export class HealthFlowService extends MongooseAbstractionService<HealthFlow & D
             const lastPublishFlowDraft = integration.lastPublishFlowDraft || 1;
 
             pendingFlows = await this.model.find({
-                integrationId: integration._id,
+                integrationId: castObjectId(integrationId),
                 workspaceId: castObjectId(workspaceId),
                 $or: [
-                    {
-                        deletedAt: {
-                            $gte: lastPublishFlow,
-                        },
-                    },
-                    {
-                        updatedAt: {
-                            $gte: lastPublishFlow,
-                        },
-                    },
-                    {
-                        createdAt: {
-                            $gte: lastPublishFlow,
-                        },
-                    },
+                    { deletedAt: { $gte: lastPublishFlow } },
+                    { updatedAt: { $gte: lastPublishFlow } },
+                    { createdAt: { $gte: lastPublishFlow } },
                 ],
+            });
+
+            pendingFlows = pendingFlows.filter((flow) => {
+                const lastPublishedToProd = flow.lastPublishedToProd || 0;
+                return (
+                    !lastPublishedToProd ||
+                    (flow.deletedAt && flow.deletedAt > lastPublishedToProd) ||
+                    (flow.updatedAt && flow.updatedAt > lastPublishedToProd) ||
+                    (flow.createdAt && flow.createdAt > lastPublishedToProd)
+                );
             });
 
             pendingFlowsDraft = await this.model.find({
                 integrationId: castObjectId(integrationId),
                 workspaceId: castObjectId(workspaceId),
                 $or: [
-                    {
-                        deletedAt: {
-                            $gte: lastPublishFlowDraft,
-                        },
-                    },
-                    {
-                        updatedAt: {
-                            $gte: lastPublishFlowDraft,
-                        },
-                    },
-                    {
-                        createdAt: {
-                            $gte: lastPublishFlowDraft,
-                        },
-                    },
+                    { deletedAt: { $gte: lastPublishFlowDraft } },
+                    { updatedAt: { $gte: lastPublishFlowDraft } },
+                    { createdAt: { $gte: lastPublishFlowDraft } },
                 ],
+            });
+
+            pendingFlowsDraft = pendingFlowsDraft.filter((flow) => {
+                const lastPublishedToDraft = flow.lastPublishedToDraft || 0;
+                return (
+                    !lastPublishedToDraft ||
+                    (flow.deletedAt && flow.deletedAt > lastPublishedToDraft) ||
+                    (flow.updatedAt && flow.updatedAt > lastPublishedToDraft) ||
+                    (flow.createdAt && flow.createdAt > lastPublishedToDraft)
+                );
             });
         }
         return {

@@ -50,6 +50,10 @@ export class WorkingTimeService {
     private async setLastAcessInStatusAgent(workspaceId: string, userId: string) {
         const generalBreakSettingByworkspace = await this.generalBreakSettingService.getByWorkspaceId(workspaceId);
 
+        const isExcludedUser = generalBreakSettingByworkspace?.excludedUserIds?.includes(userId);
+
+        if (isExcludedUser) return;
+
         if (generalBreakSettingByworkspace?.enabled) {
             let expirationInSeconds = DEFAULT_NOTIFICATION_INTERVAL_SECONDS + DEFAULT_BREAK_START_DELAY_SECONDS;
             if (
@@ -234,12 +238,12 @@ export class WorkingTimeService {
         breakChangedByUserName?: string,
     ): Promise<WorkingTime> {
         try {
-            await this.deleteMaxExpirationBreakFromCache(workspaceId, userId);
-            await this.deleteStartInactiveBreakFromCache(workspaceId, userId);
             const activeRecord = await this.findActiveByUserAndWorkspaceId(workspaceId, userId);
             if (!activeRecord) {
                 return null;
             }
+            await this.deleteMaxExpirationBreakFromCache(workspaceId, userId);
+            await this.deleteStartInactiveBreakFromCache(workspaceId, userId);
 
             const endedAt = Date.now();
             const workingTime: WorkingTime = {
@@ -273,15 +277,29 @@ export class WorkingTimeService {
 
     async startBreakInactive(workspaceId: string, userId: string): Promise<WorkingTime> {
         try {
+            // Remove o evento LAST_ACCESS imediatamente para evitar duplicações
+            // Isso previne race conditions onde o middleware poderia adicionar um novo LAST_ACCESS
+            // enquanto este método está processando
+            await this.deleteStartInactiveBreakFromCache(workspaceId, userId);
+
             const activeRecord = await this.findActiveByUserAndWorkspaceId(workspaceId, userId);
 
-            if (activeRecord && activeRecord.type !== WorkingTimeType.ONLINE) {
+            // Se não há registro ativo, não deve criar pausa por inatividade
+            if (!activeRecord) {
+                return null;
+            }
+
+            if (activeRecord.type !== WorkingTimeType.ONLINE) {
                 return activeRecord;
             }
             const generalBreakSetting = await this.generalBreakSettingService.findByWorkspaceId(workspaceId);
 
             // Caso esteja desabilitado a configuração geral então não pode setar intervalo por inatividade
             if (!generalBreakSetting?.enabled) return;
+
+            // Verifica se o usuário está na lista de excluídos da pausa automática
+            const isExcludedUser = generalBreakSetting?.excludedUserIds?.includes(userId);
+            if (isExcludedUser) return;
 
             // finaliza o intervalo anterior para iniciar um novo
             await this.endBreak(workspaceId, userId);

@@ -49,6 +49,8 @@ export class ContextFallbackMessageService {
             q.take(limit);
         }
 
+        q.orderBy('contextFallbackMessage.createdAt', 'DESC');
+
         const [data, count] = await q.getManyAndCount();
 
         return { data, count };

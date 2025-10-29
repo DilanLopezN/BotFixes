@@ -84,6 +84,14 @@ const IntegrationInternalApi = new mongoose.Schema(
     { _id: false, versionKey: false },
 );
 
+const IntegrationDocuments = new mongoose.Schema(
+    {
+        enableDocumentsUpload: Boolean,
+        documentsMaxSizeInMb: Number,
+    },
+    { _id: false, versionKey: false },
+);
+
 const Routines = new mongoose.Schema(
     {
         cronSearchAvailableSchedules: {
@@ -163,6 +171,10 @@ export const HealthIntegrationSchema = new mongoose.Schema(
         scheduling: mongoose.Schema.Types.Mixed,
         messages: mongoose.Schema.Types.Mixed,
         deletedAt: Number,
+        documents: {
+            type: IntegrationDocuments,
+            required: false,
+        },
     },
     { versionKey: false, collection: 'health_integration', autoIndex: true, strictQuery: true },
 );

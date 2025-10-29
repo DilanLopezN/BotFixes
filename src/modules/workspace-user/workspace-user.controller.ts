@@ -11,6 +11,8 @@ import {
     UseGuards,
     UseInterceptors,
     ValidationPipe,
+    Query,
+    Res,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
@@ -32,6 +34,7 @@ import { CreateUserRoleRequest } from './dtos/user-role.dto';
 import { CreateWorkspaceUserDTO } from './dtos/workspace-user.create.dto';
 import { UpdateWorkspaceUserDTO } from './dtos/workspace-user.update.dto';
 import { WorkspaceUserService } from './workspace-user.service';
+import { downloadFileType, typeDownloadEnum } from '../../common/utils/downloadFileType';
 
 @ApiTags('Workspace user')
 @Controller('workspaces')
@@ -78,6 +81,26 @@ export class WorkspaceUserController {
         query: QueryStringFilter,
     ) {
         return await this.workspaceUsersService.getAllWorkspaceUserWithRoleActive(query, workspaceId);
+    }
+
+    @Get(':workspaceId/users/export')
+    @RolesDecorator([
+        PredefinedRoles.WORKSPACE_ADMIN,
+        PredefinedRoles.SYSTEM_ADMIN,
+        PredefinedRoles.SYSTEM_CS_ADMIN,
+        PredefinedRoles.SYSTEM_UX_ADMIN,
+    ])
+    @ApiParam({ name: 'workspaceId', required: true })
+    @UseGuards(AuthGuard, RolesGuard)
+    async exportWorkspaceUsers(
+        @Param('workspaceId') workspaceId: string,
+        @Query('status') status: 'active' | 'inactive' | 'all',
+        @Query('search') search: string,
+        @Query('downloadType') downloadType: typeDownloadEnum,
+        @Res() response,
+    ) {
+        const rows = await this.workspaceUsersService.getUsersForExport(workspaceId, status, search);
+        return downloadFileType(downloadType || typeDownloadEnum.CSV, rows, response, 'usuarios-workspace');
     }
 
     @Get(':workspaceId/users/:userId')

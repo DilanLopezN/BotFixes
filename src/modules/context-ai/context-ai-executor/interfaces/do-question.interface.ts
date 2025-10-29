@@ -1,9 +1,14 @@
 export interface DoQuestion {
+    workspaceId: string;
     contextId: string;
     question: string;
-    useHistoricMessages: boolean;
     fromInteractionId?: string;
+    botId?: string;
+    fromAudio?: boolean;
     parameters?: DoQuestionParameters;
+    debug?: boolean;
+    agentId?: string;
+    isStartMessage?: boolean;
 }
 
 export interface DoQuestionParameters {

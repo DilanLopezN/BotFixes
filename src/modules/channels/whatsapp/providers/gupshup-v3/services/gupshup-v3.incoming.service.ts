@@ -59,6 +59,10 @@ export class GupshupV3IncomingService {
                     result = await this.processInteractiveMessage(payload, channelConfigToken);
                     break;
                 }
+                case 'button': {
+                    result = await this.processInteractiveMessage(payload, channelConfigToken);
+                    break;
+                }
                 case 'text': {
                     result = await this.processTextMessage(payload, channelConfigToken);
                     break;
@@ -1161,26 +1165,6 @@ export class GupshupV3IncomingService {
         const memberId = this.gupshupV3UtilService.getMemberId(payload);
         const memberName = this.gupshupV3UtilService.getMemberName(payload);
 
-        // let responseFlow = {};
-        // let flow: Flow;
-        // try {
-        //     responseFlow = JSON.parse(
-        //         payload.entry[0].changes[0].value.messages[0].interactive?.nfm_reply?.response_json,
-        //     );
-        // } catch (e) {
-        //     console.log('Error processInteractiveMessage parse JSON: ', JSON.stringify(e));
-        //     return null;
-        // }
-
-        // if (responseFlow?.['flow_token'] !== 'unused') {
-        //     flow = await this.externalDataService.getFlowById(responseFlow['flow_token']);
-        // }
-
-        // if (!flow) {
-        //     console.log('Error not found Flow: ', JSON.stringify(payload));
-        //     return null;
-        // }
-
         this.externalDataService.checkMissingResponse(memberId, channelConfigToken);
         const hash = this.gupshupV3UtilService.getHash(payload);
         await this.gupshupV3UtilService.setGupshupIdHash(hash, hash);
@@ -1219,8 +1203,6 @@ export class GupshupV3IncomingService {
                 activityTimestamp: moment().valueOf(),
                 activityQuoted: quoted,
                 channelConfigToken,
-                // channelId: ChannelIdConfig.d360,
-                // memberChannel: ChannelIdConfig.d360,
                 channelId: ChannelIdConfig.gupshup,
                 memberChannel: ChannelIdConfig.gupshup,
                 memberId,
@@ -1243,6 +1225,29 @@ export class GupshupV3IncomingService {
             return;
         }
 
+        let responseFlow;
+        let flow: Flow;
+
+        try {
+            try {
+                responseFlow = JSON.parse(
+                    payload.entry[0].changes[0].value.messages[0].interactive?.nfm_reply?.response_json,
+                );
+            } catch (e) {
+                console.log('Error processInteractiveMessage parse JSON: ', JSON.stringify(e));
+            }
+
+            if (!!responseFlow['flow_token'] && responseFlow?.['flow_token'] !== 'unused') {
+                flow = await this.externalDataService.getFlowById(responseFlow['flow_token']);
+
+                if (!flow) {
+                    console.log('Error not found Flow: ', JSON.stringify(payload));
+                }
+            }
+        } catch (error) {
+            console.log('Error process flow message');
+        }
+
         if (startActivity) {
             return await this.handleActivity(startActivity, payload, channelConfigToken, conversation);
         } else {
@@ -1251,7 +1256,9 @@ export class GupshupV3IncomingService {
 
             const replyTitle =
                 payload.entry[0].changes[0].value.messages[0]?.interactive?.['button_reply']?.title ||
-                payload.entry[0].changes[0].value.messages[0]?.interactive?.['list_reply']?.title;
+                payload.entry[0].changes[0].value.messages[0]?.interactive?.['list_reply']?.title ||
+                payload.entry[0].changes[0].value.messages[0]?.['button']?.text;
+
             if (replyTitle) {
                 activity.data = {
                     ...(activity?.data || {}),
@@ -1259,9 +1266,54 @@ export class GupshupV3IncomingService {
                 };
                 const text =
                     payload.entry[0].changes[0].value.messages[0]?.interactive?.['button_reply']?.id ||
-                    payload.entry[0].changes[0].value.messages[0]?.interactive?.['list_reply']?.id;
+                    payload.entry[0].changes[0].value.messages[0]?.interactive?.['list_reply']?.id ||
+                    payload.entry[0].changes[0].value.messages[0]?.['button']?.payload;
+
                 if (text) {
                     activity.text = text;
+                }
+            }
+
+            try {
+                let contentFlow: any = {};
+                if (!!flow && !!responseFlow && flow?.flowFields) {
+                    const pages = flow.flowFields?.pages?.map((page) => {
+                        const fields = page?.fields?.map((field) => {
+                            if (responseFlow?.[field?.name]) {
+                                const value = responseFlow[field.name];
+                                return {
+                                    ...field,
+                                    value,
+                                };
+                            }
+                            return field;
+                        });
+                        return {
+                            ...page,
+                            fields,
+                        };
+                    });
+                    contentFlow = {
+                        ...flow.flowFields,
+                        pages,
+                    };
+                    const attachment: Attachment = {
+                        contentType: 'flow_response',
+                        content: contentFlow,
+                    };
+                    activity.attachments = [attachment];
+                    activity.data = { ...(activity.data || {}), ...responseFlow };
+                }
+            } catch (error) {
+                Sentry.captureEvent({
+                    message: 'GupshupV3Service.processInteractiveMessage error process flow',
+                    extra: {
+                        error: error,
+                        payload,
+                    },
+                });
+                if (Object.keys(responseFlow)?.length) {
+                    activity.data = { ...(activity.data || {}), ...responseFlow };
                 }
             }
 

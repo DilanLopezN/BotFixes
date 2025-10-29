@@ -6,14 +6,23 @@ import { UsersService } from '../../../../modules/users/services/users.service';
 
 @Injectable()
 export class ExternalDataService {
-    private teamService: TeamService;
-    private usersService: UsersService;
+    private _teamService: TeamService;
+    private _usersService: UsersService;
 
     constructor(private readonly moduleRef: ModuleRef) {}
 
-    async onApplicationBootstrap() {
-        this.teamService = this.moduleRef.get<TeamService>(TeamService, { strict: false });
-        this.usersService = this.moduleRef.get<UsersService>(UsersService, { strict: false });
+    private get teamService(): TeamService {
+        if (!this._teamService) {
+            this._teamService = this.moduleRef.get<TeamService>(TeamService, { strict: false });
+        }
+        return this._teamService;
+    }
+
+    private get usersService(): UsersService {
+        if (!this._usersService) {
+            this._usersService = this.moduleRef.get<UsersService>(UsersService, { strict: false });
+        }
+        return this._usersService;
     }
 
     async getUsersOnTeam(workspaceId: string, teamId: string) {

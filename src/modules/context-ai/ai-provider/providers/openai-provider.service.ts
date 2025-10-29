@@ -57,7 +57,7 @@ export class OpenIaProviderService implements AIProvider {
     }
 
     public async execute({
-        messages,
+        messages = [],
         prompt,
         model = this.modelName,
         maxTokens = 2056,
@@ -76,7 +76,7 @@ export class OpenIaProviderService implements AIProvider {
             const data: OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming = {
                 model: model,
                 messages: historicMessages,
-                max_tokens: Number(maxTokens),
+                max_completion_tokens: Number(maxTokens),
                 temperature: Number(temperature),
             };
 
@@ -134,7 +134,7 @@ export class OpenIaProviderService implements AIProvider {
             const response = await openai.chat.completions.create({
                 model: messageOptions.model ?? this.modelName,
                 messages,
-                max_tokens: messageOptions.maxTokens || null,
+                max_completion_tokens: messageOptions.maxTokens || null,
                 temperature: messageOptions.temperature ?? 0.5,
                 n: messageOptions.resultsLength ?? 1,
             });

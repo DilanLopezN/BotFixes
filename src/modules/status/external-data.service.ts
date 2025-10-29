@@ -17,75 +17,156 @@ import { SetupHealthCheckService } from '../setup/services/setup-health-check.se
 
 @Injectable()
 export class ExternalDataService {
-    private activeMessageHealthCheckService: ActiveMessageHealthCheckService;
-    private privacyPolicyHealthCheckService: PrivacyPolicyHealthCheckService;
-    private ratingHealthCheckService: RatingHealthCheckService;
-    private runnerHealthCheckService: RunnerHealthCheckService;
-    private conversationHealthCheckService: ConversationHealthCheckService;
-    private analyticsReadHealthCheckService: AnalyticsReadHealthCheckService;
-    private analyticsHealthCheckService: AnalyticsHealthCheckService;
-    private internalAnalyticsHealthCheckService: InternalAnalyticsHealthCheckService;
-    private autoAssignHealthCheckService: AutoAssignHealthCheckService;
-    private billingHealthCheckService: BillingHealthCheckService;
-    private campaignHealthCheckService: CampaignHealthCheckService;
-    private gupshupHealthCheckService: GupshupHealthCheckService;
-    private coreHealthCheckService: CoreHealthCheckService;
-    private setupHealthCheckService: SetupHealthCheckService;
+    private _activeMessageHealthCheckService: ActiveMessageHealthCheckService;
+    private _privacyPolicyHealthCheckService: PrivacyPolicyHealthCheckService;
+    private _ratingHealthCheckService: RatingHealthCheckService;
+    private _runnerHealthCheckService: RunnerHealthCheckService;
+    private _conversationHealthCheckService: ConversationHealthCheckService;
+    private _analyticsReadHealthCheckService: AnalyticsReadHealthCheckService;
+    private _analyticsHealthCheckService: AnalyticsHealthCheckService;
+    private _internalAnalyticsHealthCheckService: InternalAnalyticsHealthCheckService;
+    private _autoAssignHealthCheckService: AutoAssignHealthCheckService;
+    private _billingHealthCheckService: BillingHealthCheckService;
+    private _campaignHealthCheckService: CampaignHealthCheckService;
+    private _gupshupHealthCheckService: GupshupHealthCheckService;
+    private _coreHealthCheckService: CoreHealthCheckService;
+    private _setupHealthCheckService: SetupHealthCheckService;
 
     constructor(private readonly moduleRef: ModuleRef) {}
 
-    async onApplicationBootstrap() {
-        this.activeMessageHealthCheckService = this.moduleRef.get<ActiveMessageHealthCheckService>(
-            ActiveMessageHealthCheckService,
-            { strict: false },
-        );
-        this.privacyPolicyHealthCheckService = this.moduleRef.get<PrivacyPolicyHealthCheckService>(
-            PrivacyPolicyHealthCheckService,
-            { strict: false },
-        );
-        this.ratingHealthCheckService = this.moduleRef.get<RatingHealthCheckService>(RatingHealthCheckService, {
-            strict: false,
-        });
-        this.runnerHealthCheckService = this.moduleRef.get<RunnerHealthCheckService>(RunnerHealthCheckService, {
-            strict: false,
-        });
-        this.conversationHealthCheckService = this.moduleRef.get<ConversationHealthCheckService>(
-            ConversationHealthCheckService,
-            { strict: false },
-        );
-        this.analyticsReadHealthCheckService = this.moduleRef.get<AnalyticsReadHealthCheckService>(
-            AnalyticsReadHealthCheckService,
-            { strict: false },
-        );
-        this.analyticsHealthCheckService = this.moduleRef.get<AnalyticsHealthCheckService>(
-            AnalyticsHealthCheckService,
-            { strict: false },
-        );
-        this.internalAnalyticsHealthCheckService = this.moduleRef.get<InternalAnalyticsHealthCheckService>(
-            InternalAnalyticsHealthCheckService,
-            {
+    private get activeMessageHealthCheckService(): ActiveMessageHealthCheckService {
+        if (!this._activeMessageHealthCheckService) {
+            this._activeMessageHealthCheckService = this.moduleRef.get<ActiveMessageHealthCheckService>(
+                ActiveMessageHealthCheckService,
+                { strict: false },
+            );
+        }
+        return this._activeMessageHealthCheckService;
+    }
+
+    private get privacyPolicyHealthCheckService(): PrivacyPolicyHealthCheckService {
+        if (!this._privacyPolicyHealthCheckService) {
+            this._privacyPolicyHealthCheckService = this.moduleRef.get<PrivacyPolicyHealthCheckService>(
+                PrivacyPolicyHealthCheckService,
+                { strict: false },
+            );
+        }
+        return this._privacyPolicyHealthCheckService;
+    }
+
+    private get ratingHealthCheckService(): RatingHealthCheckService {
+        if (!this._ratingHealthCheckService) {
+            this._ratingHealthCheckService = this.moduleRef.get<RatingHealthCheckService>(RatingHealthCheckService, {
                 strict: false,
-            },
-        );
-        this.autoAssignHealthCheckService = this.moduleRef.get<AutoAssignHealthCheckService>(
-            AutoAssignHealthCheckService,
-            { strict: false },
-        );
-        this.billingHealthCheckService = this.moduleRef.get<BillingHealthCheckService>(BillingHealthCheckService, {
-            strict: false,
-        });
-        this.campaignHealthCheckService = this.moduleRef.get<CampaignHealthCheckService>(CampaignHealthCheckService, {
-            strict: false,
-        });
-        this.gupshupHealthCheckService = this.moduleRef.get<GupshupHealthCheckService>(GupshupHealthCheckService, {
-            strict: false,
-        });
-        this.coreHealthCheckService = this.moduleRef.get<CoreHealthCheckService>(CoreHealthCheckService, {
-            strict: false,
-        });
-        this.setupHealthCheckService = this.moduleRef.get<SetupHealthCheckService>(SetupHealthCheckService, {
-            strict: false,
-        });
+            });
+        }
+        return this._ratingHealthCheckService;
+    }
+
+    private get runnerHealthCheckService(): RunnerHealthCheckService {
+        if (!this._runnerHealthCheckService) {
+            this._runnerHealthCheckService = this.moduleRef.get<RunnerHealthCheckService>(RunnerHealthCheckService, {
+                strict: false,
+            });
+        }
+        return this._runnerHealthCheckService;
+    }
+
+    private get conversationHealthCheckService(): ConversationHealthCheckService {
+        if (!this._conversationHealthCheckService) {
+            this._conversationHealthCheckService = this.moduleRef.get<ConversationHealthCheckService>(
+                ConversationHealthCheckService,
+                { strict: false },
+            );
+        }
+        return this._conversationHealthCheckService;
+    }
+
+    private get analyticsReadHealthCheckService(): AnalyticsReadHealthCheckService {
+        if (!this._analyticsReadHealthCheckService) {
+            this._analyticsReadHealthCheckService = this.moduleRef.get<AnalyticsReadHealthCheckService>(
+                AnalyticsReadHealthCheckService,
+                { strict: false },
+            );
+        }
+        return this._analyticsReadHealthCheckService;
+    }
+
+    private get analyticsHealthCheckService(): AnalyticsHealthCheckService {
+        if (!this._analyticsHealthCheckService) {
+            this._analyticsHealthCheckService = this.moduleRef.get<AnalyticsHealthCheckService>(
+                AnalyticsHealthCheckService,
+                { strict: false },
+            );
+        }
+        return this._analyticsHealthCheckService;
+    }
+
+    private get internalAnalyticsHealthCheckService(): InternalAnalyticsHealthCheckService {
+        if (!this._internalAnalyticsHealthCheckService) {
+            this._internalAnalyticsHealthCheckService = this.moduleRef.get<InternalAnalyticsHealthCheckService>(
+                InternalAnalyticsHealthCheckService,
+                {
+                    strict: false,
+                },
+            );
+        }
+        return this._internalAnalyticsHealthCheckService;
+    }
+
+    private get autoAssignHealthCheckService(): AutoAssignHealthCheckService {
+        if (!this._autoAssignHealthCheckService) {
+            this._autoAssignHealthCheckService = this.moduleRef.get<AutoAssignHealthCheckService>(
+                AutoAssignHealthCheckService,
+                { strict: false },
+            );
+        }
+        return this._autoAssignHealthCheckService;
+    }
+
+    private get billingHealthCheckService(): BillingHealthCheckService {
+        if (!this._billingHealthCheckService) {
+            this._billingHealthCheckService = this.moduleRef.get<BillingHealthCheckService>(BillingHealthCheckService, {
+                strict: false,
+            });
+        }
+        return this._billingHealthCheckService;
+    }
+
+    private get campaignHealthCheckService(): CampaignHealthCheckService {
+        if (!this._campaignHealthCheckService) {
+            this._campaignHealthCheckService = this.moduleRef.get<CampaignHealthCheckService>(CampaignHealthCheckService, {
+                strict: false,
+            });
+        }
+        return this._campaignHealthCheckService;
+    }
+
+    private get gupshupHealthCheckService(): GupshupHealthCheckService {
+        if (!this._gupshupHealthCheckService) {
+            this._gupshupHealthCheckService = this.moduleRef.get<GupshupHealthCheckService>(GupshupHealthCheckService, {
+                strict: false,
+            });
+        }
+        return this._gupshupHealthCheckService;
+    }
+
+    private get coreHealthCheckService(): CoreHealthCheckService {
+        if (!this._coreHealthCheckService) {
+            this._coreHealthCheckService = this.moduleRef.get<CoreHealthCheckService>(CoreHealthCheckService, {
+                strict: false,
+            });
+        }
+        return this._coreHealthCheckService;
+    }
+
+    private get setupHealthCheckService(): SetupHealthCheckService {
+        if (!this._setupHealthCheckService) {
+            this._setupHealthCheckService = this.moduleRef.get<SetupHealthCheckService>(SetupHealthCheckService, {
+                strict: false,
+            });
+        }
+        return this._setupHealthCheckService;
     }
 
     async checkConnectionsPsql() {
@@ -104,7 +185,7 @@ export class ExternalDataService {
             this.gupshupHealthCheckService.ping(),
             this.coreHealthCheckService.ping(),
             this.setupHealthCheckService.ping(),
-        ]
+        ];
         const result = await Promise.all(promises);
         const hasError = !!result.find(status => !status);
         return !hasError;

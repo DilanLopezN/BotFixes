@@ -36,6 +36,7 @@ import { ChannelGupshupWhatsappController } from './gupshup.controller';
 import { synchronizePostgres } from '../../../common/utils/sync';
 import { GupshupHealthCheckService } from './services/gupshup-health-check.service';
 import { ExternalDataService } from './services/external-data.service';
+import { GupshupCheckAckErrorConsumer } from './services/gupshup-check-ack-error-consumer.service';
 
 @Module({
     controllers: [ChannelGupshupWhatsappController],
@@ -54,6 +55,7 @@ import { ExternalDataService } from './services/external-data.service';
         ReferralService,
         GupshupHealthCheckService,
         ExternalDataService,
+        GupshupCheckAckErrorConsumer,
     ],
     imports: [
         ConfigModule,

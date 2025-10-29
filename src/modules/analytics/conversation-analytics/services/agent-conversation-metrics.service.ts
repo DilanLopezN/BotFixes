@@ -31,7 +31,9 @@ export class AgentConversationMetricsService {
             .innerJoin(
                 'conversation',
                 'conv',
-                `conv.id = ag.conversation_id AND conv.closed_by = ag.user_id` +
+                `conv.id = ag.conversation_id 
+             AND conv.closed_by = ag.user_id
+             AND (TO_TIMESTAMP(ag.metric_assumed_at / 1000)::date = TO_TIMESTAMP(conv.metrics_close_at / 1000)::date)` +
                     (filter?.teamId ? ' AND conv."assigned_to_team_id" = :teamId' : ''),
                 filter?.teamId ? { teamId: filter.teamId } : undefined,
             )
@@ -81,7 +83,9 @@ export class AgentConversationMetricsService {
             .innerJoin(
                 'conversation',
                 'conv',
-                `conv.id = ag.conversation_id AND conv.closed_by = ag.user_id` +
+                `conv.id = ag.conversation_id 
+             AND conv.closed_by = ag.user_id
+             AND (TO_TIMESTAMP(ag.metric_assumed_at / 1000)::date = TO_TIMESTAMP(conv.metrics_close_at / 1000)::date)` +
                     (filter?.teamId ? ' AND conv."assigned_to_team_id" = :teamId' : ''),
                 filter?.teamId ? { teamId: filter.teamId } : undefined,
             )
@@ -107,7 +111,9 @@ export class AgentConversationMetricsService {
             .innerJoin(
                 'conversation',
                 'conv',
-                `conv.id = ag.conversation_id AND conv.closed_by = ag.user_id` +
+                `conv.id = ag.conversation_id 
+             AND conv.closed_by = ag.user_id
+             AND (TO_TIMESTAMP(ag.metric_assumed_at / 1000)::date = TO_TIMESTAMP(conv.metrics_close_at / 1000)::date)` +
                     (filter?.teamId ? ' AND conv."assigned_to_team_id" = :teamId' : ''),
                 filter?.teamId ? { teamId: filter.teamId } : undefined,
             );

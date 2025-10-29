@@ -5,7 +5,6 @@ import { RUNNER_MANAGER_CONNECTION_NAME } from '../connName';
 import { Runner } from '../models/runner.entity';
 import { CatchError, Exceptions } from '../../auth/exceptions';
 import { EnvTypes, Service } from '../models/service.entity';
-import axios from 'axios';
 import { ModuleRef } from '@nestjs/core';
 import { DeployService } from './deploy.service';
 import { DeployStatus } from '../models/deploy.entity';
@@ -113,6 +112,20 @@ export class RunnerService {
         );
 
         return response.data;
+    }
+
+    async doSqlByIntegration(integrationId: string, sql: string): Promise<any> {
+       try {
+         const response = await lastValueFrom(
+            this.httpService.post(`/private/integration/${integrationId}/doSql`, {
+                sql,
+            }),
+        );
+        return response.data;
+       } catch (error) {
+        console.error(error)
+       }
+
     }
 
     @CatchError()

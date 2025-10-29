@@ -51,7 +51,7 @@ export class FlowService {
         if (flowLibraryModel.variablesOfFlowData?.length) {
             for (const currVariable of flowLibraryModel.variablesOfFlowData) {
                 const key = currVariable.value;
-                newFlowData[key] = flowData?.[key] || '';
+                newFlowData[key] = flowData?.[key];
             }
         }
 
@@ -68,6 +68,8 @@ export class FlowService {
         } else {
             categories = ['OTHER'];
         }
+
+        await this.externalDataService.updateProviderByActiveFlow(channelConfigId);
 
         let { result: flow } = await servicePartner.createFlow(channelConfigId, {
             name: flowLibraryModel.name,
@@ -156,7 +158,7 @@ export class FlowService {
         if (flowLibraryModel.variablesOfFlowData?.length) {
             for (const currVariable of flowLibraryModel.variablesOfFlowData) {
                 const key = currVariable.value;
-                newFlowData[key] = flowData?.[key] || '';
+                newFlowData[key] = flowData?.[key];
             }
         }
 
