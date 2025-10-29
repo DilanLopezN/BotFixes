@@ -4,6 +4,7 @@ import { KissbotEventType } from 'kissbot-core';
 import { ScheduleMessageService } from './schedule-message.service';
 import { getQueueName } from '../../../miscellaneous/utils';
 import { ScheduleMessageProcessResponseTypeService } from './schedule-message-process-response-type.service';
+import { ScheduleMessageResponseType } from '../../../schedule/models/schedule-message.entity';
 
 @Injectable()
 export class ScheduleMessageResponseConsumerService {
@@ -26,6 +27,7 @@ export class ScheduleMessageResponseConsumerService {
       KissbotEventType.SCHEDULE_CONFIRMATION_CANCEL_REASON,
       KissbotEventType.SCHEDULE_NPS_SCORE,
       KissbotEventType.SCHEDULE_NPS_SCORE_COMMENT,
+      KissbotEventType.SCHEDULE_DOCUMENT_UPLOADED,
     ],
     queue: getQueueName('schedule-message-response'),
     queueOptions: {
@@ -99,6 +101,15 @@ export class ScheduleMessageResponseConsumerService {
             scheduleId,
             npsScoreComment,
             externalId,
+          );
+          break;
+        }
+        case KissbotEventType.SCHEDULE_DOCUMENT_UPLOADED: {
+          const { scheduleCode, patientCode } = event.data;
+          await this.scheduleMessageService.updateScheduleMessageDocumentUploaded(
+            scheduleCode,
+            patientCode,
+            ScheduleMessageResponseType.document_uploaded,
           );
           break;
         }

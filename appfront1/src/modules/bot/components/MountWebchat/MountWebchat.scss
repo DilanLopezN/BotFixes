@@ -1,0 +1,60 @@
+.MountWebchat {
+  position: fixed;
+  bottom: 300px;
+  background: #fff;
+  padding: 10px;
+  right: 0;
+  z-index: 1000;
+
+  .container-channel {
+    padding-right: 10px;
+    padding-bottom: 10px;
+
+    .group-channel {
+      font-size: 13px;
+      .title-channel {
+        color: #696969;
+        font-weight: 500;
+      }
+    }
+  }
+
+  .modal-activity {
+    position: absolute;
+    width: 300px;
+    height: 500px;
+  }
+}
+
+.json-viewer {
+  display: flex;
+  z-index: 99999999 !important;
+}
+
+.json-viewer .label-ident {
+  border-bottom: 1px #d3d4d454 solid;
+  margin: 5px 10px 10px 10px;
+  font-weight: 600;
+}
+
+.json-viewer .data {
+  overflow-y: auto;
+  padding: 5px 10px;
+  max-height: 60vh;
+  max-width: 60vh;
+}
+
+.json-viewer .data::-webkit-scrollbar-track {
+  padding: 2px 0;
+  background-color: #ddd;
+}
+
+.json-viewer .data::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.json-viewer .data::-webkit-scrollbar-thumb {
+  border-radius: 6px;
+  background-color: #adadad;
+}

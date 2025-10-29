@@ -1,0 +1,112 @@
+stages:
+  - push_registry
+  - deploy
+
+cache:
+  untracked: true
+  paths:
+    - node_modules/
+
+push_registry:
+  stage: push_registry
+  image: docker:20.10.12
+  timeout: 3 hours
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
+  services:
+    - docker:20.10.12-dind
+  before_script:
+    - apk update && apk upgrade && apk add --no-cache git
+    - git remote set-url origin https://${GITLAB_CI_USER}:${GITLAB_CI_PASSWORD}@gitlab.com/${CI_PROJECT_NAMESPACE}/${CI_PROJECT_NAME}.git
+    - docker login -u $GITLAB_CI_USER -p $GITLAB_CI_PASSWORD registry.gitlab.com
+  script:
+    - export TAG_FORMATION=null
+    - export RELEASE_TYPE=null
+    - case "$CI_COMMIT_REF_NAME" in "master") RELEASE_TYPE="release-";; "eks") RELEASE_TYPE="alpha-release-";; "develop") RELEASE_TYPE="alpha-release-";; esac
+    - export TAG_FORMATION=$RELEASE_TYPE$CI_PIPELINE_ID
+    # defines env vars
+    - export DOCKER_FILE_PATH_APP=./docker/Dockerfile
+    #Build App
+    - echo $REGISTRY_URL_BASE
+    - docker build -f $DOCKER_FILE_PATH_APP --network host -t $CI_REGISTRY_IMAGE/$BASE_APP_NAME:$TAG_FORMATION --build-arg VERSION=$TAG_FORMATION .
+    - docker build -f $DOCKER_FILE_PATH_APP --network host -t $CI_REGISTRY_IMAGE/$BASE_APP_NAME:latest --build-arg VERSION=$TAG_FORMATION .
+    - docker push $CI_REGISTRY_IMAGE/$BASE_APP_NAME:$TAG_FORMATION
+    - docker push $CI_REGISTRY_IMAGE/$BASE_APP_NAME:$TAG_FORMATION
+    #Generate Tags
+    - echo "Current Tag -> "$TAG_FORMATION
+    - git tag $TAG_FORMATION
+    - git push --tags
+  only:
+    - develop
+    - quality
+    - master
+    - eks
+  tags:
+    - build
+  
+
+.deploy_helm: &deploy_helm
+  image: alpine/helm:3.8.1
+  before_script:
+    - helm repo add ${CHARTMUSEUM_NAMESPACE} ${CHARTMUSEUM_URL}
+    - helm repo update
+  script:
+    #APP Envs
+    - export PROJECT_NAME_APP_FULL="botdesigner-${PROJECT_NAME_APP}"
+    - export HELM_CHART_NAME_APP="${CHARTMUSEUM_NAMESPACE}/botdesigner-chart"
+    - export RELEASE_NAME_APP="${PROJECT_NAME_APP_FULL}"
+    # Show Tag Infos
+    - echo $CI_COMMIT_REF_NAME
+    - echo $CI_COMMIT_TAG
+    # Deploy API
+    - |
+      helm upgrade --wait $RELEASE_NAME_APP ${HELM_CHART_NAME_APP} --namespace=${NAMESPACE} \
+        -f kubernetes/${NAMESPACE}/values.yaml \
+        --set image.tag=$CI_COMMIT_TAG \
+        --wait --timeout 10m
+
+deploy_kissbot_dev:
+  <<: *deploy_helm
+  variables:
+    NAMESPACE: 'developer'
+    DOMAIN_NAME: dev-${PROJECT_NAME_APP}.${DOMAIN_BOTDESIGNER} #per project
+    PROJECT_NAME_APP: $PROJECT_NAME_APP #per project
+    WEBCHAT_URL: webchat.${DOMAIN_BOTDESIGNER} #per project
+    LAUNCHER_URL: webchat-launcher.${DOMAIN_BOTDESIGNER} #per project
+    API_URL: api.${DOMAIN_BOTDESIGNER} #per project
+    DEMO_URL: demo.${DOMAIN_BOTDESIGNER} #per project
+    CM_URL: conversation-manager.${DOMAIN_BOTDESIGNER}
+    ORGANIZATION_CODE: 'botdesigner'
+  stage: deploy
+  tags:
+    - botdesigner-eks
+  only:
+    - /^alpha-release.*$/i
+
+deploy_botdesigner_production:
+  <<: *deploy_helm
+  variables:
+    NAMESPACE: 'production'
+    DOMAIN_NAME: ${PROJECT_NAME_APP}.${DOMAIN_BOTDESIGNER} #per project
+    PROJECT_NAME_APP: $PROJECT_NAME_APP #per project
+    WEBCHAT_URL: webchat.${DOMAIN_BOTDESIGNER} #per project
+    LAUNCHER_URL: webchat-launcher.${DOMAIN_BOTDESIGNER} #per project
+    API_URL: api.${DOMAIN_BOTDESIGNER} #per project
+    DEMO_URL: demo.${DOMAIN_BOTDESIGNER} #per project
+    CM_URL: conversation-manager.${DOMAIN_BOTDESIGNER}
+    ORGANIZATION_CODE: 'botdesigner'
+    CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN}
+    CLOUDFLARE_ZONE_ID: ${CLOUDFLARE_ZONE_ID}
+  after_script:
+     - apk update && apk upgrade && apk add curl
+     - |
+      curl -X POST "https://api.cloudflare.com/client/v4/zones/$CLOUDFLARE_ZONE_ID/purge_cache" \
+        -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+        -H "Content-Type: application/json" \
+        --data '{"files": ["https://app.botdesigner.io/*"]}'
+  stage: deploy
+  tags:
+    - botdesigner-eks
+  only:
+    - /^release-.*$/i

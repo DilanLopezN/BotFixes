@@ -1,0 +1,16 @@
+.Filter{
+    display: flex;
+    flex-wrap: wrap;
+    .btn-add{
+        margin-left: 15px;
+        width: 25px;
+        height: 25px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        -moz-box-shadow: 0px 0px 2px 0px rgba(0,0,0,0.75);
+        -moz-box-shadow: 0px 1px 2px 0px rgba(0,0,0,0.75);
+        box-shadow: 0 1px 4px 0 rgba(0, 0, 0, 0.19);
+    }
+}

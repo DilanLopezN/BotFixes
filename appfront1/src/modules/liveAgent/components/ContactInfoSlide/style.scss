@@ -1,0 +1,16 @@
+.ContactInfoSlide {
+  &::-webkit-scrollbar-track {
+    padding: 2px 0;
+    background-color: #ddd;
+  }
+
+  &::-webkit-scrollbar {
+    width: 8px;
+    height: 4px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    border-radius: 6px;
+    background-color: #adadad;
+  }
+}

@@ -1,0 +1,37 @@
+$border-color : #c2d4e7;
+$border : 2px solid $border-color;
+.new-interaction-popover{
+    position: absolute;
+    background: #fff;
+    left: 50px;
+    min-width: 150px;
+    z-index: 1;
+    top: 0;
+    border-radius: 5px;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.12);
+    .btn-group-vertical{
+        width: 150px;
+        .btn{
+            border-left: none !important;
+            border-right: none !important;
+            border-top: none !important;
+            color : #647384;
+            &:last-child{
+                border-bottom: none !important;
+            }
+            &:hover{
+                color: #fff;
+            }
+
+        }
+        .btn:not(:last-child){
+            border-bottom: 1px solid $border-color;
+        }
+    }
+    .form-wrapper{
+        padding: 10px;
+        form{
+            width: 200px;
+        }
+    }
+}

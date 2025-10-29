@@ -1,0 +1,55 @@
+@import "./../../../../variables";
+
+.BotDetail{
+    .tree-container{
+        $i: 50;
+        @while $i <= 100 {
+            // do stuff
+            &.tree-zoom-#{$i}{
+            zoom: 0% + $i;
+            }
+            $i: $i + 5;
+        }
+    }
+    .bot-name{
+        .link-settings{
+            margin-left: 10px; 
+        }
+    }
+    .got-back-list-bot{
+        display: flex;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+    }
+}
+
+.modal-change-close {
+    .modal-confirm-yes {
+        min-width: 75px;
+        background: $color11 !important;
+    }
+
+    .modal-confirm-no {
+        min-width: 75px;
+        background: $color7 !important;
+        color: #fff;
+    }
+    padding: 0 20px;
+    .modal-change{
+        display: flex;
+        width: 100%;
+        justify-content: center;
+        margin-top: 5px;
+    }
+    h5{
+        color: $color7;
+    }
+    p {
+        text-align: center;
+        font-size: 14px;
+        color: $color1;
+        span{
+            color: $color7;
+        }
+    }
+}

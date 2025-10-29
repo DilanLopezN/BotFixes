@@ -1,0 +1,24 @@
+@import "../../../../../variables";
+
+.ModalListInteraction{
+  .select-copy-response{
+    box-shadow: 0 2px 15px 0 rgba(0,0,0,.07);
+    background: $color8;
+    border: 1px solid #e4e9f0 !important;
+    color: $color7 !important;
+    padding: 9px 24px 9px 19px !important;
+    font-size: 16px !important;
+    font-weight: 400 !important;
+    line-height: 22px !important;
+    min-height: 40px;
+    max-height: none;
+    border-radius: 3px !important;
+    outline: none;
+    width: 100%;
+  }
+  &--container-btn{
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 10px;
+  }
+}

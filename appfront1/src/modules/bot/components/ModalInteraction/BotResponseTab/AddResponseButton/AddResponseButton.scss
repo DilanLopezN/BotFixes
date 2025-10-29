@@ -1,0 +1,66 @@
+@import "./../../../../../../variables";
+
+.AddResponseButton{
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    .icon-response{
+        border: 1px solid $color5;
+        border-radius: 5px;
+        width: 75%;
+        text-align: center;
+        position: relative;
+    }
+    &:hover{
+        span{
+            color: $color3;
+        }
+        .icon-response{
+            border: 1px solid $color3;
+        }
+    }
+    .name-response {
+        font-size: 13px;
+        padding: 4px;
+        text-align: center;
+        line-height: 1.4;
+    }
+}
+
+.selectResponsePosition {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    position: absolute;
+    top: 0px;
+    width: 100%;
+    height: 100%;
+    border-radius: 4px;
+
+    div {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        width: 100%;
+        height: 50%;
+
+        &:hover {
+            background-color: #55555554;
+
+            .mdi {
+                visibility: visible;
+            }
+        }
+    }
+    
+    .mdi {
+        font-size: 22px !important;
+        visibility: hidden;
+        color: #fff;
+        width: 100%;
+        height: 100%;
+        margin: 0;
+    }
+}

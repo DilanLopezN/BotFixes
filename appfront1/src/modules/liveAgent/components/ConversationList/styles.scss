@@ -1,0 +1,36 @@
+.conversationContainer .conversationCard {
+    border: 1px solid #CED4DA;
+    border-bottom: none;
+}
+
+.conversationContainer .conversationCard:last-of-type {
+    border: 0;
+}
+
+.conversationContainer::-webkit-scrollbar {
+    width: 8px;
+}
+
+.conversationContainer::-webkit-scrollbar-track {
+    border-radius: 0px;
+    background: transparent;
+}
+
+.conversationContainer::-webkit-scrollbar-thumb {
+    background :rgba(17, 17, 17, 0.3);
+    border-radius: 0px;
+    box-shadow: none;
+}
+
+.preDefinedFilters .btn-group .btn.active {
+    z-index: 0;
+    background: #5d5d5d;
+    color: #FFF;
+}
+
+.preDefinedFilters .btn-light {
+    color: #444;
+    font-size: 15px;
+    background-color: #FFF;
+    border-color: #d7dae4;
+}

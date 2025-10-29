@@ -1,0 +1,14 @@
+.BotCreateButton {
+    .button-create {
+        padding: 10px !important;
+        min-width: 100px;
+    }
+    .bot-create-form {
+        height: 'small';
+        display: flex;
+        align-items: center;
+    }
+    input {
+        height: 'small';
+    }
+}

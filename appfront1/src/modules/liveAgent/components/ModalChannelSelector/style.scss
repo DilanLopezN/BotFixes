@@ -1,0 +1,9 @@
+.Modal.ModalChannelSelector {
+    display: flex;
+    z-index: 999;
+    background: rgba(0, 0, 0, 0.16);
+
+    .modal-content {
+        border: none;
+    }
+}

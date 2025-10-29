@@ -48,6 +48,9 @@ export class ScheduleSetting {
   @Column({ name: 'name', nullable: true })
   name?: string;
 
+  @Column({ name: 'alias', nullable: true })
+  alias?: string;
+
   @Column({
     name: 'use_speciality_on_exam_message',
     nullable: false,
@@ -61,6 +64,13 @@ export class ScheduleSetting {
     default: false,
   })
   omitAppointmentTypeName?: boolean;
+
+  @Column({
+    name: 'omit_doctor_name',
+    nullable: false,
+    default: false,
+  })
+  omitDoctorName?: boolean;
 
   @Column({ name: 'omit_extract_guidance', nullable: false, default: false })
   omitExtractGuidance?: boolean;

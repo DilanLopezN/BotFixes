@@ -1,0 +1,5 @@
+export enum TemplateCategory {
+  MARKETING = 'MARKETING',
+  UTILITY = 'UTILITY',
+  AUTHENTICATION = 'AUTHENTICATION',
+}

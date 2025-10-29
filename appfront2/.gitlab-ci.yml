@@ -1,0 +1,122 @@
+stages:
+  - push_registry
+  - deploy
+
+cache:
+  untracked: true
+  paths:
+    - node_modules/
+
+.push_registry: &push_registry
+  image: docker:20.10.12
+  services:
+    - docker:20.10.12-dind
+  before_script:
+    - apk update && apk upgrade && apk add --no-cache git
+    - git remote set-url origin https://${GITLAB_CI_USER}:${GITLAB_CI_PASSWORD}@gitlab.com/${CI_PROJECT_NAMESPACE}/${CI_PROJECT_NAME}.git
+    - docker login -u $GITLAB_CI_USER -p $GITLAB_CI_PASSWORD registry.gitlab.com
+  script:
+    - export TAG_FORMATION=null
+    - export RELEASE_TYPE=null
+    - case "$CI_COMMIT_REF_NAME" in "main") RELEASE_TYPE="release-";; "eks") RELEASE_TYPE="alpha-release-";; "develop") RELEASE_TYPE="alpha-release-";; esac
+    - export TAG_FORMATION=$RELEASE_TYPE$CI_PIPELINE_ID
+    # defines env vars
+    - export DOCKER_FILE_PATH_APP=./docker/Dockerfile
+    #Build App
+    - echo "$COGNITO_POOL_CLIENT_ID"
+    - echo 'APPIII'
+    - docker build -f $DOCKER_FILE_PATH_APP --network host -t $CI_REGISTRY_IMAGE:$TAG_FORMATION
+        --build-arg VERSION=$TAG_FORMATION
+        --build-arg REACT_APP_COGNITO_POOL_CLIENT_ID=$COGNITO_POOL_CLIENT_ID
+        --build-arg REACT_APP_COGNITO_POOL_ID=$COGNITO_POOL_ID
+        --build-arg REACT_APP_COGNITO_REGION=$COGNITO_REGION
+        --build-arg REACT_APP_API_URL=$APP_API_URL
+        --build-arg REACT_APP_NODE_ENV=$NODE_ENV .
+    
+    - docker build -f $DOCKER_FILE_PATH_APP --network host -t $CI_REGISTRY_IMAGE:latest
+        --build-arg VERSION=$TAG_FORMATION
+        --build-arg REACT_APP_COGNITO_POOL_CLIENT_ID=$COGNITO_POOL_CLIENT_ID
+        --build-arg REACT_APP_COGNITO_POOL_ID=$COGNITO_POOL_ID
+        --build-arg REACT_APP_COGNITO_REGION=$COGNITO_REGION
+        --build-arg REACT_APP_API_URL=$APP_API_URL
+        --build-arg REACT_APP_NODE_ENV=$NODE_ENV .
+    
+    - docker push $CI_REGISTRY_IMAGE:$TAG_FORMATION
+    #Generate Tagss
+    - echo "Current Tag -> "$TAG_FORMATION
+    - git tag $TAG_FORMATION
+    - git push --tags
+
+push_registry_dev:
+  <<: *push_registry
+  variables:
+    COGNITO_POOL_CLIENT_ID: ${DEV_COGNITO_POOL_CLIENT_ID}
+    COGNITO_POOL_ID: ${DEV_COGNITO_POOL_ID}
+    COGNITO_REGION: ${DEV_COGNITO_REGION}
+    APP_API_URL: ${DEV_API_URL}
+    NODE_ENV: ${DEV_NODE_ENV}
+  stage: push_registry
+  only:
+    - develop
+
+push_registry_prod:
+  <<: *push_registry
+  variables:
+    COGNITO_POOL_CLIENT_ID: ${PROD_COGNITO_POOL_CLIENT_ID}
+    COGNITO_POOL_ID: ${PROD_COGNITO_POOL_ID}
+    COGNITO_REGION: ${PROD_COGNITO_REGION}
+    APP_API_URL: ${PROD_API_URL}
+    NODE_ENV: ${PROD_NODE_ENV}
+  stage: push_registry
+  only:
+    - main
+
+.deploy_helm: &deploy_helm
+  image: alpine/helm:3.8.1
+  before_script:
+    - helm repo add ${CHARTMUSEUM_NAMESPACE} ${CHARTMUSEUM_URL}
+    - helm repo update
+  script:
+    #APP Envs
+    - export PROJECT_NAME_APP_FULL="botdesigner-${PROJECT_NAME_APP}"
+    - export HELM_CHART_NAME_APP="${CHARTMUSEUM_NAMESPACE}/botdesigner-chart"
+    - export RELEASE_NAME_APP="${PROJECT_NAME_APP_FULL}"
+    # Show Tag Infos
+    - echo $CI_COMMIT_REF_NAME
+    - echo $CI_COMMIT_TAG
+    # Deploy API
+    - |
+      helm upgrade $RELEASE_NAME_APP ${HELM_CHART_NAME_APP} --namespace=${NAMESPACE} \
+        -f kubernetes/${NAMESPACE}/values.yaml --set image.tag=$CI_COMMIT_TAG \
+        --wait --timeout 10m
+
+deploy_kissbot_dev:
+  <<: *deploy_helm
+  variables:
+    NAMESPACE: 'developer'
+    PROJECT_NAME_APP: app-v2
+  stage: deploy
+  tags:
+    - botdesigner-eks
+  only:
+    - /^alpha-release.*$/i
+
+deploy_botdesigner_production:
+  <<: *deploy_helm
+  variables:
+    NAMESPACE: 'production'
+    PROJECT_NAME_APP: app-v2
+    CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN}
+    CLOUDFLARE_ZONE_ID: ${CLOUDFLARE_ZONE_ID}
+  after_script:
+     - apk update && apk upgrade && apk add curl
+     - |
+      curl -X POST "https://api.cloudflare.com/client/v4/zones/$CLOUDFLARE_ZONE_ID/purge_cache" \
+        -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+        -H "Content-Type: application/json" \
+        --data '{"files": ["https://app.botdesigner.io/v2*"]}'
+  stage: deploy
+  tags:
+    - botdesigner-eks
+  only:
+    - /^release-.*$/i

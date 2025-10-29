@@ -1,0 +1,7 @@
+export enum TABS {
+    USER_SAYS = 'USER_SAYS',
+    BOT_RESPONSES = 'BOT_RESPONSES',
+    ADVANCED = 'ADVANCED',
+    LABELS = 'LABELS',
+    COMMENTS = 'COMMENTS',
+}

@@ -200,6 +200,16 @@ export class ScheduleSettingService {
     });
   }
 
+    @CatchError()
+  async listByWorkspaceIdWithAlias(workspaceId: string) {
+    return await this.repo
+      .createQueryBuilder('schSett')
+      .select(['schSett.id', 'schSett.alias'])
+      .where('schSett.workspace_id = :workspaceId', { workspaceId })
+      .andWhere('schSett.alias IS NOT NULL')
+      .getMany();
+  }
+
   @CatchError()
   async createScheduleSetting(data: CreateScheduleSettingData) {
     const existsScheduleSetting = await this.repo.findOne({
@@ -218,6 +228,7 @@ export class ScheduleSettingService {
       useSpecialityOnExamMessage: data.useSpecialityOnExamMessage,
       sendOnlyPrincipalExam: data.sendOnlyPrincipalExam,
       name: data.name,
+      alias: data.alias,
       extractRule: data.extractRule,
       extractAt: data.extractAt,
       enableSendRetry: data.enableSendRetry,
@@ -225,6 +236,7 @@ export class ScheduleSettingService {
       useOrganizationUnitOnGroupDescription:
         data.useOrganizationUnitOnGroupDescription,
       omitAppointmentTypeName: data.omitAppointmentTypeName,
+      omitDoctorName: data.omitDoctorName,
       omitExtractGuidance: data.omitExtractGuidance,
       fridayJoinWeekendMonday: data.fridayJoinWeekendMonday,
       checkScheduleChanges: data.checkScheduleChanges,
@@ -247,6 +259,7 @@ export class ScheduleSettingService {
       {
         active: data.active,
         name: data.name,
+        alias: data.alias,
         getScheduleInterval: Number(data.getScheduleInterval),
         integrationId: data.integrationId,
         extractRule: data.extractRule,
@@ -258,6 +271,7 @@ export class ScheduleSettingService {
         useOrganizationUnitOnGroupDescription:
           data.useOrganizationUnitOnGroupDescription,
         omitAppointmentTypeName: data.omitAppointmentTypeName,
+        omitDoctorName: data.omitDoctorName,
         omitExtractGuidance: data.omitExtractGuidance,
         fridayJoinWeekendMonday: data.fridayJoinWeekendMonday,
         checkScheduleChanges: data.checkScheduleChanges,
@@ -343,6 +357,7 @@ export class ScheduleSettingService {
     const schedule = await this.repo.save({
       active: data.schedule.active,
       name: data.schedule.name,
+      alias: data.schedule.alias,
       getScheduleInterval: Number(data.schedule.getScheduleInterval),
       integrationId: data.schedule.integrationId,
       workspaceId: workspaceId,
@@ -356,6 +371,7 @@ export class ScheduleSettingService {
       useOrganizationUnitOnGroupDescription:
         data.schedule.useOrganizationUnitOnGroupDescription,
       omitAppointmentTypeName: data.schedule.omitAppointmentTypeName,
+      omitDoctorName: data.schedule.omitDoctorName,
       omitExtractGuidance: data.schedule.omitExtractGuidance,
       fridayJoinWeekendMonday: data.schedule.fridayJoinWeekendMonday,
       checkScheduleChanges: data.schedule.checkScheduleChanges,

@@ -31,6 +31,7 @@ export enum ScheduleMessageResponseType {
   'cancel_reschedule_recover' = 'cancel_reschedule_recover',
   'confirm_reschedule_recover' = 'confirm_reschedule_recover',
   'confirm_reschedule' = 'confirm_reschedule',
+  'document_uploaded' = 'document_uploaded',
 }
 
 export enum ScheduleMessageState {

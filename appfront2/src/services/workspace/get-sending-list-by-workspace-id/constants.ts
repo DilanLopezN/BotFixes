@@ -1,0 +1,15 @@
+export enum SendingStatus {
+  CONFIRMED = 'confirmed',
+  CANCELED = 'canceled',
+  SENDED = 'sended',
+  INVALID = 'invalid_number',
+  NOT_ANSWERED = 'not_answered',
+  OPEN_CVS = 'open_cvs',
+  RESCHEDULE = 'reschedule',
+  NO_RECIPIENT = 'no_recipient',
+  INVALID_RECIPIENT = 'invalid_recipient',
+  INDIVIDUAL_CANCEL = 'individual_cancel',
+  START_RESCHEDULE_RECOVER = 'start_reschedule_recover',
+  CANCEL_RESCHEDULE_RECOVER = 'cancel_reschedule_recover',
+  CONFIRM_RESCHEDULE_RECOVER = 'confirm_reschedule_recover',
+}

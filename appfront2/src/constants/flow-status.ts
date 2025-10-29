@@ -1,0 +1,7 @@
+export enum FlowStatusEnum {
+  DRAFT = 'DRAFT',
+  PUBLISHED = 'PUBLISHED',
+  DEPRECATED = 'DEPRECATED',
+  BLOCKED = 'BLOCKED',
+  THROTTLED = 'THROTTLED',
+}

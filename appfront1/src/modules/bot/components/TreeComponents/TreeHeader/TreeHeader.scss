@@ -1,0 +1,225 @@
+@import "./../../../../../variables";
+
+@keyframes pulse {
+	0% {
+		-moz-box-shadow: 0 0 0 0 rgba(0, 123, 255, .4);
+		box-shadow: 0 0 0 0 rgba(0, 123, 255, .4);
+	}
+	70% {
+		-moz-box-shadow: 0 0 0 10px rgba(0, 123, 255, 0);
+		box-shadow: 0 0 0 10px rgba(0, 123, 255, 0);
+	}
+	100% {
+		-moz-box-shadow: 0 0 0 0 rgba(0, 123, 255, 0);
+		box-shadow: 0 0 0 0 rgba(0, 123, 255, 0);
+	}
+}
+
+.collapse-btn {
+	position: absolute;
+	width: 20px;
+	height: 20px;
+	background: #c2d4e7;
+	border-radius: 50%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: #647384;
+	top: 36px;
+	left: -64px;
+	z-index: 1;
+	font-size: 12px;
+}
+
+.name-container {
+	position: relative;
+
+	.btn-container {
+		cursor: pointer;
+		width: 33px;
+		background: #ffffff;
+		height: 33px;
+		margin-left: 5px;
+		display: flex;
+		transform: rotate(47deg);
+		border: 1px solid #33b371;
+		margin-top: 4px;
+		justify-content: center;
+		align-items: center;
+
+		span {
+			color: #33b371;
+		}
+
+		.icon-pencil-edit {
+			display: none;
+			margin-left: 3px;
+			transform: rotate(-50deg);
+		}
+
+		.icon-send-edit {
+			margin-left: 3px;
+			transform: rotate(-50deg);
+		}
+	}
+
+	.btn-container:hover {
+		.icon-send-edit {
+			display: none;
+		}
+
+		.icon-pencil-edit {
+			display: block;
+		}
+	}
+
+	&:before {
+		content: " ";
+		width: 0;
+		height: 0;
+		border-style: solid;
+		border-width: 5px 5px 0 5px;
+		border-color: #fff transparent transparent transparent;
+		position: absolute;
+		top: -8px;
+		left: 16px;
+		z-index: 1;
+	}
+
+	.trash-btn {
+		display: none;
+		width: 15px;
+		position: absolute;
+		top: -10px;
+		left: 45px;
+		color: #647384;
+
+		&:hover > .mdi {
+			color: #0460d1;
+		}
+	}
+
+	.copy-btn {
+		display: none;
+		width: 15px;
+		position: absolute;
+		top: 20px;
+		left: 48px;
+		color: #647384;
+
+		&:hover > .mdi {
+			color: #0460d1;
+		}
+	}
+
+	.send-icon {
+		display: block;
+	}
+
+	.edit-icon {
+		display: none;
+	}
+
+	&:hover {
+		.trash-btn {
+			display: block
+		}
+
+		.copy-btn {
+			display: block
+		}
+
+		.send-icon {
+			display: none;
+		}
+
+		.edit-icon {
+			display: block;
+		}
+	}
+
+	.name {
+		position: absolute;
+		background: #fff;
+		padding: 7px;
+		min-width: 40px;
+		top: -33px;
+		width: max-content;
+		align-items: center;
+		border-radius: 5px;
+		font-size: 14px;
+		-webkit-box-shadow: 2px 2px 6px 0 rgba(0, 0, 0, 0.2);
+		box-shadow: 2px 2px 6px 0 rgba(0, 0, 0, 0.2);
+		height: 25px;
+		cursor: pointer;
+		display: flex;
+	}
+
+	.btn-rounded {
+		&.welcome {
+			font-size: 10px;
+			background: #114583;
+		}
+
+		&.reference {
+			$reference-color: #33b371;
+			color: $reference-color;
+			background: #fff;
+			border: 1px solid $reference-color;
+
+			span {
+				color: $reference-color;
+			}
+		}
+
+		&.selected-interaction {
+			background: $color11;
+		}
+
+		&.executing {
+			box-shadow: 0 0 0 rgba(0, 123, 255, .4);
+			animation: pulse 1.5s infinite;
+		}
+
+		&.changed {
+			background: #ec6f34;
+		}
+
+		&.created {
+			background: #ec6f34;
+		}
+	}
+
+	a {
+		text-decoration: none !important;
+	}
+
+	.list-labels {
+		display: flex;
+		height: 100%;
+		margin-left: 3px;
+	}
+
+	.title-interaction {
+		margin: 0;
+		padding: 0;
+	}
+
+	.item-label {
+		height: 100%;
+		width: 5px;
+		cursor: pointer;
+		background: red;
+	}
+
+	.item-label:last-child {
+		border-radius: 0px 3px 3px 0px;
+	}
+	.selected-container{
+		border: red;
+		background: red;
+		span{
+			color: #fff;
+		}
+	}
+}

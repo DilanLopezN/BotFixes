@@ -11,6 +11,10 @@ import { ExtractResumeType } from '../../models/extract-resume.entity';
 import { CancelReason } from '../../models/cancel-reason.entity';
 import { ScheduleFilterListData } from '../../interfaces/schedule-filter-list-data.interface';
 import { ScheduleService } from '../../services/schedule/schedule.service';
+import {
+  FIELD_LABELS,
+  DEFAULT_EXPORT_FIELDS,
+} from '../../dto/schedule-export.dto';
 import * as moment from 'dayjs';
 
 @Injectable()
@@ -20,10 +24,7 @@ export class ScheduleAnalyticsService {
     private readonly scheduleService: ScheduleService,
   ) {}
 
-  private formatResultAnalytics(
-    type: ExtractResumeType,
-    queryResult: any[],
-  ) {
+  private formatResultAnalytics(type: ExtractResumeType, queryResult: any[]) {
     let baseResult = {
       invalidNumber: 0,
       notAnswered: 0,
@@ -43,8 +44,10 @@ export class ScheduleAnalyticsService {
           canceled: 0,
           individual_cancel: 0,
           reschedule: 0,
+          confirm_reschedule: 0,
         };
         break;
+
       case ExtractResumeType.recover_lost_schedule:
         result = {
           ...baseResult,
@@ -122,6 +125,13 @@ export class ScheduleAnalyticsService {
               ScheduleMessageResponseType.reschedule,
           )?.count || 0,
         );
+        result.confirm_reschedule = Number(
+          queryResult.find(
+            (currResult) =>
+              currResult.response_type ===
+              ScheduleMessageResponseType.confirm_reschedule,
+          )?.count || 0,
+        );
         break;
       case ExtractResumeType.recover_lost_schedule:
         result.start_reschedule_recover = Number(
@@ -143,6 +153,16 @@ export class ScheduleAnalyticsService {
             (currResult) =>
               currResult.response_type ===
               ScheduleMessageResponseType.confirm_reschedule_recover,
+          )?.count || 0,
+        );
+        break;
+
+      case ExtractResumeType.documents_request:
+        result.document_uploaded = Number(
+          queryResult.find(
+            (currResult) =>
+              currResult.response_type ===
+              ScheduleMessageResponseType.document_uploaded,
           )?.count || 0,
         );
         break;
@@ -240,23 +260,31 @@ export class ScheduleAnalyticsService {
     });
   }
 
-  async listSchedulesCsv(filter: ScheduleFilterListData): Promise<any[]> {
+  async listSchedulesCsv(
+    filter: ScheduleFilterListData,
+    selectedColumns?: string[],
+  ): Promise<any[]> {
+    // Busca todos os dados sem paginação (limit: 0)
     const { data } = await this.scheduleService.listSchedules(
       { skip: 0, limit: 0 },
       filter,
     );
 
+    // Mapeamento de traduções para status
     const scheduleMessageResponseTypeTranslation = {
       confirmed: 'Confirmado',
       canceled: 'Cancelado',
       individual_cancel: 'Cancelamento individual',
       reschedule: 'Reagendado',
+      confirm_reschedule: 'Reagendamento confirmado',
       invalid_number: 'Número inválido',
       open_cvs: 'Possui atendimento em aberto',
       no_recipient: 'Sem dados para contato',
       invalid_recipient: 'Dado de contato inválido',
+      not_answered: 'Não respondido',
     };
 
+    // Mapeamento de traduções para tipos de envio
     const extractResumeTypeTranslation = {
       confirmation: 'Confirmação',
       reminder: 'Lembrete',
@@ -269,27 +297,103 @@ export class ScheduleAnalyticsService {
       active_mkt: 'Disparos dinâmicos de Marketing',
     };
 
-    const dataFormated: any = data?.map((scheduleItem) => {
-      return {
-        ID: scheduleItem.scheduleCode,
-        'Cód. Paciente': scheduleItem.patientCode,
-        Paciente: scheduleItem.patientName,
-        Médico: scheduleItem.doctorName,
-        Agendamento: moment(scheduleItem.scheduleDate).toISOString(),
-        Status:
-          scheduleMessageResponseTypeTranslation[scheduleItem.status] ??
-          'Enviado',
-        Tipo: extractResumeTypeTranslation[scheduleItem.sendType] ?? '',
-        Procedimento: scheduleItem.procedureName,
-        'Tipo de Agendamento': scheduleItem.appointmentTypeName,
-        Unidade: scheduleItem.organizationUnitName,
-        'Mot. Cancelamento': scheduleItem.cancelReason,
-        'Nota do NPS': scheduleItem.npsScore,
-        Feedback: scheduleItem.feedback,
-      };
+    // Mapeamento de traduções para canal
+    const recipientTypeTranslation = {
+      whatsapp: 'WhatsApp',
+      sms: 'SMS',
+      email: 'E-mail',
+      blank: 'N/A',
+    };
+
+    // Determina quais campos exportar
+    let fieldsToExport: string[];
+
+    if (selectedColumns && selectedColumns.length > 0) {
+      // Se há colunas selecionadas, usa elas + campos padrão
+      fieldsToExport = [
+        ...new Set([...DEFAULT_EXPORT_FIELDS, ...selectedColumns]),
+      ];
+    } else {
+      // Se não há configuração, exporta campos principais
+      fieldsToExport = [
+        'patientCode',
+        'patientName',
+        'doctorName',
+        'scheduleDate',
+        'status',
+        'sendType',
+        'procedureName',
+        'appointmentTypeName',
+        'organizationUnitName',
+        'insuranceName',
+        'insurancePlanName',
+        'cancelReasonName',
+        'recipientType',
+        'email',
+        'phone',
+      ];
+    }
+
+    // Formata os dados com base nos campos selecionados
+    const dataFormated = data?.map((scheduleItem: any) => {
+      const formattedItem: any = {};
+
+      fieldsToExport.forEach((field) => {
+        const fieldLabel = FIELD_LABELS[field];
+        if (!fieldLabel) return;
+
+        // Tratamento especial apenas para campos que precisam de formatação
+        switch (field) {
+          case 'scheduleDate':
+          case 'sendedAt':
+          case 'responseAt':
+            formattedItem[fieldLabel] = scheduleItem[field]
+              ? moment(scheduleItem[field]).format('DD/MM/YYYY HH:mm')
+              : '';
+            break;
+
+          case 'status':
+            const statusKey = scheduleItem.status || 'not_answered';
+            formattedItem[fieldLabel] =
+              scheduleMessageResponseTypeTranslation[statusKey] || 'Enviado';
+            break;
+
+          case 'sendType':
+            formattedItem[fieldLabel] =
+              extractResumeTypeTranslation[scheduleItem.sendType] || '';
+            break;
+
+          case 'recipientType':
+            formattedItem[fieldLabel] =
+              recipientTypeTranslation[scheduleItem.recipientType] || '';
+            break;
+
+          case 'email':
+            formattedItem[fieldLabel] = scheduleItem.patientEmail || '';
+            break;
+
+          case 'phone':
+            formattedItem[fieldLabel] = scheduleItem.patientPhone || '';
+            break;
+
+          case 'npsScore':
+            formattedItem[fieldLabel] =
+              scheduleItem.npsScore !== null
+                ? scheduleItem.npsScore.toString()
+                : '';
+            break;
+
+          default:
+            // Todos os outros campos usam o valor direto
+            formattedItem[fieldLabel] = scheduleItem[field] || '';
+            break;
+        }
+      });
+
+      return formattedItem;
     });
 
-    return dataFormated;
+    return dataFormated || [];
   }
 
   public async getScheduleMetricsNpsSchedule(

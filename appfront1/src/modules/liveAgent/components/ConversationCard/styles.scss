@@ -1,0 +1,60 @@
+.conversationCard p,
+.conversationCard div {
+    color: #484848;
+}
+
+.conversationCard.active p,
+.conversationCard.active div {
+    color: #484848;
+}
+
+.conversationCard:not(.active):hover {
+    background-color: #dcdcdc80;
+}
+
+@mixin multiLineEllipsis($lineHeight: 1.2em, $lineCount: 1, $bgColor: white) {
+    overflow: hidden;
+    position: relative;
+    line-height: $lineHeight;
+    max-height: $lineHeight * $lineCount; 
+    text-align: justify;
+    margin-right: 0;
+    padding-right: 1em;
+    &:before {
+        content: '...';
+        position: absolute;
+        right: 0;
+        bottom: 0;
+    }
+    &:after {
+        content: '';
+        position: absolute;
+        right: 0;
+        width: 1em;
+        height: 1em;
+        margin-top: 0.2em;
+        background: $bgColor;
+    }
+}
+
+.previewMessage {
+    &.active {
+        @include multiLineEllipsis(1.4em, 2, #e9ebeb);
+    }
+    @include multiLineEllipsis(1.4em, 2, #FFF);
+    margin: 0;
+}
+
+.labelButton {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+    border-right: none;
+}
+
+.optionsButton {
+    cursor: pointer;
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+    border-left: none;
+    position: relative;
+}

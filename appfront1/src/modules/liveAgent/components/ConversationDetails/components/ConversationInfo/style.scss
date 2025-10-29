@@ -1,0 +1,25 @@
+.ConversationInfo::-webkit-scrollbar,
+.chatSidebar::-webkit-scrollbar,
+.chatContainerBody::-webkit-scrollbar {
+    width: 8px;
+}
+
+.ConversationInfo::-webkit-scrollbar-track,
+.chatSidebar::-webkit-scrollbar-track,
+.chatContainerBody::-webkit-scrollbar-track {
+    border-radius: 0px;
+    background: transparent;
+}
+
+.ConversationInfo::-webkit-scrollbar-thumb,
+.chatSidebar::-webkit-scrollbar-thumb,
+.chatContainerBody::-webkit-scrollbar-thumb {
+    background :rgba(17, 17, 17, 0.2);
+    border-radius: 0px;
+    box-shadow: none;
+}
+
+.ConversationInfo {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(17, 17, 17, 0.2) transparent;
+}

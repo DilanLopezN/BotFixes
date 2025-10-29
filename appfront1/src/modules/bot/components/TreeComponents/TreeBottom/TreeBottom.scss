@@ -1,0 +1,108 @@
+@import "./../../../../../variables.scss";
+$border-color: #c2d4e7;
+$border: 2px solid $border-color;
+
+.add-node {
+  margin: 5px 0 25px 20px;
+
+  &:before {
+    content: " ";
+    position: absolute;
+    height: calc(100% - 69px);
+    border-left: $border;
+    top: 67px;
+  }
+
+  .add-btn-container {
+    width: 50px;
+    position: relative;
+    border-bottom: $border;
+    padding-top: 20px;
+    border-left: $border;
+    border-bottom-left-radius: 5px;
+
+    .add-btn {
+      display: flex;
+      width: 30px;
+      height: 30px;
+      margin-left: 22px;
+      font-size: 15px;
+      align-items: center;
+      justify-content: center;
+      border: 1px dashed #c2d4e7;
+      border-radius: 50%;
+      color: #008aff;
+      position: absolute;
+      bottom: -14px;
+      left: 25px;
+    }
+  }
+}
+
+.fallback-node {
+  margin-bottom: 42px;
+  height: 42px;
+  position: relative;
+  &:before {
+    content: " ";
+    position: absolute;
+    height: 10px;
+    width: 42px;
+    border-bottom: $border;
+    border-left: $border;
+    border-bottom-left-radius: 5px;
+    top: 32px;
+    left: 20px;
+  }
+  .btn-rounded.fallback {
+    position: absolute;
+    left: 63px;
+    top: 21px;
+    font-size: 10px;
+    background: #114583;
+    .clickable-btn-area {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .delete-fallback {
+      display: none;
+    }
+    &:hover {
+      .delete-fallback {
+        display: block;
+        position: absolute;
+        position: absolute;
+        left: 40px;
+        top: 0;
+        span {
+          color: $color7;
+          &:hover {
+            color: $color3;
+          }
+        }
+      }
+    }
+    &.executing {
+      box-shadow: 0 0 0 rgba(0, 123, 255, 0.4);
+      animation: pulse 1.5s infinite;
+    }
+  }
+
+  &.dotted:before {
+    content: " ";
+    width: 55px;
+    border-bottom: 2px solid #c2d4e7;
+    border-bottom-left-radius: 10px;
+    border-left: 2px dotted #c2d4e7;
+    height: 5px;
+  }
+  &.executing:before {
+    border-color: $color3;
+    top: 10px;
+    height: 30px;
+    width: 60px;
+  }
+}

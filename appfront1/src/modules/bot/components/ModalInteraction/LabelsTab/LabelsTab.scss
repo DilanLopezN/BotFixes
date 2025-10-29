@@ -1,0 +1,53 @@
+@import "./../../../../../variables.scss";
+
+.Labels {
+  .wrapper {
+    background: $color5;
+    padding: 20px;
+    margin: 0 auto;
+    margin-bottom: 10px;
+    width: 100%;
+  }
+
+  .container-labels {
+    display: flex;
+    flex-wrap: wrap;
+    margin-top: 2px;
+    cursor: pointer;
+    .card {
+      width: 95%;
+      display: flex;
+      flex-wrap: wrap;
+    }
+
+    .card-body{
+      padding: 0.5rem;
+      border-radius: 4px;
+    }
+
+    p {
+      color: #fff;
+      margin: 0;
+    }
+    span{
+      font-size: 25px;
+    }
+    .container-icons{
+      display: flex;
+      justify-content: flex-start;
+      align-items: center;
+      flex-wrap: wrap;
+      .i-no-selected {
+        color: #6ea6c9;
+      }
+
+      .i-selected {
+        color: #007bff;
+      }
+
+    }
+  }
+  .display-none{
+    display: none;
+  }
+}

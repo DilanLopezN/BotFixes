@@ -1,0 +1,14 @@
+.ContactInfo::-webkit-scrollbar {
+  width: 8px;
+}
+
+.ContactInfo::-webkit-scrollbar-track {
+  border-radius: 0px;
+  background: transparent;
+}
+
+.ContactInfo::-webkit-scrollbar-thumb {
+  background: rgba(17, 17, 17, 0.2);
+  border-radius: 0px;
+  box-shadow: none;
+}

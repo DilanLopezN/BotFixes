@@ -1,0 +1,66 @@
+@import "./../../../../../variables";
+.FilterForm{
+    margin-left: 15px;
+    position: relative;
+    .and{
+        font-size: 13px;
+        color: #9e9e9e;
+        margin-left: 10px;
+    }
+    .filter-form-container-modal{
+        position: absolute;
+        -webkit-box-shadow: -2px 0 15px 0 rgba(0, 0, 0, 0.2);
+        box-shadow: -2px 0 15px 0 rgba(0, 0, 0, 0.2);
+        width: 300px;
+        z-index: 1000;
+    }
+    .filter-badge-container{
+        .delete-btn{
+            display: none;
+            position: absolute;
+            top: -10px;
+            right: 20px;
+            color: rgba(0,0,0,.65);
+            width: 20px;
+            height: 20px;
+            background: $color8;
+            border: 1px solid rgba(0,0,0,.3);
+            border-radius: 50%;
+            align-items: center;
+            justify-content: center;
+            i{
+                font-size: 14px;
+            }
+        }
+        &:hover{
+            .delete-btn{
+                display: flex;
+            }
+        }
+        .badge{
+            padding: 7px;
+        }
+    }
+}
+
+.filter-form-container{
+    .submit-container{
+        display: flex;
+        justify-content: flex-end;
+        background: $color8;
+        margin-top: 5px;
+    }
+
+    .select-entities-filter{
+        box-shadow: 0 1px 14px 0 rgba(0, 0, 0, 0.07);
+        background: rgb(255,255,255);
+        border: 1px solid #e4e9f0 !important;
+        color: rgb(105,105,105);
+        font-size: 16px !important;
+        font-weight: 400 !important;
+        border-radius: 3px !important;
+        outline: none;
+        max-width: 293px;
+        width: 100%;
+    }
+}

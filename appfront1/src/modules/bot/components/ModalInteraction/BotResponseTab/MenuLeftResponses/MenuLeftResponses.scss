@@ -1,0 +1,45 @@
+@import "./../../../../../../variables";
+
+.menu-left-main {
+    background: $color2;
+    display: flex;
+    .tabs{
+        width: 50px;
+        text-align: center;
+        .menu-integration.selected{
+            background: $color8;
+            .mdi{
+                color: $color3;
+            }
+        }
+        .img-icon{
+            max-width: 36px;
+            max-height: 36px;
+            margin: 10px 0;
+        }
+    }
+    .under-construction{
+        opacity: .5;
+        cursor: not-allowed;
+        transform: translate(-50%, -50%);
+    }
+    .tab-content{
+        width: calc(100% - 40px);
+        min-height: 600px;
+        background: $color8;
+        .tab-option{
+            &--row{
+                width: 100%
+            }
+            &--title{
+                padding-left: 10px;
+                margin: 10px 0;
+                height: 20px;
+                line-height: 20px;
+                font-size: 16px;
+                letter-spacing: .5px;
+                color: $color7;
+            }
+        }
+    }
+}

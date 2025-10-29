@@ -1,0 +1,33 @@
+@import "./../../../../../variables.scss";
+.UserSays {
+    background: $color5;
+    padding: 20px;
+    margin: 0 auto;
+    width: 100%;
+    .userSays-field-container{
+        margin-bottom: 10px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        &:last-child{
+            .userSays-field-wrapper{
+                .LabelWrapper--content{
+                    border: 1px solid transparent;
+                }
+            }
+        }
+        .userSays-field-wrapper{
+            display: flex;
+            width: 100%;
+            position: relative;
+            .icon-delete {
+                position: absolute;
+                right: 0;
+                top: 5px;
+            }
+        }
+        .add{
+            margin-top: 10px;
+        }
+    }
+}

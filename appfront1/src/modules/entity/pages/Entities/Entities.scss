@@ -1,0 +1,36 @@
+.Entity{
+    .entities-list{
+        width: 100%;
+        height: calc(100vh - 100px);
+        overflow-y: auto;
+        overflow-x: hidden;
+    }
+    a:hover {
+        color: #0056b3;
+        text-decoration: none;
+    }
+    .entities-group-title{
+        align-items: center;
+        display: flex;
+        flex-wrap: wrap;
+        h4{
+            margin: 0;
+            margin-right: 5px;
+        }
+    }
+    .header {
+        justify-content: space-between;
+        width: 75%;
+        height: 35px;
+        margin: 30px auto;
+        align-items: center;
+    }
+    .search {
+        height: 38px;
+        width: 416px;
+    }
+    #content-scroll {
+        overflow-y: hidden;
+        padding: 0;
+    }
+}

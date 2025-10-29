@@ -1,0 +1,38 @@
+@import "./../../../../variables";
+
+.EntitiesList {
+  width: 100%;
+  .entities-list-container {
+    border-bottom: 1px solid $color14;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+ 
+  .entities-list-container:hover{
+    border-bottom: 1px solid $color1;
+  }
+
+  .entities-empty {
+    justify-content: flex-start;
+    display: flex;
+    font-size: small;
+    span {
+      color: $color1;
+        margin-top: 10px;
+    }
+  }
+
+  .entity-name {
+    height: 65px;
+    text-align: center;
+    h5 {
+      color: #444;
+      font-size: 17px;
+    }
+  }
+
+  .wrapper {
+    margin: 0 0 15px 0;
+  }
+}

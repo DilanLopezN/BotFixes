@@ -264,6 +264,17 @@ export class SendScheduleMessageService {
           scheduleIds.push(schedule.scheduleId);
         }
 
+        let serviceType =
+          schedule?.procedureName ||
+          schedule.specialityName ||
+          schedule?.doctorName ||
+          null;
+
+        if (schedule?.appointmentTypeCode == 'C') {
+          serviceType =
+            schedule?.specialityName || schedule?.doctorName || null;
+        }
+
         return {
           scheduleDate: moment(schedule.scheduleDate)
             .locale('pt-br')
@@ -271,11 +282,7 @@ export class SendScheduleMessageService {
           scheduleHour: moment(schedule.scheduleDate)
             .locale('pt-br')
             .format('HH:mm'),
-          serviceType:
-            schedule?.procedureName ||
-            schedule.specialityName ||
-            schedule?.doctorName ||
-            null,
+          serviceType: serviceType,
           professionalName: schedule?.doctorName || null,
           addressUnity:
             schedule?.organizationUnitAddress ||

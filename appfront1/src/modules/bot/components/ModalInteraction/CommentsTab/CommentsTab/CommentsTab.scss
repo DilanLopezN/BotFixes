@@ -1,0 +1,46 @@
+@import "../../../../../../variables";
+
+.CommentsTab {
+	display: flex;
+	flex-direction: column;
+	justify-content: space-between;
+	overflow-y: hidden !important;
+	overflow-x: hidden;
+
+	.wrapper {
+		background: $color5;
+		padding: 20px;
+		margin: 0 auto;
+		margin-bottom: 10px;
+		width: 100%;
+		overflow-y: auto;
+		&.comment-create-container{
+			height: 25%;
+			min-height: 180px;
+		}
+		&.comment-container{
+			height: 75%;
+		}
+	}
+
+	.button-add-comment {
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: flex-end;
+	}
+	.LabelWrapper .label-container {
+		height: 20px;
+	}
+
+	.button-back {
+		min-width: 80px;
+	}
+
+	.display-none {
+		display: none;
+	}
+
+	.icon-mdi-comment {
+		font-size: 25px;
+	}
+}

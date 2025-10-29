@@ -1,0 +1,49 @@
+import { SendingType } from '~/constants/sending-type';
+import { SendingStatus } from '~/services/workspace/get-sending-list-by-workspace-id';
+
+export const STATUS_ALLOWED_MAP: Partial<Record<SendingStatus, SendingType[]>> = {
+  [SendingStatus.CONFIRMED]: [SendingType.confirmation],
+  [SendingStatus.RESCHEDULE]: [SendingType.confirmation],
+  [SendingStatus.CANCELED]: [SendingType.confirmation],
+  [SendingStatus.INDIVIDUAL_CANCEL]: [SendingType.confirmation],
+  [SendingStatus.START_RESCHEDULE_RECOVER]: [SendingType.recover_lost_schedule],
+  [SendingStatus.CONFIRM_RESCHEDULE_RECOVER]: [SendingType.recover_lost_schedule],
+  [SendingStatus.CANCEL_RESCHEDULE_RECOVER]: [SendingType.recover_lost_schedule],
+  [SendingStatus.NOT_ANSWERED]: [SendingType.confirmation, SendingType.recover_lost_schedule],
+  [SendingStatus.OPEN_CVS]: [
+    SendingType.confirmation,
+    SendingType.medical_report,
+    SendingType.nps,
+    SendingType.reminder,
+    SendingType.nps_score,
+    SendingType.recover_lost_schedule,
+    SendingType.schedule_notification,
+  ],
+  [SendingStatus.INVALID]: [
+    SendingType.confirmation,
+    SendingType.reminder,
+    SendingType.medical_report,
+    SendingType.nps,
+    SendingType.nps_score,
+    SendingType.schedule_notification,
+    SendingType.recover_lost_schedule,
+  ],
+  [SendingStatus.NO_RECIPIENT]: [
+    SendingType.confirmation,
+    SendingType.reminder,
+    SendingType.medical_report,
+    SendingType.nps,
+    SendingType.nps_score,
+    SendingType.schedule_notification,
+    SendingType.recover_lost_schedule,
+  ],
+  [SendingStatus.INVALID_RECIPIENT]: [
+    SendingType.confirmation,
+    SendingType.reminder,
+    SendingType.medical_report,
+    SendingType.nps,
+    SendingType.nps_score,
+    SendingType.schedule_notification,
+    SendingType.recover_lost_schedule,
+  ],
+};

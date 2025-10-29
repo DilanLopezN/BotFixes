@@ -1,0 +1,61 @@
+@import './../../../../variables.scss';
+
+.Dashboard {
+    &--col {
+        margin-top: 10px;
+    }
+
+    .nav-tabs {
+        li {
+            margin-right: 5px;
+        }
+        .nav-link {
+            border: none;
+        }
+        .nav-link:hover {
+            border: none;
+
+            &.active {
+                border-bottom: 2px solid $color3;
+            }
+        }
+    }
+
+    .container-previous {
+        width: 20%;
+        height: 100%;
+    }
+
+    .form-check {
+        width: 20px;
+        height: 20px;
+        background-color: red;
+        margin-top: 5px;
+        border-radius: 2px;
+        input {
+            margin-left: -17px;
+            margin-top: 4px;
+            width: 16px;
+        }
+    }
+
+    .highcharts-credits {
+        display: none;
+    }
+
+    .conversationTemplateGroupTab {
+        g {
+            cursor: default !important;
+        }
+
+        .highcharts-container {
+            cursor: move;
+        }
+    }
+}
+
+.ant-calendar-picker-container {
+    .ant-calendar {
+        min-width: 300px;
+    }
+}

@@ -1,0 +1,16 @@
+@import "./../../../../../variables.scss";
+.AdvancedTab{
+    .wrapper{
+        background: $color5;
+        padding: 20px;
+        margin: 0 auto;
+        margin-bottom: 10px;
+        width: 100%;
+        .card-header-tab{
+            color: inherit;
+            font-size: 18px;
+            color: $color7;
+            padding-bottom: 10px;
+        }
+    }
+}

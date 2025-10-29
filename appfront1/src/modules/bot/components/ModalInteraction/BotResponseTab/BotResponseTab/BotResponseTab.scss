@@ -1,0 +1,64 @@
+@import "./../../../../../../variables";
+
+.BotResponseTab {
+  position: relative;
+  height: calc(100vh - 143px);
+
+  .modal-interaction-content {
+    height: 100%;
+  }
+  .menu-left-container {
+    position: absolute;
+    top: -100px;
+    width: 37%;
+    left: -38%;
+    background: $color2;
+    border-radius: 5px 0px 0 5px;
+    min-height: 600px;
+    max-height: 100%;
+    overflow: auto;
+    overflow-x: hidden;
+
+    span {
+      padding: 5px;
+      font-size: 13px;
+    }
+  }
+
+  .not-implemented-yet {
+    width: 90%;
+    background: $color5;
+    text-align: center;
+    margin: 0 auto;
+    padding: 15px;
+    border-radius: 5px;
+
+    .not-implemented-icon {
+      font-size: 90px;
+      border-radius: 5px 0 0 0;
+      color: $color1;
+      cursor: pointer;
+      width: 100%;
+      background: $color8;
+      height: 12%;
+      box-sizing: border-box;
+      padding: 3px;
+      margin-top: 10px;
+    }
+  }
+
+  .menu-left-container::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .menu-left-container::-webkit-scrollbar-track {
+    background: #e8e8e8;
+    border-radius: 10px;
+  }
+
+  .menu-left-container::-webkit-scrollbar-thumb {
+    background: #a0a0a0;
+    border-radius: 10px;
+    box-shadow: 0 0 6px rgba(0, 0, 0, 0.3);
+  }
+}
