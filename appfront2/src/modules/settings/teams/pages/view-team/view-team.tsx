@@ -3,7 +3,7 @@ import { Alert, Button, Col, Form, Row, Space, Spin, Tooltip } from 'antd';
 import dayjs from 'dayjs';
 import { Dispatch, SetStateAction, useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, generatePath, useParams } from 'react-router-dom';
+import { Link, generatePath, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { PageTemplate } from '~/components/page-template';
 import { Prompt } from '~/components/prompt';
 import { localeKeys } from '~/i18n';
@@ -36,6 +36,9 @@ export const ViewTeam = () => {
   const { isFetchingTeam, fetchTeamError, fetchTeamById, data: selectedTeam } = useTeamById();
   const { isUpdating, updateError, updateTeam } = useUpdateTeam();
   const { children: teamsModules } = routes.modules.children.settings.children.teams;
+  const teamListPath = generatePath(teamsModules.teamList.fullPath, { workspaceId });
+  const location = useLocation();
+  const navigate = useNavigate();
 
   const isTeamInactive = Boolean(selectedTeam?.inactivatedAt);
 
@@ -150,14 +153,18 @@ export const ViewTeam = () => {
     }
   }, [fetchTeamError]);
 
-  const renderActionButtons = () => {
-    const teamListPath = generatePath(teamsModules.teamList.fullPath, { workspaceId });
+  const handleBackToList = () => {
+    const state = location.state as { queryStrings?: string } | undefined;
+    const queryString = state?.queryStrings;
+    navigate(teamListPath + queryString, { replace: true });
+  };
 
+  const renderActionButtons = () => {
     return (
       <Space>
-        <Link to={teamListPath} replace>
-          <Button disabled={isUpdating || isFetchingTeam}>{t(teamViewPage.backToTeamList)}</Button>
-        </Link>
+        <Button disabled={isUpdating || isFetchingTeam} onClick={handleBackToList}>
+          {t(teamViewPage.backToTeamList)}
+        </Button>
         {!isTeamInactive && !isFetchingTeam && (
           <Button
             disabled={isUpdating}

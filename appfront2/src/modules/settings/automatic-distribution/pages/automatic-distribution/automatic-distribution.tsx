@@ -1,24 +1,48 @@
 import { InfoCircleOutlined } from '@ant-design/icons';
-import { Alert, Button, Card, Form, InputNumber, Space, Switch, Tooltip } from 'antd';
-import { useEffect, useState } from 'react';
+import { Alert, Button, Card, Flex, Form, InputNumber, Select, Space, Switch, Tooltip } from 'antd';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { PageTemplate } from '~/components/page-template';
 import { localeKeys } from '~/i18n';
+import { Me } from '~/interfaces/me';
+import { normalizeText } from '~/utils/normalize-text';
+import { isAnySystemAdmin, isWorkspaceAdmin } from '~/utils/permissions';
+import { useActiveUsers } from '../../hooks/use-active-users';
 import { useCreateDistributionRule } from '../../hooks/use-create-distribution-rule';
 import { useFetchDistributionRule } from '../../hooks/use-fetch-distribution-rule';
 import { useUpdateDistributionRule } from '../../hooks/use-update-distribution-rule';
 
 export const AutomaticDistributionConversation = () => {
+  const { workspaceId = '' } = useParams<{ workspaceId: string }>();
   const { t } = useTranslation();
   const { createDistributionRule, isCreating } = useCreateDistributionRule();
   const { updateDistributionRule, isUpdating } = useUpdateDistributionRule();
+  const { activeUsers, isLoadingActiveUsers, fetchActiveUsers } = useActiveUsers();
 
   const [form] = Form.useForm();
   const [active, setActive] = useState(false);
   const { data: existingRule, refetch } = useFetchDistributionRule();
   const automaticDistributionListLocaleKeys =
     localeKeys.settings.automaticDistribution.pages.automaticDistributionList;
+
+  const activeUserOptions = useMemo(() => {
+    if (!activeUsers) return [];
+
+    const users = activeUsers.data
+      .filter((user) => {
+        if (isAnySystemAdmin(user as Me) || isWorkspaceAdmin(user as Me, workspaceId)) {
+          return false;
+        }
+
+        return true;
+      })
+      .map((user) => {
+        return { label: user.name, value: user._id };
+      });
+
+    return users;
+  }, [activeUsers, workspaceId]);
 
   const handleActiveChange = async (newActive: boolean) => {
     setActive(newActive);
@@ -29,6 +53,7 @@ export const AutomaticDistributionConversation = () => {
         maxConversationsPerAgent: existingRule.maxConversationsPerAgent,
         checkUserWasOnConversation: existingRule.checkUserWasOnConversation,
         checkTeamWorkingTimeConversation: existingRule.checkTeamWorkingTimeConversation,
+        excludedUserIds: existingRule.excludedUserIds,
       });
       refetch();
     } else if (newActive) {
@@ -43,6 +68,10 @@ export const AutomaticDistributionConversation = () => {
       }
     }
   };
+
+  useEffect(() => {
+    fetchActiveUsers();
+  }, [fetchActiveUsers]);
 
   const pageTitle = (
     <Space align='center'>
@@ -64,6 +93,7 @@ export const AutomaticDistributionConversation = () => {
     maxConversationsPerAgent: number;
     checkUserWasOnConversation?: boolean;
     checkTeamWorkingTimeConversation?: boolean;
+    excludedUserIds: string[];
   }) => {
     let result;
     const maxConversations = values.maxConversationsPerAgent || 10;
@@ -74,6 +104,7 @@ export const AutomaticDistributionConversation = () => {
         maxConversationsPerAgent: maxConversations,
         checkUserWasOnConversation: values.checkUserWasOnConversation,
         checkTeamWorkingTimeConversation: values.checkTeamWorkingTimeConversation,
+        excludedUserIds: values.excludedUserIds,
       });
     } else {
       result = await createDistributionRule({
@@ -81,6 +112,7 @@ export const AutomaticDistributionConversation = () => {
         maxConversationsPerAgent: maxConversations,
         checkUserWasOnConversation: values.checkUserWasOnConversation,
         checkTeamWorkingTimeConversation: values.checkTeamWorkingTimeConversation,
+        excludedUserIds: values.excludedUserIds,
       });
     }
 
@@ -95,6 +127,7 @@ export const AutomaticDistributionConversation = () => {
         maxConversationsPerAgent: existingRule.maxConversationsPerAgent,
         checkUserWasOnConversation: existingRule.checkUserWasOnConversation || false,
         checkTeamWorkingTimeConversation: existingRule.checkTeamWorkingTimeConversation || false,
+        excludedUserIds: existingRule.excludedUserIds,
       });
       setActive(existingRule.active);
     } else {
@@ -136,6 +169,33 @@ export const AutomaticDistributionConversation = () => {
           >
             <InputNumber min={1} />
           </Form.Item>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+            <Form.Item
+              name='excludedUserIds'
+              label={
+                <Flex gap={8} align='center'>
+                  <span>Restringir distribuição automática para os usuários</span>
+                  <Tooltip title='Os usuários selecionados não receberão atendimentos de forma automática'>
+                    <InfoCircleOutlined style={{ color: '#1890ff', cursor: 'pointer' }} />
+                  </Tooltip>
+                </Flex>
+              }
+            >
+              <Select
+                allowClear
+                mode='multiple'
+                loading={isLoadingActiveUsers}
+                options={activeUserOptions}
+                placeholder='Selecione os usuários'
+                showSearch
+                autoClearSearchValue={false}
+                filterOption={(search, option) => {
+                  return Boolean(normalizeText(option?.label).includes(normalizeText(search)));
+                }}
+              />
+            </Form.Item>
+          </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
             <Form.Item

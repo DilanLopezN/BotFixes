@@ -1,5 +1,4 @@
-import { Button, Col, Flex, Form, Modal, Row, Select, Space, Tooltip } from 'antd';
-import type { ModalFooterRender } from 'antd/es/modal/interface';
+import { Button, Col, Flex, Form, Modal, ModalProps, Row, Select, Space, Tooltip } from 'antd';
 import { BaseOptionType } from 'antd/es/select';
 import { useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -78,7 +77,7 @@ export const FiltersModal = ({ isVisible, onClose }: FiltersModalProps) => {
     form.setFieldsValue({ categoriesIds, channelStatus });
   }, [form, queryStringAsObj.categoriesIds, flowCategories, queryStringAsObj.channelStatus]);
 
-  const renderModalFooter: ModalFooterRender = (_originNode, { OkBtn, CancelBtn }) => {
+  const renderModalFooter: ModalProps['footer'] = (_originNode, { OkBtn, CancelBtn }) => {
     return (
       <Flex justify='space-between'>
         <Button onClick={() => form.resetFields()}>{t(filtersModalLocaleKeys.clearButton)}</Button>

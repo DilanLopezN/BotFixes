@@ -3,7 +3,7 @@ import { Alert, Button, Col, Form, Modal, Row, Space, Spin } from 'antd';
 import dayjs from 'dayjs';
 import { groupBy } from 'lodash';
 import { type Dispatch, type SetStateAction, useEffect, useMemo, useState } from 'react';
-import { generatePath, Link, useNavigate, useParams } from 'react-router-dom';
+import { generatePath, Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { localeKeys } from '~/i18n';
 import { PageTemplate } from '~/components/page-template';
 import { Prompt } from '~/components/prompt';
@@ -32,6 +32,7 @@ export const EditBroadcastList = () => {
     broadcastListId: string;
   }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { updateCampaign, isUpdatingCampaign } = useUpdateCampaignById();
   const { campaign, isLoadingCampaign, fetchCampaignById } = useGetCampaignById();
   const [selectedActiveMessage, setSelectedActiveMessage] = useState<ActiveMessageSetting>();
@@ -220,6 +221,12 @@ export const EditBroadcastList = () => {
     handleEditCampaign(formattedValues);
   };
 
+  const handleBackToList = () => {
+    const state = location.state as { queryStrings?: string } | undefined;
+    const queryString = state?.queryStrings;
+    navigate(viewListsPath + queryString, { replace: true });
+  };
+
   useEffect(() => {
     const fetchCampaign = async () => {
       if (!broadcastListId) return;
@@ -263,9 +270,9 @@ export const EditBroadcastList = () => {
 
   const actionButtons = (
     <Space>
-      <Link to={viewListsPath} replace>
-        <Button disabled={isUpdatingCampaign}>{t(editBroadcastListLocaleKeys.buttonGoBack)}</Button>
-      </Link>
+      <Button disabled={isUpdatingCampaign} onClick={handleBackToList}>
+        {t(editBroadcastListLocaleKeys.buttonGoBack)}
+      </Button>
       {campaign?.data.campaign.status === CampaignStatus.finished_complete &&
         hasContactWithError && (
           <Link to={cloneBroadcastWithErrorPath}>

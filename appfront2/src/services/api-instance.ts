@@ -6,9 +6,11 @@ const setInterceptors = (instance: AxiosInstance) => {
   instance.interceptors.request.use(
     async (config) => {
       const newConfigs = config;
+
       const session = await getCognitoUserSession();
       const token = session.getIdToken().getJwtToken();
       const accessToken = session.getAccessToken().getJwtToken();
+
       if (!!token && !!config.headers) {
         newConfigs.headers.Authorization = `Bearer ${token}`;
         newConfigs.headers['Access-Token'] = `Bearer ${accessToken}`;

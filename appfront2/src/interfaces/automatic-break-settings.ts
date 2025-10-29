@@ -4,4 +4,5 @@ export interface AutomaticBreakSettings {
   notificationIntervalSeconds: number;
   breakStartDelaySeconds: number;
   maxInactiveDurationSeconds: number;
+  excludedUserIds?: string[];
 }

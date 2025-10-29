@@ -7,6 +7,7 @@ export interface DistributionRuleData {
   checkTeamWorkingTimeConversation?: boolean;
   createdAt: string;
   updatedAt: string;
+  excludedUserIds?: string[];
 }
 
 export interface DistributionRuleCreateData {
@@ -14,6 +15,7 @@ export interface DistributionRuleCreateData {
   maxConversationsPerAgent: number;
   checkUserWasOnConversation?: boolean;
   checkTeamWorkingTimeConversation?: boolean;
+  excludedUserIds?: string[];
 }
 
 export interface DistributionRuleUpdateData {
@@ -21,6 +23,7 @@ export interface DistributionRuleUpdateData {
   maxConversationsPerAgent: number;
   checkUserWasOnConversation?: boolean;
   checkTeamWorkingTimeConversation?: boolean;
+  excludedUserIds?: string[];
 }
 
 export interface PaginatedDistributionRules {

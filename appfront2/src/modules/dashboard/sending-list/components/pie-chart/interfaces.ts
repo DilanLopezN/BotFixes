@@ -1,4 +1,5 @@
 import { SendingType } from '~/constants/sending-type';
+import { ExportOption } from '../../constants';
 
 export interface PieChartProps {
   title: string;
@@ -17,9 +18,14 @@ export interface PieChartProps {
     cancel_reschedule_recover?: number;
     confirm_reschedule_recover?: number;
     recipient_type?: number;
+    confirm_reschedule?: number;
+    document_uploaded?: number;
   };
   isLoading?: boolean;
   type?: SendingType;
   shouldShowActions?: boolean;
   height?: number;
+  enableExport?: boolean;
+  exportOptions?: ExportOption[];
+  language?: 'pt' | 'en';
 }

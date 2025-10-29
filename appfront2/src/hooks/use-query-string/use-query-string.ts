@@ -47,12 +47,10 @@ export const useQueryString = <T extends Record<string, string>>(props?: UseQuer
 
   useEffect(() => {
     if (allowedQueries && !_.isEmpty(allowedQueries)) {
-      const hasForbiddenQuerie = Object.keys(queryStringAsObj).some((queryKey) =>
-        allowedQueries.some((allowedQuery) => {
-          return queryKey !== allowedQuery;
-        })
+      const hasForbiddenQuery = Object.keys(queryStringAsObj).some(
+        (queryKey) => !allowedQueries.includes(queryKey)
       );
-      if (hasForbiddenQuerie) {
+      if (hasForbiddenQuery) {
         updateQueryString(queryStringAsObj);
       }
     }

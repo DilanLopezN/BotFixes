@@ -31,15 +31,7 @@ export const RemiReports = () => {
             <FiltersContainer onRefresh={fetchRemiReports} isRefreshing={isLoadingRemiReports} />
           </Flex>
         </Col>
-        <Col span={8}>
-          <MetricCard
-            title='Taxa de conversão do REMI'
-            description={`${remiReports?.totalRemiConversion.toFixed(2) || 0}%`}
-            isLoading={isLoadingRemiReports}
-            tooltip='Percentual que o REMI retornou o atendimento ao agente após a 1ª ou 2ª mensagem, indicando sua efetividade em reengajar o fluxo sem finalizar o atendimento'
-          />
-        </Col>
-        <Col span={8}>
+        <Col span={12}>
           <MetricCard
             title='Total de atendimentos'
             description={`${remiReports?.totalRemiConversations || 0}`}
@@ -47,7 +39,7 @@ export const RemiReports = () => {
             tooltip='Quantidade de atendimentos que tiveram um REMI'
           />
         </Col>
-        <Col span={8}>
+        <Col span={12}>
           <MetricCard
             title='Atendimentos reengajados'
             description={`${remiReports?.totalRengagedConversation || 0}`}

@@ -43,6 +43,10 @@ export const ChartContainer = () => {
               confirm_reschedule_recover:
                 previousValue.confirm_reschedule_recover +
                 (currentValue.confirm_reschedule_recover || 0),
+              confirm_reschedule:
+                previousValue.confirm_reschedule + (currentValue.confirm_reschedule || 0),
+              document_uploaded:
+                previousValue.document_uploaded + (currentValue.document_uploaded || 0),
               total: previousValue.total + (currentValue.total || 0),
             };
           },
@@ -60,6 +64,8 @@ export const ChartContainer = () => {
             start_reschedule_recover: 0,
             cancel_reschedule_recover: 0,
             confirm_reschedule_recover: 0,
+            confirm_reschedule: 0,
+            document_uploaded: 0,
             total: 0,
           }
         )
@@ -143,6 +149,19 @@ export const ChartContainer = () => {
         data={scheduleAnalytics?.schedule_notification}
         isLoading={isLoadindScheduleAnalytics}
         type={SendingType.schedule_notification}
+        shouldShowActions={false}
+        height={300}
+      />
+    );
+  }
+
+  if (type === SendingType.documents_request) {
+    return (
+      <PieChart
+        title={t(chartContainerLocaleKeys.titleDocumentsRequest)}
+        data={scheduleAnalytics?.documents_request}
+        isLoading={isLoadindScheduleAnalytics}
+        type={SendingType.documents_request}
         shouldShowActions={false}
         height={300}
       />

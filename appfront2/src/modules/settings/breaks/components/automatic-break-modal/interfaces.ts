@@ -8,4 +8,5 @@ export interface AutomaticBreakFormValues {
   notificationIntervalSeconds?: number;
   breakStartDelaySeconds?: number;
   maxInactiveDurationSeconds?: number;
+  excludedUserIds?: string[];
 }

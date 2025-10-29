@@ -2,7 +2,6 @@ import { Alert, Col, Form, Input, Modal, Row } from 'antd';
 import { useEffect } from 'react';
 import { NumberInput } from '~/components/number-input';
 import { hasOnlyWhitespaces } from '~/utils/antd-form-validators';
-import { notifyError } from '~/utils/notify-error';
 import { notifySuccess } from '~/utils/notify-success';
 import { useCreateBreak } from '../../hooks/use-create-break';
 import { useUpdateBreak } from '../../hooks/use-update-break';
@@ -28,11 +27,7 @@ export const BreakModal = ({ selectedBreak, isVisible, onClose, onRefresh }: Bre
   const handleCreateBreak = async (values: BreakFormValues) => {
     const result = await createNewBreak(values);
 
-    if (!result) {
-      notifyError('Erro ao criar pausa');
-      return;
-    }
-
+    if (!result) return;
     notifySuccess({ message: 'Sucesso', description: 'Pausa criada.' });
     onClose();
     onRefresh();
@@ -43,11 +38,7 @@ export const BreakModal = ({ selectedBreak, isVisible, onClose, onRefresh }: Bre
 
     const result = await updateBreak({ id: selectedBreak.id, ...values });
 
-    if (!result) {
-      notifyError('Erro ao editar pausa');
-      return;
-    }
-
+    if (!result) return;
     notifySuccess({ message: 'Sucesso', description: 'Pausa editada.' });
     onClose();
     onRefresh();

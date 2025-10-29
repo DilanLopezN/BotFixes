@@ -4,12 +4,17 @@ import { SendingStatus } from '~/services/workspace/get-sending-list-by-workspac
 export const STATUS_ALLOWED_MAP: Partial<Record<SendingStatus, SendingType[]>> = {
   [SendingStatus.CONFIRMED]: [SendingType.confirmation],
   [SendingStatus.RESCHEDULE]: [SendingType.confirmation],
+  [SendingStatus.CONFIRM_RESCHEDULE]: [SendingType.confirmation],
   [SendingStatus.CANCELED]: [SendingType.confirmation],
   [SendingStatus.INDIVIDUAL_CANCEL]: [SendingType.confirmation],
   [SendingStatus.START_RESCHEDULE_RECOVER]: [SendingType.recover_lost_schedule],
   [SendingStatus.CONFIRM_RESCHEDULE_RECOVER]: [SendingType.recover_lost_schedule],
   [SendingStatus.CANCEL_RESCHEDULE_RECOVER]: [SendingType.recover_lost_schedule],
-  [SendingStatus.NOT_ANSWERED]: [SendingType.confirmation, SendingType.recover_lost_schedule],
+  [SendingStatus.NOT_ANSWERED]: [
+    SendingType.confirmation,
+    SendingType.recover_lost_schedule,
+    SendingType.documents_request,
+  ],
   [SendingStatus.OPEN_CVS]: [
     SendingType.confirmation,
     SendingType.medical_report,
@@ -18,6 +23,7 @@ export const STATUS_ALLOWED_MAP: Partial<Record<SendingStatus, SendingType[]>> =
     SendingType.nps_score,
     SendingType.recover_lost_schedule,
     SendingType.schedule_notification,
+    SendingType.documents_request,
   ],
   [SendingStatus.INVALID]: [
     SendingType.confirmation,
@@ -27,6 +33,7 @@ export const STATUS_ALLOWED_MAP: Partial<Record<SendingStatus, SendingType[]>> =
     SendingType.nps_score,
     SendingType.schedule_notification,
     SendingType.recover_lost_schedule,
+    SendingType.documents_request,
   ],
   [SendingStatus.NO_RECIPIENT]: [
     SendingType.confirmation,
@@ -36,6 +43,7 @@ export const STATUS_ALLOWED_MAP: Partial<Record<SendingStatus, SendingType[]>> =
     SendingType.nps_score,
     SendingType.schedule_notification,
     SendingType.recover_lost_schedule,
+    SendingType.documents_request,
   ],
   [SendingStatus.INVALID_RECIPIENT]: [
     SendingType.confirmation,
@@ -45,5 +53,7 @@ export const STATUS_ALLOWED_MAP: Partial<Record<SendingStatus, SendingType[]>> =
     SendingType.nps_score,
     SendingType.schedule_notification,
     SendingType.recover_lost_schedule,
+    SendingType.documents_request,
   ],
+  [SendingStatus.DOCUMENT_UPLOADED]: [SendingType.documents_request],
 };

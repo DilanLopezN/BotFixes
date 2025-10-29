@@ -135,6 +135,19 @@ export const SidebarMenu = () => {
           allowedRoles: dashboardModules.remiDashboard.allowedRoles,
           hasPermission: dashboardModules.remiDashboard.hasPermission,
         },
+        {
+          key: dashboardModules.appointmentTable.path,
+          label: (
+            <MenuNavigator
+              pathname={dashboardModules.appointmentTable.path}
+              appTypePort={AppTypePort.V2}
+            >
+              {t(sidebarMenuLocaleKeys.appointmentTableMenuItem)}
+            </MenuNavigator>
+          ),
+          allowedRoles: dashboardModules.appointmentTable.allowedRoles,
+          hasPermission: dashboardModules.appointmentTable.hasPermission,
+        },
       ],
     },
     {

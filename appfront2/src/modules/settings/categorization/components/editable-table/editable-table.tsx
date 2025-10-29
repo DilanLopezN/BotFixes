@@ -77,7 +77,7 @@ export const EditableTable = ({
       dataIndex: 'name',
       key: 'name',
       editable: true,
-      render: (_, row: ConversationObjective) => {
+      render: (_, row) => {
         const isDeletedAt = Boolean(row.deletedAt);
         if (isDeletedAt) {
           return (
@@ -98,7 +98,7 @@ export const EditableTable = ({
       width: 140,
       align: 'right',
       fixed: 'right',
-      render: (_, row: ConversationObjective) => {
+      render: (_, row) => {
         const isDeletedAt = Boolean(row.deletedAt);
         return (
           <Flex gap={8} justify='flex-end'>

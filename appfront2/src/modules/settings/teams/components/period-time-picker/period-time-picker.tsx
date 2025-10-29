@@ -27,19 +27,19 @@ export const PeriodTimePicker = ({ label, name, form, isTeamInactive }: PeriodTi
     if (checked) {
       form.setFields([
         {
-          name: [...name, 0, 'start'],
+          name: [...name, 0, 'start'] as any,
           errors: [],
         },
         {
-          name: [...name, 0, 'end'],
+          name: [...name, 0, 'end'] as any,
           errors: [],
         },
         {
-          name: [...name, 1, 'start'],
+          name: [...name, 1, 'start'] as any,
           errors: [],
         },
         {
-          name: [...name, 1, 'end'],
+          name: [...name, 1, 'end'] as any,
           errors: [],
         },
       ]);

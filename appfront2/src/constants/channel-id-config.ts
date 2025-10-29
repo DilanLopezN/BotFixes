@@ -21,4 +21,10 @@ export enum ChannelIdConfig {
   nps = 'nps',
   medical_report = 'medical_report',
   ads = 'ads',
+  api_ivr = 'api_ivr',
+  schedule_notification = 'schedule_notification',
+  recover_lost_schedule = 'recover_lost_schedule',
+  nps_score = 'nps_score',
+  documents_request = 'documents_request',
+  active_mkt = 'active_mkt',
 }

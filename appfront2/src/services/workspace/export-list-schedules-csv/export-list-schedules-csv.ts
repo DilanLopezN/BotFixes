@@ -1,6 +1,6 @@
+import { ExportType } from '~/components/export-button';
 import { apiInstance, doRequest } from '~/services/api-instance';
 import { ExportListSchedulesCsvParams } from './interfaces';
-import { TypeDownloadEnum } from './type-download-enum';
 
 export const exportListSchedulesCsv = async ({
   workspaceId,
@@ -21,7 +21,7 @@ export const exportListSchedulesCsv = async ({
       }
     )
   ).then((response) => {
-    const extension = downloadType === TypeDownloadEnum.CSV ? 'csv' : 'xlsx';
+    const extension = downloadType === ExportType.Csv ? 'csv' : 'xlsx';
     const url = window.URL.createObjectURL(new Blob([response]));
     const link = document.createElement('a');
     link.href = url;

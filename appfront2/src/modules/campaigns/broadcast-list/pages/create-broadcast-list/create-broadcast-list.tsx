@@ -1,13 +1,13 @@
-import { useTranslation } from 'react-i18next';
 import { Alert, Button, Col, Form, Modal, Row, Space, Spin } from 'antd';
 import dayjs from 'dayjs';
 import { groupBy } from 'lodash';
 import { Dispatch, SetStateAction, useEffect, useMemo, useState } from 'react';
-import { generatePath, Link, useNavigate, useParams } from 'react-router-dom';
-import { localeKeys } from '~/i18n';
+import { useTranslation } from 'react-i18next';
+import { generatePath, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { PageTemplate } from '~/components/page-template';
 import { Prompt } from '~/components/prompt';
 import { useQueryString } from '~/hooks/use-query-string';
+import { localeKeys } from '~/i18n';
 import type { ActiveMessageSetting } from '~/interfaces/active-message-setting';
 import type { ApiError } from '~/interfaces/api-error';
 import type { TemplateMessage } from '~/interfaces/template-message';
@@ -35,6 +35,7 @@ export const CreateBroadcastList = () => {
   const { createCampaign, isCreatingNewCampaign } = useCreateNewCampaign();
   const { campaign, isLoadingCampaign, fetchCampaignById } = useGetCampaignById();
   const navigate = useNavigate();
+  const location = useLocation();
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateMessage>();
   const [selectedActiveMessage, setSelectedActiveMessage] = useState<ActiveMessageSetting>();
   const [dataSource, setDataSource] = useState<TableData[]>([]);
@@ -210,6 +211,12 @@ export const CreateBroadcastList = () => {
     handleCreateCampaign(formattedValues);
   };
 
+  const handleBackToList = () => {
+    const state = location.state as { queryStrings?: string } | undefined;
+    const queryString = state?.queryStrings;
+    navigate(viewListsPath + queryString, { replace: true });
+  };
+
   useEffect(() => {
     const fetchCampaign = async () => {
       if (!broadcastListId) return;
@@ -278,11 +285,9 @@ export const CreateBroadcastList = () => {
 
   const actionButtons = (
     <Space>
-      <Link to={viewListsPath} replace>
-        <Button disabled={isCreatingNewCampaign || isLoadingCampaign}>
-          {t(createBroadcastListLocaleKeys.buttonGoBack)}
-        </Button>
-      </Link>
+      <Button disabled={isCreatingNewCampaign || isLoadingCampaign} onClick={handleBackToList}>
+        {t(createBroadcastListLocaleKeys.buttonGoBack)}
+      </Button>
       <Button
         type='primary'
         htmlType='submit'

@@ -2,7 +2,7 @@ import { InfoCircleOutlined } from '@ant-design/icons';
 import { Alert, Button, Col, Form, Row, Space, Spin, Tooltip } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { generatePath, Link, useParams } from 'react-router-dom';
+import { generatePath, Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { PageTemplate } from '~/components/page-template';
 import { Prompt } from '~/components/prompt';
 import { useSelectedWorkspace } from '~/hooks/use-selected-workspace';
@@ -32,6 +32,9 @@ export const RemiUpdateForm = () => {
   const { userFeatureFlag } = useSelectedWorkspace();
   const [featureFlag, setFeatureFlag] = useState(userFeatureFlag?.enableConversationCategorization);
   const [shouldBlockNavigate, setShouldBlockNavigate] = useState(false);
+
+  const location = useLocation();
+  const navigate = useNavigate();
 
   const {
     data: remiConfigData,
@@ -106,14 +109,19 @@ export const RemiUpdateForm = () => {
   }
   const { children: remiModules } = routes.modules.children.settings.children.remi;
 
-  const renderActionButtons = () => {
+  const handleBackToList = () => {
+    const state = location.state as { queryStrings?: string } | undefined;
     const teamListPath = generatePath(remiModules.home.fullPath, { workspaceId });
+    const queryString = state?.queryStrings;
+    navigate(teamListPath + queryString, { replace: true });
+  };
 
+  const renderActionButtons = () => {
     return (
       <Space>
-        <Link to={teamListPath} replace>
-          <Button disabled={false}>{t(remiKeys.buttonBack)}</Button>
-        </Link>
+        <Button disabled={false} onClick={handleBackToList}>
+          {t(remiKeys.buttonBack)}
+        </Button>
         <Button type='primary' form={remiConfigFormId} htmlType='submit' loading={false}>
           {t(remiKeys.saveButton)}
         </Button>
@@ -145,7 +153,10 @@ export const RemiUpdateForm = () => {
         >
           <Row gutter={[8, 8]}>
             <Col span={12}>
-              <RemiNameSection isLoading={false || isLoadingRemiConfig} isSaving={isUpdating} />{' '}
+              <RemiNameSection
+                isLoading={false || isLoadingRemiConfig}
+                isSaving={isUpdating}
+              />{' '}
             </Col>
             <Col span={12}>
               <ApplicationScopeSection

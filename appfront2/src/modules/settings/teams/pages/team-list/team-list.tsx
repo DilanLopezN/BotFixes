@@ -4,13 +4,14 @@ import type { ColumnsType } from 'antd/es/table';
 import { debounce } from 'lodash';
 import { ChangeEvent, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, generatePath, useParams } from 'react-router-dom';
+import { Link, generatePath, useLocation, useParams } from 'react-router-dom';
 import { AvatarList } from '~/components/avatar-list';
 import { EnhancedTable } from '~/components/enhanced-table';
 import { PageTemplate } from '~/components/page-template';
 import { localeKeys } from '~/i18n';
 import type { SimplifiedTeam } from '~/interfaces/simplified-team';
 import { routes } from '~/routes';
+import { useQueryString } from '~/hooks/use-query-string';
 import { useTeamList } from '../../hooks/use-team-list';
 import { SearchInput, TableTitle } from './styles';
 
@@ -18,10 +19,20 @@ export const TeamList = () => {
   const { t } = useTranslation();
   const { teamList } = localeKeys.settings.teams.pages;
   const { workspaceId } = useParams<{ workspaceId: string }>();
-  const [pageSize, setPageSize] = useState(10);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [searchInputValue, setSearchInputValue] = useState('');
-  const [debouncedSearchInputValue, setDebouncedSearchInputValue] = useState('');
+  const location = useLocation();
+  const { queryStringAsObj, updateQueryString } = useQueryString<{
+    search?: string;
+    page?: string;
+    pageSize?: string;
+  }>({
+    allowedQueries: ['search', 'page', 'pageSize'],
+  });
+
+  const querySearch = queryStringAsObj.search || '';
+  const currentPage = Number(queryStringAsObj.page) || 1;
+  const pageSize = Number(queryStringAsObj.pageSize) || 10;
+  const [searchInputValue, setSearchInputValue] = useState(querySearch);
+
   const {
     data: paginatedTeamList,
     isLoading,
@@ -29,7 +40,7 @@ export const TeamList = () => {
   } = useTeamList({
     currentPage,
     pageSize,
-    search: debouncedSearchInputValue,
+    search: querySearch,
   });
 
   const { children: teamsModules } = routes.modules.children.settings.children.teams;
@@ -38,7 +49,7 @@ export const TeamList = () => {
 
   const debouncedSearch = useRef(
     debounce((value: string) => {
-      setDebouncedSearchInputValue(value);
+      updateQueryString({ search: value, page: 1 });
     }, 300)
   ).current;
 
@@ -48,8 +59,7 @@ export const TeamList = () => {
   };
 
   const handleChangePage = (page: number, pSize: number) => {
-    setCurrentPage(page);
-    setPageSize(pSize);
+    updateQueryString({ page, pageSize: pSize });
   };
 
   useEffect(() => {
@@ -109,7 +119,7 @@ export const TeamList = () => {
           teamId: team._id,
         });
         return (
-          <Link to={viewTeamPath}>
+          <Link to={viewTeamPath} state={{ queryStrings: location.search }}>
             <Button>{t(teamList.viewTeamButton)}</Button>
           </Link>
         );

@@ -3,16 +3,15 @@ import { isUndefined, omitBy } from 'lodash';
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
+import { ExportType } from '~/components/export-button';
 import { useQueryString } from '~/hooks/use-query-string';
 import { localeKeys } from '~/i18n';
 import { exportListSchedulesCsv } from '~/services/workspace/export-list-schedules-csv';
-import {
-  ExportableFields,
-  ScheduleFilterListDto,
-} from '~/services/workspace/export-list-schedules-csv/interfaces';
-import { TypeDownloadEnum } from '~/services/workspace/export-list-schedules-csv/type-download-enum';
+import { ExportableFields } from '~/services/workspace/export-list-schedules-csv/exportable-fields.enum';
+import { ScheduleFilterListDto } from '~/services/workspace/export-list-schedules-csv/interfaces';
 import { SendingStatus } from '~/services/workspace/get-sending-list-by-workspace-id';
 import type { SendingListQueryString } from '../../interfaces';
+import { FeedbackEnum } from '../../constants';
 
 export const useExportSchedules = () => {
   const { workspaceId } = useParams<{ workspaceId: string }>();
@@ -60,7 +59,7 @@ export const useExportSchedules = () => {
   }, [queryStringAsObj.npsScoreList]);
 
   const exportSchedules = useCallback(
-    async (downloadType: TypeDownloadEnum, exportColumns: ExportableFields[]) => {
+    async (downloadType: ExportType, exportColumns: ExportableFields[]) => {
       const filter: ScheduleFilterListDto = {
         startDate: queryStringAsObj.startDate!,
         endDate: queryStringAsObj.endDate!,
@@ -75,6 +74,7 @@ export const useExportSchedules = () => {
         insuranceCodeList,
         insurancePlanCodeList,
         npsScoreList,
+        feedback: FeedbackEnum.withFeedback,
       };
 
       try {
@@ -109,6 +109,7 @@ export const useExportSchedules = () => {
       queryStringAsObj.endDate,
       queryStringAsObj.type,
       queryStringAsObj.search,
+      queryStringAsObj.feedback,
       specialityCodeList,
       doctorCodeList,
       statusList,

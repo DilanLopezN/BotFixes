@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { CopyOutlined, DeleteOutlined } from '@ant-design/icons';
 import { Alert, Button, Col, Modal, Row, Space, Tooltip } from 'antd';
-import { generatePath, Link, useNavigate, useParams } from 'react-router-dom';
+import { generatePath, Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { localeKeys } from '~/i18n';
 import { CampaignStatus } from '~/constants/campaign-status';
 import { routes } from '~/routes';
@@ -10,6 +10,7 @@ import type { GridActionsColumnProps } from './interface';
 
 export const GridActionsColumn = ({ broadcastList, updateList }: GridActionsColumnProps) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { workspaceId = '' } = useParams<{ workspaceId: string }>();
   const { deleteCampaign, isDeleting } = useDeleteCampaign();
   const { children: broadcastListModules } =
@@ -86,12 +87,15 @@ export const GridActionsColumn = ({ broadcastList, updateList }: GridActionsColu
 
       okText: t(gridActionsColumnLocaleKeys.confirmOkText),
       cancelText: t(gridActionsColumnLocaleKeys.cancelText),
-      onOk: () => navigate(cloneBroadcastPath),
+      onOk: () =>
+        navigate(cloneBroadcastPath, {
+          state: { queryStrings: location.search },
+        }),
     });
   };
   return (
     <Space>
-      <Link to={editBroadcastPath}>
+      <Link to={editBroadcastPath} state={{ queryStrings: location.search }}>
         <Button disabled={isDeleting}>{t(gridActionsColumnLocaleKeys.buttonViewSendItems)}</Button>
       </Link>
       <Tooltip title={t(gridActionsColumnLocaleKeys.cloneTitle)}>

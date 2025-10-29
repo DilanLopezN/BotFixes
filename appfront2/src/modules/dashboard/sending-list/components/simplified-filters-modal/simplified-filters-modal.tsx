@@ -1,5 +1,5 @@
 import { Badge, Button, Collapse, Flex, Modal, Space, type CollapseProps } from 'antd';
-import { ModalFooterRender } from 'antd/es/modal/interface';
+import { ModalProps } from 'antd/es/modal/interface';
 import _ from 'lodash';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -55,7 +55,7 @@ export const SimplifiedFiltersModal = ({ isVisible, onClose }: SimplifiedFilters
     },
   ];
 
-  const modalFooter: ModalFooterRender = (_originNode, { OkBtn, CancelBtn }) => {
+  const modalFooter: ModalProps['footer'] = (_originNode, { OkBtn, CancelBtn }) => {
     return (
       <Flex justify='space-between'>
         <Button onClick={handleResetFilters}>{t(filtersModalLocaleKeys.resetFiltersButton)}</Button>

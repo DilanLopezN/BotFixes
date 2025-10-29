@@ -37,6 +37,15 @@ export interface ScheduleAnalytics {
     open_cvs: number;
     total: number;
   };
+  [SendingType.documents_request]?: {
+    invalidNumber: number;
+    notAnswered: number;
+    open_cvs: number;
+    no_recipient: number;
+    invalid_recipient: number;
+    document_uploaded: number;
+    total: number;
+  };
   [SendingType.nps_score]?: {
     invalidNumber: number;
     notAnswered: number;

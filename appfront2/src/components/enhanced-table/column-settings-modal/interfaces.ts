@@ -1,12 +1,12 @@
-import type { CheckboxValueType } from 'antd/es/checkbox/Group';
 import type { ColumnType } from 'antd/es/table';
+import type { CheckboxGroupProps } from 'antd/lib/checkbox';
 import type { Dispatch, SetStateAction } from 'react';
 
 export interface ColumnSettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  checkboxOptions: CheckboxValueType[];
-  setCheckboxOptions: Dispatch<SetStateAction<CheckboxValueType[]>>;
+  checkboxOptions: CheckboxGroupProps['value'];
+  setCheckboxOptions: Dispatch<SetStateAction<CheckboxGroupProps['value']>>;
   columns: ColumnType<any>[];
   localStorageKey: string;
 }

@@ -19,7 +19,7 @@ import { TeamOutlined } from '@ant-design/icons';
 import { useForm } from 'antd/es/form/Form';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate, useParams, Link, generatePath } from 'react-router-dom';
+import { useNavigate, useParams, Link, generatePath, useLocation } from 'react-router-dom';
 import { PageTemplate } from '~/components/page-template';
 import { UserRole } from '~/constants/user-roles';
 import { useAuth } from '~/hooks/use-auth';
@@ -58,8 +58,8 @@ export const UserUpdateForm = () => {
   const { featureFlag } = useSelectedWorkspace();
   const isDocumentUploadEnabled = Boolean(featureFlag?.enableUploadErpDocuments);
 
-  // Hook para obter o usuário autenticado
   const { user: currentUser } = useAuth();
+  const location = useLocation();
 
   // Verifica se pode editar o email (apenas o próprio email pode ser editado)
   const canEditEmail = currentUser?.email === data?.email;
@@ -117,9 +117,11 @@ export const UserUpdateForm = () => {
     }
   };
 
-  const handleCancel = () => {
+  const handleBackToList = () => {
+    const state = location.state as { queryStrings?: string } | undefined;
+    const queryString = state?.queryStrings;
     const path = `/${workspaceId}/${settingsPath}/${usersPath}`;
-    navigate(path);
+    navigate(path + queryString, { replace: true });
   };
 
   const handlePasswordByUser = () => {
@@ -146,7 +148,7 @@ export const UserUpdateForm = () => {
 
   const actionsButton = (
     <Space>
-      <Button onClick={handleCancel} disabled={isUpdating}>
+      <Button onClick={handleBackToList} disabled={isUpdating}>
         {t(userUpdater.back)}
       </Button>
       <Button onClick={handlePasswordByUser} disabled={isLoading || isUpdating}>

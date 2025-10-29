@@ -1,6 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { Button, Col, Flex, Form, Modal, Row, Select, Space, Tag } from 'antd';
-import type { ModalFooterRender } from 'antd/es/modal/interface';
+import { Button, Col, Flex, Form, Modal, ModalProps, Row, Select, Space, Tag } from 'antd';
 import { useEffect, useMemo } from 'react';
 import { localeKeys } from '~/i18n';
 import { useQueryString } from '~/hooks/use-query-string';
@@ -120,7 +119,7 @@ export const FiltersModal = ({ isVisible, onClose }: FiltersModalProps) => {
     queryStringAsObj.userIds,
   ]);
 
-  const renderModalFooter: ModalFooterRender = (_originNode, { OkBtn, CancelBtn }) => {
+  const renderModalFooter: ModalProps['footer'] = (_originNode, { OkBtn, CancelBtn }) => {
     return (
       <Flex justify='space-between'>
         <Button onClick={handleResetFilters}>{t(filtersModalLocaleKeys.buttonClean)}</Button>

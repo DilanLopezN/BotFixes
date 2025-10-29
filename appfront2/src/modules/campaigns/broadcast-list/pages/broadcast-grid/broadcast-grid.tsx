@@ -1,4 +1,3 @@
-import { useTranslation } from 'react-i18next';
 import {
   ExclamationCircleOutlined,
   FilterOutlined,
@@ -21,14 +20,16 @@ import {
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { MenuProps } from 'antd/lib/menu';
-import dayjs, { type Dayjs } from 'dayjs';
+import dayjs from 'dayjs';
 import { debounce } from 'lodash';
 import { type ChangeEvent, useEffect, useRef, useState } from 'react';
-import { generatePath, Link, useNavigate, useParams } from 'react-router-dom';
-import { localeKeys } from '~/i18n';
+import { useTranslation } from 'react-i18next';
+import { generatePath, Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { EnhancedTable } from '~/components/enhanced-table';
 import { PageTemplate } from '~/components/page-template';
 import { CampaignStatus } from '~/constants/campaign-status';
+import { useQueryString } from '~/hooks/use-query-string';
+import { localeKeys } from '~/i18n';
 import type { Campaign } from '~/interfaces/campaign';
 import { routes } from '~/routes';
 import { GridActionsColumn } from '../../components/grid-actions-column';
@@ -38,18 +39,33 @@ import { SearchInput, TableTitle } from './styles';
 
 export const ViewBroadcastList = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { workspaceId } = useParams<{ workspaceId: string }>();
-  const [pageSize, setPageSize] = useState(10);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [searchInputValue, setSearchInputValue] = useState('');
-  const [startDate, setStartDate] = useState<Dayjs>();
-  const [endDate, setEndDate] = useState<Dayjs>();
-  const [statusFilter, setStatusFilter] = useState<FilterStatus>('all');
-  const [debouncedSearchInputValue, setDebouncedSearchInputValue] = useState('');
+  const { queryStringAsObj, updateQueryString } = useQueryString<{
+    search?: string;
+    page?: string;
+    pageSize?: string;
+    status?: string;
+    startDate?: string;
+    endDate?: string;
+  }>({
+    allowedQueries: ['search', 'page', 'pageSize', 'status', 'startDate', 'endDate'],
+  });
+
+  const querySearch = queryStringAsObj.search || '';
+  const currentPage = Number(queryStringAsObj.page) || 1;
+  const pageSize = Number(queryStringAsObj.pageSize) || 10;
+  const statusFilter = (queryStringAsObj.status as FilterStatus) || 'all';
+  const startDate = queryStringAsObj.startDate
+    ? dayjs(Number(queryStringAsObj.startDate))
+    : undefined;
+  const endDate = queryStringAsObj.endDate ? dayjs(Number(queryStringAsObj.endDate)) : undefined;
+  const [searchInputValue, setSearchInputValue] = useState(querySearch);
+
   const { campaignList, isLoadingCampaignList, fetchCampaignList } = useCampaignList({
     pageSize,
     currentPage,
-    search: debouncedSearchInputValue,
+    search: querySearch,
     status:
       statusFilter !== 'all' && statusFilter !== 'hasFail' && statusFilter !== 'isTest'
         ? statusFilter
@@ -69,8 +85,7 @@ export const ViewBroadcastList = () => {
 
   const debouncedSearch = useRef(
     debounce((value: string) => {
-      setDebouncedSearchInputValue(value);
-      setCurrentPage(1);
+      updateQueryString({ search: value, page: 1 });
     }, 300)
   ).current;
 
@@ -80,13 +95,11 @@ export const ViewBroadcastList = () => {
   };
 
   const handleChangeFilter = (value: FilterStatus) => {
-    setStatusFilter(value);
-    setCurrentPage(1);
+    updateQueryString({ status: value, page: 1 });
   };
 
   const handleChangePage = (page: number, pSize: number) => {
-    setCurrentPage(page);
-    setPageSize(pSize);
+    updateQueryString({ page, pageSize: pSize });
   };
 
   const { t } = useTranslation();
@@ -97,10 +110,14 @@ export const ViewBroadcastList = () => {
     fetchCampaignList();
   }, [fetchCampaignList]);
 
+  useEffect(() => {
+    setSearchInputValue(querySearch);
+  }, [querySearch]);
+
   const actionButtons = (
     <Space>
-      <Link to={createNewTeamPath}>
-        <Button type='primary'>{t(broadcastGridLocaleKeys.actionButtons)}</Button>
+      <Link to={createNewTeamPath} state={{ queryStrings: location.search }}>
+        <Button type='primary'>{t(broadcastGridLocaleKeys.createBroadcastButton)}</Button>
       </Link>
     </Space>
   );
@@ -270,7 +287,9 @@ export const ViewBroadcastList = () => {
               okText: t(broadcastGridLocaleKeys.okText),
               cancelText: t(broadcastGridLocaleKeys.cancelText),
               onOk() {
-                navigate(`${cloneBroadcastPath}?contactsWithError=true`);
+                navigate(`${cloneBroadcastPath}?contactsWithError=true`, {
+                  state: { queryStrings: location.search },
+                });
               },
             });
           };
@@ -338,8 +357,13 @@ export const ViewBroadcastList = () => {
                   value={[startDate, endDate]}
                   style={{ width: 320 }}
                   onChange={(dates) => {
-                    setStartDate(dates && dates[0]?.isValid() ? dates[0] : undefined);
-                    setEndDate(dates && dates[1]?.isValid() ? dates[1] : undefined);
+                    const newStart = dates && dates[0]?.isValid() ? dates[0] : undefined;
+                    const newEnd = dates && dates[1]?.isValid() ? dates[1] : undefined;
+                    updateQueryString({
+                      startDate: newStart ? newStart.valueOf() : undefined,
+                      endDate: newEnd ? newEnd.valueOf() : undefined,
+                      page: 1,
+                    });
                   }}
                 />
                 <SearchInput

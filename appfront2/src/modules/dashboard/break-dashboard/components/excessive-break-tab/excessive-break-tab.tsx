@@ -1,4 +1,4 @@
-import { ExclamationCircleOutlined } from '@ant-design/icons';
+import { DownloadOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 import { Button, Card, Col, Popover, Row, Space, Spin, Tooltip, Typography } from 'antd';
 import type { ColumnType, TableProps } from 'antd/es/table';
 import dayjs from 'dayjs';
@@ -6,11 +6,13 @@ import { useEffect, useState } from 'react';
 import { EnhancedTable } from '~/components/enhanced-table';
 import { formatDurationHms } from '~/utils/format-duration-hms';
 import { useExcessiveBreaks } from '../../hooks/use-excessive-breaks';
+import { useExcessiveBreaksCsv } from '../../hooks/use-excessive-breaks-csv/use-excessive-breaks-csv';
 import { useRefreshContext } from '../../hooks/use-refresh-context';
 
 export const ExcessiveBreakTab = () => {
   const { refreshKey } = useRefreshContext();
   const { excessiveBreaks, isFetchingExcessiveBreaks, fetchExcessiveBreaks } = useExcessiveBreaks();
+  const { downloadExcessiveBreaksCsv, isDownloadingExcessiveBreaksCsv } = useExcessiveBreaksCsv();
   const [pagination, setPagination] = useState({
     current: 1,
     pageSize: 10,
@@ -92,9 +94,18 @@ export const ExcessiveBreakTab = () => {
   return (
     <Spin spinning={isFetchingExcessiveBreaks}>
       <Card>
-        <Row justify='center' style={{ marginBottom: 16 }}>
-          <Col>
+        <Row justify='center' align='middle' style={{ marginBottom: 16 }}>
+          <Col flex='auto' style={{ textAlign: 'center' }}>
             <b style={{ margin: 0, fontSize: '1.3em' }}>Pausas excedidas</b>
+          </Col>
+          <Col>
+            <Button
+              icon={<DownloadOutlined />}
+              onClick={downloadExcessiveBreaksCsv}
+              loading={isDownloadingExcessiveBreaksCsv}
+            >
+              Baixar
+            </Button>
           </Col>
         </Row>
         <Row>

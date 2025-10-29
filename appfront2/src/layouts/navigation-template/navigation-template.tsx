@@ -9,7 +9,9 @@ import {
   AiOutlineTeam,
   AiOutlineUser,
 } from 'react-icons/ai';
+import { IoMdNotificationsOutline } from 'react-icons/io';
 import { Link, Outlet, useLocation } from 'react-router-dom';
+import { BeamerScript } from '~/components/beamer-script';
 import { ClarityScript } from '~/components/clarity-script';
 import { SpinnerContainer } from '~/components/spinner-container';
 import { StartBreakModal } from '~/components/start-break-modal';
@@ -180,12 +182,15 @@ export const NavigationTemplate = () => {
   return (
     <Container>
       {process.env.NODE_ENV === 'production' ? (
-        <ClarityScript
-          userId={user?._id}
-          userName={user?.name}
-          workspaceId={workspaceId}
-          workspaceName={workspaceName}
-        />
+        <>
+          <BeamerScript />
+          <ClarityScript
+            userId={user?._id}
+            userName={user?.name}
+            workspaceId={workspaceId}
+            workspaceName={workspaceName}
+          />
+        </>
       ) : null}
       <SideMenu style={{ background: layout?.color || '#84327a' }}>
         <TopLevelOptions>
@@ -228,6 +233,9 @@ export const NavigationTemplate = () => {
           })}
         </TopLevelOptions>
         <BottomLevelOptions>
+          <OptionItem selected={false} className='beamerTrigger' title={t('Avisos')}>
+            <IoMdNotificationsOutline className='icon-menu' />
+          </OptionItem>
           <Anchor href={helpCenter?.url || ''} target='_blank'>
             <OptionItem selected={false} title={t(localeKeys.navigationSideBar.helpCenterMenuItem)}>
               <HelpCenterIcon />

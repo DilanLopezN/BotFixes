@@ -12,4 +12,6 @@ export enum SendingStatus {
   START_RESCHEDULE_RECOVER = 'start_reschedule_recover',
   CANCEL_RESCHEDULE_RECOVER = 'cancel_reschedule_recover',
   CONFIRM_RESCHEDULE_RECOVER = 'confirm_reschedule_recover',
+  CONFIRM_RESCHEDULE = 'confirm_reschedule',
+  DOCUMENT_UPLOADED = 'document_uploaded',
 }

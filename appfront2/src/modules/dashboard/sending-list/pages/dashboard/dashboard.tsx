@@ -104,6 +104,14 @@ export const Dashboard = () => {
         </Col>
         <Col span={6}>
           <PieChart
+            title={t(dashboardLocaleKeys.documentsRequestChartTitle)}
+            data={scheduleAnalytics?.documents_request}
+            isLoading={isLoadindScheduleAnalytics}
+            type={SendingType.documents_request}
+          />
+        </Col>
+        <Col span={6}>
+          <PieChart
             title={t(dashboardLocaleKeys.npsScoreChartTitle)}
             data={scheduleAnalytics?.nps_score}
             isLoading={isLoadindScheduleAnalytics}

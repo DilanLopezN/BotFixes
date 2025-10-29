@@ -3,19 +3,21 @@ import type { MenuProps } from 'antd';
 import { Button, Card, Dropdown, Space, Tag, Typography } from 'antd';
 import { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
-import { useEffect, useMemo, useState } from 'react';
+import { debounce } from 'lodash';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { generatePath, useNavigate, useParams } from 'react-router-dom';
+import { generatePath, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { EnhancedTable } from '~/components/enhanced-table';
+import { ExportType } from '~/components/export-button';
 import { PageTemplate } from '~/components/page-template';
 import { UserFilterType } from '~/constants/user-filter-type';
 import { UserRole } from '~/constants/user-roles';
 import { useAuth } from '~/hooks/use-auth';
+import { useQueryString } from '~/hooks/use-query-string';
 import { localeKeys } from '~/i18n';
 import type { User } from '~/interfaces/user';
 import { UserPermission } from '~/interfaces/user-permission';
 import { routes } from '~/routes/constants';
-import { TypeDownloadEnum } from '~/services/workspace/export-list-schedules-csv/type-download-enum';
 import { normalizeText } from '~/utils/normalize-text';
 import { isAnySystemAdmin } from '~/utils/permissions';
 import { BodyContainer } from '../styles';
@@ -36,11 +38,21 @@ const { Text } = Typography;
 export const UserList = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const location = useLocation();
   const { data, isLoading, fetchUserList } = useUserList();
   const { user: loggedUser } = useAuth();
   const { messageUserLimit, getPlanUserLimit } = useGetPlanUserByWorkspace();
-  const [selectedFilter, setSelectedFilter] = useState(UserFilterType.All);
-  const [searchInputValue, setSearchInputValue] = useState<string>('');
+  const { queryStringAsObj, updateQueryString } = useQueryString<{
+    search?: string;
+    userStatusFilter?: string;
+  }>({
+    allowedQueries: ['search', 'userStatusFilter'],
+  });
+
+  const querySearch = queryStringAsObj.search || '';
+  const queryFilter = (queryStringAsObj.userStatusFilter as UserFilterType) || UserFilterType.All;
+
+  const [searchInputValue, setSearchInputValue] = useState<string>(querySearch);
   const [isModalVisible, setIsModalVisible] = useState<boolean>(false);
   const { userList } = localeKeys.settings.users;
   const { workspaceId = '' } = useParams<{ workspaceId: string }>();
@@ -55,8 +67,14 @@ export const UserList = () => {
   ];
 
   const handleExportMenuClick: MenuProps['onClick'] = (e) => {
-    if (e.key === 'csv') onExport(TypeDownloadEnum.CSV, selectedFilter, searchInputValue);
+    if (e.key === 'csv') onExport(ExportType.Csv, queryFilter, searchInputValue);
   };
+
+  const debouncedSearch = useRef(
+    debounce((value: string) => {
+      updateQueryString({ search: value });
+    }, 300)
+  ).current;
 
   const filteredUsers = useMemo(() => {
     const lowerCaseQuery = normalizeText(searchInputValue);
@@ -65,7 +83,7 @@ export const UserList = () => {
       normalizeText(user.name).includes(lowerCaseQuery) ||
       normalizeText(user.email).includes(lowerCaseQuery);
 
-    if (selectedFilter === UserFilterType.Active) {
+    if (queryFilter === UserFilterType.Active) {
       return data.filter(
         (user) =>
           isSearchValueIncluded(user) &&
@@ -78,7 +96,7 @@ export const UserList = () => {
       );
     }
 
-    if (selectedFilter === UserFilterType.Inactive) {
+    if (queryFilter === UserFilterType.Inactive) {
       return data.filter(
         (user) =>
           isSearchValueIncluded(user) &&
@@ -87,15 +105,24 @@ export const UserList = () => {
     }
 
     return data.filter((user) => isSearchValueIncluded(user));
-  }, [data, searchInputValue, selectedFilter]);
+  }, [searchInputValue, queryFilter, data]);
+
+  const handleSearchInputChange = (value: string) => {
+    setSearchInputValue(value);
+    debouncedSearch(value);
+  };
+
+  const handleChangeFilter = (filter: UserFilterType) => {
+    updateQueryString({ userStatusFilter: filter });
+  };
 
   const handleAddUser = () => {
-    navigate(createUser.path);
+    navigate(createUser.path, { state: { queryStrings: location.search } });
   };
 
   const handleEditUser = async (userId: string) => {
     const path = generatePath(updateUser.path, { userId });
-    navigate(path);
+    navigate(path, { state: { queryStrings: location.search } });
   };
 
   const isDisabled = (user: User) => {
@@ -118,7 +145,7 @@ export const UserList = () => {
       <Dropdown.Button
         icon={<MoreOutlined />}
         loading={isExporting}
-        onClick={() => onExport(TypeDownloadEnum.XLSX, selectedFilter, searchInputValue)}
+        onClick={() => onExport(ExportType.Xlsx, queryFilter, searchInputValue)}
         menu={{ items: exportMenuItems, onClick: handleExportMenuClick }}
       >
         <DownloadOutlined />
@@ -273,10 +300,10 @@ export const UserList = () => {
             )}`}
           </Text>
           <UserFilter
-            selectedFilter={selectedFilter}
+            selectedFilter={queryFilter}
             searchInputValue={searchInputValue}
-            setSelectedFilter={setSelectedFilter}
-            setSearchInputValue={setSearchInputValue}
+            setSelectedFilter={handleChangeFilter}
+            setSearchInputValue={handleSearchInputChange}
           />
         </TableFiltersContainer>
         <UserListContainer>

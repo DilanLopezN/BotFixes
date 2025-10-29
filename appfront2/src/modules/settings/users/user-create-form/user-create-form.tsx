@@ -13,7 +13,7 @@ import {
 } from 'antd';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { PageTemplate } from '~/components/page-template';
 import { UserRole } from '~/constants/user-roles';
 import { useSelectedWorkspace } from '~/hooks/use-selected-workspace';
@@ -42,6 +42,8 @@ export const UserCreateForm = () => {
   const { updateUserRole, isUpdating } = useUpdateRole();
   const { data: userByEmail, getUserByEmail } = useGetUserByEmail();
   const { workspaceId = '' } = useParams<{ workspaceId: string }>();
+  const location = useLocation();
+
   const { userManager } = localeKeys.settings.users;
   const { userUpdater } = localeKeys.settings.users;
   const isDocumentUploadEnabled = Boolean(featureFlag?.enableUploadErpDocuments);
@@ -57,8 +59,10 @@ export const UserCreateForm = () => {
     userExistanceVerification === UserExistanceVerificationType.existInAnotherWorkspace;
 
   const handleBack = () => {
+    const state = location.state as { queryStrings?: string } | undefined;
+    const queryString = state?.queryStrings;
     const path = `/${workspaceId}/${settingsPath}/${usersPath}`;
-    navigate(path);
+    navigate(path + queryString, { replace: true });
   };
 
   const onFinish = async (values: UserCreateFormValues) => {

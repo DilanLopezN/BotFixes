@@ -42,6 +42,10 @@ export const StatusList = ({ selectedStatusList, setSelectedStatusList }: Status
       description: t(filtersModalLocaleKeys.rescheduledStatus),
     },
     {
+      key: SendingStatus.CONFIRM_RESCHEDULE,
+      description: t(filtersModalLocaleKeys.confirmReschedule),
+    },
+    {
       key: SendingStatus.CANCELED,
       description: t(filtersModalLocaleKeys.canceledStatus),
     },
@@ -80,6 +84,10 @@ export const StatusList = ({ selectedStatusList, setSelectedStatusList }: Status
     {
       key: SendingStatus.INVALID_RECIPIENT,
       description: t(filtersModalLocaleKeys.invalidRecipíent),
+    },
+    {
+      key: SendingStatus.DOCUMENT_UPLOADED,
+      description: t(filtersModalLocaleKeys.documentsUploaded),
     },
   ];
 

@@ -1,22 +1,47 @@
 import { InfoCircleOutlined } from '@ant-design/icons';
-import { Col, Flex, Form, Modal, Row, Spin, Switch, Tooltip } from 'antd';
-import { useEffect } from 'react';
+import { Col, Flex, Form, Modal, Row, Select, Spin, Switch, Tooltip } from 'antd';
+import { useEffect, useMemo } from 'react';
+import { useParams } from 'react-router-dom';
 import { NumberInput } from '~/components/number-input';
+import { Me } from '~/interfaces/me';
+import { normalizeText } from '~/utils/normalize-text';
 import { notifyError } from '~/utils/notify-error';
 import { notifySuccess } from '~/utils/notify-success';
+import { isAnySystemAdmin, isWorkspaceAdmin } from '~/utils/permissions';
+import { useActiveUsers } from '../../hooks/use-active-users';
 import { useAutomaticBreakSettings } from '../../hooks/use-automatic-break-settings';
 import { useCreateAutomaticBreakSettings } from '../../hooks/use-create-automatic-break-settings';
 import { useUpdateAutomaticBreakSettings } from '../../hooks/use-update-automatic-break-settings/use-create-automatic-break-settings';
 import type { AutomaticBreakFormValues, AutomaticBreakModalProps } from './interfaces';
 
 export const AutomaticBreakModal = ({ isVisible, onClose }: AutomaticBreakModalProps) => {
+  const { workspaceId = '' } = useParams<{ workspaceId: string }>();
   const [form] = Form.useForm<AutomaticBreakFormValues>();
   const { createNewAutomaticBreakSettings, isCreating } = useCreateAutomaticBreakSettings();
   const { updateAutoBreakSettings, isUpdating } = useUpdateAutomaticBreakSettings();
   const { automaticBreakSettings, isFetchingAutomaticBreakSettings, fetchAutomaticBreakSettings } =
     useAutomaticBreakSettings();
+  const { activeUsers, isLoadingActiveUsers, fetchActiveUsers } = useActiveUsers();
 
   const isLoading = isCreating || isUpdating;
+
+  const activeUserOptions = useMemo(() => {
+    if (!activeUsers) return [];
+
+    const users = activeUsers.data
+      .filter((user) => {
+        if (isAnySystemAdmin(user as Me) || isWorkspaceAdmin(user as Me, workspaceId)) {
+          return false;
+        }
+
+        return true;
+      })
+      .map((user) => {
+        return { label: user.name, value: user._id };
+      });
+
+    return users;
+  }, [activeUsers, workspaceId]);
 
   const handleClose = () => {
     if (isLoading) return;
@@ -75,6 +100,7 @@ export const AutomaticBreakModal = ({ isVisible, onClose }: AutomaticBreakModalP
         notificationIntervalSeconds: automaticBreakSettings.notificationIntervalSeconds / 60,
         breakStartDelaySeconds: automaticBreakSettings.breakStartDelaySeconds / 60,
         maxInactiveDurationSeconds: automaticBreakSettings.maxInactiveDurationSeconds / 60,
+        excludedUserIds: automaticBreakSettings.excludedUserIds,
       });
       return;
     }
@@ -86,6 +112,10 @@ export const AutomaticBreakModal = ({ isVisible, onClose }: AutomaticBreakModalP
       maxInactiveDurationSeconds: 60,
     });
   }, [form, automaticBreakSettings]);
+
+  useEffect(() => {
+    fetchActiveUsers();
+  }, [fetchActiveUsers]);
 
   return (
     <Modal
@@ -186,6 +216,32 @@ export const AutomaticBreakModal = ({ isVisible, onClose }: AutomaticBreakModalP
                 ]}
               >
                 <NumberInput placeholder='Ex: 20' />
+              </Form.Item>
+            </Col>
+            <Col span={24}>
+              <Form.Item
+                name='excludedUserIds'
+                label={
+                  <Flex gap={8} align='center'>
+                    <span>Restringir regra para os usuários</span>
+                    <Tooltip title='Os usuários selecionados não entrarão em pausa automática por inatividade, independentemente do tempo configurado'>
+                      <InfoCircleOutlined style={{ color: '#1890ff', cursor: 'pointer' }} />
+                    </Tooltip>
+                  </Flex>
+                }
+              >
+                <Select
+                  allowClear
+                  mode='multiple'
+                  loading={isLoadingActiveUsers}
+                  options={activeUserOptions}
+                  placeholder='Selecione os usuários'
+                  showSearch
+                  autoClearSearchValue={false}
+                  filterOption={(search, option) => {
+                    return Boolean(normalizeText(option?.label).includes(normalizeText(search)));
+                  }}
+                />
               </Form.Item>
             </Col>
             <Col span={24}>

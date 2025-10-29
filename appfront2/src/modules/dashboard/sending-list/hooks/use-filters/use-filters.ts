@@ -59,8 +59,8 @@ export const useFilters = () => {
 
     let filteredStatusList = statusListFromQuery;
     if (type && statusListFromQuery) {
-      filteredStatusList = statusListFromQuery.filter(
-        (status) => STATUS_ALLOWED_MAP[status]?.includes(type as SendingType)
+      filteredStatusList = statusListFromQuery.filter((status) =>
+        STATUS_ALLOWED_MAP[status]?.includes(type as SendingType)
       );
     }
 

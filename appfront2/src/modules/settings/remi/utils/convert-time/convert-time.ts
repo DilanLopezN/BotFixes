@@ -24,7 +24,6 @@ export const convertHHMMToMinutes = (timeString?: string | Dayjs | null): number
   } else if (typeof timeString === 'string') {
     const parsed = dayjs(timeString, FORMAT, true);
     if (!parsed.isValid()) {
-      console.warn(`Invalid time string format received: ${timeString}. Expected ${FORMAT}.`);
       return 0;
     }
     dayjsObj = parsed;

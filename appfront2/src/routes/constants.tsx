@@ -8,6 +8,8 @@ import { ViewBroadcastList } from '~/modules/campaigns/broadcast-list/pages/broa
 import { CreateBroadcastList } from '~/modules/campaigns/broadcast-list/pages/create-broadcast-list';
 import { EditBroadcastList } from '~/modules/campaigns/broadcast-list/pages/edit-broadcast-list';
 import { Dashboard } from '~/modules/dashboard';
+import { AppointmentTable } from '~/modules/dashboard/appointment-table';
+import { AppointmentReports } from '~/modules/dashboard/appointment-table/pages/appointment-reports';
 import { BreakDashboard } from '~/modules/dashboard/break-dashboard';
 import { BreakReports } from '~/modules/dashboard/break-dashboard/pages/break-reports';
 import { CategorizationDashboard } from '~/modules/dashboard/categorization-dashboard';
@@ -59,8 +61,8 @@ import {
   isSystemAdmin,
   isSystemCsAdmin,
   isSystemDevAdmin,
-  isWorkspaceAdmin,
   isSystemSupportAdmin,
+  isWorkspaceAdmin,
 } from '~/utils/permissions';
 import { AppTypePort } from '~/utils/redirect-app';
 import { BaseRoute } from './base-route';
@@ -196,6 +198,26 @@ export const routes = generateRouteWithFullPath({
               home: {
                 path: '',
                 element: <RemiReports />,
+                fullPath: '',
+              },
+            },
+          },
+          appointmentTable: {
+            path: 'appointment-table',
+            element: <AppointmentTable />,
+            fullPath: '',
+            allowedRoles: undefined,
+            hasPermission: (user, workspace) => {
+              if (isAnySystemAdmin(user)) {
+                return true;
+              }
+
+              return false;
+            },
+            children: {
+              home: {
+                path: '',
+                element: <AppointmentReports />,
                 fullPath: '',
               },
             },
@@ -563,9 +585,18 @@ export const routes = generateRouteWithFullPath({
                 resource: PermissionResource.ANY,
                 role: UserRole.SYSTEM_CS_ADMIN,
               },
+              {
+                resource: PermissionResource.ANY,
+                role: UserRole.SYSTEM_SUPPORT_ADMIN,
+              },
             ],
             hasPermission: (user) => {
-              return isSystemAdmin(user) || isSystemDevAdmin(user) || isSystemCsAdmin(user);
+              return (
+                isSystemAdmin(user) ||
+                isSystemDevAdmin(user) ||
+                isSystemCsAdmin(user) ||
+                isSystemSupportAdmin(user)
+              );
             },
             element: null,
             fullPath: '',

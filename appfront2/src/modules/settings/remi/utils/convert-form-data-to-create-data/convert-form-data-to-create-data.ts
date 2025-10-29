@@ -12,7 +12,7 @@ export const convertFormDataToCreateData = (formData: RemiFormDataForm): RemiCon
     automaticMessage: formData.message2Content,
     finalizationMessage: formData.message3Content,
     name: formData.name,
-    teamIds: formData.selectTeams ? formData.selectedTeamIds ?? [] : [],
+    teamIds: formData.selectTeams ? (formData.selectedTeamIds ?? []) : [],
     active: true,
     ...(formData.objectiveId && { objectiveId: formData.objectiveId }),
     ...(formData.outcomeId && { outcomeId: formData.outcomeId }),

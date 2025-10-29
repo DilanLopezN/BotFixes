@@ -1,6 +1,6 @@
 import { Table } from 'antd';
-import type { CheckboxValueType } from 'antd/es/checkbox/Group';
-import _ from 'lodash';
+import { CheckboxGroupProps } from 'antd/lib/checkbox';
+import _, { isEmpty } from 'lodash';
 import {
   ForwardedRef,
   forwardRef,
@@ -33,7 +33,7 @@ export const EnhancedTable = forwardRef(
   ) => {
     const { t } = useTranslation();
     const [isModalOpened, setIsModalOpened] = useState(false);
-    const [checkboxOptions, setCheckboxOptions] = useState<CheckboxValueType[]>([]);
+    const [checkboxOptions, setCheckboxOptions] = useState<CheckboxGroupProps['value']>([]);
 
     const { enhancedTable: enhancedTableLocaleKeys } = localeKeys.components;
 
@@ -42,10 +42,10 @@ export const EnhancedTable = forwardRef(
       shouldAlwaysAddHeight || (dataSource && dataSource.length > 0) ? scroll?.y : undefined;
 
     const filteredColumns = useMemo(() => {
-      return id
+      return id && !isEmpty(checkboxOptions)
         ? columns.filter(
             (column) =>
-              column.key === 'actions' || checkboxOptions.some((option) => option === column.key)
+              column.key === 'actions' || checkboxOptions?.some((option) => option === column.key)
           )
         : columns;
     }, [checkboxOptions, columns, id]);

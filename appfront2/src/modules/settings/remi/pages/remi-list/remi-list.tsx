@@ -16,9 +16,10 @@ import type { ColumnsType } from 'antd/es/table';
 import { debounce } from 'lodash';
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, generatePath, useParams } from 'react-router-dom';
+import { Link, generatePath, useLocation, useParams } from 'react-router-dom';
 import { EnhancedTable } from '~/components/enhanced-table';
 import { PageTemplate } from '~/components/page-template';
+import { useQueryString } from '~/hooks/use-query-string';
 import { useSelectedWorkspace } from '~/hooks/use-selected-workspace';
 import { localeKeys } from '~/i18n';
 import {
@@ -40,6 +41,7 @@ export const RemiList = () => {
   const { teamList } = useTeamList();
   const { workspaceId } = useParams<{ workspaceId: string }>();
   const { remiList: remiKeys } = localeKeys.settings.remi.pages;
+  const location = useLocation();
   const { children: remiModules } = routes.modules.children.settings.children.remi;
 
   const {
@@ -62,8 +64,11 @@ export const RemiList = () => {
   const { userFeatureFlag } = useSelectedWorkspace();
 
   const [featureFlag, setFeatureFlag] = useState(userFeatureFlag?.enableRemi);
-  const [searchInputValue, setSearchInputValue] = useState('');
-  const [debouncedSearchInputValue, setDebouncedSearchInputValue] = useState('');
+  const { queryStringAsObj, updateQueryString } = useQueryString<{ search?: string }>({
+    allowedQueries: ['search'],
+  });
+  const querySearch = queryStringAsObj.search || '';
+  const [searchInputValue, setSearchInputValue] = useState(querySearch);
 
   const [isCopyModalVisible, setIsCopyModalVisible] = useState(false);
   const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
@@ -76,7 +81,7 @@ export const RemiList = () => {
 
   const debouncedSearch = useRef(
     debounce((value: string) => {
-      setDebouncedSearchInputValue(value);
+      updateQueryString({ search: value });
     }, 300)
   ).current;
 
@@ -87,7 +92,7 @@ export const RemiList = () => {
 
   const filteredRemiList = useMemo(() => {
     if (!allRemiSettings) return [];
-    const searchTerm = debouncedSearchInputValue.toLowerCase();
+    const searchTerm = querySearch.toLowerCase();
     return allRemiSettings
       .filter(
         (remi) =>
@@ -99,7 +104,7 @@ export const RemiList = () => {
         const bActive = b.active !== false ? 1 : 0;
         return bActive - aActive;
       });
-  }, [allRemiSettings, debouncedSearchInputValue, remiKeys.defaultName, t]);
+  }, [allRemiSettings, querySearch, remiKeys.defaultName, t]);
 
   const remiToDeleteName = useMemo(() => {
     if (!remiToDelete || !allRemiSettings) return '';
@@ -178,6 +183,10 @@ export const RemiList = () => {
   useEffect(() => {
     setFeatureFlag(userFeatureFlag?.enableRemi);
   }, [userFeatureFlag]);
+
+  useEffect(() => {
+    setSearchInputValue(querySearch);
+  }, [querySearch]);
 
   const columns: ColumnsType<any> = [
     {
@@ -279,7 +288,7 @@ export const RemiList = () => {
 
         return (
           <Space size='small'>
-            <Link to={viewRemiPath}>
+            <Link to={viewRemiPath} state={{ queryStrings: location.search }}>
               <Button size='small'>{t(remiKeys.viewButtonLabel)}</Button>
             </Link>
 

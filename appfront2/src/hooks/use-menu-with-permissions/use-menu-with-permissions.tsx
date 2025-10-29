@@ -27,12 +27,11 @@ export const useMenuWithPermissions = (menuList: MenuList[]) => {
 
         if (
           menu.allowedRoles &&
-          !menu.allowedRoles.some(
-            (allowedRole) =>
-              user?.roles?.some(
-                (userRole) =>
-                  userRole.role === allowedRole.role && userRole.resource === allowedRole.resource
-              )
+          !menu.allowedRoles.some((allowedRole) =>
+            user?.roles?.some(
+              (userRole) =>
+                userRole.role === allowedRole.role && userRole.resource === allowedRole.resource
+            )
           )
         ) {
           return acc;

@@ -1,5 +1,4 @@
 import {
-  ExportOutlined,
   FilterOutlined,
   InfoCircleOutlined,
   MoreOutlined,
@@ -11,14 +10,12 @@ import {
   Badge,
   Button,
   Card,
-  Checkbox,
   Col,
   DatePicker,
   Dropdown,
   Flex,
   Input,
   MenuProps,
-  Modal,
   Popover,
   Row,
   Select,
@@ -35,6 +32,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { generatePath, Link, useParams } from 'react-router-dom';
 import { EnhancedTable, EnhancedTableRef } from '~/components/enhanced-table';
+import { ExportButton, ExportType } from '~/components/export-button';
 import { PageTemplate } from '~/components/page-template';
 import { SendingType } from '~/constants/sending-type';
 import { useAuth } from '~/hooks/use-auth';
@@ -42,21 +40,14 @@ import { useQueryString } from '~/hooks/use-query-string';
 import { useWindowSize } from '~/hooks/use-window-size';
 import { localeKeys } from '~/i18n';
 import { routes } from '~/routes';
-import { ExportableFields } from '~/services/workspace/export-list-schedules-csv/interfaces';
-import { TypeDownloadEnum } from '~/services/workspace/export-list-schedules-csv/type-download-enum';
+import { ExportableFields } from '~/services/workspace/export-list-schedules-csv/exportable-fields.enum';
 import { SendingListData } from '~/services/workspace/get-sending-list-by-workspace-id';
 import { notifyError } from '~/utils/notify-error';
 import { isAnySystemAdmin, isWorkspaceAdmin } from '~/utils/permissions';
 import { AppTypePort, getBaseUrl } from '~/utils/redirect-app';
 import { ConversationPreviewModal } from '../../../../../components/conversation-preview-modal';
 import { FiltersModal } from '../../components/filters-modal';
-import {
-  DEFAULT_TABLE_COLUMNS,
-  RecipientTypeEnum,
-  sendTypeColumLabelMap,
-  statusColumLabelMap,
-  TableColumnConfig,
-} from '../../constants';
+import { RecipientTypeEnum, sendTypeColumLabelMap, statusColumLabelMap } from '../../constants';
 import { CancelingReasonProvider } from '../../contexts/canceling-reasons-context';
 import { useCancelingReasonContext } from '../../hooks/use-canceling-reason-context';
 import { useExportSchedules } from '../../hooks/use-export-list-schedules';
@@ -64,7 +55,7 @@ import { useSendingList } from '../../hooks/use-sending-list';
 import { SendingListQueryString } from '../../interfaces';
 import { ChartContainer } from './chart-container';
 import { allowedQueries, chartWidth, maxScreenSizeToCompactActions } from './constants';
-import { ScheduleTypeSelect } from './styles';
+import { ActionsCellContent, ScheduleTypeSelect } from './styles';
 
 export const FullTableComponent = () => {
   const { t } = useTranslation();
@@ -74,12 +65,6 @@ export const FullTableComponent = () => {
   });
   const { width: screenWidth } = useWindowSize();
 
-  // NOVO: Estados para controle de exportação com colunas configuráveis
-  const [exportColumns, setExportColumns] = useState<TableColumnConfig[]>(DEFAULT_TABLE_COLUMNS);
-  const [isExportModalVisible, setIsExportModalVisible] = useState(false);
-  const [pendingExportType, setPendingExportType] = useState<TypeDownloadEnum>();
-
-  // ATUALIZADO: Passar configuração de colunas para o hook
   const { exportSchedules, isLoading: isLoadingExportCsv } = useExportSchedules();
 
   const { workspaceId } = useParams<{ workspaceId: string }>();
@@ -111,32 +96,33 @@ export const FullTableComponent = () => {
     return generatePath(sendingListRoute.fullPath, { workspaceId });
   }, [sendingListRoute.fullPath, workspaceId]);
 
-  const getVisibleColumns = useCallback((columns: TableColumnConfig[]): ExportableFields[] => {
-    return columns.filter((col) => col.visible || col.required).map((col) => col.key);
-  }, []);
+  const handleExport = useCallback(
+    async (type: ExportType) => {
+      if (!tableRef.current) return;
 
-  const handleColumnVisibilityChange = useCallback(
-    (columnKey: ExportableFields, visible: boolean) => {
-      setExportColumns((prev) =>
-        prev.map((col) => (col.key === columnKey ? { ...col, visible } : col))
-      );
+      const visibleColumns = tableRef.current.getVisibleColumns();
+
+      const columnsToExport = visibleColumns
+        .map((col) => col.key as string)
+        .filter((key) => key !== 'actions') // Remove a coluna de ações
+        .filter((key) =>
+          Object.values(ExportableFields).includes(key as ExportableFields)
+        ) as ExportableFields[];
+
+      // Sempre inclui os campos obrigatórios
+      const mandatoryFields = [
+        ExportableFields.PATIENT_NAME,
+        ExportableFields.PATIENT_CODE,
+        ExportableFields.EMAIL,
+        ExportableFields.PHONE,
+      ];
+
+      const finalColumns = [...new Set([...mandatoryFields, ...columnsToExport])];
+
+      await exportSchedules(type, finalColumns);
     },
-    []
+    [exportSchedules]
   );
-
-  const handleExportClick = useCallback((downloadType: TypeDownloadEnum) => {
-    setPendingExportType(downloadType);
-    setIsExportModalVisible(true);
-  }, []);
-
-  const handleConfirmExport = useCallback(async () => {
-    if (pendingExportType) {
-      const selectedColumns = getVisibleColumns(exportColumns);
-      await exportSchedules(pendingExportType, selectedColumns);
-      setIsExportModalVisible(false);
-      setPendingExportType(undefined);
-    }
-  }, [pendingExportType, exportColumns, exportSchedules, getVisibleColumns]);
 
   const handleChangeSelect = (newSendingType: unknown) => {
     updateQueryString({ type: newSendingType, currentPage: 1 });
@@ -189,19 +175,6 @@ export const FullTableComponent = () => {
     },
     [updateQueryString]
   );
-
-  const exportMenuItems: MenuProps['items'] = [
-    {
-      key: 'xlsx',
-      label: 'Excel (.xlsx)',
-      onClick: () => handleExportClick(TypeDownloadEnum.XLSX),
-    },
-    {
-      key: 'csv',
-      label: 'CSV (.csv)',
-      onClick: () => handleExportClick(TypeDownloadEnum.CSV),
-    },
-  ];
 
   useEffect(() => {
     if (
@@ -276,10 +249,6 @@ export const FullTableComponent = () => {
       </Link>
     </Space>
   );
-
-  const newFunction = (col: TableColumnConfig): boolean => {
-    return !!col.required;
-  };
 
   const getPopoverMenuItems = (record: SendingListData): MenuProps['items'] => {
     const { conversationId, sendType, data, recipientType } = record;
@@ -507,7 +476,7 @@ export const FullTableComponent = () => {
     },
     {
       title: '',
-      width: shouldCompactTableActions ? 60 : 160,
+      width: 160,
       dataIndex: 'actions',
       key: 'actions',
       align: 'center',
@@ -517,23 +486,25 @@ export const FullTableComponent = () => {
           !record.conversationId || record.recipientType === RecipientTypeEnum.email;
         const tooltipMessage = t(fullTableLocaleKeys.noConversationGeneratedTooltip);
         return (
-          <Space>
-            {!shouldCompactTableActions && (
-              <Tooltip title={isConversationActionDisabled ? tooltipMessage : ''}>
-                <Button
-                  disabled={isConversationActionDisabled}
-                  onClick={() => {
-                    handleOpenConversationPreviewModal(record?.conversationId);
-                  }}
-                >
-                  {t(fullTableLocaleKeys.servicePreviewButton)}
-                </Button>
-              </Tooltip>
-            )}
-            <Dropdown menu={{ items: getPopoverMenuItems(record) }} placement='bottomLeft'>
-              <Button icon={<MoreOutlined />} />
-            </Dropdown>
-          </Space>
+          <ActionsCellContent $isCompact={shouldCompactTableActions}>
+            <Space>
+              {!shouldCompactTableActions && (
+                <Tooltip title={isConversationActionDisabled ? tooltipMessage : ''}>
+                  <Button
+                    disabled={isConversationActionDisabled}
+                    onClick={() => {
+                      handleOpenConversationPreviewModal(record?.conversationId);
+                    }}
+                  >
+                    {t(fullTableLocaleKeys.servicePreviewButton)}
+                  </Button>
+                </Tooltip>
+              )}
+              <Dropdown menu={{ items: getPopoverMenuItems(record) }} placement='bottomLeft'>
+                <Button icon={<MoreOutlined />} />
+              </Dropdown>
+            </Space>
+          </ActionsCellContent>
         );
       },
     },
@@ -556,319 +527,188 @@ export const FullTableComponent = () => {
   });
 
   return (
-    <>
-      <PageTemplate title={t(fullTableLocaleKeys.pageTitle)} actionButtons={actionsContainer}>
-        <Row gutter={16} wrap={false} style={{ paddingBottom: 16 }}>
-          {isDrawerOpen && (
-            <Col flex={`${chartWidth}px`}>
-              <div style={{ display: 'flex', gap: 8, flexDirection: 'column' }}>
-                <ChartContainer />
-              </div>
-            </Col>
-          )}
-          <Col flex='auto'>
-            <div
-              style={{
-                position: 'fixed',
-                width: `calc(100vw - 320px - ${isDrawerOpen ? chartWidth : 0}px)`,
-                height: '100vh',
-                top: 81,
-                right: 30,
-              }}
-            >
-              <Card styles={{ body: { paddingBottom: 0 } }}>
-                <Row gutter={[16, 16]}>
-                  <Col span={24}>
-                    <Flex justify='space-between' gap={16}>
-                      <Space>
-                        <Tooltip
-                          title={
-                            isDrawerOpen
-                              ? t(fullTableLocaleKeys.tooltipHideCharts)
-                              : t(fullTableLocaleKeys.tooltipViewCharts)
-                          }
-                        >
-                          <Button onClick={handleChartButtonClick}>
-                            {isDrawerOpen ? <PieChartFilled /> : <PieChartOutlined />}
-                          </Button>
-                        </Tooltip>
-                        <ScheduleTypeSelect
-                          value={selectedSendType || ''}
-                          onChange={handleChangeSelect}
-                          popupMatchSelectWidth={false}
-                        >
-                          <Select.Option value=''>
-                            {t(fullTableLocaleKeys.allSelectOption)}
-                          </Select.Option>
-                          <Select.Option value={SendingType.confirmation}>
-                            {t(fullTableLocaleKeys.confirmationsSelectOption)}
-                          </Select.Option>
-                          <Select.Option value={SendingType.nps}>
-                            {t(fullTableLocaleKeys.npsSelectOption)}
-                          </Select.Option>
-                          <Select.Option value={SendingType.reminder}>
-                            {t(fullTableLocaleKeys.remindersSelectOption)}
-                          </Select.Option>
-                          <Select.Option value={SendingType.medical_report}>
-                            {t(fullTableLocaleKeys.medicalReportSelectOption)}
-                          </Select.Option>
-                          <Select.Option value={SendingType.schedule_notification}>
-                            {t(fullTableLocaleKeys.scheduleNotificationSelectOption)}
-                          </Select.Option>
-                          <Select.Option value={SendingType.nps_score}>
-                            {t(fullTableLocaleKeys.npsScoreSelectOption)}
-                          </Select.Option>
-                          <Select.Option value={SendingType.recover_lost_schedule}>
-                            {t(fullTableLocaleKeys.recoverLostScheduleSelectOption)}
-                          </Select.Option>
-                        </ScheduleTypeSelect>
-                        <DatePicker.RangePicker
-                          allowClear={false}
-                          format='DD/MM/YYYY'
-                          style={{ width: 230 }}
-                          onChange={handleChangeDateRangePicker}
-                          value={[
-                            dayjs(queryStringAsObj.startDate),
-                            dayjs(queryStringAsObj.endDate),
-                          ]}
-                          placeholder={[
-                            t(fullTableLocaleKeys.rangeDatePickerStartDatePlaceholder),
-                            t(fullTableLocaleKeys.rangeDatePickerEndDatePlaceholder),
-                          ]}
-                        />
-                        <Tooltip title={t(fullTableLocaleKeys.tooltipViewGrouped)}>
-                          <span>{t(fullTableLocaleKeys.spanViewGrouped)}</span>
-                        </Tooltip>
-                        <Switch
-                          size='small'
-                          checked={queryStringAsObj.getGroup === 'true'}
-                          onChange={handleGroupSwitchChange}
-                        />
-                      </Space>
-                      <Space>
-                        <Input.Search
-                          placeholder={t(fullTableLocaleKeys.searchInputPlaceholder)}
-                          value={searchInputValue}
-                          onChange={(e) => {
-                            setSearchInputValue(e.target.value);
-                          }}
-                          allowClear
-                          onSearch={handleSearch}
-                        />
-                        <Tooltip
-                          title={
-                            shouldCompactTableActions
-                              ? t(fullTableLocaleKeys.filterButton)
-                              : undefined
-                          }
-                        >
-                          <Button
-                            icon={<FilterOutlined />}
-                            onClick={() => {
-                              setIsFilterModalOpen(true);
-                            }}
-                          >
-                            {!shouldCompactTableActions ? (
-                              <Space align='center'>
-                                {t(fullTableLocaleKeys.filterButton)}
-                                {filterCount > 0 && <Badge count={filterCount} />}
-                              </Space>
-                            ) : (
-                              filterCount > 0 && <Badge count={filterCount} />
-                            )}
-                          </Button>
-                        </Tooltip>
-                        <Tooltip
-                          title={
-                            shouldCompactTableActions
-                              ? t(fullTableLocaleKeys.configureListButton)
-                              : undefined
-                          }
-                        >
-                          <Button
-                            icon={<SettingOutlined />}
-                            onClick={() => {
-                              tableRef.current?.openColumnConfig();
-                            }}
-                          >
-                            {!shouldCompactTableActions &&
-                              t(fullTableLocaleKeys.configureListButton)}
-                          </Button>
-                        </Tooltip>
-                        {/* ATUALIZADO: Botão de exportação com dropdown */}
-                        <Dropdown
-                          menu={{ items: exportMenuItems }}
-                          trigger={['click']}
-                          placement='bottomRight'
-                        >
-                          <Tooltip
-                            title={
-                              shouldCompactTableActions
-                                ? t(fullTableLocaleKeys.exportButton)
-                                : undefined
-                            }
-                          >
-                            <Button icon={<ExportOutlined />} loading={isLoadingExportCsv}>
-                              {!shouldCompactTableActions && t(fullTableLocaleKeys.exportButton)}
-                            </Button>
-                          </Tooltip>
-                        </Dropdown>
-                      </Space>
-                    </Flex>
-                  </Col>
-                  <Col span={24}>
-                    <EnhancedTable
-                      ref={tableRef}
-                      rowKey={(row) => row.id}
-                      id='campaigns::confirmation-sending-list-table'
-                      columns={filteredColumns}
-                      dataSource={sendingList?.data}
-                      loading={isLoading}
-                      bordered
-                      pagination={{
-                        total: sendingList?.count,
-                        current: Number(queryStringAsObj.currentPage || 1),
-                        pageSize: Number(queryStringAsObj.pageSize || 10),
-                        onChange: handleChangePage,
-                        showTotal: (total) =>
-                          total > 1
-                            ? `${total} ${t(fullTableLocaleKeys.tableTotalPluralMessage)}`
-                            : `${total} ${t(fullTableLocaleKeys.tableTotalSingularMessage)}`,
-                      }}
-                      scroll={{
-                        y: 'calc(100vh - 290px)',
-                      }}
-                    />
-                  </Col>
-                </Row>
-              </Card>
+    <PageTemplate title={t(fullTableLocaleKeys.pageTitle)} actionButtons={actionsContainer}>
+      <Row gutter={16} wrap={false} style={{ paddingBottom: 16 }}>
+        {isDrawerOpen && (
+          <Col flex={`${chartWidth}px`}>
+            <div style={{ display: 'flex', gap: 8, flexDirection: 'column' }}>
+              <ChartContainer />
             </div>
           </Col>
-        </Row>
-        <FiltersModal
-          isVisible={isFiltersModalOpen}
-          onClose={() => {
-            setIsFilterModalOpen(false);
-          }}
-        />
-        <ConversationPreviewModal
-          isVisible={isConversationPreviewModalOpen}
-          conversationId={selectedConversationId}
-          onClose={handleCloseConversationPreviewModal}
-        />
-      </PageTemplate>
-
-      <Modal
-        title='Configurar Colunas para Exportação'
-        open={isExportModalVisible}
-        onOk={handleConfirmExport}
-        onCancel={() => {
-          setIsExportModalVisible(false);
-          setPendingExportType(undefined);
+        )}
+        <Col flex='auto'>
+          <div
+            style={{
+              position: 'fixed',
+              width: `calc(100vw - 320px - ${isDrawerOpen ? chartWidth : 0}px)`,
+              height: '100vh',
+              top: 81,
+              right: 30,
+            }}
+          >
+            <Card styles={{ body: { paddingBottom: 0 } }}>
+              <Row gutter={[16, 16]}>
+                <Col span={24}>
+                  <Flex justify='space-between' gap={16}>
+                    <Space>
+                      <Tooltip
+                        title={
+                          isDrawerOpen
+                            ? t(fullTableLocaleKeys.tooltipHideCharts)
+                            : t(fullTableLocaleKeys.tooltipViewCharts)
+                        }
+                      >
+                        <Button onClick={handleChartButtonClick}>
+                          {isDrawerOpen ? <PieChartFilled /> : <PieChartOutlined />}
+                        </Button>
+                      </Tooltip>
+                      <ScheduleTypeSelect
+                        value={selectedSendType || ''}
+                        onChange={handleChangeSelect}
+                        popupMatchSelectWidth={false}
+                      >
+                        <Select.Option value=''>
+                          {t(fullTableLocaleKeys.allSelectOption)}
+                        </Select.Option>
+                        <Select.Option value={SendingType.confirmation}>
+                          {t(fullTableLocaleKeys.confirmationsSelectOption)}
+                        </Select.Option>
+                        <Select.Option value={SendingType.nps}>
+                          {t(fullTableLocaleKeys.npsSelectOption)}
+                        </Select.Option>
+                        <Select.Option value={SendingType.reminder}>
+                          {t(fullTableLocaleKeys.remindersSelectOption)}
+                        </Select.Option>
+                        <Select.Option value={SendingType.medical_report}>
+                          {t(fullTableLocaleKeys.medicalReportSelectOption)}
+                        </Select.Option>
+                        <Select.Option value={SendingType.schedule_notification}>
+                          {t(fullTableLocaleKeys.scheduleNotificationSelectOption)}
+                        </Select.Option>
+                        <Select.Option value={SendingType.documents_request}>
+                          {t(fullTableLocaleKeys.documentsRequestSelectOption)}
+                        </Select.Option>
+                        <Select.Option value={SendingType.nps_score}>
+                          {t(fullTableLocaleKeys.npsScoreSelectOption)}
+                        </Select.Option>
+                        <Select.Option value={SendingType.recover_lost_schedule}>
+                          {t(fullTableLocaleKeys.recoverLostScheduleSelectOption)}
+                        </Select.Option>
+                      </ScheduleTypeSelect>
+                      <DatePicker.RangePicker
+                        allowClear={false}
+                        format='DD/MM/YYYY'
+                        style={{ width: 230 }}
+                        onChange={handleChangeDateRangePicker}
+                        value={[dayjs(queryStringAsObj.startDate), dayjs(queryStringAsObj.endDate)]}
+                        placeholder={[
+                          t(fullTableLocaleKeys.rangeDatePickerStartDatePlaceholder),
+                          t(fullTableLocaleKeys.rangeDatePickerEndDatePlaceholder),
+                        ]}
+                      />
+                      <Tooltip title={t(fullTableLocaleKeys.tooltipViewGrouped)}>
+                        <span>{t(fullTableLocaleKeys.spanViewGrouped)}</span>
+                      </Tooltip>
+                      <Switch
+                        size='small'
+                        checked={queryStringAsObj.getGroup === 'true'}
+                        onChange={handleGroupSwitchChange}
+                      />
+                    </Space>
+                    <Space>
+                      <Input.Search
+                        placeholder={t(fullTableLocaleKeys.searchInputPlaceholder)}
+                        value={searchInputValue}
+                        onChange={(e) => {
+                          setSearchInputValue(e.target.value);
+                        }}
+                        allowClear
+                        onSearch={handleSearch}
+                      />
+                      <Tooltip
+                        title={
+                          shouldCompactTableActions
+                            ? t(fullTableLocaleKeys.filterButton)
+                            : undefined
+                        }
+                      >
+                        <Button
+                          icon={<FilterOutlined />}
+                          onClick={() => {
+                            setIsFilterModalOpen(true);
+                          }}
+                        >
+                          {!shouldCompactTableActions ? (
+                            <Space align='center'>
+                              {t(fullTableLocaleKeys.filterButton)}
+                              {filterCount > 0 && <Badge count={filterCount} />}
+                            </Space>
+                          ) : (
+                            filterCount > 0 && <Badge count={filterCount} />
+                          )}
+                        </Button>
+                      </Tooltip>
+                      <Tooltip
+                        title={
+                          shouldCompactTableActions
+                            ? t(fullTableLocaleKeys.configureListButton)
+                            : undefined
+                        }
+                      >
+                        <Button
+                          icon={<SettingOutlined />}
+                          onClick={() => {
+                            tableRef.current?.openColumnConfig();
+                          }}
+                        >
+                          {!shouldCompactTableActions && t(fullTableLocaleKeys.configureListButton)}
+                        </Button>
+                      </Tooltip>
+                      <ExportButton onDownload={handleExport} loading={isLoadingExportCsv} />
+                    </Space>
+                  </Flex>
+                </Col>
+                <Col span={24}>
+                  <EnhancedTable
+                    ref={tableRef}
+                    rowKey={(row) => row.id}
+                    id='campaigns::confirmation-sending-list-table'
+                    columns={filteredColumns}
+                    dataSource={sendingList?.data}
+                    loading={isLoading}
+                    bordered
+                    pagination={{
+                      total: sendingList?.count,
+                      current: Number(queryStringAsObj.currentPage || 1),
+                      pageSize: Number(queryStringAsObj.pageSize || 10),
+                      onChange: handleChangePage,
+                      showTotal: (total) =>
+                        total > 1
+                          ? `${total} ${t(fullTableLocaleKeys.tableTotalPluralMessage)}`
+                          : `${total} ${t(fullTableLocaleKeys.tableTotalSingularMessage)}`,
+                    }}
+                    scroll={{
+                      y: 'calc(100vh - 290px)',
+                    }}
+                  />
+                </Col>
+              </Row>
+            </Card>
+          </div>
+        </Col>
+      </Row>
+      <FiltersModal
+        isVisible={isFiltersModalOpen}
+        onClose={() => {
+          setIsFilterModalOpen(false);
         }}
-        confirmLoading={isLoadingExportCsv}
-        width={700}
-        okText='Exportar'
-        cancelText='Cancelar'
-        bodyStyle={{ maxHeight: '60vh', overflowY: 'auto' }}
-      >
-        <Space direction='vertical' style={{ width: '100%', marginBottom: 16 }}>
-          <Typography.Text type='secondary'>
-            Selecione as colunas que deseja incluir no arquivo de exportação. Os campos obrigatórios
-            serão sempre incluídos.
-          </Typography.Text>
-
-          {pendingExportType && (
-            <Typography.Text strong>
-              Formato selecionado:{' '}
-              {pendingExportType === TypeDownloadEnum.XLSX ? 'Excel (.xlsx)' : 'CSV (.csv)'}
-            </Typography.Text>
-          )}
-        </Space>
-
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(2, 1fr)',
-            gap: '12px',
-            padding: '12px',
-            backgroundColor: '#fafafa',
-            borderRadius: '8px',
-            border: '1px solid #e0e0e0',
-          }}
-        >
-          {exportColumns.map((column) => (
-            <div key={column.key} style={{ padding: '8px' }}>
-              <Checkbox
-                checked={column.visible}
-                disabled={column.required}
-                onChange={(e) => handleColumnVisibilityChange(column.key, e.target.checked)}
-              >
-                <span style={{ fontSize: '14px' }}>
-                  {column.label}
-                  {column.required && (
-                    <Typography.Text
-                      type='secondary'
-                      style={{
-                        marginLeft: 8,
-                        fontSize: '12px',
-                        fontStyle: 'italic',
-                      }}
-                    >
-                      (obrigatório)
-                    </Typography.Text>
-                  )}
-                </span>
-              </Checkbox>
-            </div>
-          ))}
-        </div>
-
-        <div
-          style={{
-            marginTop: 20,
-            padding: '12px',
-            backgroundColor: '#e6f7ff',
-            borderRadius: '4px',
-            border: '1px solid #91d5ff',
-          }}
-        >
-          <Space>
-            <InfoCircleOutlined style={{ color: '#1890ff' }} />
-            <Typography.Text type='secondary' style={{ fontSize: '12px' }}>
-              <strong>Campos obrigatórios:</strong> Nome do Paciente, Código do Paciente, Email e
-              Telefone serão sempre exportados para garantir a integridade dos dados.
-            </Typography.Text>
-          </Space>
-        </div>
-
-        <div style={{ marginTop: 16 }}>
-          <Space>
-            <Button
-              size='small'
-              onClick={() => {
-                setExportColumns((prev) => prev.map((col) => ({ ...col, visible: true })));
-              }}
-            >
-              Selecionar Todos
-            </Button>
-            <Button
-              size='small'
-              onClick={() => {
-                setExportColumns((prev) =>
-                  prev.map((col) => ({
-                    ...col,
-                    visible: newFunction(col),
-                  }))
-                );
-              }}
-            >
-              Limpar Seleção
-            </Button>
-          </Space>
-        </div>
-      </Modal>
-    </>
+      />
+      <ConversationPreviewModal
+        isVisible={isConversationPreviewModalOpen}
+        conversationId={selectedConversationId}
+        onClose={handleCloseConversationPreviewModal}
+      />
+    </PageTemplate>
   );
 };
 
