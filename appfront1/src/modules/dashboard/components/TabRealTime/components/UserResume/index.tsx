@@ -6,7 +6,6 @@ import momentDurationFormatSetup from 'moment-duration-format';
 import { FC, Key, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { RiChatForwardLine } from 'react-icons/ri';
 import { TextLink } from '../../../../../../shared/TextLink/styled';
-import { Constants } from '../../../../../../utils/Constants';
 import { formatDuration } from '../../../../../../utils/formatDuration';
 import i18n from '../../../../../i18n/components/i18n';
 import { I18nProps } from '../../../../../i18n/interface/i18n.interface';
@@ -15,41 +14,79 @@ import { DashboardService } from '../../../../services/DashboardService';
 import { DurationRangeFilter } from '../../../../utils/duration-range-filter';
 import { getBackgroundColor } from '../../../../utils/get-bg-color/get-bg-color';
 import { IntegerRangeFilter } from '../../../../utils/integer-range-filter';
-import { useAnalyticsRanges } from '../../../../utils/use-analytics-ranges';
-import { useRangeFilter } from '../../../../utils/use-range-filter';
 import { UsersAnalytics } from '../../props';
 import '../../style.scss';
 import { useGetColumnSearchProps } from '../use-get-column-search/use-get-column-search';
 import { FilterValuesUserResume, UserResumeProps } from './interfaces';
+
+const initialFiltersState = {
+    countForService: [null, null],
+    waitingAverageTime: [null, null],
+    countInAttendance: [null, null],
+    attendanceAverageTime: [null, null],
+    countClosedAttendance: [null, null],
+};
 
 const UserResume: FC<UserResumeProps & I18nProps> = ({
     getTranslation,
     selectedWorkspace,
     selectedTeamId,
     expanded,
+    onResetFilters,
 }) => {
     const timeoutRef: React.MutableRefObject<NodeJS.Timeout | number | null> = useRef(null);
 
-    const { saveAnalyticsRange, initialAnalyticsRanges, removeAnalyticsRange } = useAnalyticsRanges(
-        Constants.LOCAL_STORAGE_MAP.DASHBOARD_REAL_TIME_AGENTS,
-        selectedWorkspace
-    );
-    const initialFilters = useMemo(
-        () =>
-            initialAnalyticsRanges || {
-                countForService: [null, null],
-                waitingAverageTime: [null, null],
-                countInAttendance: [null, null],
-                attendanceAverageTime: [null, null],
-                countClosedAttendance: [null, null],
-                selectedKeysData: [],
-            },
-        [initialAnalyticsRanges]
-    );
-
-    const { handleSetFilterValues } = useRangeFilter<FilterValuesUserResume>(initialFilters);
+    const [filters, setFilters] = useState<FilterValuesUserResume>(initialFiltersState as FilterValuesUserResume);
     const [data, setData] = useState<UsersAnalytics[]>([]);
     const [selectedKeysData, setSelectedKeysData] = useState<Key[]>([]);
+
+    const handleSetFilterValues = useCallback(
+        (key: keyof FilterValuesUserResume, min: number | null, max: number | null) => {
+            setFilters((prev) => ({
+                ...prev,
+                [key]: [min, max] as [number | null, number | null],
+            }));
+        },
+        []
+    );
+
+    const isFilterActive = useCallback((filterValue: [any, any] | null | undefined) => {
+        if (!filterValue) return false;
+        const [min, max] = filterValue;
+        // Um filtro está ativo se pelo menos um dos valores não é null
+        return min !== null || max !== null;
+    }, []);
+
+    const resetFilters = useCallback(() => {
+        setFilters(initialFiltersState as FilterValuesUserResume);
+        setSelectedKeysData([]);
+    }, []);
+
+    const getFilters = useCallback(() => {
+        return { filters, selectedKeysData };
+    }, [filters, selectedKeysData]);
+
+    const loadFilters = useCallback((savedFilters: any) => {
+        if (savedFilters.filters) {
+            setFilters(savedFilters.filters);
+        }
+        if (savedFilters.selectedKeysData) {
+            setSelectedKeysData(savedFilters.selectedKeysData);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (onResetFilters) {
+            (window as any).__resetUserResumeFilters = resetFilters;
+            (window as any).__getUserResumeFilters = getFilters;
+            (window as any).__loadUserResumeFilters = loadFilters;
+        }
+        return () => {
+            delete (window as any).__resetUserResumeFilters;
+            delete (window as any).__getUserResumeFilters;
+            delete (window as any).__loadUserResumeFilters;
+        };
+    }, [onResetFilters, resetFilters, getFilters, loadFilters]);
 
     const filteredData = useMemo(() => {
         if (!selectedKeysData || isEmpty(selectedKeysData)) {
@@ -87,7 +124,7 @@ const UserResume: FC<UserResumeProps & I18nProps> = ({
     };
 
     const fetchData = useCallback(async () => {
-        try {    
+        try {
             setLoading(true);
             const teamId = selectedTeamId !== 'ALL_TEAMS' ? selectedTeamId : undefined;
 
@@ -98,7 +135,7 @@ const UserResume: FC<UserResumeProps & I18nProps> = ({
                 ...data?.attendanceAverageTime.map((e) => e._id),
                 ...data?.closedToday.map((e) => e._id),
             ]);
-            
+
             if (isEmpty(userIdList)) {
                 setData([]);
                 setLoading(false);
@@ -154,18 +191,11 @@ const UserResume: FC<UserResumeProps & I18nProps> = ({
         }, 2000);
     }, [loading]);
 
-    useEffect(() => {
-        if (initialAnalyticsRanges?.selectedKeysData) {
-            setSelectedKeysData(initialAnalyticsRanges.selectedKeysData);
-        }
-    }, [initialAnalyticsRanges]);
-
     const searchProps = useGetColumnSearchProps<UsersAnalytics>({
         dataFilter: data,
         selectedKeysData,
         setSelectedKeysData,
         data,
-        saveAnalyticsRange,
     });
 
     const columns: ColumnType<UsersAnalytics>[] = useMemo(
@@ -198,14 +228,16 @@ const UserResume: FC<UserResumeProps & I18nProps> = ({
                 width: '15%',
                 sorter: (a, b) => a.countForService - b.countForService,
                 sortDirections: ['descend', 'ascend', 'descend'],
-                filtered: initialFilters?.countForService?.some((val) => val !== null),
-                filteredValue: initialFilters?.countForService,
+                filtered: isFilterActive(filters?.countForService),
+                filteredValue: (filters?.countForService?.some((val) => val !== null)
+                    ? filters.countForService
+                    : null) as any,
                 render: (text) => {
                     const value = text || 0;
                     const backgroundColor = getBackgroundColor(
                         'countForService',
                         value,
-                        initialFilters,
+                        filters,
                         'integer-range-filter'
                     );
                     return {
@@ -220,10 +252,8 @@ const UserResume: FC<UserResumeProps & I18nProps> = ({
                 },
                 filterDropdown: (props) => (
                     <IntegerRangeFilter
-                        removeFilterFromLocalStorage={removeAnalyticsRange}
                         dataIndex={'countForService'}
-                        initialFilters={initialFilters}
-                        saveLocalFilter={saveAnalyticsRange}
+                        initialFilters={filters}
                         {...props}
                         setFilterValues={(min, max) => handleSetFilterValues('countForService', min, max)}
                     />
@@ -234,7 +264,7 @@ const UserResume: FC<UserResumeProps & I18nProps> = ({
                 title: (
                     <Tooltip
                         title={getTranslation(
-                            'Average time taken for the agent\'s services to be initiated by him (taken over)'
+                            "Average time taken for the agent's services to be initiated by him (taken over)"
                         )}
                     >
                         {getTranslation('Waiting average time')}
@@ -244,15 +274,17 @@ const UserResume: FC<UserResumeProps & I18nProps> = ({
                 width: '15%',
                 sorter: (a, b) => a.waitingAverageTime - b.waitingAverageTime,
                 sortDirections: ['descend', 'ascend', 'descend'],
-                filtered: initialFilters?.waitingAverageTime?.some((val) => val !== null),
-                filteredValue: initialFilters?.waitingAverageTime,
+                filtered: isFilterActive(filters?.waitingAverageTime),
+                filteredValue: (filters?.waitingAverageTime?.some((val) => val !== null)
+                    ? filters.waitingAverageTime
+                    : null) as any,
                 render: (text) => {
                     const data = formatDuration(text);
                     const value = text !== null ? Number(text) : 0;
                     const backgroundColor = getBackgroundColor(
                         'waitingAverageTime',
                         value,
-                        initialFilters,
+                        filters,
                         'duration-range-filter'
                     );
                     return {
@@ -267,10 +299,8 @@ const UserResume: FC<UserResumeProps & I18nProps> = ({
                 },
                 filterDropdown: (props) => (
                     <DurationRangeFilter
-                        removeFilterFromLocalStorage={removeAnalyticsRange}
                         dataIndex={'waitingAverageTime'}
-                        initialFilters={initialFilters}
-                        saveLocalFilter={saveAnalyticsRange}
+                        initialFilters={filters}
                         {...props}
                         setFilterValues={(min, max) => handleSetFilterValues('waitingAverageTime', min, max)}
                     />
@@ -287,14 +317,16 @@ const UserResume: FC<UserResumeProps & I18nProps> = ({
                 width: '15%',
                 sorter: (a, b) => a.countInAttendance - b.countInAttendance,
                 sortDirections: ['descend', 'ascend', 'descend'],
-                filtered: initialFilters?.countInAttendance?.some((val) => val !== null),
-                filteredValue: initialFilters?.countInAttendance,
+                filtered: isFilterActive(filters?.countInAttendance),
+                filteredValue: (filters?.countInAttendance?.some((val) => val !== null)
+                    ? filters.countInAttendance
+                    : null) as any,
                 render: (count: number) => {
                     const value = count !== null ? Number(count) : 0;
                     const backgroundColor = getBackgroundColor(
                         'countInAttendance',
                         value,
-                        initialFilters,
+                        filters,
                         'integer-range-filter'
                     );
                     return {
@@ -309,10 +341,8 @@ const UserResume: FC<UserResumeProps & I18nProps> = ({
                 },
                 filterDropdown: (props) => (
                     <IntegerRangeFilter
-                        removeFilterFromLocalStorage={removeAnalyticsRange}
                         dataIndex={'countInAttendance'}
-                        initialFilters={initialFilters}
-                        saveLocalFilter={saveAnalyticsRange}
+                        initialFilters={filters}
                         {...props}
                         setFilterValues={(min, max) => handleSetFilterValues('countInAttendance', min, max)}
                     />
@@ -333,15 +363,17 @@ const UserResume: FC<UserResumeProps & I18nProps> = ({
                 width: '15%',
                 sorter: (a, b) => a.attendanceAverageTime - b.attendanceAverageTime,
                 sortDirections: ['descend', 'ascend', 'descend'],
-                filtered: initialFilters?.attendanceAverageTime?.some((val) => val !== null),
-                filteredValue: initialFilters?.attendanceAverageTime,
+                filtered: isFilterActive(filters?.attendanceAverageTime),
+                filteredValue: (filters?.attendanceAverageTime?.some((val) => val !== null)
+                    ? filters.attendanceAverageTime
+                    : null) as any,
                 render: (text) => {
                     const data = formatDuration(text);
                     const value = text !== null ? Number(text) : 0;
                     const backgroundColor = getBackgroundColor(
                         'attendanceAverageTime',
                         value,
-                        initialFilters,
+                        filters,
                         'duration-range-filter'
                     );
                     return {
@@ -356,10 +388,8 @@ const UserResume: FC<UserResumeProps & I18nProps> = ({
                 },
                 filterDropdown: (props) => (
                     <DurationRangeFilter
-                        removeFilterFromLocalStorage={removeAnalyticsRange}
                         dataIndex={'attendanceAverageTime'}
-                        initialFilters={initialFilters}
-                        saveLocalFilter={saveAnalyticsRange}
+                        initialFilters={filters}
                         {...props}
                         setFilterValues={(min, max) => handleSetFilterValues('attendanceAverageTime', min, max)}
                     />
@@ -376,14 +406,16 @@ const UserResume: FC<UserResumeProps & I18nProps> = ({
                 width: '15%',
                 sorter: (a, b) => a.countClosedAttendance - b.countClosedAttendance,
                 sortDirections: ['descend', 'ascend', 'descend'],
-                filtered: initialFilters?.closedToday?.some((val) => val !== null),
-                filteredValue: initialFilters?.closedToday,
+                filtered: isFilterActive(filters?.countClosedAttendance),
+                filteredValue: (filters?.countClosedAttendance?.some((val) => val !== null)
+                    ? filters.countClosedAttendance
+                    : null) as any,
                 render: (text) => {
                     const value = text || 0;
                     const backgroundColor = getBackgroundColor(
-                        'closedToday',
+                        'countClosedAttendance',
                         value,
-                        initialFilters,
+                        filters,
                         'integer-range-filter'
                     );
                     return {
@@ -398,12 +430,10 @@ const UserResume: FC<UserResumeProps & I18nProps> = ({
                 },
                 filterDropdown: (props) => (
                     <IntegerRangeFilter
-                        removeFilterFromLocalStorage={removeAnalyticsRange}
-                        dataIndex={'closedToday'}
-                        initialFilters={initialFilters}
-                        saveLocalFilter={saveAnalyticsRange}
+                        dataIndex={'countClosedAttendance'}
+                        initialFilters={filters}
                         {...props}
-                        setFilterValues={(min, max) => handleSetFilterValues('closedToday', min, max)}
+                        setFilterValues={(min, max) => handleSetFilterValues('countClosedAttendance', min, max)}
                     />
                 ),
             },
@@ -428,11 +458,10 @@ const UserResume: FC<UserResumeProps & I18nProps> = ({
             getTranslation,
             searchProps,
             selectedKeysData,
-            initialFilters,
-            removeAnalyticsRange,
-            saveAnalyticsRange,
+            filters,
             handleSetFilterValues,
             selectedWorkspace._id,
+            isFilterActive,
         ]
     );
 

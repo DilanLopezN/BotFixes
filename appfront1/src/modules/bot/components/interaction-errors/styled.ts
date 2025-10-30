@@ -5,9 +5,9 @@ import { MdUpdate } from 'react-icons/md';
 import { RiErrorWarningLine } from 'react-icons/ri';
 import styled from 'styled-components';
 
-const SyncButton = styled(MdSync)<{ infinity?: boolean }>`
+const SyncButton = styled(MdSync)<{ $infinity?: boolean }>`
     ${(props) =>
-        props.infinity &&
+        props.$infinity &&
         `
         @keyframes rotation {
             from {

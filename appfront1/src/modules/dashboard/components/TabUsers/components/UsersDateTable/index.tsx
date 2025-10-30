@@ -37,6 +37,7 @@ interface Props {
     shouldDownload?: boolean;
     onDownloadComplete?: () => void;
     propSelectedInterval?: string;
+    downloadType?: string;
 }
 
 const UsersDateTable: FC<Props & I18nProps> = ({
@@ -47,6 +48,7 @@ const UsersDateTable: FC<Props & I18nProps> = ({
     shouldDownload,
     onDownloadComplete,
     propSelectedInterval,
+    downloadType = 'CSV',
 }) => {
     const { loggedUser } = useSelector((state: any) => state.loginReducer);
     const [columns, setColumns] = useState<ColumnData[] | undefined>(undefined);
@@ -59,33 +61,30 @@ const UsersDateTable: FC<Props & I18nProps> = ({
     const [viewAll, setViewAll] = useState(false);
     const [showCheckbox, setShowCheckbox] = useState(false);
 
-    const handleCsvDownload = () => {
-        const columnCsv = columns?.map((obj) => {
-            return `"${obj.title}"`;
-        });
+    const handleDownload = async () => {
+        if (!dataSource || dataSource.length === 0) {
+            if (onDownloadComplete) {
+                onDownloadComplete();
+            }
+            return;
+        }
 
-        const newColumnCsv = columns?.map((e) => {
-            return e.key;
-        });
+        try {
+            const reportFilter = {
+                query: {
+                    ...filter,
+                    timezone: loggedUser.timezone,
+                    interval: selectedInterval as any,
+                    groupBy: 'user' as const,
+                    workspaceId: selectedWorkspace._id,
+                },
+                downloadType: downloadType,
+            };
 
-        let content = `,${columnCsv}`;
-        content += dataSource.reduce((content, item) => {
-            const row = newColumnCsv?.reduce((prev, value) => {
-                return `${prev},"${item[value] === undefined ? '0' : item[value]}"`;
-            }, '');
-            return `${content}\r\n${row}`;
-        }, '');
-        const linkElement = document.createElement('a');
-
-        linkElement.download = `atendimentos-usuarios-por-periodo.csv`;
-        linkElement.href = `data:text/csv;content-disposition:attachment;base64,${btoa(
-            unescape(encodeURIComponent(content))
-        )}`;
-
-        document.body.appendChild(linkElement);
-
-        linkElement.click();
-        linkElement.remove();
+            await DashboardService.getConversationsAnalyticsReport(reportFilter);
+        } catch (error) {
+            console.error('Erro no download:', error);
+        }
 
         if (onDownloadComplete) {
             onDownloadComplete();
@@ -94,7 +93,7 @@ const UsersDateTable: FC<Props & I18nProps> = ({
 
     useEffect(() => {
         if (shouldDownload) {
-            handleCsvDownload();
+            handleDownload();
         }
     }, [shouldDownload]);
 

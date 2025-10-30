@@ -12,10 +12,8 @@ export const DurationRangeFilter = <T extends { [key: string]: [number | null, n
     clearFilters,
     setFilterValues,
     close,
-    saveLocalFilter,
     initialFilters,
     dataIndex,
-    removeFilterFromLocalStorage,
 }: RangeFilterProps<T>) => {
     const [form] = Form.useForm();
     const { getTranslation } = useLanguageContext();
@@ -40,7 +38,7 @@ export const DurationRangeFilter = <T extends { [key: string]: [number | null, n
             'max-hrs': savedMax[1] === 0 ? null : savedMax[1],
             'max-min': savedMax[2] === 0 ? null : savedMax[2],
         });
-    }, [initialFilters, form, dataIndex, selectedKeys]);
+    }, [initialFilters, form, dataIndex]);
 
     const parseTimeToMilliseconds = (days: RangeTime, hours: RangeTime, minutes: RangeTime) => {
         const totalMilliseconds =
@@ -61,7 +59,6 @@ export const DurationRangeFilter = <T extends { [key: string]: [number | null, n
 
         setSelectedKeys([minValue, maxValue]);
         setFilterValues(minValue, maxValue);
-        saveLocalFilter(dataIndex, [minValue, maxValue]);
         confirm();
     };
 
@@ -69,7 +66,6 @@ export const DurationRangeFilter = <T extends { [key: string]: [number | null, n
         form.resetFields();
         setSelectedKeys([]);
         setFilterValues(null, null);
-        removeFilterFromLocalStorage(dataIndex);
         if (clearFilters) {
             clearFilters();
             confirm();

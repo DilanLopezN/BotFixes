@@ -1,7 +1,7 @@
 import { FC, useState, useEffect } from 'react';
 import { Button, Select, Checkbox, Form, Input, Card, Divider } from 'antd';
 import { SaveOutlined, EditOutlined, UserOutlined, FileTextOutlined, RobotOutlined, BranchesOutlined, ThunderboltOutlined, ApiOutlined } from '@ant-design/icons';
-import { Agent, AgentType, AIAgentService } from '../../../../../../service/AIAgentService';
+import { Agent, AgentType, AgentContext, AIAgentService } from '../../../../../../service/AIAgentService';
 import { WorkspaceService } from '../../../../../../../workspace/services/WorkspaceService';
 import { Bot } from '../../../../../../../../model/Bot';
 import { addNotification } from '../../../../../../../../utils/AddNotification';
@@ -54,8 +54,10 @@ const BasicSettingsTab: FC<BasicSettingsTabProps> = ({
             botId: agent.botId,
             isDefault: agent.isDefault,
             agentType: agent.agentType,
+            agentContext: agent.agentContext || null,
             modelName: agent.modelName || 'gpt-4o-mini', // Default to gpt-4o-mini if not set
             integrationId: agent.integrationId,
+            allowSendAudio: agent.allowSendAudio || false,
         });
     }, [agent, personalities, form]);
 
@@ -210,9 +212,32 @@ const BasicSettingsTab: FC<BasicSettingsTabProps> = ({
                                 <Option value={AgentType.ENTITIES_DETECTION}>
                                     {getTranslation('Detecção de Entidades')}
                                 </Option>
+                                <Option value={AgentType.CONVERSATIONAL}>
+                                    {getTranslation('Conversacional')}
+                                </Option>
                             </Select>
                         </Form.Item>
                     </div>
+
+                    <Form.Item
+                        label={
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <BranchesOutlined style={{ color: '#1890ff' }} />
+                                <span>{getTranslation('Contexto do Agente')}</span>
+                            </div>
+                        }
+                        name="agentContext"
+                        style={{ marginBottom: 16 }}
+                    >
+                        <Select placeholder={getTranslation('Selecionar Contexto')} allowClear>
+                            <Option value={AgentContext.FAQ}>
+                                {getTranslation('FAQ')}
+                            </Option>
+                            <Option value={AgentContext.GENERAL}>
+                                {getTranslation('Geral')}
+                            </Option>
+                        </Select>
+                    </Form.Item>
 
                     <Form.Item
                         label={
@@ -359,6 +384,12 @@ const BasicSettingsTab: FC<BasicSettingsTabProps> = ({
                     <Form.Item name="isDefault" valuePropName="checked">
                         <Checkbox>
                             {getTranslation('Definir como agente padrão')}
+                        </Checkbox>
+                    </Form.Item>
+
+                    <Form.Item name="allowSendAudio" valuePropName="checked">
+                        <Checkbox>
+                            {getTranslation('Permitir envio de áudio')}
                         </Checkbox>
                     </Form.Item>
 

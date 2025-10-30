@@ -1,45 +1,64 @@
-import React, { Component } from "react";
-import { Formik, Form } from 'formik';
-import { FormProps } from "../../../../../interfaces/FormProps";
-import { LabelWrapper } from "../../../../../shared/StyledForms/LabelWrapper/LabelWrapper";
-import { StyledFormikField } from "../../../../../shared/StyledForms/StyledFormikField/StyledFormikField";
-import { FormikErrorMessage } from "../../../../../shared/StyledForms/FormikErrorMessage/FormikErrorMessage";
+import { Button } from 'antd';
+import { Form, Formik } from 'formik';
+import { Component } from 'react';
+import styled from 'styled-components';
 import * as Yup from 'yup';
-import I18n from "../../../../i18n/components/i18n";
-import { I18nProps } from "../../../../i18n/interface/i18n.interface";
+import { FormProps } from '../../../../../interfaces/FormProps';
+import { FormikErrorMessage } from '../../../../../shared/StyledForms/FormikErrorMessage/FormikErrorMessage';
+import { LabelWrapper } from '../../../../../shared/StyledForms/LabelWrapper/LabelWrapper';
+import { StyledFormikField } from '../../../../../shared/StyledForms/StyledFormikField/StyledFormikField';
+import I18n from '../../../../i18n/components/i18n';
+import { I18nProps } from '../../../../i18n/interface/i18n.interface';
 
-interface FormNewContainerProps extends FormProps, I18nProps { }
+const CreateRow = styled.div`
+    display: flex;
+    align-items: stretch;
+    margin-bottom: 12px;
+    width: 100%;
+`;
 
-class FormNewContainerClass extends Component<FormNewContainerProps>{
+interface FormNewContainerProps extends FormProps, I18nProps {}
+
+class FormNewContainerClass extends Component<FormNewContainerProps> {
     getValidationSchema = () => {
         return Yup.object().shape({
-            name: Yup.string().required("Required")
-        })
+            name: Yup.string().required('Required'),
+        });
     };
 
     render() {
         const { getTranslation } = this.props;
 
-        return <Formik
-            initialValues={{ name: '', type: 'container' }}
-            onSubmit={this.props.onSubmit}
-            validationSchema={this.getValidationSchema()}
-            render={({ submitCount }) => (
-                <Form>
-                    <LabelWrapper label={getTranslation('New container')}>
-                        <div className="input-group input-group-sm mb-3">
-                            <StyledFormikField className="form-control form-control-sm"
-                                type="text" name="name" placeholder={getTranslation('Interaction name')} autoFocus={true} />
-                            <div className="input-group-append">
-                                <button className="input-group-text pointer" type="submit">
-                                    <span className="mdi mdi-chevron-right" />
-                                </button>
-                            </div>
-                        </div>
-                        <FormikErrorMessage name="name" isSubmitted={submitCount > 0} />
-                    </LabelWrapper>
-                </Form>
-            )} />
+        return (
+            <Formik
+                initialValues={{ name: '', type: 'container' }}
+                onSubmit={this.props.onSubmit}
+                validationSchema={this.getValidationSchema()}
+                render={({ submitCount }) => (
+                    <Form>
+                        <LabelWrapper label={getTranslation('New container')}>
+                            <CreateRow>
+                                <StyledFormikField
+                                    className='form-control form-control-sm'
+                                    type='text'
+                                    name='name'
+                                    placeholder={getTranslation('Interaction name')}
+                                    autoFocus={true}
+                                />
+                                <Button
+                                    type='default'
+                                    size='large'
+                                    htmlType='submit'
+                                    className='antd-span-default-color'
+                                    icon={<span className='mdi mdi-chevron-right' />}
+                                />
+                            </CreateRow>
+                            <FormikErrorMessage name='name' isSubmitted={submitCount > 0} />
+                        </LabelWrapper>
+                    </Form>
+                )}
+            />
+        );
     }
 }
 

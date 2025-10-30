@@ -69,6 +69,10 @@ export const wordsList: Words = {
         en: 'Suggested doctor',
         pt: 'Sugestão de médico',
     },
+    schedule_suggestion: {
+        en: 'Schedule Suggestion',
+        pt: 'Sugestão de horário',
+    },
     occupationArea_search: {
         en: 'Occupation area search',
         pt: 'Busca da area de atuação',
@@ -1554,6 +1558,10 @@ export const wordsList: Words = {
         pt: 'Sistema',
         en: 'System',
     },
+    'All agents': {
+        pt: 'Todos os agentes',
+        en: 'All agents',
+    },
     Genre: {
         pt: 'Gênero',
         en: 'Genre',
@@ -2658,6 +2666,22 @@ export const wordsList: Words = {
     Agents: {
         pt: 'Agentes',
         en: 'Agents',
+    },
+    'Contexto do Agente': {
+        pt: 'Contexto do Agente',
+        en: 'Agent Context',
+    },
+    'Selecionar Contexto': {
+        pt: 'Selecionar Contexto',
+        en: 'Select Context',
+    },
+    FAQ: {
+        pt: 'FAQ',
+        en: 'FAQ',
+    },
+    Geral: {
+        pt: 'Geral',
+        en: 'General',
     },
     Inactive: {
         pt: 'Inativo',
@@ -5336,6 +5360,14 @@ export const wordsList: Words = {
         pt: 'Tempo médio de atendimento',
         en: 'Attendance average time',
     },
+    'Attendance average time (general)': {
+        pt: 'Tempo médio de atendimento (geral)',
+        en: 'Attendance average time (general)',
+    },
+    'Attendance average time (segregated)': {
+        pt: 'Tempo médio de atendimento (segregado)',
+        en: 'Attendance average time (segregated)',
+    },
     Bot: {
         pt: 'Bot',
         en: 'Bot',
@@ -5472,6 +5504,18 @@ export const wordsList: Words = {
     'Intent is already being used in this context. Interaction:': {
         en: 'Intent is already being used in this context. Interaction:',
         pt: 'A intenção já está sendo usada neste contexto. Interação:',
+    },
+    'Agent empty reply placeholder': {
+        en: 'No response',
+        pt: 'Sem resposta',
+    },
+    'Sem mensagem de resposta': {
+        en: 'No response message',
+        pt: 'Sem mensagem de resposta',
+    },
+    'Permitir envio de áudio': {
+        en: 'Allow audio sending',
+        pt: 'Permitir envio de áudio',
     },
     'Edit variables': {
         en: 'Edit variables',
@@ -7259,6 +7303,10 @@ export const wordsList: Words = {
         en: 'Omit appointment type in description',
         pt: 'Omitir tipo de agendamento na descrição',
     },
+    'Omit doctor name in description': {
+        en: 'Omit doctor name in description',
+        pt: 'Omitir nome do médico na descrição',
+    },
     'Omit extraction orientation': {
         en: 'Omit extraction orientation',
         pt: 'Omitir orientação da extração',
@@ -8726,5 +8774,38 @@ export const wordsList: Words = {
     'Feature not available for this workspace': {
         en: 'Feature not available for this workspace',
         pt: 'Funcionalidade não disponível para este workspace',
+    },
+    'Cannot delete interaction': {
+        en: 'Cannot delete interaction',
+        pt: 'Não é possível deletar a interaction',
+    },
+    'The interaction cannot be deleted because it is being referenced in the following GOTOs:': {
+        en: 'The interaction cannot be deleted because it is being referenced in the following GOTOs:',
+        pt: 'A interaction não pode ser deletada pois está sendo referenciada nos seguintes GOTOs:',
+    },
+    'Delete references and interaction': {
+        en: 'Delete references and interaction',
+        pt: 'Deletar referências e interaction',
+    },
+    'Go to interaction': {
+        en: 'Go to interaction',
+        pt: 'Ir para interaction',
+    },
+
+    'Response Type': {
+        en: 'Response Type',
+        pt: 'Tipo de resposta',
+    },
+    'Interaction deleted successfully': {
+        en: 'Interaction deleted successfully',
+        pt: 'Interaction deletada com sucesso',
+    },
+    'Failed to delete interaction': {
+        en: 'Failed to delete interaction',
+        pt: 'Falha ao deletar interaction',
+    },
+    'An error occurred while deleting references': {
+        en: 'An error occurred while deleting references',
+        pt: 'Ocorreu um erro ao deletar as referências',
     },
 };

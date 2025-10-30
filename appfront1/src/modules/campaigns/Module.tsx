@@ -60,11 +60,11 @@ class CampaignsModuleClass extends Component<any> implements BotDesignerModule {
                 },
                 {
                     resource: PermissionResources.ANY,
-                    role: UserRoles.SYSTEM_CS_ADMIN,
+                    role: UserRoles.SYSTEM_DEV_ADMIN,
                 },
                 {
                     resource: PermissionResources.ANY,
-                    role: UserRoles.SYSTEM_DEV_ADMIN,
+                    role: UserRoles.SYSTEM_SUPPORT_ADMIN,
                 },
             ]),
         },
@@ -80,7 +80,7 @@ class CampaignsModuleClass extends Component<any> implements BotDesignerModule {
                 },
                 {
                     resource: PermissionResources.ANY,
-                    role: UserRoles.SYSTEM_CS_ADMIN,
+                    role: UserRoles.SYSTEM_SUPPORT_ADMIN,
                 },
                 {
                     resource: PermissionResources.ANY,
@@ -127,7 +127,7 @@ class CampaignsModuleClass extends Component<any> implements BotDesignerModule {
                 },
                 {
                     resource: PermissionResources.ANY,
-                    role: UserRoles.SYSTEM_CS_ADMIN,
+                    role: UserRoles.SYSTEM_SUPPORT_ADMIN,
                 },
                 {
                     resource: PermissionResources.ANY,

@@ -86,12 +86,6 @@ export class BotResponseTagClass extends Component<any, any> {
                                                                 <option value={TagsElementAction.ADD}>
                                                                     {getTranslation('add')}
                                                                 </option>
-                                                                <option value={TagsElementAction.REMOVE}>
-                                                                    {getTranslation('remove')}
-                                                                </option>
-                                                                <option value={TagsElementAction.REMOVE_ALL}>
-                                                                    {getTranslation('remove all')}
-                                                                </option>
                                                             </StyledFormikField>
                                                         </LabelWrapper>
 

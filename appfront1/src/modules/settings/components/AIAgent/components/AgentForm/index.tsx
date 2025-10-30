@@ -3,7 +3,7 @@ import { Select, Checkbox } from 'antd';
 import { LabelWrapper } from '../../../../../../shared/StyledForms/LabelWrapper/LabelWrapper';
 import { TextAreaSimple } from '../../../../../../shared/TextAreaSimple/TextAreaSimple';
 import { InputSimple } from '../../../../../../shared/InputSample/InputSimple';
-import { AgentType } from '../../../../service/AIAgentService';
+import { AgentType, AgentContext } from '../../../../service/AIAgentService';
 import { Bot } from '../../../../../../model/Bot';
 import { HealthIntegration } from '../../../../../../model/Integrations';
 
@@ -168,6 +168,34 @@ const AgentForm: FC<AgentFormProps> = ({
                     </Option>
                     <Option value={AgentType.ENTITIES_DETECTION}>
                         {getTranslation('Detecção de Entidades')}
+                    </Option>
+                    <Option value={AgentType.CONVERSATIONAL}>
+                        {getTranslation('Conversacional')}
+                    </Option>
+                </Select>
+            </LabelWrapper>
+
+            <LabelWrapper
+                label={getTranslation('Contexto do Agente')}
+                validate={{
+                    touched: formik.touched,
+                    errors: formik.errors,
+                    isSubmitted: formik.isSubmitting,
+                    fieldName: 'agentContext',
+                }}
+            >
+                <Select
+                    value={formik.values.agentContext}
+                    onChange={(value) => formik.setFieldValue('agentContext', value)}
+                    style={{ width: '100%' }}
+                    placeholder={getTranslation('Selecionar Contexto')}
+                    allowClear
+                >
+                    <Option value={AgentContext.FAQ}>
+                        {getTranslation('FAQ')}
+                    </Option>
+                    <Option value={AgentContext.GENERAL}>
+                        {getTranslation('Geral')}
                     </Option>
                 </Select>
             </LabelWrapper>

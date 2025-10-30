@@ -1,11 +1,13 @@
 import { FC } from 'react';
-import { Wrapper } from '../../../../../../ui-kissbot-v2/common';
-import { ActiveMessageListProps } from './props';
-import i18n from '../../../../../i18n/components/i18n';
-import { I18nProps } from '../../../../../i18n/interface/i18n.interface';
+import { useSelector } from 'react-redux';
 import styled from 'styled-components';
 import SkeletonLines from '../../../../../../shared/skeleton-lines';
+import { Wrapper } from '../../../../../../ui-kissbot-v2/common';
+import i18n from '../../../../../i18n/components/i18n';
+import { I18nProps } from '../../../../../i18n/interface/i18n.interface';
+import { isSystemAdmin, isSystemDevAdmin } from '../../../../../../utils/UserPermission';
 import ActiveMessageItem from '../ActiveMessageItem';
+import { ActiveMessageListProps } from './props';
 
 const EmptyImage = styled('img')`
     height: 125px;
@@ -23,9 +25,15 @@ const ActiveMessageList: FC<ActiveMessageListProps & I18nProps> = (props) => {
         onEditActiveMessage,
     } = props;
 
+    const loggedUser = useSelector((state: any) => state.loginReducer.loggedUser);
+
+    const userCanDelete = isSystemAdmin(loggedUser) || isSystemDevAdmin(loggedUser);
+
     const transformModelList = () => {
-        const modelList = workspaceActiveMessage.map(actMessage => {
-            const channelConfigOfActiveMessage = workspaceChannels.find(channel => channel.token === actMessage.channelConfigToken)
+        const modelList = workspaceActiveMessage.map((actMessage) => {
+            const channelConfigOfActiveMessage = workspaceChannels.find(
+                (channel) => channel.token === actMessage.channelConfigToken
+            );
 
             if (!channelConfigOfActiveMessage) return;
 
@@ -33,12 +41,12 @@ const ActiveMessageList: FC<ActiveMessageListProps & I18nProps> = (props) => {
                 id: actMessage.id,
                 name: actMessage?.settingName || channelConfigOfActiveMessage?.name,
                 channelId: channelConfigOfActiveMessage?.channelId,
-            }
-        })
+            };
+        });
 
-        return modelList || []
-    }
-    
+        return modelList || [];
+    };
+
     return (
         <Wrapper>
             {loading ? (
@@ -76,17 +84,18 @@ const ActiveMessageList: FC<ActiveMessageListProps & I18nProps> = (props) => {
                         {getTranslation('Integration active message')}
                     </Wrapper>
                     {transformModelList().map((el) => {
-                            return (
-                                <ActiveMessageItem
-                                    key={el?.id}
-                                    addNotification={addNotification}
-                                    workspaceId={workspaceId}
-                                    activeMessage={el}
-                                    onDeletedActiveMessage={onDeletedActiveMessage}
-                                    onEditActiveMessage={onEditActiveMessage}
-                                />
-                            );
-                        })}
+                        return (
+                            <ActiveMessageItem
+                                key={el?.id}
+                                addNotification={addNotification}
+                                workspaceId={workspaceId}
+                                activeMessage={el}
+                                onDeletedActiveMessage={onDeletedActiveMessage}
+                                onEditActiveMessage={onEditActiveMessage}
+                                canDelete={userCanDelete}
+                            />
+                        );
+                    })}
                 </div>
             ) : (
                 <Wrapper height='150px' flexBox margin='30px 0 0 0' justifyContent='center' alignItems='center'>

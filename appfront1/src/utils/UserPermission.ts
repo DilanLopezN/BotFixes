@@ -123,6 +123,10 @@ export const isSystemCsAdmin = (user: User): boolean => {
     return user && (user.roles || []).some((role) => [UserRoles.SYSTEM_CS_ADMIN, UserRoles.SYSTEM_ADMIN].includes(role.role));
 };
 
+export const isSystemSupportAdmin = (user: User): boolean => {
+    return user && (user.roles || []).some((role) => [UserRoles.SYSTEM_SUPPORT_ADMIN, UserRoles.SYSTEM_ADMIN].includes(role.role));
+};
+
 export const isSystemUxAdmin = (user: User): boolean => {
     return user && (user.roles || []).some((role) => [UserRoles.SYSTEM_UX_ADMIN, UserRoles.SYSTEM_ADMIN].includes(role.role));
 };

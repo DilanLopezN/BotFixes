@@ -20,7 +20,7 @@ const skillInfo = {
         color: '#5DADE2'
     },
     [SkillEnum.listDoctors]: {
-        name: 'Listar Médicos', 
+        name: 'Listar Médicos',
         description: 'Permite ao agente buscar e listar médicos disponíveis',
         summary: 'Busca e lista médicos cadastrados no sistema',
         color: '#58D68D'
@@ -30,6 +30,12 @@ const skillInfo = {
         description: 'Permite ao agente consultar todas as especialidades disponíveis',
         summary: 'Consulta especialidades médicas disponíveis',
         color: '#E67E22'
+    },
+    [SkillEnum.listAppointments]: {
+        name: 'Listar Consultas',
+        description: 'Permite ao agente consultar e listar todas as consultas disponíveis',
+        summary: 'Consulta consultas médicas agendadas no sistema',
+        color: '#9B59B6'
     }
 };
 
@@ -305,12 +311,12 @@ const SkillsTab: FC<SkillsTabProps> = ({ agentId, workspaceId, getTranslation, a
                                         icon={<PlusOutlined />}
                                         loading={actionLoading === skillName}
                                         onClick={() => handleAddSkill(skillName)}
-                                        style={{ 
+                                        style={{
                                             backgroundColor: skillInfo[skillName].color,
                                             borderColor: skillInfo[skillName].color
                                         }}
                                     >
-                                        {getTranslation('Adicionar')}
+                                        {getTranslation('Instalar')}
                                     </Button>
                                 </div>
                             </Card>

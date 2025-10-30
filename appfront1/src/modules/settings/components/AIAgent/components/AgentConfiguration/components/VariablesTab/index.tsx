@@ -246,6 +246,12 @@ const VariablesTab: FC<VariablesTabProps> = ({ agentId, workspaceId, botId, getT
                                 return getTranslation('Ação Após Resposta');
                             case 'action_after_fallback':
                                 return getTranslation('Ação Após Fallback');
+                            case 'btn_action_01':
+                                return getTranslation('Botão de Ação 01');
+                            case 'btn_action_02':
+                                return getTranslation('Botão de Ação 02');
+                            case 'btn_action_03':
+                                return getTranslation('Botão de Ação 03');
                             default:
                                 return name;
                         }
@@ -520,6 +526,15 @@ const VariablesTab: FC<VariablesTabProps> = ({ agentId, workspaceId, botId, getT
                                 </Option>
                                 <Option value={InteractionVariableName.actionAfterFallback}>
                                     {getTranslation('Ação Após Fallback')}
+                                </Option>
+                                <Option value={InteractionVariableName.btnAction01}>
+                                    {getTranslation('Botão de Ação 01')}
+                                </Option>
+                                <Option value={InteractionVariableName.btnAction02}>
+                                    {getTranslation('Botão de Ação 02')}
+                                </Option>
+                                <Option value={InteractionVariableName.btnAction03}>
+                                    {getTranslation('Botão de Ação 03')}
                                 </Option>
                             </Select>
                         ) : (

@@ -1,7 +1,7 @@
 import isEmpty from 'lodash/isEmpty';
 import orderBy from 'lodash/orderBy';
 import { Component } from 'react';
-import Select from 'react-select';
+import { Select } from 'antd';
 import { v4 } from 'uuid';
 import { InteractionSelectProps } from './InteractionSelectProps';
 
@@ -19,43 +19,6 @@ export class InteractionSelect extends Component<InteractionSelectProps> {
 
         return !options.some((option) => option._id === defaultValue);
     }
-
-    customStyles = {
-        option: (provided) => ({
-            ...provided,
-        }),
-
-        control: (provided, state) => {
-            const invalid = this.isInvalidReference();
-            return {
-                ...provided,
-                height: '42px !important',
-                background: '#fff !important',
-                display: 'flex',
-                borderRadius: '4px',
-                fontSize: '16px',
-                border: invalid
-                    ? '1px solid #ff4d4f'
-                    : state.isFocused
-                    ? '1px solid rgba(3, 102, 214, 0.6)'
-                    : '1px solid #d9d9d9',
-                boxShadow: invalid ? '0 0 0 2px rgba(255, 77, 79, 0.2)' : '0 2px 15px 0 rgba(0,0,0,.07)',
-                ':hover': {
-                    border: invalid ? '1px solid #ff4d4f' : '1px solid rgba(3, 102, 214, 0.6)',
-                },
-            };
-        },
-
-        singleValue: (provided) => ({
-            ...provided,
-            color: '#647384',
-        }),
-
-        placeholder: (provided) => ({
-            ...provided,
-            color: '#e6e6e6',
-        }),
-    };
 
     handleOptions = () => {
         const { interactionTypeToShow, options } = this.props;
@@ -80,17 +43,18 @@ export class InteractionSelect extends Component<InteractionSelectProps> {
     render() {
         const defaultOption = this.handleDefaultValue();
 
+        const placement = (this.props.placement || 'bottom') === 'top' ? 'topLeft' : 'bottomLeft';
+
         return (
             <Select
-                menuPlacement={this.props.placement || 'bottom'}
-                inputId={v4()}
-                styles={this.customStyles}
-                defaultValue={defaultOption}
-                value={defaultOption}
-                isClearable
+                size='large'
+                style={{ width: '100%' }}
                 placeholder={this.props.placeholder}
-                isSearchable
                 options={this.handleOptions()}
+                value={defaultOption as any}
+                labelInValue
+                allowClear
+                showSearch
                 onBlur={this.props.onBlur}
                 onChange={(ev) => {
                     if (isEmpty(ev)) {
@@ -98,7 +62,12 @@ export class InteractionSelect extends Component<InteractionSelectProps> {
                     }
                     return this.props.onChange(ev);
                 }}
-                name={this.props.name}
+                placement={placement as any}
+                status={this.isInvalidReference() ? 'error' : undefined}
+                filterOption={(input, option) =>
+                    (option?.label ?? '').toString().toLowerCase().includes(input.toLowerCase())
+                }
+                id={v4()}
             />
         );
     }

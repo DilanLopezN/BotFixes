@@ -589,11 +589,7 @@ const EditAutoAssign: FC<EditAutoAssignProps & I18nProps> = (props) => {
                     </ModalConfirm>
                     <CardWrapperForm
                         loading={loading}
-                        linkHelpCenter={
-                            settings?.helpCenter?.articles?.[
-                                'como-utilizar-a-funcionalidade-de-atribuir-automaticamente'
-                            ]
-                        }
+                        linkHelpCenter='69000869569-como-utilizar-a-funcionalidade-de-atribuir-automaticamente-'
                         textLinkHelpCenter={getTranslation('Understand more about auto assign')}
                         title={getTranslation('Auto assign setting')}
                         children={
@@ -671,9 +667,6 @@ const EditAutoAssign: FC<EditAutoAssignProps & I18nProps> = (props) => {
                                         >
                                             {getTranslation('Submit a review at the end of the call')}
                                         </Checkbox>
-                                        <HelpCenterLink
-                                            article={'69000869565-como-configurar-as-avaliacões-de-atendimentos-'}
-                                        />
                                     </Row>
                                 </Space>
                             </Form>

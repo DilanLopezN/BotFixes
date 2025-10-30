@@ -68,6 +68,7 @@ export const ConfirmationSettingService = {
                 enableResendNotAnswered: originalSetting.enableResendNotAnswered ?? false,
                 useOrganizationUnitOnGroupDescription: originalSetting.useOrganizationUnitOnGroupDescription ?? false,
                 omitAppointmentTypeName: originalSetting.omitAppointmentTypeName ?? false,
+                omitDoctorName: originalSetting.omitDoctorName ?? false,
                 omitExtractGuidance: originalSetting.omitExtractGuidance ?? false,
                 fridayJoinWeekendMonday: originalSetting.fridayJoinWeekendMonday ?? false,
                 checkScheduleChanges: originalSetting.checkScheduleChanges ?? false,

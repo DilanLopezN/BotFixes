@@ -16,6 +16,7 @@ import {
     isSystemAdmin,
     isSystemCsAdmin,
     isSystemDevAdmin,
+    isSystemSupportAdmin,
 } from '../../../utils/UserPermission';
 import { filteredList } from '../../../utils/filterPermissionRoles';
 import { APP_TYPE_PORT, getBaseUrl } from '../../../utils/redirectApp';
@@ -119,7 +120,7 @@ const Campaigns: FC<CampaignsProps & I18nProps> = (props) => {
         });
     }
 
-    if (isSystemAdmin(loggedUser) || isSystemDevAdmin(loggedUser) || isSystemCsAdmin(loggedUser)) {
+    if (isSystemAdmin(loggedUser) || isSystemDevAdmin(loggedUser) || isSystemCsAdmin(loggedUser) || isSystemSupportAdmin(loggedUser)) {
         menuList.push({
             title: getTranslation('Active message'),
             list: [
@@ -136,7 +137,7 @@ const Campaigns: FC<CampaignsProps & I18nProps> = (props) => {
                         },
                         {
                             resource: PermissionResources.ANY,
-                            role: UserRoles.SYSTEM_CS_ADMIN,
+                            role: UserRoles.SYSTEM_SUPPORT_ADMIN,
                         },
                         {
                             resource: PermissionResources.ANY,
@@ -157,7 +158,7 @@ const Campaigns: FC<CampaignsProps & I18nProps> = (props) => {
                         },
                         {
                             resource: PermissionResources.ANY,
-                            role: UserRoles.SYSTEM_CS_ADMIN,
+                            role: UserRoles.SYSTEM_SUPPORT_ADMIN,
                         },
                         {
                             resource: PermissionResources.ANY,
@@ -168,7 +169,8 @@ const Campaigns: FC<CampaignsProps & I18nProps> = (props) => {
             ],
         });
     }
-    if (isSystemAdmin(loggedUser) || isSystemDevAdmin(loggedUser)) {
+
+    if (isSystemAdmin(loggedUser) || isSystemDevAdmin(loggedUser) || isSystemSupportAdmin(loggedUser)) {
         menuList.push({
             title: getTranslation('Email'),
             list: [
@@ -186,6 +188,10 @@ const Campaigns: FC<CampaignsProps & I18nProps> = (props) => {
                         {
                             resource: PermissionResources.ANY,
                             role: UserRoles.SYSTEM_DEV_ADMIN,
+                        },
+                        {
+                            resource: PermissionResources.ANY,
+                            role: UserRoles.SYSTEM_SUPPORT_ADMIN,
                         },
                     ],
                 },

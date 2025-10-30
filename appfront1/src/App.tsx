@@ -344,6 +344,7 @@ class AppClass extends Component<any, any> {
     }
 
     closeModal = () => {
+        localStorage.setItem('passwordAlertClosedAt', moment().toISOString());
         this.setState({ showPasswordExpirationModal: false });
     };
 

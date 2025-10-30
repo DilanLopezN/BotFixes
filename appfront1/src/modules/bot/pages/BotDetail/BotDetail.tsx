@@ -42,6 +42,7 @@ import { BotService } from '../../services/BotService';
 import './BotDetail.scss';
 import { BotDetailProps, BotDetailState } from './BotDetailProps';
 import { MarginIcons } from './styles';
+import ModalGotoReferences from '../../components/ModalGotoReferences';
 
 const LazyJsonModalPreview = React.lazy(() => import('../../../../shared/JsonModalPreview'));
 
@@ -79,6 +80,12 @@ class BotDetailClass extends Component<BotDetailProps, BotDetailState> {
             viewPending: false,
             pendingPublication: { pendingFlows: false, pendingEntities: false },
             publishErrors: [],
+            gotoErrorModal: {
+                visible: false,
+                interactionId: null,
+                interactionName: null,
+                references: null,
+            },
         };
         this.getInteractionList();
         this.setBot();
@@ -141,8 +148,22 @@ class BotDetailClass extends Component<BotDetailProps, BotDetailState> {
         this.props.setCurrentBot(undefined);
         this.props.setBotList(undefined);
         this.props.setInteractionList(undefined);
+        window.removeEventListener('interaction-goto-error', this.handleGotoError as any);
     }
 
+    handleGotoError = (event: CustomEvent) => {
+        const { interactionId, error } = event.detail;
+        const interaction = this.props.interactionList?.find((i) => i._id === interactionId);
+
+        this.setState({
+            gotoErrorModal: {
+                visible: true,
+                interactionId: interactionId,
+                interactionName: interaction?.name || 'Interaction',
+                references: error.references,
+            },
+        });
+    };
     private async getEntities() {
         const params: any = this.props.match.params;
         const entities = await EntityService.getEntityList(params.workspaceId);
@@ -515,6 +536,7 @@ class BotDetailClass extends Component<BotDetailProps, BotDetailState> {
 
     componentDidMount() {
         this.handleEvents();
+        window.addEventListener('interaction-goto-error', this.handleGotoError as any);
     }
 
     checkParamsInteractionId = () => {
@@ -739,6 +761,37 @@ class BotDetailClass extends Component<BotDetailProps, BotDetailState> {
 
         return (
             <InteractionsPendingPublicationContextProvider value={this.state.interactionsPendingPublication}>
+                {this.state.gotoErrorModal.visible && this.state.gotoErrorModal.references && (
+                    <ModalGotoReferences
+                        visible={this.state.gotoErrorModal.visible}
+                        interactionId={this.state.gotoErrorModal.interactionId!}
+                        interactionName={this.state.gotoErrorModal.interactionName!}
+                        references={this.state.gotoErrorModal.references}
+                        workspaceId={params.workspaceId}
+                        botId={params.botId}
+                        onClose={() =>
+                            this.setState({
+                                gotoErrorModal: {
+                                    visible: false,
+                                    interactionId: null,
+                                    interactionName: null,
+                                    references: null,
+                                },
+                            })
+                        }
+                        onDeleteSuccess={() => {
+                            this.getInteractionList();
+                            this.setState({
+                                gotoErrorModal: {
+                                    visible: false,
+                                    interactionId: null,
+                                    interactionName: null,
+                                    references: null,
+                                },
+                            });
+                        }}
+                    />
+                )}
                 <Page className='BotDetail'>
                     {this.renderModalChange()}
                     <MountWebchat />

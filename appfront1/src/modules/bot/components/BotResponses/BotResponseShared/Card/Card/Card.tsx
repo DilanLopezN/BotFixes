@@ -216,75 +216,73 @@ class CardClass extends Component<CardProps, CardState> {
                     const renderButtons = () => {
                         const buttons = values.buttons || [];
                         return buttons.map((button, index) => (
-                            <>
-                                <div
-                                    key={index}
-                                    className='button'
-                                    draggable
-                                    onDragStart={(event) => onDragStart(event, button, index)}
-                                    onDragOver={onDragOver}
-                                    onDrop={(event) => onDrop(event, index)}
-                                >
-                                    <FormPopup
-                                        key={v4()}
-                                        preferPlace='above'
-                                        isOpenedPopover={this.state.openedButtonIndex === index}
-                                        onClose={() => {
-                                            submit();
-                                            this.setOpenedButtonIndex();
-                                        }}
-                                        popupBody={
-                                            <ButtonFormModal
-                                                isSubmitted={this.props.isSubmitted}
-                                                button={button}
-                                                buildAsQuickReply={values.buildAsQuickReply}
-                                                buildAsList={values.buildAsList}
-                                                onChange={(button) => setButtons(button, index)}
-                                                onClose={() => {
-                                                    submit();
-                                                    this.setOpenedButtonIndex();
-                                                }}
-                                                onDelete={() => deleteButton(index)}
-                                            />
-                                        }
-                                    >
-                                        <Row
-                                            align={'middle'}
-                                            style={{
-                                                padding: '3px 0',
-                                                marginBottom: '2px',
-                                                border: '1px solid #e4e9f0 ',
-                                                borderRadius: '3px',
-                                                gap: '8px',
+                            <div
+                                key={index}
+                                className='button'
+                                draggable
+                                onDragStart={(event) => onDragStart(event, button, index)}
+                                onDragOver={onDragOver}
+                                onDrop={(event) => onDrop(event, index)}
+                            >
+                                <FormPopup
+                                    key={v4()}
+                                    preferPlace='above'
+                                    isOpenedPopover={this.state.openedButtonIndex === index}
+                                    onClose={() => {
+                                        submit();
+                                        this.setOpenedButtonIndex();
+                                    }}
+                                    popupBody={
+                                        <ButtonFormModal
+                                            isSubmitted={this.props.isSubmitted}
+                                            button={button}
+                                            buildAsQuickReply={values.buildAsQuickReply}
+                                            buildAsList={values.buildAsList}
+                                            onChange={(button) => setButtons(button, index)}
+                                            onClose={() => {
+                                                submit();
+                                                this.setOpenedButtonIndex();
                                             }}
-                                            onClick={() => this.setOpenedButtonIndex(index)}
-                                        >
-                                            <GrDrag size={20} style={{ cursor: 'grab', marginLeft: '5px' }} />
+                                            onDelete={() => deleteButton(index)}
+                                        />
+                                    }
+                                >
+                                    <Row
+                                        align={'middle'}
+                                        style={{
+                                            padding: '3px 0',
+                                            marginBottom: '2px',
+                                            border: '1px solid #e4e9f0 ',
+                                            borderRadius: '3px',
+                                            gap: '8px',
+                                        }}
+                                        onClick={() => this.setOpenedButtonIndex(index)}
+                                    >
+                                        <GrDrag size={20} style={{ cursor: 'grab', marginLeft: '5px' }} />
 
-                                            <BtnTitle title={button.title}>{button.title}</BtnTitle>
-                                            <AiOutlineCopy
-                                                size={22}
-                                                title='Copiar'
-                                                cursor={'pointer'}
-                                                onClick={(event) => {
-                                                    event.stopPropagation();
-                                                    addButton(button);
-                                                }}
-                                            />
-                                            <AiOutlineDelete
-                                                size={22}
-                                                style={{ marginRight: '5px' }}
-                                                title='Deletar'
-                                                cursor={'pointer'}
-                                                onClick={(event) => {
-                                                    event.stopPropagation();
-                                                    deleteButton(index);
-                                                }}
-                                            />
-                                        </Row>
-                                    </FormPopup>
-                                </div>
-                            </>
+                                        <BtnTitle title={button.title}>{button.title}</BtnTitle>
+                                        <AiOutlineCopy
+                                            size={22}
+                                            title='Copiar'
+                                            cursor={'pointer'}
+                                            onClick={(event) => {
+                                                event.stopPropagation();
+                                                addButton(button);
+                                            }}
+                                        />
+                                        <AiOutlineDelete
+                                            size={22}
+                                            style={{ marginRight: '5px' }}
+                                            title='Deletar'
+                                            cursor={'pointer'}
+                                            onClick={(event) => {
+                                                event.stopPropagation();
+                                                deleteButton(index);
+                                            }}
+                                        />
+                                    </Row>
+                                </FormPopup>
+                            </div>
                         ));
                     };
 

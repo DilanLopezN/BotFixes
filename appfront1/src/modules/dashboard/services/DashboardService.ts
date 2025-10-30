@@ -42,6 +42,30 @@ export type ApiActivityTableFilter = ApiConversationTableFilter & {
     type?: 'message' | undefined;
 };
 
+export interface UserSetting {
+    id: string;
+    workspaceId: string;
+    userId: string;
+    key: string;
+    value: string;
+    type: string;
+    label: string;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface CreateUserSettingRequest {
+    key: string;
+    value: string;
+    type: string;
+    label: string;
+}
+
+export interface UpdateUserSettingRequest {
+    value: string;
+    label: string;
+}
+
 export const DashboardService = {
     getActivitiesAnalytics: async (
         filter: ApiActivityTableFilter,
@@ -143,7 +167,16 @@ export const DashboardService = {
             ),
             false,
             errCb
-        );
+        ).then((response) => {
+            const now = moment().format('DD-MM-YYYY_HH-mm');
+            downloadFile(
+                response,
+                `desempenho-agentes_${now}`,
+                filter.downloadType === typeDownloadEnum.XLSX ? 'xlsx' : 'csv'
+            );
+            return response;
+        });
+
         if (pendingCb) {
             pendingCb(axios.isCancel(requestPromise));
         }
@@ -153,7 +186,11 @@ export const DashboardService = {
     getConversationsResume: async (workspaceId: string, resumeType: string, teamId?: string): Promise<any> => {
         try {
             const teamQueryString = teamId ? `&teamId=${teamId}` : '';
-            return (await apiInstance.get(`workspaces/${workspaceId}/conversations?resumeType=${resumeType}${teamQueryString}`)).data;
+            return (
+                await apiInstance.get(
+                    `workspaces/${workspaceId}/conversations?resumeType=${resumeType}${teamQueryString}`
+                )
+            ).data;
         } catch (error) {}
     },
     getFallbacksWorkspace: async (
@@ -415,22 +452,52 @@ export const DashboardService = {
         }
 
         const query = serialize(filters);
+
+        try {
+            const response = await apiInstance.get(`/workspaces/${workspaceId}/fallbacks/exportCSV?${query}`, {
+                responseType: 'blob',
+                timeout: 60000,
+            });
+
+            downloadFile(
+                response.data,
+                `relatorio-fallback`,
+                filters.downloadType === typeDownloadEnum.XLSX ? 'xlsx' : 'csv'
+            );
+
+            return await doRequest(Promise.resolve(response), true, errCb);
+        } catch (error) {
+            return await doRequest(Promise.reject(error), true, errCb);
+        }
+    },
+
+    // User Settings methods
+    getUserSettings: async (workspaceId: string, type: string): Promise<UserSetting[]> => {
+        return await doRequest(apiInstance.post(`/workspaces/${workspaceId}/userSettings/findUserSettings`, { type }));
+    },
+
+    createUserSetting: async (workspaceId: string, setting: CreateUserSettingRequest): Promise<UserSetting> => {
+        return await doRequest(apiInstance.post(`/workspaces/${workspaceId}/userSettings/createUserSettings`, setting));
+    },
+
+    updateUserSetting: async (
+        workspaceId: string,
+        type: string,
+        key: string,
+        setting: UpdateUserSettingRequest
+    ): Promise<UserSetting> => {
         return await doRequest(
-            apiInstance
-                .get(`/workspaces/${workspaceId}/fallbacks/exportCSV?${query}`, {
-                    responseType: 'blob',
-                    timeout: 60000,
-                })
-                .then((response) => {
-                    downloadFile(
-                        response.data,
-                        `relatorio-fallback`,
-                        filters.downloadType === typeDownloadEnum.XLSX ? 'xlsx' : 'csv'
-                    );
-                    return response;
-                }),
-            true,
-            errCb
+            apiInstance.post(`/workspaces/${workspaceId}/userSettings/updateUserSettings`, {
+                type,
+                key,
+                ...setting
+            })
+        );
+    },
+
+    deleteUserSetting: async (workspaceId: string, type: string, key: string): Promise<void> => {
+        return await doRequest(
+            apiInstance.post(`/workspaces/${workspaceId}/userSettings/deleteUserSettings`, { type, key })
         );
     },
 };

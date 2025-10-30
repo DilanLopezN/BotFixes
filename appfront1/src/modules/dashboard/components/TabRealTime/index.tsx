@@ -12,6 +12,7 @@ import { TeamService } from '../../../teams/services/TeamService';
 import { useTeamsContext } from '../../context';
 import { useAnalyticsRanges } from '../../utils/use-analytics-ranges';
 import AbsolutePage from './components/AbsolutePage';
+import SavedViews from './components/SavedViews';
 import TeamResume from './components/TeamResume';
 import UserResume from './components/UserResume';
 import { TabRealTimeComponentProps } from './props';
@@ -25,7 +26,7 @@ const SectionTitle = styled('div')`
 
 const TabRealTime: FC<TabRealTimeComponentProps> = ({ selectedWorkspace }) => {
     const { teams, setTeams } = useTeamsContext();
-    const { saveAnalyticsRange, initialAnalyticsRanges } = useAnalyticsRanges(
+    const { initialAnalyticsRanges } = useAnalyticsRanges(
         Constants.LOCAL_STORAGE_MAP.DASHBOARD_REAL_TIME_TEAMS,
         selectedWorkspace
     );
@@ -35,11 +36,11 @@ const TabRealTime: FC<TabRealTimeComponentProps> = ({ selectedWorkspace }) => {
     const [workspaceTeams, setWorkspaceTeams] = useState<Team[] | undefined>(teams);
     const [selectedTeamId, setSelectedTeamId] = useState('ALL_TEAMS');
     const [hideInactiveTeams, setHideInactiveTeams] = useState(false);
+    const [currentConfigBase64, setCurrentConfigBase64] = useState<string | null>(null);
 
     const handleHideInactiveTeamsChange = (e: CheckboxChangeEvent) => {
         const newValue = e.target.checked;
         setHideInactiveTeams(newValue);
-        saveAnalyticsRange('hideInactiveTeams', newValue);
     };
 
     const filteredTeams = workspaceTeams?.filter((team) => {
@@ -67,10 +68,82 @@ const TabRealTime: FC<TabRealTimeComponentProps> = ({ selectedWorkspace }) => {
         }
     }, [initialAnalyticsRanges]);
 
+    const generateCurrentConfigBase64 = useCallback(() => {
+        try {
+            const teamResumeFilters = (window as any).__getTeamResumeFilters?.() || null;
+            const userResumeFilters = (window as any).__getUserResumeFilters?.() || null;
+
+            const config = {
+                selectedTeamId,
+                hideInactiveTeams,
+                teamResumeFilters,
+                userResumeFilters,
+            };
+
+            return window.btoa(JSON.stringify(config));
+        } catch (error) {
+            console.error('Erro ao gerar base64 da configuração:', error);
+            return null;
+        }
+    }, [selectedTeamId, hideInactiveTeams]);
+
+    const loadSavedView = useCallback((configBase64: string) => {
+        try {
+            const decoded = JSON.parse(window.atob(configBase64));
+
+            if (decoded.selectedTeamId !== undefined) {
+                setSelectedTeamId(decoded.selectedTeamId);
+            }
+
+            if (decoded.hideInactiveTeams !== undefined) {
+                setHideInactiveTeams(decoded.hideInactiveTeams);
+            }
+
+            // Load filters in child components
+            if (decoded.teamResumeFilters && (window as any).__loadTeamResumeFilters) {
+                (window as any).__loadTeamResumeFilters(decoded.teamResumeFilters);
+            }
+
+            if (decoded.userResumeFilters && (window as any).__loadUserResumeFilters) {
+                (window as any).__loadUserResumeFilters(decoded.userResumeFilters);
+            }
+        } catch (error) {
+            console.error('Erro ao carregar visão salva:', error);
+        }
+    }, []);
+
+    const handleResetFilters = useCallback(() => {
+        setSelectedTeamId('ALL_TEAMS');
+        setHideInactiveTeams(false);
+
+        // Reset filters in child components
+        if ((window as any).__resetTeamResumeFilters) {
+            (window as any).__resetTeamResumeFilters();
+        }
+        if ((window as any).__resetUserResumeFilters) {
+            (window as any).__resetUserResumeFilters();
+        }
+    }, []);
+
+    useEffect(() => {
+        const configBase64 = generateCurrentConfigBase64();
+        setCurrentConfigBase64(configBase64);
+    }, [generateCurrentConfigBase64]);
+
     return (
-        <PageTemplate >
+        <PageTemplate>
             {workspaceTeams && (
                 <>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+                        <SavedViews
+                            currentViewConfig={currentConfigBase64}
+                            onLoadView={loadSavedView}
+                            onResetFilters={handleResetFilters}
+                            workspaceId={selectedWorkspace?._id}
+                            generateConfig={generateCurrentConfigBase64}
+                        />
+                    </div>
+
                     {!expandedUserResume && (
                         <AbsolutePage expanded={expandedTeamResume} close={() => setExpandedTeamResume(false)}>
                             {!expandedTeamResume && (
@@ -86,7 +159,7 @@ const TabRealTime: FC<TabRealTimeComponentProps> = ({ selectedWorkspace }) => {
                                     <Icon
                                         className='expand'
                                         size='fas fa-2x'
-                                        style={{ position: 'absolute', bottom: '-60px' }}
+                                        style={{ position: 'absolute', bottom: '-48px' }}
                                         name='arrow-expand-all'
                                         title={getTranslation('Expand all')}
                                         onClick={() => setExpandedTeamResume(true)}
@@ -104,6 +177,7 @@ const TabRealTime: FC<TabRealTimeComponentProps> = ({ selectedWorkspace }) => {
                                 selectedWorkspace={selectedWorkspace}
                                 teams={filteredTeams}
                                 expanded={expandedTeamResume}
+                                onResetFilters={handleResetFilters}
                             />
                         </AbsolutePage>
                     )}
@@ -153,6 +227,7 @@ const TabRealTime: FC<TabRealTimeComponentProps> = ({ selectedWorkspace }) => {
                                 selectedWorkspace={selectedWorkspace}
                                 selectedTeamId={selectedTeamId}
                                 expanded={expandedUserResume}
+                                onResetFilters={handleResetFilters}
                             />
                         </AbsolutePage>
                     )}

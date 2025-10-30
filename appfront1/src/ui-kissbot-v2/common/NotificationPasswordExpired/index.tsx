@@ -1,8 +1,8 @@
-import { FC } from 'react';
+import { Alert, Button, Space } from 'antd';
+import moment from 'moment-timezone';
+import { FC, useMemo } from 'react';
 import I18n from '../../../modules/i18n/components/i18n';
 import { NotificationPasswordExpiredProps } from './props';
-import { Button, Alert, Space } from 'antd';
-import moment from 'moment-timezone';
 
 const NotificationPasswordExpired: FC<NotificationPasswordExpiredProps> = ({
     getTranslation,
@@ -10,6 +10,23 @@ const NotificationPasswordExpired: FC<NotificationPasswordExpiredProps> = ({
     setLocalStorage,
 }) => {
     const formattedExpirationDate = moment(expirationDate).format('DD/MM/YYYY');
+
+    const canAppear = useMemo(() => {
+        const lastClosed = localStorage.getItem('passwordAlertClosedAt');
+
+        if (lastClosed) {
+            const diffHours = moment().diff(moment(lastClosed), 'hours');
+            if (diffHours < 12) {
+                return false;
+            }
+        }
+
+        return true;
+    }, []);
+
+    if (!canAppear) {
+        return null;
+    }
 
     return (
         <Alert
@@ -21,8 +38,7 @@ const NotificationPasswordExpired: FC<NotificationPasswordExpiredProps> = ({
             message={
                 <>
                     <strong>
-                        {getTranslation('Your password expires in')}{' '}
-                        {formattedExpirationDate}
+                        {getTranslation('Your password expires in')} {formattedExpirationDate}
                     </strong>
                 </>
             }

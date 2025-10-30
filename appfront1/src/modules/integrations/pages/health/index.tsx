@@ -22,9 +22,29 @@ import { HealthEntityListProps } from './components/HealthEntityList/props';
 import HealthIntegrationSettings from './components/HealthIntegrationSettings';
 import { HealthIntegrationsSettingsProps } from './components/HealthIntegrationSettings/props';
 import { HealthPageProps } from './props';
+import styled from 'styled-components';
 const { SubMenu } = Menu;
 const { Title, Text } = Typography;
 const { Search } = Input;
+
+const IntegrationsGrid = styled('div')`
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+    gap: 16px;
+    width: 100%;
+`;
+
+const IntegrationCard = styled(Card)<{ $isEnabled: boolean }>`
+    min-height: 220px;
+    border-radius: 8px;
+    border: ${(props) => (props.$isEnabled ? '1px solid #d9d9d9' : '1px solid #ff4d4f20')};
+
+    .ant-card-body {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+`;
 
 const HealthPage = ({ getTranslation, selectedWorkspace }: HealthPageProps & I18nProps) => {
     const menuList: MenuListGroup[] = [
@@ -428,7 +448,7 @@ const HealthPage = ({ getTranslation, selectedWorkspace }: HealthPageProps & I18
                             />
                         </div>
                     )}
-                    <Row gutter={[16, 16]}>
+                    <IntegrationsGrid>
                         {integrations
                             .filter(
                                 (integration) =>
@@ -450,98 +470,109 @@ const HealthPage = ({ getTranslation, selectedWorkspace }: HealthPageProps & I18
                                 return a.name.localeCompare(b.name);
                             })
                             .map((integration) => (
-                                <Col key={integration._id} xs={24} sm={12} md={8} lg={6}>
-                                    <Card
-                                        hoverable
-                                        style={{
-                                            height: '220px',
-                                            borderRadius: '8px',
-                                            border: integration.enabled ? '1px solid #d9d9d9' : '1px solid #ff4d4f20',
-                                        }}
-                                        onClick={() => {
-                                            setSelectedIntegration(integration);
-                                            setSelectedMenu(menuList[0].list[0]);
-                                            history.push(`/integrations/${integration._id}/settings`);
-                                        }}
-                                    >
-                                        <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-                                            <div
-                                                style={{ display: 'flex', alignItems: 'center', marginBottom: '12px' }}
-                                            >
-                                                {getIntegrationStatusIcon(integration)}
-                                                <Title level={5} style={{ margin: 0, marginLeft: '8px' }}>
-                                                    {integration.name}
-                                                </Title>
-                                            </div>
-                                            <div style={{ marginBottom: '12px' }}>
-                                                <Tag color={integration.enabled ? 'green' : 'red'}>
-                                                    {integration.enabled ? 'Ativa' : 'Inativa'}
+                                <IntegrationCard
+                                    key={integration._id}
+                                    hoverable
+                                    $isEnabled={integration.enabled}
+                                    onClick={() => {
+                                        setSelectedIntegration(integration);
+                                        setSelectedMenu(menuList[0].list[0]);
+                                        history.push(`/integrations/${integration._id}/settings`);
+                                    }}
+                                >
+                                    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '12px' }}>
+                                            {getIntegrationStatusIcon(integration)}
+                                            <Title level={5} style={{ margin: 0, marginLeft: '8px' }}>
+                                                {integration.name}
+                                            </Title>
+                                        </div>
+                                        <div style={{ marginBottom: '12px' }}>
+                                            <Tag color={integration.enabled ? 'green' : 'red'}>
+                                                {integration.enabled ? 'Ativa' : 'Inativa'}
+                                            </Tag>
+                                            <Tag>{integration.type}</Tag>
+                                            {(integration.environment || 'production') === 'production' ? (
+                                                <Tag color='blue' style={{ fontWeight: 'bold' }}>
+                                                    PRODUÇÃO
                                                 </Tag>
-                                                <Tag>{integration.type}</Tag>
-                                                {(integration.environment || 'production') === 'production' ? (
-                                                    <Tag color='blue' style={{ fontWeight: 'bold' }}>
-                                                        PRODUÇÃO
-                                                    </Tag>
-                                                ) : (
-                                                    <Tag color='default'>
-                                                        {integration.environment === 'test'
-                                                            ? 'Teste'
-                                                            : integration.environment}
-                                                    </Tag>
-                                                )}
-                                            </div>
-                                            <div style={{ flex: 1 }}>
-                                                <Text
-                                                    style={{
-                                                        color: getIntegrationStatusText(integration).color,
-                                                        fontSize: '13px',
-                                                    }}
-                                                >
-                                                    {getIntegrationStatusText(integration).text}
+                                            ) : (
+                                                <Tag color='default'>
+                                                    {integration.environment === 'test'
+                                                        ? 'Teste'
+                                                        : integration.environment}
+                                                </Tag>
+                                            )}
+                                        </div>
+                                        <div style={{ flex: 1 }}>
+                                            <Text
+                                                style={{
+                                                    color: getIntegrationStatusText(integration).color,
+                                                    fontSize: '13px',
+                                                }}
+                                            >
+                                                {getIntegrationStatusText(integration).text}
+                                            </Text>
+                                        </div>
+                                        <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: '8px' }}>
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                                <Text type='secondary' style={{ fontSize: '11px' }}>
+                                                    <strong>Última atualização:</strong>{' '}
+                                                    {integration.lastPublishFlow &&
+                                                    !isNaN(new Date(integration.lastPublishFlow).getTime())
+                                                        ? new Date(integration.lastPublishFlow).toLocaleDateString(
+                                                              'pt-BR'
+                                                          ) +
+                                                          ' ' +
+                                                          new Date(integration.lastPublishFlow).toLocaleTimeString(
+                                                              'pt-BR',
+                                                              {
+                                                                  hour: '2-digit',
+                                                                  minute: '2-digit',
+                                                              }
+                                                          )
+                                                        : 'Nunca realizada'}
+                                                </Text>
+                                                <Text type='secondary' style={{ fontSize: '11px' }}>
+                                                    <strong>Última atualização de entidades:</strong>{' '}
+                                                    {integration.lastSyncEntities &&
+                                                    !isNaN(new Date(integration.lastSyncEntities).getTime())
+                                                        ? new Date(integration.lastSyncEntities).toLocaleDateString(
+                                                              'pt-BR'
+                                                          ) +
+                                                          ' ' +
+                                                          new Date(integration.lastSyncEntities).toLocaleTimeString(
+                                                              'pt-BR',
+                                                              {
+                                                                  hour: '2-digit',
+                                                                  minute: '2-digit',
+                                                              }
+                                                          )
+                                                        : 'Nunca realizada'}
+                                                </Text>
+                                                <Text type='secondary' style={{ fontSize: '11px' }}>
+                                                    <strong>Última sincronização de entidades:</strong>{' '}
+                                                    {integration.lastSyncTimestamp &&
+                                                    !isNaN(new Date(integration.lastSyncTimestamp).getTime())
+                                                        ? new Date(integration.lastSyncTimestamp).toLocaleDateString(
+                                                              'pt-BR'
+                                                          ) +
+                                                          ' ' +
+                                                          new Date(integration.lastSyncTimestamp).toLocaleTimeString(
+                                                              'pt-BR',
+                                                              {
+                                                                  hour: '2-digit',
+                                                                  minute: '2-digit',
+                                                              }
+                                                          )
+                                                        : 'Nunca realizada'}
                                                 </Text>
                                             </div>
-                                            <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: '8px' }}>
-                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                                    <Text type='secondary' style={{ fontSize: '11px' }}>
-                                                        <strong>Última atualização:</strong>{' '}
-                                                        {integration.lastPublishFlow && 
-                                                        !isNaN(new Date(integration.lastPublishFlow).getTime())
-                                                            ? new Date(integration.lastPublishFlow).toLocaleDateString('pt-BR') + ' ' + 
-                                                              new Date(integration.lastPublishFlow).toLocaleTimeString('pt-BR', { 
-                                                                  hour: '2-digit', 
-                                                                  minute: '2-digit' 
-                                                              })
-                                                            : 'Nunca realizada'}
-                                                    </Text>
-                                                    <Text type='secondary' style={{ fontSize: '11px' }}>
-                                                        <strong>Última atualização de entidades:</strong>{' '}
-                                                        {integration.lastSyncEntities && 
-                                                        !isNaN(new Date(integration.lastSyncEntities).getTime())
-                                                            ? new Date(integration.lastSyncEntities).toLocaleDateString('pt-BR') + ' ' + 
-                                                              new Date(integration.lastSyncEntities).toLocaleTimeString('pt-BR', { 
-                                                                  hour: '2-digit', 
-                                                                  minute: '2-digit' 
-                                                              })
-                                                            : 'Nunca realizada'}
-                                                    </Text>
-                                                    <Text type='secondary' style={{ fontSize: '11px' }}>
-                                                        <strong>Última sincronização de entidades:</strong>{' '}
-                                                        {integration.lastSyncTimestamp && 
-                                                        !isNaN(new Date(integration.lastSyncTimestamp).getTime())
-                                                            ? new Date(integration.lastSyncTimestamp).toLocaleDateString('pt-BR') + ' ' + 
-                                                              new Date(integration.lastSyncTimestamp).toLocaleTimeString('pt-BR', { 
-                                                                  hour: '2-digit', 
-                                                                  minute: '2-digit' 
-                                                              })
-                                                            : 'Nunca realizada'}
-                                                    </Text>
-                                                </div>
-                                            </div>
                                         </div>
-                                    </Card>
-                                </Col>
+                                    </div>
+                                </IntegrationCard>
                             ))}
-                    </Row>
+                    </IntegrationsGrid>
                 </div>
             </div>
         );

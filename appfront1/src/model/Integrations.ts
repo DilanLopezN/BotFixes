@@ -34,6 +34,7 @@ export interface HealthIntegrationRules {
     usesNightTimeInTheSelectionOfPeriod?: boolean;
     limitOfDaysToSplitRequestInScheduleSearch?: number;
     useInsuranceSuggestion?: boolean;
+    useScheduleSuggestion?: boolean;
     useReportProcessorAISpecialityAndProcedureDetection?: boolean;
     useReportProcessorAIProcedureDetection?: boolean;
     useDoctorSuggestion?: boolean;

@@ -1,12 +1,12 @@
-import { Component } from "react";
-import { Entity } from "kissbot-core";
-import { connect } from "react-redux";
-import { EntitySelectProps } from "./EntitySelectProps";
-import { withRouter } from "react-router";
+import { Select } from 'antd';
+import { Entity } from 'kissbot-core';
 import orderBy from 'lodash/orderBy';
-import I18n from "../../../modules/i18n/components/i18n";
-import { GetArrayWords } from "../../../modules/i18n/interface/i18n.interface";
-import { SimpleSelect } from "../../SimpleSelect/SimpleSelect";
+import { Component } from 'react';
+import { connect } from 'react-redux';
+import { withRouter } from 'react-router';
+import I18n from '../../../modules/i18n/components/i18n';
+import { GetArrayWords } from '../../../modules/i18n/interface/i18n.interface';
+import { EntitySelectProps } from './EntitySelectProps';
 
 class EntitySelectClass extends Component<EntitySelectProps> {
     private translation: GetArrayWords;
@@ -27,44 +27,71 @@ class EntitySelectClass extends Component<EntitySelectProps> {
             'Custom',
             'Phone',
             'Command',
-            'Weight'
+            'Weight',
         ]);
     }
+
     render() {
-        return <SimpleSelect
-            onChange={this.props.onChange || this.props.handleChange}
-            name={this.props.fieldName}
-            disabled={this.props.disabled}
-            value={this.props.value}
-        >
-            <optgroup label={this.translation['System']}>
-                <option value="@sys.any">{this.translation['Any']}</option>
-                <option value="@sys.number">{this.translation['Number']}</option>
-                <option value="@sys.text">{this.translation['Text']}</option>
-                <option value="@sys.fullName">{this.translation['Full name']}</option>
-                <option value="@sys.height">{this.translation['Height']}</option>
-                <option value="@sys.date">{this.translation['Date']}</option>
-                <option value="@sys.time">{this.translation['Time']}</option>
-                <option value="@sys.email">Email</option>
-                <option value="@sys.phone">{this.translation['Phone']}</option>
-                <option value="@sys.cpf">CPF</option>
-                <option value="@sys.cnpj">CNPJ</option>
-                <option value="@sys.pdf">PDF</option>
-                <option value="@sys.image">{this.translation['Image']}</option>
-                <option value="@sys.file">{this.translation['File']}</option>
-                <option value="@sys.command">{this.translation['Command']}</option>
-                <option value="@sys.weight">{this.translation['Weight']}</option>
-                <option value="@sys.unimedCard">{'Carteirinha Unimed'}</option>
-            </optgroup>
-            <optgroup label={this.translation['Custom']}>
-                {
-                    orderBy(this.props.entitiesListFlow || this.props.entitiesList, ['name'])
-                        .map((entity: Entity, index) => {
-                            return <option value={"@" + entity.name} key={index}>{entity.name}</option>
-                        })
-                }
-            </optgroup>
-        </SimpleSelect>
+        const { value, onChange, handleChange, disabled, fieldName, entitiesList, entitiesListFlow } = this.props;
+
+        const options = [
+            {
+                label: this.translation['System'],
+                options: [
+                    { label: this.translation['Any'], value: '@sys.any' },
+                    { label: this.translation['Number'], value: '@sys.number' },
+                    { label: this.translation['Text'], value: '@sys.text' },
+                    { label: this.translation['Full name'], value: '@sys.fullName' },
+                    { label: this.translation['Height'], value: '@sys.height' },
+                    { label: this.translation['Date'], value: '@sys.date' },
+                    { label: this.translation['Time'], value: '@sys.time' },
+                    { label: 'Email', value: '@sys.email' },
+                    { label: this.translation['Phone'], value: '@sys.phone' },
+                    { label: 'CPF', value: '@sys.cpf' },
+                    { label: 'CNPJ', value: '@sys.cnpj' },
+                    { label: 'PDF', value: '@sys.pdf' },
+                    { label: this.translation['Image'], value: '@sys.image' },
+                    { label: this.translation['File'], value: '@sys.file' },
+                    { label: this.translation['Command'], value: '@sys.command' },
+                    { label: this.translation['Weight'], value: '@sys.weight' },
+                    { label: 'Carteirinha Unimed', value: '@sys.unimedCard' },
+                ],
+            },
+            {
+                label: this.translation['Custom'],
+                options: orderBy(entitiesListFlow || entitiesList, ['name']).map((entity: Entity) => ({
+                    label: entity.name,
+                    value: '@' + entity.name,
+                })),
+            },
+        ];
+
+        return (
+            <Select
+                size='large'
+                value={value}
+                disabled={disabled}
+                onChange={(val) => {
+                    const syntheticEvent = {
+                        target: {
+                            name: fieldName,
+                            value: val,
+                        },
+                    } as unknown as React.ChangeEvent<HTMLInputElement>;
+
+                    if (onChange) {
+                        onChange(syntheticEvent);
+                    } else if (handleChange) {
+                        handleChange(syntheticEvent);
+                    }
+                }}
+                options={options}
+                style={{ width: '100%' }}
+                showSearch
+                allowClear
+                placeholder='Selecione'
+            />
+        );
     }
 }
 
@@ -72,7 +99,4 @@ const mapStateToProps = (state: any, ownProps: any) => ({
     entitiesList: state.entityReducer.entitiesList,
 });
 
-export const EntitySelect = I18n(withRouter(connect(
-    mapStateToProps,
-    {}
-)(EntitySelectClass)));
+export const EntitySelect = I18n(withRouter(connect(mapStateToProps, {})(EntitySelectClass)));

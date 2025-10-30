@@ -122,6 +122,7 @@ const ConversationFilter: FC<FiltersProps & I18nProps> = (props) => {
     const [activeTab, setActiveTab] = useState('1');
     const [shouldDownloadUsersTable, setShouldDownloadUsersTable] = useState(false);
     const [selectedInterval, setSelectedInterval] = useState<string>('1d');
+    const [downloadType, setDownloadType] = useState<string>('CSV');
     const patientTableRef = useRef<PatientTableRef>(null);
     const isDisabledTags = disableSelectTags && disable;
 
@@ -207,6 +208,7 @@ const ConversationFilter: FC<FiltersProps & I18nProps> = (props) => {
             if (activeTab === '1' && patientTableRef.current) {
                 await patientTableRef.current.handleDownload(downloadType);
             } else if (activeTab === '2') {
+                setDownloadType(downloadType);
                 setShouldDownloadUsersTable(true);
             }
         });
@@ -519,6 +521,7 @@ const ConversationFilter: FC<FiltersProps & I18nProps> = (props) => {
                                                     shouldDownload={shouldDownloadUsersTable}
                                                     onDownloadComplete={handleUsersTableDownloadComplete}
                                                     propSelectedInterval={selectedInterval}
+                                                    downloadType={downloadType}
                                                 />
                                             )}
                                         </>

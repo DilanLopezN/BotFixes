@@ -393,7 +393,6 @@ export class ModalInteractionClass extends Component<CombinedProps, ModalInterac
 
     renderModalChange = () => {
         const { getTranslation } = this.props;
-
         return (
             <ModalConfirm
                 height='150px'

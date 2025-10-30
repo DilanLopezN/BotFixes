@@ -1,64 +1,62 @@
+import { Select } from 'antd';
 import { Component } from 'react';
-import CreatableSelect from 'react-select/lib/Creatable';
 import { CreatableSelectTagsProps } from './CreatableSelectTagsProps';
 
 export class CreatableSelectTags extends Component<CreatableSelectTagsProps> {
-    customStyles = {
-        option: (provided) => ({
-            ...provided,
-        }),
-        control: (p, state) => ({
-            minHeight: '42px !important',
-            background: '#fff !important',
-            display: 'flex',
-            borderRadius: '4px',
-            fontSize: '16px',
-            border: state.isFocused ? '1px solid rgba(3, 102, 214, 0.6)' : '1px solid #d9d9d9',
-            boxShadow: '0 2px 15px 0 rgba(0,0,0,.07)',
-            ':hover': {
-                border: '1px solid rgba(3, 102, 214, 0.6)',
-            },
-        }),
-        singleValue: (provided, state) => {
-            const color = '#647384';
-            return { ...provided, color };
-        },
-        placeholder: () => ({
-            color: '#bebebe',
-        }),
-        menu: (provided) => {
-            return {
-                ...provided,
-                'z-index': 999999,
-            };
-        },
-
-        valueContainer: (provided) => ({
-            ...provided,
-            flexWrap: this.props.overflowValue ? 'nowrap' : 'wrap',
-        }),
-    };
-
     render() {
+        const {
+            options = [],
+            isDisabled,
+            placeholder,
+            onChange,
+            onBlur,
+            value,
+            onCreateOption,
+            formatCreateLabel,
+            overflowValue,
+            menuPlacement,
+            inputValue,
+            onInputChange,
+            menuIsOpen,
+        } = this.props as any;
+
+        const optionValues = new Set((options || []).map((o: any) => o.value));
+        const placement = menuPlacement === 'top' ? 'topLeft' : 'bottomLeft';
+
         return (
-            <CreatableSelect
-                isMulti
-                options={this.props.options}
-                isDisabled={this.props.isDisabled}
-                styles={this.customStyles}
-                isClearable
-                onInputChange={this.props.onInputChange}
-                inputValue={this.props.inputValue}
-                menuPlacement={this.props.menuPlacement}
-                hideSelectedOptions={!this.props.overflowValue}
-                closeMenuOnSelect={false}
-                classNamePrefix='react-select'
-                placeholder={this.props.placeholder}
-                onChange={this.props.onChange}
-                onBlur={this.props.onBlur}
-                value={this.props.value}
-                onCreateOption={this.props.onCreateOption && this.props.onCreateOption}
-                {...(this.props.formatCreateLabel && { formatCreateLabel: this.props.formatCreateLabel })}
+            <Select
+                mode='tags'
+                size='large'
+                style={{ width: '100%' }}
+                showSearch
+                allowClear
+                placeholder={placeholder}
+                options={options}
+                value={value as any}
+                labelInValue
+                disabled={isDisabled}
+                onChange={(vals: any[] | undefined) => {
+                    const list = Array.isArray(vals) ? vals : [];
+
+                    if (onCreateOption) {
+                        list.forEach((item) => {
+                            if (!optionValues.has(item.value)) {
+                                onCreateOption(item.value);
+                            }
+                        });
+                    }
+
+                    onChange && onChange(list);
+                }}
+                onBlur={onBlur}
+                placement={placement as any}
+                open={menuIsOpen}
+                searchValue={inputValue}
+                onSearch={(val) => onInputChange && onInputChange(val, { action: 'input-change' })}
+                maxTagCount={overflowValue ? 'responsive' : undefined}
+                filterOption={(input, option) =>
+                    (option?.label ?? '').toString().toLowerCase().includes(input.toLowerCase())
+                }
             />
         );
     }

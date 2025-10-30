@@ -3,7 +3,7 @@ enum AppointmentStatus {
     inProgress = 0,
     scheduled = 1,
     withoutSchedules = 2,
-    empty = 3,
+    withoutEntities = 3,
     redirected = 4,
 }
 

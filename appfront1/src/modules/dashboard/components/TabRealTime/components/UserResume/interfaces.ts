@@ -4,6 +4,7 @@ export interface UserResumeProps {
     selectedWorkspace: Workspace;
     selectedTeamId: string;
     expanded: boolean;
+    onResetFilters?: () => void;
 }
 
 export interface FilterValuesUserResume {

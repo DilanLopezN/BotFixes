@@ -69,12 +69,14 @@ const AgentTable: FC<AgentTableProps> = ({
                     [AgentType.REPORT_PROCESSOR_DETECTION]: 'Leitor de pedido médico',
                     [AgentType.RAG]: 'RAG',
                     [AgentType.ENTITIES_DETECTION]: 'Detecção de Entidades',
+                    [AgentType.CONVERSATIONAL]: 'Conversacional',
                 };
                 
                 const typeColors = {
                     [AgentType.REPORT_PROCESSOR_DETECTION]: 'blue',
                     [AgentType.RAG]: 'green',
                     [AgentType.ENTITIES_DETECTION]: 'orange',
+                    [AgentType.CONVERSATIONAL]: 'purple',
                 };
                 
                 return (

@@ -4,6 +4,7 @@ import { Bot } from '../../../../model/Bot';
 import { BotAttribute } from '../../../../model/BotAttribute';
 import { Interaction } from '../../../../model/Interaction';
 import { I18nProps } from './../../../i18n/interface/i18n.interface';
+import { GotoReference } from '../../Interfaces/goto-references.interface';
 
 interface pendingPublicationProps {
     pendingFlows: boolean;
@@ -48,4 +49,10 @@ export interface BotDetailState {
     interactionsPendingPublication: any[];
     pendingPublication?: pendingPublicationProps;
     publishErrors: MessageEntryError[];
+    gotoErrorModal: {
+        visible: boolean;
+        interactionId: string | null;
+        interactionName: string | null;
+        references: GotoReference[] | null;
+    };
 }

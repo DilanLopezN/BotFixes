@@ -12,10 +12,8 @@ export const IntegerRangeFilter = <T extends { [key: string]: [number | null, nu
     clearFilters,
     setFilterValues,
     close,
-    saveLocalFilter,
     initialFilters,
     dataIndex,
-    removeFilterFromLocalStorage,
 }: RangeFilterProps<T>) => {
     const [form] = useForm();
     const { getTranslation } = useLanguageContext();
@@ -34,7 +32,6 @@ export const IntegerRangeFilter = <T extends { [key: string]: [number | null, nu
 
         setSelectedKeys([minValue, maxValue]);
         setFilterValues(minValue, maxValue);
-        saveLocalFilter(dataIndex, [minValue, maxValue]);
         confirm();
     };
 
@@ -42,7 +39,6 @@ export const IntegerRangeFilter = <T extends { [key: string]: [number | null, nu
         form.resetFields();
         setSelectedKeys([]);
         setFilterValues(null, null);
-        removeFilterFromLocalStorage(dataIndex);
         if (clearFilters) {
             clearFilters();
             confirm();
@@ -55,7 +51,7 @@ export const IntegerRangeFilter = <T extends { [key: string]: [number | null, nu
             min: savedFilters[0] ?? null,
             max: savedFilters[1] ?? null,
         });
-    }, [form, selectedKeys, initialFilters, dataIndex]);
+    }, [form, initialFilters, dataIndex]);
 
     return (
         <Card

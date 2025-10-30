@@ -10,7 +10,9 @@ export const useTooltipFormatter = () => {
     const getMetricTranslationKey = (metric: TemplateMetrics): string => {
         switch (metric) {
             case TemplateMetrics.time_to_close:
-                return 'Attendance average time';
+                return 'Attendance average time (general)';
+            case TemplateMetrics.average_team_time_attendance:
+                return 'Attendance average time (segregated)';
             case TemplateMetrics.first_agent_reply_avg:
                 return 'Waiting average time';
             case TemplateMetrics.awaiting_working_time_avg:

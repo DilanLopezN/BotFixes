@@ -1,5 +1,5 @@
 import { FC, useEffect, useState, useRef } from 'react';
-import { Table, Button, Modal, Card, Drawer, Input, Tag, Space, Popconfirm, Select, Popover } from 'antd';
+import { Table, Button, Modal, Card, Drawer, Input, Tag, Space, Select, Popover, Dropdown, Menu } from 'antd';
 import styled from 'styled-components';
 import {
     PlusOutlined,
@@ -14,6 +14,8 @@ import {
     RobotOutlined,
     ThunderboltOutlined,
     BugOutlined,
+    ImportOutlined,
+    MenuOutlined,
 } from '@ant-design/icons';
 import { useFormik } from 'formik-latest';
 import {
@@ -25,6 +27,7 @@ import {
     CreateIntentAction,
     UpdateIntentAction,
     AgentType,
+    IntentLibraryItem,
 } from '../../../../../../service/AIAgentService';
 import { LabelWrapper } from '../../../../../../../../shared/StyledForms/LabelWrapper/LabelWrapper';
 import { InputSimple } from '../../../../../../../../shared/InputSample/InputSimple';
@@ -87,6 +90,10 @@ const IntentionsTab: FC<IntentionsTabProps> = ({ agentId, workspaceId, getTransl
     const [currentAction, setCurrentAction] = useState<IntentAction | null>(null);
     const [interactions, setInteractions] = useState<Interaction[]>([]);
     const [ragAgents, setRagAgents] = useState<any[]>([]);
+    const [importModalVisible, setImportModalVisible] = useState(false);
+    const [intentLibrary, setIntentLibrary] = useState<IntentLibraryItem[]>([]);
+    const [intentLibraryLoading, setIntentLibraryLoading] = useState(false);
+    const [librarySearch, setLibrarySearch] = useState('');
     const [pageSize, setPageSize] = useState(10);
     const [currentPage, setCurrentPage] = useState(1);
     const debugTextAreaRef = useRef<any>(null);
@@ -107,6 +114,32 @@ const IntentionsTab: FC<IntentionsTabProps> = ({ agentId, workspaceId, getTransl
             setRagAgents(ragAgentsData);
         } catch (error) {
             console.error('Error loading RAG agents:', error);
+        }
+    };
+
+    const loadIntentLibrary = async (searchTerm?: string) => {
+        if (!workspaceId) return;
+        try {
+            setIntentLibraryLoading(true);
+            const params = searchTerm ? { search: searchTerm } : undefined;
+            const response = await AIAgentService.listIntentLibrary(
+                workspaceId,
+                params,
+                (err) => {
+                    console.error('Error loading intents from library:', err);
+                    addNotification({
+                        title: getTranslation('Erro'),
+                        message: getTranslation('Erro ao carregar biblioteca de intenções'),
+                        type: 'danger',
+                        duration: 3000,
+                    });
+                }
+            );
+            setIntentLibrary(response || []);
+        } catch (error) {
+            console.error('Error loading intent library:', error);
+        } finally {
+            setIntentLibraryLoading(false);
         }
     };
 
@@ -203,6 +236,22 @@ const IntentionsTab: FC<IntentionsTabProps> = ({ agentId, workspaceId, getTransl
         loadIntentions();
         loadInitialData();
     }, [agentId, workspaceId]);
+
+    useEffect(() => {
+        if (!importModalVisible) return;
+        const trimmedSearch = librarySearch.trim();
+        loadIntentLibrary(trimmedSearch || undefined);
+    }, [importModalVisible, workspaceId]);
+
+    useEffect(() => {
+        if (!importModalVisible) return;
+        const timeout = setTimeout(() => {
+            const trimmedSearch = librarySearch.trim();
+            loadIntentLibrary(trimmedSearch || undefined);
+        }, 300);
+
+        return () => clearTimeout(timeout);
+    }, [librarySearch, importModalVisible]);
 
     const loadInitialData = async () => {
         try {
@@ -302,6 +351,83 @@ const IntentionsTab: FC<IntentionsTabProps> = ({ agentId, workspaceId, getTransl
         }
     };
 
+    const handleOpenImportModal = () => {
+        setLibrarySearch('');
+        setImportModalVisible(true);
+    };
+
+    const handleCloseImportModal = () => {
+        setImportModalVisible(false);
+        setLibrarySearch('');
+        setIntentLibrary([]);
+    };
+
+    const handleImportIntention = async (item: IntentLibraryItem) => {
+        if (!workspaceId || !agentId) return;
+        try {
+            await AIAgentService.importIntentFromLibrary(
+                workspaceId,
+                {
+                    intentLibraryId: item.id,
+                    agentId,
+                },
+                (err) => {
+                    console.error('Error importing intent from library:', err);
+                    addNotification({
+                        title: getTranslation('Erro'),
+                        message: getTranslation('Erro ao importar intenção da biblioteca'),
+                        type: 'danger',
+                        duration: 3000,
+                    });
+                }
+            );
+
+            addNotification({
+                title: getTranslation('Sucesso'),
+                message: getTranslation('Intenção importada da biblioteca'),
+                type: 'success',
+                duration: 3000,
+            });
+
+            handleCloseImportModal();
+            loadIntentions();
+        } catch (error) {
+            console.error('Error importing intent library item:', error);
+        }
+    };
+
+    const handleDeleteIntentLibraryItem = async (item: IntentLibraryItem) => {
+        if (!workspaceId) return;
+
+        try {
+            await AIAgentService.deleteIntentLibrary(
+                workspaceId,
+                item.id,
+                (err) => {
+                    console.error('Error deleting intent library item:', err);
+                    addNotification({
+                        title: getTranslation('Erro'),
+                        message: getTranslation('Erro ao remover intenção da biblioteca'),
+                        type: 'danger',
+                        duration: 3000,
+                    });
+                }
+            );
+
+            addNotification({
+                title: getTranslation('Sucesso'),
+                message: getTranslation('Intenção removida da biblioteca'),
+                type: 'success',
+                duration: 3000,
+            });
+
+            const trimmedSearch = librarySearch.trim();
+            await loadIntentLibrary(trimmedSearch || undefined);
+        } catch (error) {
+            console.error('Error deleting intent library item:', error);
+        }
+    };
+
     const handleDebugIntent = async () => {
         if (!debugText.trim()) return;
 
@@ -359,7 +485,7 @@ const IntentionsTab: FC<IntentionsTabProps> = ({ agentId, workspaceId, getTransl
 
     const addExample = (form: any) => {
         const currentExamples = form.values.examples;
-        if (currentExamples.length < 3) {
+        if (currentExamples.length < 4) {
             form.setFieldValue('examples', [...currentExamples, '']);
         }
     };
@@ -546,17 +672,17 @@ const IntentionsTab: FC<IntentionsTabProps> = ({ agentId, workspaceId, getTransl
             key: 'examples',
             render: (examples: string[]) => (
                 <div>
-                    {examples.slice(0, 3).map((example, index) => (
+                    {examples.slice(0, 4).map((example, index) => (
                         <Tag key={index} color='blue' style={{ marginBottom: 4 }}>
                             {example}
                         </Tag>
                     ))}
-                    {examples.length > 3 && <Tag color='default'>+{examples.length - 3} mais</Tag>}
+                    {examples.length > 4 && <Tag color='default'>+{examples.length - 4} mais</Tag>}
                 </div>
             ),
         },
         {
-            title: getTranslation('Ações Configuradas'),
+            title: getTranslation('Detalhes da ação'),
             key: 'configuredActions',
             width: 140,
             render: (_, record: IntentDetection) => (
@@ -622,93 +748,156 @@ const IntentionsTab: FC<IntentionsTabProps> = ({ agentId, workspaceId, getTransl
         {
             title: getTranslation('Ações'),
             key: 'actions',
-            width: 110,
-            render: (_, record: IntentDetection) => (
-                <Space size='small'>
-                    <Button
-                        type='text'
-                        icon={<EditOutlined />}
-                        onClick={() => handleEdit(record)}
-                        size='small'
-                        style={{
-                            color: '#1890ff',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            width: '32px',
-                            height: '32px',
-                            borderRadius: '6px',
-                            transition: 'all 0.2s',
-                        }}
-                        onMouseEnter={(e) => {
-                            e.currentTarget.style.backgroundColor = '#f0f8ff';
-                            e.currentTarget.style.color = '#096dd9';
-                        }}
-                        onMouseLeave={(e) => {
-                            e.currentTarget.style.backgroundColor = 'transparent';
-                            e.currentTarget.style.color = '#1890ff';
-                        }}
-                        title={getTranslation('Editar')}
-                    />
-                    <Button
-                        type='text'
-                        icon={<SettingOutlined />}
-                        onClick={() => handleConfigureActions(record)}
-                        size='small'
-                        style={{
-                            color: '#722ed1',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            width: '32px',
-                            height: '32px',
-                            borderRadius: '6px',
-                            transition: 'all 0.2s',
-                        }}
-                        onMouseEnter={(e) => {
-                            e.currentTarget.style.backgroundColor = '#f9f0ff';
-                            e.currentTarget.style.color = '#531dab';
-                        }}
-                        onMouseLeave={(e) => {
-                            e.currentTarget.style.backgroundColor = 'transparent';
-                            e.currentTarget.style.color = '#722ed1';
-                        }}
-                        title={record.actions && record.actions.length > 0 ? getTranslation('Editar Ação') : getTranslation('Configurar Ações')}
-                    />
-                    <Popconfirm
-                        title={getTranslation('Tem certeza que deseja deletar esta intenção?')}
-                        onConfirm={() => handleDelete(record.id)}
-                        okText={getTranslation('Sim')}
-                        cancelText={getTranslation('Não')}
-                        placement='topRight'
-                    >
+            width: 72,
+            render: (_, record: IntentDetection) => {
+                const hasActions = Boolean(record.actions && record.actions.length > 0);
+                const configureLabel = hasActions ? getTranslation('Editar Ação') : getTranslation('Configurar Ações');
+
+                const menu = (
+                    <Menu>
+                        <Menu.Item
+                            key='edit'
+                            onClick={(info) => {
+                                info.domEvent.stopPropagation();
+                                handleEdit(record);
+                            }}
+                        >
+                            {getTranslation('Editar')}
+                        </Menu.Item>
+                        <Menu.Item
+                            key='configure'
+                            onClick={(info) => {
+                                info.domEvent.stopPropagation();
+                                handleConfigureActions(record);
+                            }}
+                        >
+                            {configureLabel}
+                        </Menu.Item>
+                        <Menu.Item
+                            key='delete'
+                            onClick={(info) => {
+                                info.domEvent.stopPropagation();
+                                Modal.confirm({
+                                    title: getTranslation('Tem certeza que deseja deletar esta intenção?'),
+                                    okText: getTranslation('Sim'),
+                                    cancelText: getTranslation('Não'),
+                                    okButtonProps: { danger: true },
+                                    onOk: () => handleDelete(record.id),
+                                });
+                            }}
+                        >
+                            <span style={{ color: '#ff4d4f' }}>{getTranslation('Excluir')}</span>
+                        </Menu.Item>
+                    </Menu>
+                );
+
+                return (
+                    <Dropdown overlay={menu} trigger={['click']} placement='bottomRight'>
                         <Button
                             type='text'
-                            icon={<DeleteOutlined />}
-                            size='small'
+                            icon={<MenuOutlined />}
+                            onClick={(event) => {
+                                event.stopPropagation();
+                            }}
                             style={{
-                                color: '#ff4d4f',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                width: '32px',
-                                height: '32px',
-                                borderRadius: '6px',
-                                transition: 'all 0.2s',
+                                width: 32,
+                                height: 32,
                             }}
-                            onMouseEnter={(e) => {
-                                e.currentTarget.style.backgroundColor = '#fff2f0';
-                                e.currentTarget.style.color = '#d4380d';
-                            }}
-                            onMouseLeave={(e) => {
-                                e.currentTarget.style.backgroundColor = 'transparent';
-                                e.currentTarget.style.color = '#ff4d4f';
-                            }}
-                            title={getTranslation('Deletar')}
                         />
-                    </Popconfirm>
+                    </Dropdown>
+                );
+            },
+        },
+    ];
+
+    const libraryColumns = [
+        {
+            title: getTranslation('Nome'),
+            dataIndex: 'name',
+            key: 'name',
+            render: (text: string) => (
+                <Space>
+                    <Tag color='purple'>{text}</Tag>
                 </Space>
             ),
+        },
+        {
+            title: getTranslation('Descrição'),
+            dataIndex: 'description',
+            key: 'description',
+        },
+        {
+            title: getTranslation('Exemplos'),
+            dataIndex: 'examples',
+            key: 'examples',
+            render: (examples: string[]) => (
+                <Space wrap>
+                    {examples && examples.length
+                        ? examples.map((example, index) => (
+                              <Tag color='blue' key={`${example}-${index}`}>
+                                  {example}
+                              </Tag>
+                          ))
+                        : '-'}
+                </Space>
+            ),
+        },
+        {
+            title: getTranslation('Ações'),
+            key: 'actions',
+            width: 72,
+            render: (_: unknown, record: IntentLibraryItem) => {
+                const menu = (
+                    <Menu>
+                        <Menu.Item
+                            key='use'
+                            onClick={(info) => {
+                                info.domEvent.stopPropagation();
+                                handleImportIntention(record);
+                            }}
+                        >
+                            {getTranslation('Usar')}
+                        </Menu.Item>
+                        <Menu.Item
+                            key='delete'
+                            onClick={(info) => {
+                                info.domEvent.stopPropagation();
+                                Modal.confirm({
+                                    title: getTranslation('Deseja remover esta intenção da biblioteca?'),
+                                    okText: getTranslation('Remover'),
+                                    cancelText: getTranslation('Cancelar'),
+                                    okButtonProps: { danger: true },
+                                    onOk: () => handleDeleteIntentLibraryItem(record),
+                                });
+                            }}
+                        >
+                            <span style={{ color: '#ff4d4f' }}>{getTranslation('Excluir')}</span>
+                        </Menu.Item>
+                    </Menu>
+                );
+
+                return (
+                    <Dropdown overlay={menu} trigger={['click']} placement='bottomRight'>
+                        <Button
+                            type='text'
+                            icon={<MenuOutlined />}
+                            onClick={(event) => {
+                                event.stopPropagation();
+                            }}
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                width: 32,
+                                height: 32,
+                            }}
+                        />
+                    </Dropdown>
+                );
+            },
         },
     ];
 
@@ -734,7 +923,7 @@ const IntentionsTab: FC<IntentionsTabProps> = ({ agentId, workspaceId, getTransl
                 onClick={() => addExample(form)} 
                 icon={<PlusOutlined />} 
                 style={{ width: '100%' }}
-                disabled={form.values.examples.length >= 3}
+                disabled={form.values.examples.length >= 4}
             >
                 {getTranslation('Adicionar Exemplo')}
             </Button>
@@ -752,30 +941,37 @@ const IntentionsTab: FC<IntentionsTabProps> = ({ agentId, workspaceId, getTransl
                         onChange={(e) => setSearchText(e.target.value)}
                         style={{ width: 300 }}
                     />
-                    <Space>
-                        <Button
-                            icon={<BugOutlined />}
-                            onClick={async () => {
-                                setDebugModalVisible(true);
-                                // Garantir que as interações estejam carregadas
-                                await loadInitialData();
-                            }}
-                            style={{
-                                background: 'linear-gradient(135deg, #13c2c2 0%, #08979c 100%)',
-                                border: 'none',
-                                color: 'white',
-                                boxShadow: '0 2px 4px rgba(19, 194, 194, 0.3)',
-                            }}
-                            className='antd-span-default-color'
-                        >
-                            {getTranslation('Testar Intenção')}
-                        </Button>
-                        <Button
-                            type='primary'
-                            icon={<PlusOutlined />}
-                            onClick={() => setCreateDrawerVisible(true)}
-                            className='antd-span-default-color'
-                        >
+                <Space>
+                    <Button
+                        icon={<BugOutlined />}
+                        onClick={async () => {
+                            setDebugModalVisible(true);
+                            // Garantir que as interações estejam carregadas
+                            await loadInitialData();
+                        }}
+                        style={{
+                            background: 'linear-gradient(135deg, #13c2c2 0%, #08979c 100%)',
+                            border: 'none',
+                            color: 'white',
+                            boxShadow: '0 2px 4px rgba(19, 194, 194, 0.3)',
+                        }}
+                        className='antd-span-default-color'
+                    >
+                        {getTranslation('Testar Intenção')}
+                    </Button>
+                    <Button
+                        icon={<ImportOutlined />}
+                        onClick={handleOpenImportModal}
+                        className='antd-span-default-color'
+                    >
+                        {getTranslation('Importar da biblioteca')}
+                    </Button>
+                    <Button
+                        type='primary'
+                        icon={<PlusOutlined />}
+                        onClick={() => setCreateDrawerVisible(true)}
+                        className='antd-span-default-color'
+                    >
                             {getTranslation('Nova Intenção')}
                         </Button>
                     </Space>
@@ -809,6 +1005,33 @@ const IntentionsTab: FC<IntentionsTabProps> = ({ agentId, workspaceId, getTransl
                     }}
                 />
             </Card>
+
+            <Modal
+                title={getTranslation('Importar intenções da biblioteca')}
+                visible={importModalVisible}
+                onCancel={handleCloseImportModal}
+                footer={null}
+                width={720}
+            >
+                <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+                    <Input
+                        placeholder={getTranslation('Buscar na biblioteca...')}
+                        prefix={<SearchOutlined />}
+                        value={librarySearch}
+                        onChange={(event) => setLibrarySearch(event.target.value)}
+                        allowClear
+                    />
+                </div>
+
+                <Table
+                    columns={libraryColumns}
+                    dataSource={intentLibrary}
+                    rowKey='id'
+                    loading={intentLibraryLoading}
+                    pagination={{ pageSize: 8, showSizeChanger: false }}
+                    locale={{ emptyText: getTranslation('Nenhuma intenção encontrada na biblioteca') }}
+                />
+            </Modal>
 
             <Drawer
                 title={getTranslation('Nova Intenção')}

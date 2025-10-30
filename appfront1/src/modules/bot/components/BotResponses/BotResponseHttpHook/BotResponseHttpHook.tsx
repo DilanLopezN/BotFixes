@@ -239,6 +239,7 @@ class BotResponseHttpHookClass extends Component<any> {
                                     submit();
                                 }}
                                 fieldName={`attrType`}
+                                value={values.attrType || ''}
                             />
                         </LabelWrapper>
                     </ContainerInputs>

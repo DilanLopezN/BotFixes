@@ -298,6 +298,49 @@ const DashboardComponent: FC<DashboardProps & I18nProps> = ({
                 },
             ],
         });
+
+        if (selectedWorkspace?.featureFlag?.enableRemi || isAnySystemAdmin(loggedUser)) {
+            menuList[0].list.push({
+                order: 10,
+                title: 'REMI',
+                component: () => {
+                    return (
+                        <RedirectApp
+                            appTypePort={APP_TYPE_PORT.V2}
+                            pathname={`/v2/${selectedWorkspace?._id}/dashboard/remi`}
+                        />
+                    );
+                },
+                ref: 'remi',
+                href: getBaseUrl({
+                    pathname: `/v2/${selectedWorkspace?._id}/dashboard/remi`,
+                    appTypePort: APP_TYPE_PORT.V2,
+                }),
+                isAbsolutePath: true,
+                roles: [
+                    {
+                        resource: PermissionResources.ANY,
+                        role: UserRoles.SYSTEM_ADMIN,
+                    },
+                    {
+                        resource: PermissionResources.WORKSPACE,
+                        role: UserRoles.WORKSPACE_ADMIN,
+                    },
+                    {
+                        resource: PermissionResources.ANY,
+                        role: UserRoles.SYSTEM_CS_ADMIN,
+                    },
+                    {
+                        resource: PermissionResources.ANY,
+                        role: UserRoles.SYSTEM_UX_ADMIN,
+                    },
+                    {
+                        resource: PermissionResources.ANY,
+                        role: UserRoles.SYSTEM_DEV_ADMIN,
+                    },
+                ],
+            });
+        }
     }
 
     const [menuSelected, setMenuSelected] = useState<any>(undefined);

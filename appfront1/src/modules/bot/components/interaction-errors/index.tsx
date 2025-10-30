@@ -39,7 +39,7 @@ const InteractionErrors: FC<InteractionErrorsProps> = ({ workspaceId, botId }) =
     };
 
     if (fetchingErrors) {
-        return <SyncButton infinity title='Validando erros' />;
+        return <SyncButton $infinity title='Validando erros' />;
     }
 
     if (!fetched) {

@@ -99,6 +99,7 @@ export interface ConfirmationSettingFormDto {
         enableResendNotAnswered?: boolean;
         useOrganizationUnitOnGroupDescription?: boolean;
         omitAppointmentTypeName?: boolean;
+        omitDoctorName?: boolean;
         omitExtractGuidance?: boolean;
         fridayJoinWeekendMonday?: boolean;
         useIsFirstComeFirstServedAsTime?: boolean;

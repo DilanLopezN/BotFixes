@@ -76,7 +76,7 @@ const GraphicsForm: FC<GraphicsFormProps & I18nProps> = ({
                 label: (
                     <Space>
                         <span>{outcome.name}</span>
-                        {outcome.deletedAt && <Tag color='red'>Inativo</Tag>}
+                        {outcome.deletedAt && <Tag color='red'>{getTranslation('Inactive')}</Tag>}
                     </Space>
                 ),
                 name: outcome.name,
@@ -106,7 +106,7 @@ const GraphicsForm: FC<GraphicsFormProps & I18nProps> = ({
                 label: (
                     <Space>
                         <span>{objective.name}</span>
-                        {objective.deletedAt && <Tag color='red'>Inativo</Tag>}
+                        {objective.deletedAt && <Tag color='red'>{getTranslation('Inactive')}</Tag>}
                     </Space>
                 ),
                 name: objective.name,
@@ -139,15 +139,15 @@ const GraphicsForm: FC<GraphicsFormProps & I18nProps> = ({
                 const includesNotClosed = formik.values?.conditions[index].values.includes(FixedClosedBy.not_closed);
                 const includesAllAgents = formik.values?.conditions[index].values.includes(FixedClosedBy.all_agents);
                 return [
-                    <OptGroup label={'System'}>
+                    <OptGroup label={getTranslation('System')}>
                         <Option disabled={includesNotClosed} value={FixedClosedBy.bot}>
-                            Bot
+                            {getTranslation('Bot')}
                         </Option>
                         <Option disabled={includesBot || includesAllAgents} value={FixedClosedBy.not_closed}>
                             {getTranslation('unfinished')}
                         </Option>
                         <Option disabled={includesNotClosed} value={FixedClosedBy.all_agents}>
-                            {getTranslation('Todos os agentes')}
+                            {getTranslation('All agents')}
                         </Option>
                     </OptGroup>,
                     <OptGroup label={getTranslation('Agents')}>
@@ -320,7 +320,7 @@ const GraphicsForm: FC<GraphicsFormProps & I18nProps> = ({
             });
         },
     });
-
+    
     useEffect(() => {
         if (!templateGroup) return;
 
@@ -459,6 +459,20 @@ const GraphicsForm: FC<GraphicsFormProps & I18nProps> = ({
                                         placeholder={getTranslation('Category')}
                                         value={formik.values?.groupField}
                                         onChange={(value) => {
+                                            const shouldResetMetric =
+                                                value !== TemplateGroupField.assigned_to_team_id &&
+                                                formik.values?.metric ===
+                                                    TemplateMetrics.average_team_time_attendance;
+
+                                            if (shouldResetMetric && formik.values) {
+                                                formik.setValues({
+                                                    ...formik.values,
+                                                    groupField: value,
+                                                    metric: TemplateMetrics.total,
+                                                });
+                                                return;
+                                            }
+
                                             formik.setFieldValue('groupField', value);
                                         }}
                                     >
@@ -510,8 +524,13 @@ const GraphicsForm: FC<GraphicsFormProps & I18nProps> = ({
                                             {getTranslation('Total attendances')}
                                         </Option>
                                         <Option value={TemplateMetrics.time_to_close}>
-                                            {getTranslation('Attendance average time')}
+                                            {getTranslation('Attendance average time (general)')}
                                         </Option>
+                                        {formik.values?.groupField === TemplateGroupField.assigned_to_team_id && (
+                                            <Option value={TemplateMetrics.average_team_time_attendance}>
+                                                {getTranslation('Attendance average time (segregated)')}
+                                            </Option>
+                                        )}
                                         <Option value={TemplateMetrics.first_agent_reply_avg}>
                                             {getTranslation('Waiting average time')}
                                         </Option>

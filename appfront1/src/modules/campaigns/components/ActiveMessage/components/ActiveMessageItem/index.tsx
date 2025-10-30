@@ -33,8 +33,15 @@ const Options = styled(Wrapper)`
 `;
 
 const ActiveMessageItem: FC<ActiveMessageItemProps & I18nProps> = (props) => {
-    const { workspaceId, addNotification, getTranslation, activeMessage, onDeletedActiveMessage, onEditActiveMessage } =
-        props;
+    const {
+        workspaceId,
+        addNotification,
+        getTranslation,
+        activeMessage,
+        onDeletedActiveMessage,
+        onEditActiveMessage,
+        canDelete = false,
+    } = props;
 
     const [withError, setWithError] = useState<any>(undefined);
     const [deleteActive, setDeleteActive] = useState<boolean>(false);
@@ -89,7 +96,7 @@ const ActiveMessageItem: FC<ActiveMessageItemProps & I18nProps> = (props) => {
                     width='auto !important'
                     padding='8px 15px'
                     onClick={(e) => {
-                        onEditActiveMessage(activeMessage.id);
+                        onEditActiveMessage(activeMessage?.id);
                     }}
                     onMouseDown={(e) => {
                         if (e.ctrlKey || e.button === 1) {
@@ -117,16 +124,18 @@ const ActiveMessageItem: FC<ActiveMessageItemProps & I18nProps> = (props) => {
                             )}
                         </Wrapper>
                         <Options>
-                            <Icon
-                                size='18'
-                                margin='0 0 0 9px'
-                                name='delete'
-                                title={getTranslation('Delete')}
-                                onClick={(event: any) => {
-                                    event.stopPropagation();
-                                    setDeleteActive(true);
-                                }}
-                            />
+                            {canDelete && (
+                                <Icon
+                                    size='18'
+                                    margin='0 0 0 9px'
+                                    name='delete'
+                                    title={getTranslation('Delete')}
+                                    onClick={(event: any) => {
+                                        event.stopPropagation();
+                                        setDeleteActive(true);
+                                    }}
+                                />
+                            )}
                         </Options>
                     </Wrapper>
                 </Item>

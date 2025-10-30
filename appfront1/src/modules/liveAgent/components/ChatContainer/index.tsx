@@ -18,7 +18,7 @@ import I18n from '../../../i18n/components/i18n';
 import { I18nProps } from '../../../i18n/interface/i18n.interface';
 import { Activity as IActivity } from '../../interfaces/activity.interface';
 import { Conversation, FileAttachment } from '../../interfaces/conversation.interface';
-import { AttachmentService, uploadFileTypes } from '../../service/Atttachment.service';
+import { AttachmentService, uploadFileTypes, validateWhatsappFile } from '../../service/Atttachment.service';
 import { LiveAgentService } from '../../service/LiveAgent.service';
 import Activity from '../Activity';
 import { ChatContainerHeader } from '../ChatContainerHeader';
@@ -521,44 +521,12 @@ const ChatContainerComponent = ({
         }
         if (!file) return;
 
-        const maxSizeMB = 10;
-        const isValidSize = file.size <= maxSizeMB * 1000000;
+        const validation = validateWhatsappFile(file);
 
-        const imageTypeValidation = () => {
-            if (AttachmentService.isImageFile(file.type)) {
-                switch (file.type) {
-                    case 'image/jpg':
-                    case 'image/jpeg':
-                    case 'image/png':
-                    case 'image/webp':
-                    case 'image/svg+xml':
-                    case 'image/svg':
-                    case 'image/x-icon':
-                    case 'image/x-wmf':
-                    case 'image/x-emf':
-                        return true;
-
-                    default:
-                        return false;
-                }
-            }
-
-            return true;
-        };
-
-        if (!isValidSize) {
+        if (!validation.isValid) {
             return notification({
                 title: getTranslation('Error'),
-                message: getTranslation('Very large file. Select a file with a maximum of 10Mb'),
-                type: 'danger',
-                duration: 3000,
-            });
-        }
-
-        if (!imageTypeValidation()) {
-            return notification({
-                title: getTranslation('Error'),
-                message: getTranslation('Invalid image format, select an image in another format.'),
+                message: getTranslation(validation.error),
                 type: 'danger',
                 duration: 3000,
             });
@@ -588,9 +556,7 @@ const ChatContainerComponent = ({
         }
 
         // Primeiro, tenta encontrar o arquivo na lista de fileAttachments do conversation
-        let fileAttachment = conversation?.fileAttachments?.find(
-            (file) => file._id === attachmentFile?.id
-        );
+        let fileAttachment = conversation?.fileAttachments?.find((file) => file._id === attachmentFile?.id);
 
         // Se não encontrar, cria um temporário (fallback)
         if (!fileAttachment) {

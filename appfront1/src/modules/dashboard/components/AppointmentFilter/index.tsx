@@ -175,14 +175,6 @@ const AppointmentFilter: FC<AppointmentFilterProps & I18nProps> = (props) => {
                             timeout(submitForm, 500);
                         };
 
-                        const handleClearFilters = () => {
-                            setInitialConfigState({});
-                            clearFilter();
-                            const newFilters = getDefaultFilter(selectedWorkspace?._id);
-                            setValues(newFilters);
-                            setDates([]);
-                            onSubmit(newFilters);
-                        };
                         return (
                             <FormikForm>
                                 <AntdForm>
@@ -202,19 +194,6 @@ const AppointmentFilter: FC<AppointmentFilterProps & I18nProps> = (props) => {
                                                     value={[new Date(values.startDate), new Date(values.endDate)]}
                                                     onChange={handleDateChange}
                                                 />
-                                            </AntdForm.Item>
-                                        </Col>
-                                        <Col span={1}>
-                                            <AntdForm.Item>
-                                                <Popover content={getTranslation('Clear filters')} trigger='hover'>
-                                                    <Button
-                                                        style={{ height: '5px', width: '5px' }}
-                                                        disabled={loading}
-                                                        type='text'
-                                                        icon={<TbFilterX size={24} />}
-                                                        onClick={handleClearFilters}
-                                                    />
-                                                </Popover>
                                             </AntdForm.Item>
                                         </Col>
                                     </Row>

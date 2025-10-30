@@ -11,6 +11,7 @@ import {
     DeleteOutlined,
     RobotOutlined,
     UserOutlined,
+    CopyOutlined,
 } from '@ant-design/icons';
 import { AIAgentService, DoQuestionResponse } from '../../../../../../service/AIAgentService';
 import { addNotification } from '../../../../../../../../utils/AddNotification';
@@ -68,6 +69,15 @@ const TestTrainingModal: FC<TestTrainingModalProps> = ({
     const chatAreaRef = useRef<HTMLDivElement>(null);
     const textAreaRef = useRef<any>(null);
 
+    const composeBotMessageContent = (response: DoQuestionResponse): string => {
+        const trimmedMessage = response?.message?.content?.trim();
+        if (trimmedMessage) {
+            return trimmedMessage;
+        }
+
+        return getTranslation('Agent empty reply placeholder');
+    };
+
     // Auto-scroll to bottom when new messages arrive
     useEffect(() => {
         if (chatAreaRef.current) {
@@ -124,10 +134,12 @@ const TestTrainingModal: FC<TestTrainingModalProps> = ({
             if (savedParams) {
                 const params = JSON.parse(savedParams);
                 setDebugParameters(params);
-                setShowParametersPanel(Object.keys(params).length > 0);
             }
+            // Sempre mantém o painel fechado ao carregar
+            setShowParametersPanel(false);
         } catch (error) {
             console.error('Error loading debug parameters from localStorage:', error);
+            setShowParametersPanel(false);
         }
     };
 
@@ -145,6 +157,7 @@ const TestTrainingModal: FC<TestTrainingModalProps> = ({
         setContextId(generateUUID());
         setUseHistoricMessages(false);
         setChatHistory([]);
+        setShowParametersPanel(false);
         loadAgentVariables();
         loadDebugParametersFromStorage();
     };
@@ -265,10 +278,11 @@ const TestTrainingModal: FC<TestTrainingModalProps> = ({
             if (response) {
                 // Add bot response to chat
                 const botMessageId = Date.now().toString() + '_bot';
+                const botMessageContent = composeBotMessageContent(response);
                 const botMessage: ChatMessage = {
                     id: botMessageId,
                     type: 'bot',
-                    content: response.message.content,
+                    content: botMessageContent,
                     timestamp: new Date(),
                     result: response,
                     responseTime: responseTime
@@ -284,7 +298,7 @@ const TestTrainingModal: FC<TestTrainingModalProps> = ({
         }
     };
 
-    const handleKeyPress = (e: React.KeyboardEvent) => {
+    const handleKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
             if (!debugLoading && debugText.trim() && agent?.botId) {
@@ -293,9 +307,45 @@ const TestTrainingModal: FC<TestTrainingModalProps> = ({
         }
     };
 
+    const handleCopyAllMessages = () => {
+        if (chatHistory.length === 0) {
+            addNotification({
+                title: getTranslation('Aviso'),
+                message: getTranslation('Nenhuma mensagem para copiar'),
+                type: 'warning',
+                duration: 3000,
+            });
+            return;
+        }
+
+        const formattedMessages = chatHistory.map(message => {
+            const sender = message.type === 'user' ? 'Usuário' : 'Bot';
+            const time = message.timestamp.toLocaleTimeString();
+            return `[${time}] ${sender}: ${message.content}`;
+        }).join('\n\n');
+
+        navigator.clipboard.writeText(formattedMessages).then(() => {
+            addNotification({
+                title: getTranslation('Sucesso'),
+                message: getTranslation('Mensagens copiadas com sucesso'),
+                type: 'success',
+                duration: 2000,
+            });
+        }).catch((err) => {
+            console.error('Erro ao copiar mensagens:', err);
+            addNotification({
+                title: getTranslation('Erro'),
+                message: getTranslation('Erro ao copiar mensagens'),
+                type: 'danger',
+                duration: 3000,
+            });
+        });
+    };
+
     // Initialize modal when it becomes visible
     useEffect(() => {
         if (visible) {
+            setShowParametersPanel(false);
             handleOpenModal();
         }
     }, [visible]);
@@ -373,6 +423,8 @@ const TestTrainingModal: FC<TestTrainingModalProps> = ({
                                             • {agent?.agentType === 'RAG' ? 'RAG' : 
                                                agent?.agentType === 'ENTITIES_DETECTION' ? 'Entidades' : 
                                                agent?.agentType === 'CLASSIFICATION' ? 'Classificação' : 
+                                               agent?.agentType === 'CONVERSATIONAL' ? 'Conversacional' :
+                                               agent?.agentType === 'conversational' ? 'Conversacional' :
                                                getTranslation('Agente')}
                                         </span>
                                     </div>
@@ -613,13 +665,15 @@ const TestTrainingModal: FC<TestTrainingModalProps> = ({
                             </div>
                         )}
                         
-                        {chatHistory.map((message) => (
-                            <div key={message.id} style={{
-                                display: 'flex',
-                                justifyContent: message.type === 'user' ? 'flex-end' : 'flex-start',
-                                alignItems: 'flex-start',
-                                marginBottom: '8px',
-                                gap: '8px'
+                        {chatHistory.map((message) => {
+                            const resultMessage = message.result?.message;
+                            return (
+                                <div key={message.id} style={{
+                                    display: 'flex',
+                                    justifyContent: message.type === 'user' ? 'flex-end' : 'flex-start',
+                                    alignItems: 'flex-start',
+                                    marginBottom: '8px',
+                                    gap: '8px'
                             }}>
                                 {/* Bot Avatar */}
                                 {message.type === 'bot' && (
@@ -645,14 +699,14 @@ const TestTrainingModal: FC<TestTrainingModalProps> = ({
                                     gap: '4px',
                                     flexDirection: message.type === 'user' ? 'row-reverse' : 'row'
                                 }}>
-                                    <div 
+                                    <div
                                         style={{
                                             padding: '12px 16px',
                                             borderRadius: message.type === 'user' ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
-                                            backgroundColor: message.type === 'user' ? '#1890ff' : '#fff',
+                                            backgroundColor: message.type === 'user' ? '#1890ff' : (message.type === 'bot' && !resultMessage ? '#fffbe6' : '#fff'),
                                             color: message.type === 'user' ? '#fff' : '#333',
                                             boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
-                                            border: message.type === 'bot' ? '1px solid #e8e8e8' : 'none',
+                                            border: message.type === 'bot' ? (resultMessage ? '1px solid #e8e8e8' : '1px solid #fadb14') : 'none',
                                             whiteSpace: 'pre-wrap',
                                             wordWrap: 'break-word',
                                             userSelect: 'text',
@@ -664,8 +718,8 @@ const TestTrainingModal: FC<TestTrainingModalProps> = ({
                                             msUserSelect: 'text'
                                         }}
                                     >
-                                        <div 
-                                            style={{ 
+                                        <div
+                                            style={{
                                                 userSelect: 'text',
                                                 cursor: 'text',
                                                 WebkitUserSelect: 'text',
@@ -679,9 +733,9 @@ const TestTrainingModal: FC<TestTrainingModalProps> = ({
 
                                         {/* Bot message details */}
                                         {message.type === 'bot' && message.result && (
-                                            <div style={{ 
-                                                marginTop: '8px', 
-                                                paddingTop: '8px', 
+                                            <div style={{
+                                                marginTop: '8px',
+                                                paddingTop: '8px',
                                                 borderTop: '1px solid #f0f0f0',
                                                 fontSize: '10px',
                                                 color: '#666',
@@ -695,18 +749,24 @@ const TestTrainingModal: FC<TestTrainingModalProps> = ({
                                                         {message.result.intent.interaction.name}
                                                     </Tag>
                                                 )}
-                                                <Tag color="purple" style={{ fontSize: '9px', margin: 0 }}>
-                                                    {message.result.message.modelName}
-                                                </Tag>
-                                                <span>•</span>
-                                                <span>{message.result.message.promptTokens} + {message.result.message.completionTokens} tokens</span>
+                                                {resultMessage?.modelName && (
+                                                    <Tag color="purple" style={{ fontSize: '9px', margin: 0 }}>
+                                                        {resultMessage.modelName}
+                                                    </Tag>
+                                                )}
+                                                {resultMessage && (
+                                                    <>
+                                                        <span>•</span>
+                                                        <span>{resultMessage.promptTokens} + {resultMessage.completionTokens} tokens</span>
+                                                    </>
+                                                )}
                                                 {message.responseTime && (
                                                     <>
                                                         <span>•</span>
                                                         <span>{message.responseTime}ms</span>
                                                     </>
                                                 )}
-                                                {message.result.message.isFallback && (
+                                                {resultMessage?.isFallback && (
                                                     <>
                                                         <span>•</span>
                                                         <span>{getTranslation('Fallback')}</span>
@@ -715,8 +775,22 @@ const TestTrainingModal: FC<TestTrainingModalProps> = ({
                                             </div>
                                         )}
 
-                                        <div style={{ 
-                                            fontSize: '10px', 
+                                        {/* Empty message indicator */}
+                                        {message.type === 'bot' && !resultMessage && (
+                                            <div style={{
+                                                marginTop: '8px',
+                                                paddingTop: '8px',
+                                                borderTop: '1px dashed #fadb14',
+                                                fontSize: '11px',
+                                                color: '#d48806',
+                                                fontStyle: 'italic'
+                                            }}>
+                                                {getTranslation('Sem mensagem de resposta')}
+                                            </div>
+                                        )}
+
+                                        <div style={{
+                                            fontSize: '10px',
                                             opacity: message.type === 'user' ? 0.8 : 0.7,
                                             marginTop: '4px',
                                             textAlign: message.type === 'user' ? 'right' : 'left',
@@ -771,7 +845,8 @@ const TestTrainingModal: FC<TestTrainingModalProps> = ({
                                     </div>
                                 )}
                             </div>
-                        ))}
+                            );
+                        })}
                         
                         {debugLoading && (
                             <div style={{
@@ -853,9 +928,9 @@ const TestTrainingModal: FC<TestTrainingModalProps> = ({
                                 placeholder={getTranslation('Digite sua mensagem...')}
                                 value={debugText}
                                 onChange={(e) => setDebugText(e.target.value)}
-                                onKeyPress={handleKeyPress}
+                                onKeyDown={handleKeyDown}
                                 rows={2}
-                                style={{ 
+                                style={{
                                     resize: 'none',
                                     borderRadius: '18px',
                                     paddingTop: '8px'
@@ -864,11 +939,11 @@ const TestTrainingModal: FC<TestTrainingModalProps> = ({
                             />
                             <Button
                                 type="default"
-                                icon={<RedoOutlined />}
-                                onClick={handleNewSession}
-                                disabled={debugLoading}
-                                title={getTranslation('Nova Sessão')}
-                                style={{ 
+                                icon={<CopyOutlined />}
+                                onClick={handleCopyAllMessages}
+                                disabled={debugLoading || chatHistory.length === 0}
+                                title={getTranslation('Copiar todas as mensagens')}
+                                style={{
                                     borderRadius: '50%',
                                     width: '44px',
                                     height: '44px',
@@ -881,14 +956,33 @@ const TestTrainingModal: FC<TestTrainingModalProps> = ({
                                     color: '#666'
                                 }}
                             />
-                            <Button 
-                                type="primary" 
+                            <Button
+                                type="default"
+                                icon={<RedoOutlined />}
+                                onClick={handleNewSession}
+                                disabled={debugLoading}
+                                title={getTranslation('Nova Sessão')}
+                                style={{
+                                    borderRadius: '50%',
+                                    width: '44px',
+                                    height: '44px',
+                                    minWidth: '44px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    marginBottom: '3px',
+                                    borderColor: '#d9d9d9',
+                                    color: '#666'
+                                }}
+                            />
+                            <Button
+                                type="primary"
                                 icon={<SendOutlined />}
                                 onClick={handleDebugQuestion}
                                 loading={debugLoading}
                                 disabled={!debugText.trim() || !agent?.botId}
                                 className="antd-span-default-color"
-                                style={{ 
+                                style={{
                                     borderRadius: '50%',
                                     width: '44px',
                                     height: '44px',

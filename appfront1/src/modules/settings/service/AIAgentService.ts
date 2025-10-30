@@ -34,12 +34,19 @@ export enum AgentType {
     REPORT_PROCESSOR_DETECTION = 'report_processor_detection',
     RAG = 'rag',
     ENTITIES_DETECTION = 'entities_detection',
+    CONVERSATIONAL = 'conversational',
+}
+
+export enum AgentContext {
+    FAQ = 'faq',
+    GENERAL = 'general',
 }
 
 export enum SkillEnum {
     listInsurances = 'listInsurances',
     listDoctors = 'listDoctors',
     listSpecialities = 'listSpecialities',
+    listAppointments = 'listAppointments',
 }
 
 export enum ActionType {
@@ -58,8 +65,10 @@ export interface Agent {
     botId?: string | null;
     isDefault: boolean;
     agentType?: AgentType;
+    agentContext?: AgentContext | null;
     modelName?: string;
     integrationId?: string;
+    allowSendAudio?: boolean;
 }
 
 export interface TrainingEntry {
@@ -76,6 +85,7 @@ export interface TrainingEntry {
     createdAt?: string;
     updatedAt?: string;
     deletedAt?: string | null;
+    expiresAt?: string | null;
 }
 
 export interface TrainingEntryType {
@@ -98,6 +108,7 @@ export interface CreateTrainingEntry {
     content: string;
     agentId: string;
     trainingEntryTypeId?: string;
+    expiresAt?: string | null;
 }
 
 export interface UpdateTrainingEntry {
@@ -105,6 +116,7 @@ export interface UpdateTrainingEntry {
     content?: string;
     agentId: string;
     trainingEntryTypeId?: string;
+    expiresAt?: string | null;
 }
 
 export interface ContextVariable {
@@ -172,6 +184,38 @@ export interface UpdateIntentAction {
     targetValue: string;
 }
 
+export interface IntentLibraryItem {
+    id: string;
+    name: string;
+    description: string;
+    examples: string[];
+    createdAt: string;
+    updatedAt: string;
+    deletedAt: string | null;
+}
+
+export interface CreateIntentLibraryPayload {
+    name: string;
+    description: string;
+    examples: string[];
+}
+
+export interface UpdateIntentLibraryPayload {
+    intentLibraryId: string;
+    name?: string;
+    description?: string;
+    examples?: string[];
+}
+
+export interface ListIntentLibraryParams {
+    search?: string;
+}
+
+export interface ImportIntentFromLibraryPayload {
+    intentLibraryId: string;
+    agentId: string;
+}
+
 export interface DetectIntentResponse {
     intent: {
         id: string;
@@ -192,11 +236,6 @@ export interface DoQuestionResponse {
         botId: string | null;
         referenceId: string;
         contextId: string;
-        nextStep: {
-            intent: string;
-            reason: string;
-            entities: Record<string, string[]>;
-        };
         content: string;
         role: string;
         completionTokens: number;
@@ -207,6 +246,11 @@ export interface DoQuestionResponse {
         type: string;
         createdAt: string;
         id: string;
+    } | null;
+    nextStep: {
+        intent: string;
+        reason: string;
+        entities: Record<string, string[]>;
     };
     variables: Array<{
         id: string;
@@ -596,6 +640,80 @@ export const AIAgentService = {
         return response?.data;
     },
 
+    // Intent library operations
+    createIntentLibrary: async (
+        workspaceId: string,
+        data: CreateIntentLibraryPayload,
+        errCb?
+    ): Promise<IntentLibraryItem> => {
+        const response = await doRequest(
+            apiInstance.post(`/workspaces/${workspaceId}/conversation-ai/intent-library/createIntentLibrary`, data),
+            undefined,
+            errCb
+        );
+        return response?.data;
+    },
+
+    listIntentLibrary: async (
+        workspaceId: string,
+        params?: ListIntentLibraryParams,
+        errCb?
+    ): Promise<IntentLibraryItem[]> => {
+        const response = await doRequest(
+            apiInstance.post(
+                `/workspaces/${workspaceId}/conversation-ai/intent-library/listIntentLibrary`,
+                params ?? {}
+            ),
+            undefined,
+            errCb
+        );
+        return response?.data || [];
+    },
+
+    updateIntentLibrary: async (
+        workspaceId: string,
+        data: UpdateIntentLibraryPayload,
+        errCb?
+    ): Promise<IntentLibraryItem> => {
+        const response = await doRequest(
+            apiInstance.post(`/workspaces/${workspaceId}/conversation-ai/intent-library/updateIntentLibrary`, data),
+            undefined,
+            errCb
+        );
+        return response?.data;
+    },
+
+    deleteIntentLibrary: async (
+        workspaceId: string,
+        intentLibraryId: string,
+        errCb?
+    ): Promise<{ ok: boolean }> => {
+        const response = await doRequest(
+            apiInstance.post(`/workspaces/${workspaceId}/conversation-ai/intent-library/deleteIntentLibrary`, {
+                intentLibraryId,
+            }),
+            undefined,
+            errCb
+        );
+        return response?.data;
+    },
+
+    importIntentFromLibrary: async (
+        workspaceId: string,
+        data: ImportIntentFromLibraryPayload,
+        errCb?
+    ): Promise<IntentDetection> => {
+        const response = await doRequest(
+            apiInstance.post(
+                `/workspaces/${workspaceId}/conversation-ai/intent-detection/importIntentFromLibrary`,
+                data
+            ),
+            undefined,
+            errCb
+        );
+        return response?.data;
+    },
+
     // Bulk upload operations
     bulkUploadTrainingEntries: async (
         workspaceId: string,
@@ -644,7 +762,9 @@ export const AIAgentService = {
         }
 
         const response = await doRequest(
-            apiInstance.post(`/workspaces/${workspaceId}/context-ai-implementor/doQuestion`, requestBody),
+            apiInstance.post(`/workspaces/${workspaceId}/context-ai-implementor/doQuestion`, requestBody, {
+                timeout: 120_000,
+            }),
             undefined,
             errCb
         );
@@ -749,10 +869,9 @@ export const AIAgentService = {
         errCb?
     ): Promise<{ ok: boolean }> => {
         const response = await doRequest(
-            apiInstance.post(
-                `/workspaces/${workspaceId}/conversation-ai/training-entry-type/deleteTrainingEntryType`,
-                { id: trainingEntryTypeId }
-            ),
+            apiInstance.post(`/workspaces/${workspaceId}/conversation-ai/training-entry-type/deleteTrainingEntryType`, {
+                id: trainingEntryTypeId,
+            }),
             undefined,
             errCb
         );

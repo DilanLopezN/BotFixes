@@ -1,7 +1,7 @@
 import { Button, Form, Input, InputNumber, Modal, Spin } from 'antd';
 import { FC, useState } from 'react';
 import { connect } from 'react-redux';
-import { isSystemAdmin, isSystemCsAdmin } from '../../../../../../utils/UserPermission';
+import { isSystemAdmin, isSystemCsAdmin, isSystemSupportAdmin } from '../../../../../../utils/UserPermission';
 import { HealthEntity } from '../../../../../../model/Integrations';
 import { addNotification } from '../../../../../../utils/AddNotification';
 import { apiInstance } from '../../../../../../utils/Http';
@@ -39,7 +39,9 @@ const DoctorDebugModal = ({
     const [loading, setLoading] = useState(false);
     const [response, setResponse] = useState<any>(null);
     
-    const canDebug = loggedUser && (isSystemAdmin(loggedUser) || isSystemCsAdmin(loggedUser));
+    const canDebug =
+        loggedUser &&
+        (isSystemAdmin(loggedUser) || isSystemCsAdmin(loggedUser) || isSystemSupportAdmin(loggedUser));
 
     const handleDebug = async () => {
         try {

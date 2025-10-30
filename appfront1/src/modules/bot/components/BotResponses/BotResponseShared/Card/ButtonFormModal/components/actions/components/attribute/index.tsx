@@ -148,6 +148,7 @@ const AttributeCard: FC<AttributeProps> = ({
                     {actions[index].element.action === SetAttributeAction.set && (
                         <LabelWrapper label={getTranslation('Entity')}>
                             <EntitySelect
+                                value={actions[index].element.type || ''}
                                 fieldName={`actions[${index}].element.type`}
                                 onChange={(ev) => {
                                     setFieldValue(`actions[${index}].element.type`, ev.target.value);

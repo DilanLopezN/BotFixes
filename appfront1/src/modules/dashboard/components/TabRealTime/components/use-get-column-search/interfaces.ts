@@ -11,7 +11,6 @@ export type RangeValue = number | [number | null, number | null] | string | null
 
 export type ColumnSearchProps<T> = {
     dataFilter?: Team[] | ResultAnalytics[];
-    saveAnalyticsRange: SaveAnalyticsRange;
     selectedKeysData?: Key[];
     setSelectedKeysData: SetState<Key[]>;
     data: any;

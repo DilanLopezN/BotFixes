@@ -41,7 +41,6 @@ const DividerStyle = styled(Divider)`
 
 export const useGetColumnSearchProps = <T extends ResultAnalytics>({
     dataFilter = [],
-    saveAnalyticsRange,
     selectedKeysData = [],
     setSelectedKeysData,
     data,
@@ -148,8 +147,7 @@ export const useGetColumnSearchProps = <T extends ResultAnalytics>({
                         <Button
                             className='ant-btn-primary-color'
                             type='primary'
-                            onClick={async () => {
-                                await saveAnalyticsRange('selectedKeysData', selectedKeys);
+                            onClick={() => {
                                 setSelectedKeysData(selectedKeys);
                                 confirm();
                             }}

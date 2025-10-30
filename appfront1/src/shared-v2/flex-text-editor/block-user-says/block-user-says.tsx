@@ -383,9 +383,9 @@ const BlockDecorator: FC<DraftDecoratorsBlockProps> = ({
                                 htmlType='submit'
                                 onClick={async () => {
                                     try {
-                                        await form.validateFields(['value', 'type']);
+                                        const values = await form.validateFields(['value', 'type', 'mandatory']);
+                                        onChangeVariableBlock(values, props.start, props.end);
                                         setOpen(false);
-                                        onChangeVariableBlock(iPart, props.start, props.end);
                                         setOpenEditVariable(false);
                                     } catch (error) {}
                                 }}

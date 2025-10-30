@@ -6,8 +6,11 @@ import { FC, useEffect, useRef, useState } from 'react';
 import { TiThMenu } from 'react-icons/ti';
 import { useSelector } from 'react-redux';
 import styled from 'styled-components';
+import * as XLSX from 'xlsx';
+import { v2ResponseModel } from '../../../../../../../../interfaces/v2-response-model';
 import { ChannelConfig } from '../../../../../../../../model/Bot';
 import { Team } from '../../../../../../../../model/Team';
+import { Workspace } from '../../../../../../../../model/Workspace';
 import { ModalConfirm } from '../../../../../../../../shared/ModalConfirm/ModalConfirm';
 import { Wrapper } from '../../../../../../../../ui-kissbot-v2/common';
 import { convertChannelName } from '../../../../../../../../utils/ConvertChannelName';
@@ -15,6 +18,7 @@ import { GraphicConvertName } from '../../../../../../../../utils/GraphicConvert
 import i18n from '../../../../../../../i18n/components/i18n';
 import { I18nProps } from '../../../../../../../i18n/interface/i18n.interface';
 import { Tag } from '../../../../../../../liveAgent/components/TagSelector/props';
+import { ConversationObjective } from '../../../../../../../liveAgent/interfaces/conversation-objective';
 import { DashboardService } from '../../../../../../services/DashboardService';
 import { ConversationFilterIntervalsGraphics } from '../../../../../ConversationFilter';
 import { ConversationFilterInterface } from '../../../../../ConversationFilter/props';
@@ -27,11 +31,8 @@ import {
 import { filterTagSystemAnalytics } from '../../../../utils/filterTagSystemAnalytics';
 import { handleCsvAgroupedDownloadTable, handleCsvDownloadTable } from '../../../../utils/handleCsvDownload';
 import { PeriodFilterInterface } from '../../../GraphicsWrapper';
-import { formatDurationValue } from '../format-utils/format-duration-value';
 import { durationMetrics } from '../../duration-metrics';
-import { v2ResponseModel } from '../../../../../../../../interfaces/v2-response-model';
-import { ConversationObjective } from '../../../../../../../liveAgent/interfaces/conversation-objective';
-import { Workspace } from '../../../../../../../../model/Workspace';
+import { formatDurationValue } from '../format-utils/format-duration-value';
 
 const MenuIcon = styled(TiThMenu)`
     cursor: pointer;
@@ -84,6 +85,57 @@ interface Props {
     conversationOutcomes: v2ResponseModel<ConversationObjective[]> | undefined;
     conversationObjectives: v2ResponseModel<ConversationObjective[]> | undefined;
 }
+
+const handleXlsxDownloadTable = (
+    template: ConversationTemplate,
+    columns: ColumnData[],
+    dataSource: ColumnDataSource[]
+) => {
+    const headers = columns.map((col) => col.title);
+
+    const excelData = dataSource.map((row) => {
+        return columns.map((col) => {
+            const value = row[col.dataIndex];
+
+            if (typeof value === 'string') {
+                // Se contém ":" ou "d " (indica duração formatada), manter como string
+                if (value.includes(':') || value.includes('d ') || value === '-') {
+                    return value === '-' ? '' : value;
+                }
+
+                // Para valores puramente numéricos (sem formatação especial)
+                const numValue = Number(value);
+                if (!isNaN(numValue) && value.match(/^\d+(\.\d+)?$/)) {
+                    return numValue;
+                }
+
+                return value;
+            }
+
+            if (typeof value === 'number') {
+                return value;
+            }
+
+            return value === '-' ? '' : value;
+        });
+    });
+
+    const worksheetData = [headers, ...excelData];
+
+    const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
+
+    const columnWidths = headers.map((header) => ({ wch: Math.max(header.length, 15) }));
+    worksheet['!cols'] = columnWidths;
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Analytics Data');
+
+    const fileName = `${template.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_${
+        new Date().toISOString().split('T')[0]
+    }.xlsx`;
+
+    XLSX.writeFile(workbook, fileName);
+};
 
 const GraphicTable: FC<Props & I18nProps> = ({
     getTranslation,
@@ -384,12 +436,18 @@ const GraphicTable: FC<Props & I18nProps> = ({
         },
         {
             key: '4',
+            label: getTranslation('Download XLSX'),
+            onClick: () => columns && handleXlsxDownloadTable(template, columns, dataSource),
+            style: { fontSize: '12px' },
+        },
+        {
+            key: '5',
             label: getTranslation('Bundled CSV download'),
             onClick: () => handleCsvAgroupedDownloadTable(template, columns, dataSource),
             style: { fontSize: '12px' },
         },
         {
-            key: '5',
+            key: '6',
             label: getTranslation('Delete chart'),
             onClick: () => setDeleteTemplate(true),
             style: { fontSize: '12px' },

@@ -18,6 +18,7 @@ export interface ScheduleSetting {
     enableSendRetry?: boolean;
     enableResendNotAnswered?: boolean;
     omitAppointmentTypeName?: boolean;
+    omitDoctorName?: boolean;
     omitExtractGuidance?: boolean;
     fridayJoinWeekendMonday?: boolean;
     useIsFirstComeFirstServedAsTime?: boolean;
@@ -42,6 +43,7 @@ export interface CreateScheduleSetting {
     enableSendRetry?: boolean;
     enableResendNotAnswered?: boolean;
     omitAppointmentTypeName?: boolean;
+    omitDoctorName?: boolean;
     omitExtractGuidance?: boolean;
     fridayJoinWeekendMonday?: boolean;
     useIsFirstComeFirstServedAsTime?: boolean;

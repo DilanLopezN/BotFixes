@@ -5,6 +5,7 @@ import { addNotification } from '../../../../../../utils/AddNotification';
 import { Constants } from '../../../../../../utils/Constants';
 import { formatDuration } from '../../../../../../utils/formatDuration';
 import { useLanguageContext } from '../../../../../i18n/context';
+import { DashboardService } from '../../../../services/DashboardService';
 import { DurationRangeFilter } from '../../../../utils/duration-range-filter';
 import { getBackgroundColor } from '../../../../utils/get-bg-color/get-bg-color';
 import { IntegerRangeFilter } from '../../../../utils/integer-range-filter';
@@ -44,61 +45,24 @@ export const PatientTable = forwardRef<PatientTableRef, PatientTableProps>(({ fi
             return;
         }
 
-        const columnCsv = [
-            getTranslation('Agent'),
-            getTranslation('Average patient response time'),
-            getTranslation('Average agent response time'),
-            getTranslation('Agents (assumed)'),
-            getTranslation('Active TME'),
-            getTranslation('TME 1st response'),
-            getTranslation('TMA'),
-            getTranslation('Services completed'),
-        ].map((title) => `"${title}"`);
+        try {
+            const reportFilter = {
+                query: {
+                    ...filters,
+                    workspaceId: selectedWorkspace._id,
+                },
+                downloadType: downloadType,
+            };
 
-        const columnKeys = [
-            'member_name',
-            'timeUserReplyAvg',
-            'timeAgentReplyAvg',
-            'count',
-            'awaitingWorkingTime',
-            'timeAgentFirstReplyAvg',
-            'timeToCloseAvg',
-            'memberFinished',
-        ];
-
-        let content = `,${columnCsv}`;
-        content += conversationAnalytics.reduce((content, item) => {
-            const row = columnKeys.reduce((prev, key) => {
-                let value = item[key];
-
-                if (
-                    [
-                        'timeUserReplyAvg',
-                        'timeAgentReplyAvg',
-                        'awaitingWorkingTime',
-                        'timeAgentFirstReplyAvg',
-                        'timeToCloseAvg',
-                    ].includes(key)
-                ) {
-                    value = !isNotClosed ? formatDuration(value) : '00';
-                } else if (['count', 'memberFinished'].includes(key)) {
-                    value = !isNotClosed ? value : '00';
-                }
-
-                return `${prev},"${value === undefined ? '0' : value}"`;
-            }, '');
-            return `${content}\r\n${row}`;
-        }, '');
-
-        const linkElement = document.createElement('a');
-        linkElement.download = `desempenho-agentes.csv`;
-        linkElement.href = `data:text/csv;content-disposition:attachment;base64,${btoa(
-            unescape(encodeURIComponent(content))
-        )}`;
-
-        document.body.appendChild(linkElement);
-        linkElement.click();
-        linkElement.remove();
+            await DashboardService.getConversationsAnalyticsReport(reportFilter);
+        } catch (error) {
+            addNotification({
+                type: 'danger',
+                duration: 5000,
+                title: getTranslation('Error'),
+                message: getTranslation('Error downloading report'),
+            });
+        }
     };
 
     useImperativeHandle(ref, () => ({
@@ -159,10 +123,8 @@ export const PatientTable = forwardRef<PatientTableRef, PatientTableProps>(({ fi
             },
             filterDropdown: (props) => (
                 <DurationRangeFilter
-                    removeFilterFromLocalStorage={removeAnalyticsRange}
                     dataIndex={'timeUserReplyAvg'}
                     initialFilters={initialFilters}
-                    saveLocalFilter={saveAnalyticsRange}
                     {...props}
                     setFilterValues={(min, max) => handleSetFilterValues('timeUserReplyAvg', min, max)}
                 />
@@ -199,10 +161,8 @@ export const PatientTable = forwardRef<PatientTableRef, PatientTableProps>(({ fi
             },
             filterDropdown: (props) => (
                 <DurationRangeFilter
-                    removeFilterFromLocalStorage={removeAnalyticsRange}
                     dataIndex={'timeAgentReplyAvg'}
                     initialFilters={initialFilters}
-                    saveLocalFilter={saveAnalyticsRange}
                     {...props}
                     setFilterValues={(min, max) => handleSetFilterValues('timeAgentReplyAvg', min, max)}
                 />
@@ -235,10 +195,8 @@ export const PatientTable = forwardRef<PatientTableRef, PatientTableProps>(({ fi
             },
             filterDropdown: (props) => (
                 <IntegerRangeFilter
-                    removeFilterFromLocalStorage={removeAnalyticsRange}
                     dataIndex={'count'}
                     initialFilters={initialFilters}
-                    saveLocalFilter={saveAnalyticsRange}
                     {...props}
                     setFilterValues={(min, max) => handleSetFilterValues('count', min, max)}
                 />
@@ -275,10 +233,8 @@ export const PatientTable = forwardRef<PatientTableRef, PatientTableProps>(({ fi
             },
             filterDropdown: (props) => (
                 <DurationRangeFilter
-                    removeFilterFromLocalStorage={removeAnalyticsRange}
                     dataIndex={'awaitingWorkingTime'}
                     initialFilters={initialFilters}
-                    saveLocalFilter={saveAnalyticsRange}
                     {...props}
                     setFilterValues={(min, max) => handleSetFilterValues('awaitingWorkingTime', min, max)}
                 />
@@ -317,10 +273,8 @@ export const PatientTable = forwardRef<PatientTableRef, PatientTableProps>(({ fi
             },
             filterDropdown: (props) => (
                 <DurationRangeFilter
-                    removeFilterFromLocalStorage={removeAnalyticsRange}
                     dataIndex={'timeAgentFirstReplyAvg'}
                     initialFilters={initialFilters}
-                    saveLocalFilter={saveAnalyticsRange}
                     {...props}
                     setFilterValues={(min, max) => handleSetFilterValues('timeAgentFirstReplyAvg', min, max)}
                 />
@@ -358,10 +312,8 @@ export const PatientTable = forwardRef<PatientTableRef, PatientTableProps>(({ fi
             },
             filterDropdown: (props) => (
                 <DurationRangeFilter
-                    removeFilterFromLocalStorage={removeAnalyticsRange}
                     dataIndex={'timeToCloseAvg'}
                     initialFilters={initialFilters}
-                    saveLocalFilter={saveAnalyticsRange}
                     {...props}
                     setFilterValues={(min, max) => handleSetFilterValues('timeToCloseAvg', min, max)}
                 />
@@ -399,10 +351,8 @@ export const PatientTable = forwardRef<PatientTableRef, PatientTableProps>(({ fi
             },
             filterDropdown: (props) => (
                 <IntegerRangeFilter
-                    removeFilterFromLocalStorage={removeAnalyticsRange}
                     dataIndex={'memberFinished'}
                     initialFilters={initialFilters}
-                    saveLocalFilter={saveAnalyticsRange}
                     {...props}
                     setFilterValues={(min, max) => handleSetFilterValues('memberFinished', min, max)}
                 />

@@ -2,11 +2,11 @@ import { CopyOutlined, EyeOutlined, MoreOutlined } from '@ant-design/icons';
 import { PivotTableUI } from '@imc-trading/react-pivottable';
 import '@imc-trading/react-pivottable/pivottable.css';
 import { Button, Modal, Popover, Space, Typography } from 'antd';
-import { isEmpty, pick } from 'lodash';
-import { FC, useEffect, useMemo, useRef, useState } from 'react';
+import { isEmpty, isEqual, pick } from 'lodash';
+import { FC, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { useSelector } from 'react-redux';
-import { PivottableProps } from './props';
+import { PivotConfig, PivottableProps } from './props';
 import { Container } from './styles';
 
 const Pivottable: FC<PivottableProps> = ({
@@ -22,19 +22,74 @@ const Pivottable: FC<PivottableProps> = ({
         visible: false,
     });
     const loggedUser = useSelector((state: any) => state.loginReducer?.loggedUser);
+    const sanitizeConfig = useCallback(
+        (config: PivotConfig): PivotConfig => {
+            const rows = config.rows ?? [];
+            const cols = config.cols ?? [];
+            const vals = config.vals ?? [];
+            const activeFields = new Set<string>([...rows, ...cols, ...vals]);
+            const originalValueFilter = config.valueFilter ?? {};
+
+            const sanitizedFilter = Object.entries(originalValueFilter).reduce<Record<string, Record<string, boolean>>>(
+                (acc, [field, values]) => {
+                    if (!activeFields.has(field)) {
+                        return acc;
+                    }
+
+                    const truthyValues = Object.entries(values ?? {}).reduce<Record<string, boolean>>(
+                        (valueAcc, [value, shouldExclude]) => {
+                            if (shouldExclude) {
+                                valueAcc[value] = true;
+                            }
+                            return valueAcc;
+                        },
+                        {}
+                    );
+
+                    if (Object.keys(truthyValues).length > 0) {
+                        acc[field] = truthyValues;
+                    }
+
+                    return acc;
+                },
+                {}
+            );
+
+            if (isEqual(originalValueFilter, sanitizedFilter)) {
+                return config;
+            }
+
+            return {
+                ...config,
+                valueFilter: sanitizedFilter,
+            };
+        },
+        []
+    );
+
     const filteredConfigState = useMemo(() => {
         if (!initialConfigState) return undefined;
 
-        return {
+        const cols = !isEmpty(data)
+            ? initialConfigState.cols?.filter((col) => data && data[0].some((content) => content === col))
+            : [];
+        const rows = !isEmpty(data)
+            ? initialConfigState.rows?.filter((row) => data && data[0].some((content) => content === row))
+            : [];
+
+        return sanitizeConfig({
             ...initialConfigState,
-            cols: !isEmpty(data)
-                ? initialConfigState.cols?.filter((col) => data && data[0].some((content) => content === col))
-                : [],
-            rows: !isEmpty(data)
-                ? initialConfigState.rows?.filter((row) => data && data[0].some((content) => content === row))
-                : [],
-        };
-    }, [data, initialConfigState]);
+            cols,
+            rows,
+        });
+    }, [data, initialConfigState, sanitizeConfig]);
+
+    const handleConfigChange = useCallback(
+        (config: PivotConfig) => {
+            setInitialConfigState(sanitizeConfig(config));
+        },
+        [sanitizeConfig, setInitialConfigState]
+    );
 
     useEffect(() => {
         try {
@@ -73,7 +128,7 @@ const Pivottable: FC<PivottableProps> = ({
 
             if (configParams) {
                 const decryptedParams = JSON.parse(window.atob(configParams));
-                setInitialConfigState(decryptedParams);
+                setInitialConfigState(sanitizeConfig(decryptedParams));
             }
 
             if (filtersParams) {
@@ -83,7 +138,7 @@ const Pivottable: FC<PivottableProps> = ({
         } catch (error) {
             console.error('error on decrypt url params', error);
         }
-    }, [setFilter, setInitialConfigState]);
+    }, [sanitizeConfig, setFilter, setInitialConfigState]);
 
     useEffect(() => {
         if (!initialConfigState || !onChangeConfig) return;
@@ -98,12 +153,15 @@ const Pivottable: FC<PivottableProps> = ({
             const cells = el.querySelectorAll('td, th.pvtRowLabel, th.pvtColLabel');
             cells.forEach((cell) => {
                 const htmlEl = cell as HTMLElement;
-                if (htmlEl.dataset.linkEnhanced === 'true') return;
                 const text = (htmlEl.textContent || '').trim();
                 if (!/^https?:\/\//.test(text)) return;
+                if (htmlEl.dataset.linkEnhanced === 'true' && htmlEl.querySelector('[data-conversation-actions]')) {
+                    return;
+                }
 
                 const url = text;
                 const mount = document.createElement('div');
+                mount.dataset.conversationActions = 'true';
                 htmlEl.textContent = '';
                 htmlEl.appendChild(mount);
                 const root = createRoot(mount);
@@ -178,7 +236,7 @@ const Pivottable: FC<PivottableProps> = ({
     return (
         <Container>
             <div ref={containerRef}>
-                <PivotTableUI {...filteredConfigState} data={data} onChange={setInitialConfigState} />
+                <PivotTableUI {...filteredConfigState} data={data} onChange={handleConfigChange} />
             </div>
             <Modal
                 title='Visualização da conversa'

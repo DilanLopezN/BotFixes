@@ -1,4 +1,3 @@
-import { MenuPlacement } from 'react-select';
 import { Interaction } from '../../../model/Interaction';
 
 export interface InteractionSelectProps {
@@ -11,7 +10,7 @@ export interface InteractionSelectProps {
     interactionTypeToShow?: string[];
     name?: string;
     style?: any;
-    placement?: MenuPlacement;
+    placement?: any;
 }
 
 export interface InteractionSelectState {

@@ -140,13 +140,28 @@ const AgentDetailsDrawer: FC<AgentDetailsDrawerProps> = ({
                                 <strong style={{ color: '#1890ff' }}>{getTranslation('Tipo')}:</strong>
                             </div>
                             <div style={{ marginTop: 4, fontSize: '14px', marginLeft: 24 }}>
-                                <Tag color={
-                                    selectedAgent.agentType === AgentType.REPORT_PROCESSOR_DETECTION ? 'blue' :
-                                    selectedAgent.agentType === AgentType.RAG ? 'green' : 'orange'
-                                }>
-                                    {selectedAgent.agentType === AgentType.REPORT_PROCESSOR_DETECTION ? 'Leitor de pedido médico' :
-                                    selectedAgent.agentType === AgentType.RAG ? 'RAG' : 'Detecção de Entidades'}
-                                </Tag>
+                                {(() => {
+                                    const typeColors = {
+                                        [AgentType.REPORT_PROCESSOR_DETECTION]: 'blue',
+                                        [AgentType.RAG]: 'green',
+                                        [AgentType.ENTITIES_DETECTION]: 'orange',
+                                        [AgentType.CONVERSATIONAL]: 'purple',
+                                    };
+                                    const typeLabels = {
+                                        [AgentType.REPORT_PROCESSOR_DETECTION]: 'Leitor de pedido médico',
+                                        [AgentType.RAG]: 'RAG',
+                                        [AgentType.ENTITIES_DETECTION]: 'Detecção de Entidades',
+                                        [AgentType.CONVERSATIONAL]: 'Conversacional',
+                                    };
+                                    const typeColor = typeColors[selectedAgent.agentType] || 'blue';
+                                    const typeLabel = typeLabels[selectedAgent.agentType] || selectedAgent.agentType;
+
+                                    return (
+                                        <Tag color={typeColor}>
+                                            {typeLabel}
+                                        </Tag>
+                                    );
+                                })()}
                             </div>
                         </div>
                     )}

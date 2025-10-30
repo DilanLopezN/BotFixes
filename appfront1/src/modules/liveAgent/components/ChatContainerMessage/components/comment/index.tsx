@@ -10,7 +10,7 @@ import { Wrapper } from '../../../../../../ui-kissbot-v2/common';
 import i18n from '../../../../../i18n/components/i18n';
 import { I18nProps } from '../../../../../i18n/interface/i18n.interface';
 import { Activity } from '../../../../interfaces/activity.interface';
-import { AttachmentService } from '../../../../service/Atttachment.service';
+import { AttachmentService, validateWhatsappFile } from '../../../../service/Atttachment.service';
 import EmojiSelector from '../../../EmojiSelector';
 import { EmoticonIcon, FileIcon, SendIcon, TextareaContainer } from '../../styled';
 import TextAreaAutoSize from '../../textarea-auto-size';
@@ -120,9 +120,15 @@ const TextareaComment: FC<TextareaCommentProps & I18nProps> = ({
     const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (file) {
-            const maxSize = 10 * 1024 * 1024;
-            if (file.size > maxSize) {
-                setFileError(getTranslation('File size exceeds 10MB limit'));
+            const validation = validateWhatsappFile(file);
+
+            if (!validation.isValid) {
+                setFileError(getTranslation(validation.error));
+
+                if (fileInputRef.current) {
+                    fileInputRef.current.value = '';
+                }
+
                 setTimeout(() => {
                     setFileError(null);
                 }, 3000);

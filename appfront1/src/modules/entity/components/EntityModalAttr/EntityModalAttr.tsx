@@ -98,7 +98,8 @@ class EntityModalAttrClass extends Component<EntityModalAttrProps, EntityModalAt
                                                                         isSubmitted: submitCount > 0
                                                                     }}
                                                                 >
-                                                                    <EntitySelect
+                                                                    <EntitySelect 
+                                                                        value={values.attributes[index].type || ''}
                                                                         onChange={handleChange}
                                                                         fieldName={`attributes[${index}].type`}
                                                                     />

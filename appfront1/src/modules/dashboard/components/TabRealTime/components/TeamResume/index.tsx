@@ -1,9 +1,9 @@
 import { Col, Row, Table, Tooltip } from 'antd';
 import { ColumnType } from 'antd/es/table';
+import { isEmpty } from 'lodash';
 import * as moment from 'moment';
 import momentDurationFormatSetup from 'moment-duration-format';
 import { FC, Key, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Constants } from '../../../../../../utils/Constants';
 import { formatDuration } from '../../../../../../utils/formatDuration';
 import i18n from '../../../../../i18n/components/i18n';
 import { I18nProps } from '../../../../../i18n/interface/i18n.interface';
@@ -11,38 +11,80 @@ import { DashboardService } from '../../../../services/DashboardService';
 import { DurationRangeFilter } from '../../../../utils/duration-range-filter';
 import { getBackgroundColor } from '../../../../utils/get-bg-color/get-bg-color';
 import { IntegerRangeFilter } from '../../../../utils/integer-range-filter';
-import { useAnalyticsRanges } from '../../../../utils/use-analytics-ranges';
-import { useRangeFilter } from '../../../../utils/use-range-filter';
 import { TeamsAnalytics } from '../../props';
 import '../../style.scss';
 import { useGetColumnSearchProps } from '../use-get-column-search';
 import { FilterValuesTeamResume, TeamResumeProps } from './interfaces';
-import { isEmpty } from 'lodash';
 
-const TeamResume: FC<TeamResumeProps & I18nProps> = ({ getTranslation, selectedWorkspace, teams, expanded }) => {
-    const { saveAnalyticsRange, initialAnalyticsRanges, removeAnalyticsRange } = useAnalyticsRanges(
-        Constants.LOCAL_STORAGE_MAP.DASHBOARD_REAL_TIME_TEAMS,
-        selectedWorkspace
-    );
-    const initialFilters = useMemo(
-        () =>
-            initialAnalyticsRanges || {
-                countForService: [null, null],
-                waitingAverageTime: [null, null],
-                countInAttendance: [null, null],
-                attendanceAverageTime: [null, null],
-                countClosedAttendance: [null, null],
-                selectedKeysData: [],
-            },
-        [initialAnalyticsRanges]
-    );
+const initialFiltersState = {
+    countForService: [null, null],
+    waitingAverageTime: [null, null],
+    countInAttendance: [null, null],
+    attendanceAverageTime: [null, null],
+    countClosedAttendance: [null, null],
+    selectedKeysData: [],
+};
 
+const TeamResume: FC<TeamResumeProps & I18nProps> = ({
+    getTranslation,
+    selectedWorkspace,
+    teams,
+    expanded,
+    onResetFilters,
+}) => {
     const [loading, setLoading] = useState(true);
     const timeoutRef: any = useRef(null);
     const [data, setData] = useState<TeamsAnalytics[]>([]);
     const [selectedKeysData, setSelectedKeysData] = useState<Key[]>([]);
+    const [filters, setFilters] = useState<FilterValuesTeamResume>(initialFiltersState);
 
-    const { handleSetFilterValues } = useRangeFilter<FilterValuesTeamResume>(initialFilters);
+    const handleSetFilterValues = useCallback(
+        (key: keyof FilterValuesTeamResume, min: number | null, max: number | null) => {
+            setFilters((prev) => ({
+                ...prev,
+                [key]: [min, max],
+            }));
+        },
+        []
+    );
+
+    const isFilterActive = useCallback((filterValue: [any, any] | null | undefined) => {
+        if (!filterValue) return false;
+        const [min, max] = filterValue;
+        // Um filtro está ativo se pelo menos um dos valores não é null
+        return min !== null || max !== null;
+    }, []);
+
+    const resetFilters = useCallback(() => {
+        setFilters(initialFiltersState);
+        setSelectedKeysData([]);
+    }, []);
+
+    const getFilters = useCallback(() => {
+        return { filters, selectedKeysData };
+    }, [filters, selectedKeysData]);
+
+    const loadFilters = useCallback((savedFilters: any) => {
+        if (savedFilters.filters) {
+            setFilters(savedFilters.filters);
+        }
+        if (savedFilters.selectedKeysData) {
+            setSelectedKeysData(savedFilters.selectedKeysData);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (onResetFilters) {
+            (window as any).__resetTeamResumeFilters = resetFilters;
+            (window as any).__getTeamResumeFilters = getFilters;
+            (window as any).__loadTeamResumeFilters = loadFilters;
+        }
+        return () => {
+            delete (window as any).__resetTeamResumeFilters;
+            delete (window as any).__getTeamResumeFilters;
+            delete (window as any).__loadTeamResumeFilters;
+        };
+    }, [onResetFilters, resetFilters, getFilters, loadFilters]);
 
     const filteredData = useMemo(() => {
         if (!selectedKeysData || isEmpty(selectedKeysData)) {
@@ -162,15 +204,8 @@ const TeamResume: FC<TeamResumeProps & I18nProps> = ({ getTranslation, selectedW
         }, 2000);
     }, [loading]);
 
-    useEffect(() => {
-        if (initialAnalyticsRanges?.selectedKeysData) {
-            setSelectedKeysData(initialAnalyticsRanges.selectedKeysData);
-        }
-    }, [initialAnalyticsRanges]);
-
     const searchProps = useGetColumnSearchProps<TeamsAnalytics>({
         dataFilter: teams,
-        saveAnalyticsRange,
         selectedKeysData,
         setSelectedKeysData,
         data,
@@ -207,14 +242,14 @@ const TeamResume: FC<TeamResumeProps & I18nProps> = ({ getTranslation, selectedW
                 width: '15%',
                 sorter: (a, b) => a.countForService - b.countForService,
                 sortDirections: ['descend', 'ascend', 'descend'],
-                filtered: initialFilters?.countForService?.some((val) => val !== null),
-                filteredValue: initialFilters?.countForService,
+                filtered: isFilterActive(filters?.countForService),
+                filteredValue: (isFilterActive(filters?.countForService) ? filters.countForService : null) as any,
                 render: (text) => {
                     const value = text || 0;
                     const backgroundColor = getBackgroundColor(
                         'countForService',
                         value,
-                        initialFilters,
+                        filters,
                         'integer-range-filter'
                     );
                     return {
@@ -230,10 +265,8 @@ const TeamResume: FC<TeamResumeProps & I18nProps> = ({ getTranslation, selectedW
 
                 filterDropdown: (props) => (
                     <IntegerRangeFilter
-                        removeFilterFromLocalStorage={removeAnalyticsRange}
                         dataIndex={'countForService'}
-                        initialFilters={initialFilters}
-                        saveLocalFilter={saveAnalyticsRange}
+                        initialFilters={filters}
                         {...props}
                         setFilterValues={(min, max) => handleSetFilterValues('countForService', min, max)}
                     />
@@ -254,15 +287,15 @@ const TeamResume: FC<TeamResumeProps & I18nProps> = ({ getTranslation, selectedW
                 width: '15%',
                 sorter: (a, b) => a.waitingAverageTime - b.waitingAverageTime,
                 sortDirections: ['descend', 'ascend', 'descend'],
-                filtered: initialFilters?.waitingAverageTime?.some((val) => val !== null),
-                filteredValue: initialFilters?.waitingAverageTime,
+                filtered: isFilterActive(filters?.waitingAverageTime),
+                filteredValue: (isFilterActive(filters?.waitingAverageTime) ? filters.waitingAverageTime : null) as any,
                 render: (text) => {
                     const data = formatDuration(text);
                     const value = text !== null ? Number(text) : 0;
                     const backgroundColor = getBackgroundColor(
                         'waitingAverageTime',
                         value,
-                        initialFilters,
+                        filters,
                         'duration-range-filter'
                     );
                     return {
@@ -277,10 +310,8 @@ const TeamResume: FC<TeamResumeProps & I18nProps> = ({ getTranslation, selectedW
                 },
                 filterDropdown: (props) => (
                     <DurationRangeFilter
-                        removeFilterFromLocalStorage={removeAnalyticsRange}
                         dataIndex={'waitingAverageTime'}
-                        initialFilters={initialFilters}
-                        saveLocalFilter={saveAnalyticsRange}
+                        initialFilters={filters}
                         {...props}
                         setFilterValues={(min, max) => handleSetFilterValues('waitingAverageTime', min, max)}
                     />
@@ -299,14 +330,14 @@ const TeamResume: FC<TeamResumeProps & I18nProps> = ({ getTranslation, selectedW
                 width: '15%',
                 sorter: (a, b) => a.countInAttendance - b.countInAttendance,
                 sortDirections: ['descend', 'ascend', 'descend'],
-                filtered: initialFilters?.countInAttendance?.some((val) => val !== null),
-                filteredValue: initialFilters?.countInAttendance,
+                filtered: isFilterActive(filters?.countInAttendance),
+                filteredValue: (isFilterActive(filters?.countInAttendance) ? filters.countInAttendance : null) as any,
                 render: (text) => {
                     const value = text || 0;
                     const backgroundColor = getBackgroundColor(
                         'countInAttendance',
                         value,
-                        initialFilters,
+                        filters,
                         'integer-range-filter'
                     );
                     return {
@@ -321,10 +352,8 @@ const TeamResume: FC<TeamResumeProps & I18nProps> = ({ getTranslation, selectedW
                 },
                 filterDropdown: (props) => (
                     <IntegerRangeFilter
-                        removeFilterFromLocalStorage={removeAnalyticsRange}
                         dataIndex={'countInAttendance'}
-                        initialFilters={initialFilters}
-                        saveLocalFilter={saveAnalyticsRange}
+                        initialFilters={filters}
                         {...props}
                         setFilterValues={(min, max) => handleSetFilterValues('countInAttendance', min, max)}
                     />
@@ -345,15 +374,15 @@ const TeamResume: FC<TeamResumeProps & I18nProps> = ({ getTranslation, selectedW
                 width: '15%',
                 sorter: (a, b) => a.attendanceAverageTime - b.attendanceAverageTime,
                 sortDirections: ['descend', 'ascend', 'descend'],
-                filtered: initialFilters?.attendanceAverageTime?.some((val) => val !== null),
-                filteredValue: initialFilters?.attendanceAverageTime,
+                filtered: isFilterActive(filters?.attendanceAverageTime),
+                filteredValue: (isFilterActive(filters?.attendanceAverageTime) ? filters.attendanceAverageTime : null) as any,
                 render: (text) => {
                     const data = formatDuration(text);
                     const value = text !== null ? Number(text) : 0;
                     const backgroundColor = getBackgroundColor(
                         'attendanceAverageTime',
                         value,
-                        initialFilters,
+                        filters,
                         'duration-range-filter'
                     );
                     return {
@@ -368,10 +397,8 @@ const TeamResume: FC<TeamResumeProps & I18nProps> = ({ getTranslation, selectedW
                 },
                 filterDropdown: (props) => (
                     <DurationRangeFilter
-                        removeFilterFromLocalStorage={removeAnalyticsRange}
                         dataIndex={'attendanceAverageTime'}
-                        initialFilters={initialFilters}
-                        saveLocalFilter={saveAnalyticsRange}
+                        initialFilters={filters}
                         {...props}
                         setFilterValues={(min, max) => handleSetFilterValues('attendanceAverageTime', min, max)}
                     />
@@ -388,14 +415,14 @@ const TeamResume: FC<TeamResumeProps & I18nProps> = ({ getTranslation, selectedW
                 width: '15%',
                 sorter: (a, b) => (a.countClosedAttendance || 0) - (b.countClosedAttendance || 0),
                 sortDirections: ['descend', 'ascend', 'descend'],
-                filtered: initialFilters?.countClosedAttendance?.some((val) => val !== null),
-                filteredValue: initialFilters?.countClosedAttendance,
+                filtered: isFilterActive(filters?.countClosedAttendance),
+                filteredValue: (isFilterActive(filters?.countClosedAttendance) ? filters.countClosedAttendance : null) as any,
                 render: (text) => {
                     const value = text || 0;
                     const backgroundColor = getBackgroundColor(
                         'countClosedAttendance',
                         value,
-                        initialFilters,
+                        filters,
                         'integer-range-filter'
                     );
                     return {
@@ -410,25 +437,15 @@ const TeamResume: FC<TeamResumeProps & I18nProps> = ({ getTranslation, selectedW
                 },
                 filterDropdown: (props) => (
                     <IntegerRangeFilter
-                        removeFilterFromLocalStorage={removeAnalyticsRange}
                         dataIndex={'countClosedAttendance'}
-                        initialFilters={initialFilters}
-                        saveLocalFilter={saveAnalyticsRange}
+                        initialFilters={filters}
                         {...props}
                         setFilterValues={(min, max) => handleSetFilterValues('countClosedAttendance', min, max)}
                     />
                 ),
             },
         ],
-        [
-            getTranslation,
-            selectedKeysData,
-            searchProps,
-            initialFilters,
-            removeAnalyticsRange,
-            saveAnalyticsRange,
-            handleSetFilterValues,
-        ]
+        [getTranslation, selectedKeysData, searchProps, filters, handleSetFilterValues, isFilterActive]
     );
 
     return (

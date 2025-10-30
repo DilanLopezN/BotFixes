@@ -47,6 +47,7 @@ export const defaultConfirmationSetting: ConfirmationSettingFormDto = {
         enableResendNotAnswered: false,
         sendOnlyPrincipalExam: false,
         omitAppointmentTypeName: false,
+        omitDoctorName: false,
         omitExtractGuidance: false,
         fridayJoinWeekendMonday: false,
         useIsFirstComeFirstServedAsTime: false,
@@ -180,6 +181,7 @@ const ConfirmationSettingForm: FC<ConfirmationSettingFormProps & I18nProps> = (p
                     enableSendRetry: values.schedule.enableSendRetry,
                     enableResendNotAnswered: values.schedule.enableResendNotAnswered,
                     omitAppointmentTypeName: values.schedule.omitAppointmentTypeName,
+                    omitDoctorName: values.schedule.omitDoctorName,
                     omitExtractGuidance: values.schedule.omitExtractGuidance,
                     fridayJoinWeekendMonday: values.schedule.fridayJoinWeekendMonday,
                     useIsFirstComeFirstServedAsTime: values.schedule.useIsFirstComeFirstServedAsTime,
@@ -291,6 +293,7 @@ const ConfirmationSettingForm: FC<ConfirmationSettingFormProps & I18nProps> = (p
                     enableSendRetry: values.schedule.enableSendRetry,
                     enableResendNotAnswered: values.schedule.enableResendNotAnswered,
                     omitAppointmentTypeName: values.schedule.omitAppointmentTypeName,
+                    omitDoctorName: values.schedule.omitDoctorName,
                     omitExtractGuidance: values.schedule.omitExtractGuidance,
                     fridayJoinWeekendMonday: values.schedule.fridayJoinWeekendMonday,
                     useIsFirstComeFirstServedAsTime: values.schedule.useIsFirstComeFirstServedAsTime,
@@ -383,6 +386,7 @@ const ConfirmationSettingForm: FC<ConfirmationSettingFormProps & I18nProps> = (p
                     enableSendRetry: response.enableSendRetry,
                     enableResendNotAnswered: response.enableResendNotAnswered,
                     omitAppointmentTypeName: response.omitAppointmentTypeName,
+                    omitDoctorName: response.omitDoctorName,
                     omitExtractGuidance: response.omitExtractGuidance,
                     fridayJoinWeekendMonday: response.fridayJoinWeekendMonday,
                     useIsFirstComeFirstServedAsTime: response.useIsFirstComeFirstServedAsTime,
@@ -877,7 +881,7 @@ const ConfirmationSettingForm: FC<ConfirmationSettingFormProps & I18nProps> = (p
                                 />
 
                                 <Row style={{ alignItems: 'center' }} gutter={[16, 16]}>
-                                    <Col span={6}>
+                                    <Col span={5}>
                                         <LabelWrapper label=' '>
                                             <ToggleWrapper>
                                                 <Switch
@@ -895,7 +899,7 @@ const ConfirmationSettingForm: FC<ConfirmationSettingFormProps & I18nProps> = (p
                                             </ToggleWrapper>
                                         </LabelWrapper>
                                     </Col>
-                                    <Col span={6}>
+                                    <Col span={5}>
                                         <LabelWrapper label=' '>
                                             <ToggleWrapper>
                                                 <Switch
@@ -913,7 +917,7 @@ const ConfirmationSettingForm: FC<ConfirmationSettingFormProps & I18nProps> = (p
                                             </ToggleWrapper>
                                         </LabelWrapper>
                                     </Col>
-                                    <Col span={6}>
+                                    <Col span={5}>
                                         <LabelWrapper label=' '>
                                             <ToggleWrapper>
                                                 <Switch
@@ -931,7 +935,7 @@ const ConfirmationSettingForm: FC<ConfirmationSettingFormProps & I18nProps> = (p
                                             </ToggleWrapper>
                                         </LabelWrapper>
                                     </Col>
-                                    <Col span={6}>
+                                    <Col span={5}>
                                         <LabelWrapper label=' '>
                                             <ToggleWrapper>
                                                 <Switch
@@ -945,6 +949,24 @@ const ConfirmationSettingForm: FC<ConfirmationSettingFormProps & I18nProps> = (p
                                                 />
                                                 <Wrapper margin='0 0 0 15px'>
                                                     {getTranslation('Omit appointment type in description')}
+                                                </Wrapper>
+                                            </ToggleWrapper>
+                                        </LabelWrapper>
+                                    </Col>
+                                    <Col span={4}>
+                                        <LabelWrapper label=' '>
+                                            <ToggleWrapper>
+                                                <Switch
+                                                    checked={formik.values.schedule.omitDoctorName}
+                                                    onChange={() => {
+                                                        formik.setFieldValue(
+                                                            'schedule.omitDoctorName',
+                                                            !formik.values.schedule.omitDoctorName
+                                                        );
+                                                    }}
+                                                />
+                                                <Wrapper margin='0 0 0 15px'>
+                                                    {getTranslation('Omit doctor name in description')}
                                                 </Wrapper>
                                             </ToggleWrapper>
                                         </LabelWrapper>

@@ -23,6 +23,8 @@ export interface AppointmentFilterInterface {
     ommitFields?: boolean;
     downloadType?: typeDownloadEnum;
     timezone?: string;
+    pivotConfig?: string[];
+    pivotValueFilter?: Record<string, Record<string, boolean>>;
 }
 
 export interface FilterSelect {

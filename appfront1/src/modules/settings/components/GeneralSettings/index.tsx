@@ -5,6 +5,7 @@ import { AiOutlineSound } from 'react-icons/ai';
 import { connect, useSelector } from 'react-redux';
 import { withRouter } from 'react-router-dom';
 import { GeneralConfigs, NotificationSongs, Workspace } from '../../../../model/Workspace';
+import ActivityPreview from '../../../../shared-v2/ActivityPreview/ActivityPreview';
 import { SettingsItem } from '../../../../shared/SettingsItem/SettingsItem';
 import { Card, Wrapper } from '../../../../ui-kissbot-v2/common';
 import { addNotification } from '../../../../utils/AddNotification';
@@ -842,10 +843,8 @@ const GeneralSettings: FC<GeneralSettingsProps & I18nProps> = ({ getTranslation,
                 </Wrapper>
             </ScrollView>
             <Modal open={previewVisible} onCancel={() => setPreviewVisible(false)} footer={null} centered>
-                <img
-                    src='/assets/img/image-preview-name-in-chat.png'
-                    alt='Preview'
-                    style={{ width: '100%', borderRadius: 8 }}
+                <ActivityPreview
+                    message={`<strong>João Da Silva:</strong><br/><br/>Olá!<br/>Podemos falar por aqui?`}
                 />
             </Modal>
         </>

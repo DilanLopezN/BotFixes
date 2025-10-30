@@ -4,6 +4,7 @@ export interface PivotConfig {
     aggregatorName?: string;
     vals?: string[];
     rendererName?: string;
+    valueFilter?: Record<string, Record<string, boolean>>;
     [key: string]: any;
 }
 

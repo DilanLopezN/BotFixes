@@ -1,38 +1,63 @@
 import React, { Component } from 'react';
-import { LabelWrapper } from '../../../../../shared/StyledForms/LabelWrapper/LabelWrapper';
+import { connect } from 'react-redux';
+import { CustomSelect } from '../../../../../shared/StyledForms/CustomSelect/CustomSelect';
 import { DiscardBtn } from '../../../../../shared/StyledForms/DiscardBtn/DiscardBtn';
 import { DoneBtn } from '../../../../../shared/StyledForms/DoneBtn/DoneBtn';
-import './ModalListInteraction.scss';
-import { connect } from 'react-redux';
-import { ModalListInteractionProps, ModalListInteractionState } from './ModalListInteractionProps';
-import I18n from '../../../../i18n/components/i18n';
 import { InteractionSelect } from '../../../../../shared/StyledForms/InteractionsSelect/InteractionSelect';
+import { LabelWrapper } from '../../../../../shared/StyledForms/LabelWrapper/LabelWrapper';
+import I18n from '../../../../i18n/components/i18n';
 import { WorkspaceService } from '../../../../workspace/services/WorkspaceService';
 import { BotService } from '../../../services/BotService';
-import { CustomSelect } from '../../../../../shared/StyledForms/CustomSelect/CustomSelect';
-import { FormItemInteraction } from '../../../../../shared-v2/FormItemInteraction';
+import './ModalListInteraction.scss';
+import { ModalListInteractionProps, ModalListInteractionState } from './ModalListInteractionProps';
 
 class ModalListInteractionClass extends Component<ModalListInteractionProps, ModalListInteractionState> {
     constructor(props: Readonly<ModalListInteractionProps>) {
         super(props);
         this.state = {
-            selectedItem: this.props.interactionList[0]._id,
+            selectedItem: props.interactionList?.[0]?._id ?? '',
             items: [],
-            workspaceId: this.props.currentBot.workspaceId,
-            botList: this.props.botList,
-            interactionList: this.props.interactionList,
-            botId: this.props.currentBot._id,
+            workspaceId: props.currentBot?.workspaceId ?? '',
+            botList: props.botList ?? [],
+            interactionList: props.interactionList ?? [],
+            botId: props.currentBot?._id ?? '',
         };
+    }
+
+    async componentDidMount(): Promise<void> {
+        const { workspaceId, botId, interactionList } = this.state;
+
+        if (workspaceId && botId && interactionList.length === 0) {
+            await this.getInteractions(workspaceId, botId);
+        }
     }
 
     getBotsWorkspace = async (workspaceId: string) => {
         const workspaceBots = await WorkspaceService.getWorkspaceBots(workspaceId);
-        this.setState({ botList: workspaceBots.data, botId: workspaceBots.data[0]._id });
+        const [firstBot] = workspaceBots.data ?? [];
+
+        this.setState(
+            {
+                botList: workspaceBots.data,
+                botId: firstBot?._id ?? '',
+                interactionList: [],
+                selectedItem: '',
+            },
+            () => {
+                if (firstBot?._id) {
+                    this.getInteractions(workspaceId, firstBot._id);
+                }
+            }
+        );
     };
 
     getInteractions = async (workspaceId: string, botId: string) => {
         const interactionsList = await BotService.getInteractions(workspaceId, botId);
-        this.setState({ interactionList: interactionsList.data });
+        const interactions = interactionsList.data ?? [];
+        this.setState({
+            interactionList: interactions,
+            selectedItem: interactions[0]?._id ?? '',
+        });
     };
 
     getLabels = (list) => {

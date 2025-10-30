@@ -69,13 +69,13 @@ const TabGupshup: FC<TabGupshupProps & I18nProps & FormikProps<any>> = (props) =
     };
 
     const createTemplates = async () => {
-        if (!channel?.workspaceId || !channel?._id || !clientName){
+        if (!channel?.workspaceId || !channel?._id || !clientName) {
             return;
         }
 
         setModalOpen(false);
-        addNotification({message: 'Os templates estão sendo criados!', type: 'success'})
-        await ChannelConfigService.createDefaultTemplates(channel.workspaceId, channel._id!, clientName )
+        addNotification({ message: 'Os templates estão sendo criados!', type: 'success' });
+        await ChannelConfigService.createDefaultTemplates(channel.workspaceId, channel._id!, clientName);
     };
 
     return (
@@ -88,8 +88,8 @@ const TabGupshup: FC<TabGupshupProps & I18nProps & FormikProps<any>> = (props) =
                         onOk={() => {
                             createTemplates();
                         }}
-                        okButtonProps={{disabled: !clientName, className: 'antd-span-default-color'}}
-                        cancelButtonProps={{className: 'antd-span-default-color'}}
+                        okButtonProps={{ disabled: !clientName, className: 'antd-span-default-color' }}
+                        cancelButtonProps={{ className: 'antd-span-default-color' }}
                         okText='Criar templates'
                         onCancel={() => setModalOpen(false)}
                     >
@@ -107,14 +107,17 @@ const TabGupshup: FC<TabGupshupProps & I18nProps & FormikProps<any>> = (props) =
                             }}
                             label={getTranslation('Nome do cliente para os templates')}
                         >
-                            <Input placeholder='do Hospital Botdesigner' onChange={(event) => setClientName(event.target.value)} />
+                            <Input
+                                placeholder='do Hospital Botdesigner'
+                                onChange={(event) => setClientName(event.target.value)}
+                            />
                         </LabelWrapper>
                         <Paragraph>
                             <strong>Exemplo:</strong>
                             <br />
-                            <Text
-                                mark
-                            >{`Olá, meu nome é {{agent.name}}, sou da equipe de atendimento ${clientName ? clientName : '{{client.name}}'}, tudo bem? Podemos continuar nossa conversa por aqui?`}</Text>
+                            <Text mark>{`Olá, meu nome é {{agent.name}}, sou da equipe de atendimento ${
+                                clientName ? clientName : '{{client.name}}'
+                            }, tudo bem? Podemos continuar nossa conversa por aqui?`}</Text>
                         </Paragraph>
                     </Modal>
                     <LabelWrapper label={getTranslation('WhatsApp Provider')}>
@@ -126,18 +129,24 @@ const TabGupshup: FC<TabGupshupProps & I18nProps & FormikProps<any>> = (props) =
                             allowClear
                         >
                             <Select.Option value={null}>Vazio</Select.Option>
-                            <Select.Option value="gupshupv3">Gupshup V3</Select.Option>
-                            <Select.Option value="d360">360Dialog</Select.Option>
+                            <Select.Option value='gupshupv3'>Gupshup V3</Select.Option>
+                            <Select.Option value='d360'>360Dialog</Select.Option>
                         </Select>
                     </LabelWrapper>
                     {values.channel?.whatsappProvider === 'd360' ? (
                         <LabelWrapper label={getTranslation('360Dialog Api Key')}>
-                            <StyledFormikField name={`channel.configData.d360ApiKey`} placeholder={getTranslation('360Dialog Api Key')} />
+                            <StyledFormikField
+                                name={`channel.configData.d360ApiKey`}
+                                placeholder={getTranslation('360Dialog Api Key')}
+                            />
                         </LabelWrapper>
                     ) : (
                         <>
                             <LabelWrapper label={getTranslation('Api key')}>
-                                <StyledFormikField name={`channel.configData.apikey`} placeholder={getTranslation('Api key')} />
+                                <StyledFormikField
+                                    name={`channel.configData.apikey`}
+                                    placeholder={getTranslation('Api key')}
+                                />
                             </LabelWrapper>
                             <LabelWrapper label={getTranslation('App name')}>
                                 <StyledFormikField
@@ -145,30 +154,32 @@ const TabGupshup: FC<TabGupshupProps & I18nProps & FormikProps<any>> = (props) =
                                     placeholder={getTranslation('App name')}
                                 />
                             </LabelWrapper>
-                            <Wrapper maxWidth='260px'>
-                                <LabelWrapper label={getTranslation('Phone number')}>
-                                    <PhoneInput
-                                        className='form-control form-control-sm'
-                                        name='channel.configData.phoneNumber'
-                                        type='text'
-                                        placeholder={getTranslation('Phone number')}
-                                        onChange={onChangeSearchInput}
-                                        mask={phoneMask}
-                                        value={values.channel.configData.phoneNumber}
-                                    />
-                                </LabelWrapper>
-                            </Wrapper>
                         </>
                     )}
-                    {
-                        !!channel?.configData?.appName ? (
-                            <Row justify={'end'}>
-                                <Button className='antd-span-default-color' type='primary' onClick={() => setModalOpen(true)}>
-                                    {getTranslation('Criar templates oficiais padrão')}
-                                </Button>
-                            </Row>
-                        ) : null
-                    }
+                    <Wrapper maxWidth='260px'>
+                        <LabelWrapper label={getTranslation('Phone number')}>
+                            <PhoneInput
+                                className='form-control form-control-sm'
+                                name='channel.configData.phoneNumber'
+                                type='text'
+                                placeholder={getTranslation('Phone number')}
+                                onChange={onChangeSearchInput}
+                                mask={phoneMask}
+                                value={values.channel.configData.phoneNumber}
+                            />
+                        </LabelWrapper>
+                    </Wrapper>
+                    {!!channel?.configData?.appName ? (
+                        <Row justify={'end'}>
+                            <Button
+                                className='antd-span-default-color'
+                                type='primary'
+                                onClick={() => setModalOpen(true)}
+                            >
+                                {getTranslation('Criar templates oficiais padrão')}
+                            </Button>
+                        </Row>
+                    ) : null}
                 </DivisorCard>
             )}
         </Wrapper>

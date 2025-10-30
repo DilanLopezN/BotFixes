@@ -82,8 +82,14 @@ const UserSays: React.FC<UserSaysBotProps> = ({ getTranslation, userSays, onChan
 
     const assignOptionsToAttribute = useCallback(
         (contentState: ContentState, idUserSays: string) => {
+            type EntityDataPayload = {
+                value: string;
+                variable?: IPartId;
+                id?: string;
+                [key: string]: any;
+            };
             const text = contentState.getPlainText();
-            const entityDataMap: Record<string, IPartId> = {};
+            const entityDataMap: Record<string, EntityDataPayload> = {};
             const intervals: Interval[] = [];
 
             contentState.getBlockMap().forEach((block) => {
@@ -93,7 +99,7 @@ const UserSays: React.FC<UserSaysBotProps> = ({ getTranslation, userSays, onChan
                         (start, end) => {
                             const entityKey = block.getEntityAt(start);
                             const entity = contentState.getEntity(entityKey);
-                            const entityData = JSON.parse(JSON.stringify(entity.getData()));
+                            const entityData = JSON.parse(JSON.stringify(entity.getData())) as EntityDataPayload;
                             entityDataMap[entityKey.toString()] = {
                                 ...entityData,
                                 id: entityKey.toString(),
@@ -128,17 +134,14 @@ const UserSays: React.FC<UserSaysBotProps> = ({ getTranslation, userSays, onChan
 
                 if ('entityKey' in interval) {
                     const entityData = entityDataMap[interval.entityKey];
-                    const existingPart = result.find((part) => part.value === entityData.value);
+                    let value = entityData?.variable?.value ?? entityData?.value;
+                    if (typeof value === 'string' && value.startsWith('{{') && value.endsWith('}}')) {
+                        value = value.slice(2, -2);
+                    }
+                    const type = entityData?.variable?.type ?? entityData?.type ?? 'default';
+                    const mandatory = entityData?.variable?.mandatory ?? entityData?.mandatory ?? false;
 
-                    const partType = existingPart ? existingPart.type : entityData.type || 'default';
-                    const partMandatory = existingPart ? existingPart.mandatory : entityData.mandatory ?? false;
-
-                    result.push({
-                        value: entityData?.value,
-                        name: entityData.value,
-                        type: partType,
-                        mandatory: partMandatory,
-                    });
+                    result.push({ value, name: value, type, mandatory });
 
                     // eslint-disable-next-line @typescript-eslint/no-unused-vars
                     currentPartIndex++;

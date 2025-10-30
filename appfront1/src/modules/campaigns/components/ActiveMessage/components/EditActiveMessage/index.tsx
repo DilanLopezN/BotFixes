@@ -2,6 +2,7 @@ import { Select, Space, Spin } from 'antd';
 import { Form, Formik } from 'formik';
 import orderBy from 'lodash/orderBy';
 import { FC, useEffect, useState } from 'react';
+import { useSelector } from 'react-redux';
 import * as Yup from 'yup';
 import { InputSimple } from '../../../../../../shared/InputSample/InputSimple';
 import { ModalConfirm } from '../../../../../../shared/ModalConfirm/ModalConfirm';
@@ -17,6 +18,7 @@ import i18n from '../../../../../i18n/components/i18n';
 import { I18nProps } from '../../../../../i18n/interface/i18n.interface';
 import { TemplateMessage } from '../../../../../liveAgent/components/TemplateMessageList/interface';
 import { WorkspaceService } from '../../../../../workspace/services/WorkspaceService';
+import { isSystemAdmin, isSystemDevAdmin } from '../../../../../../utils/UserPermission';
 import {
     ActiveMessageSetting,
     CreateActiveMessageSettingDto,
@@ -58,6 +60,9 @@ const EditActiveMessage: FC<EditActiveMessageProps & I18nProps> = ({
     const [workspaceTags, setWorkspaceTags] = useState<any[]>([]);
     const [templates, setTemplates] = useState<TemplateMessage[]>([]);
     const [workspaceCustomFlow, setWorkspaceCustomFlow] = useState<CampaignAction[]>([]);
+
+    const loggedUser = useSelector((state: any) => state.loginReducer.loggedUser);
+    const userCanDelete = isSystemAdmin(loggedUser) || isSystemDevAdmin(loggedUser);
 
     const getWorkspaceTags = async () => {
         if (!workspaceId) return;
@@ -370,12 +375,12 @@ const EditActiveMessage: FC<EditActiveMessageProps & I18nProps> = ({
                             >
                                 <Wrapper
                                     flexBox
-                                    justifyContent={`${activeMessage ? 'space-between' : 'flex-end'}`}
+                                    justifyContent={activeMessage && userCanDelete ? 'space-between' : 'flex-end'}
                                     alignItems='center'
                                     margin='0 0 15px 0'
                                     maxWidth='1040px'
                                 >
-                                    {activeMessage && (
+                                    {activeMessage && userCanDelete && (
                                         <PrimaryButton
                                             colorType={ColorType.danger}
                                             onClick={(event: any) => {

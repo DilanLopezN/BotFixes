@@ -6,20 +6,23 @@ import I18n from '../../../i18n/components/i18n';
 import { connect } from 'react-redux';
 import { withRouter } from 'react-router-dom';
 import { ScrollView } from '../ScrollView';
-import { Button } from 'antd';
-import { PlusOutlined } from '@ant-design/icons';
+import { Button, Modal, Space } from 'antd';
+import { PlusOutlined, BookOutlined } from '@ant-design/icons';
 import { useFormik } from 'formik-latest';
-import { AIAgentService, AgentType } from '../../service/AIAgentService';
+import { AIAgentService, AgentType, AgentContext } from '../../service/AIAgentService';
 import { addNotification } from '../../../../utils/AddNotification';
 import AgentTable from './components/AgentTable';
 import CreateAgentModal from './components/CreateAgentModal';
 import AgentDetailsDrawer from './components/AgentDetailsDrawer';
 import { useAgentData } from './hooks/useAgentData';
 import { useAgentActions } from './hooks/useAgentActions';
+import IntentLibraryManager from './components/IntentLibrary';
 
 const AIAgent: FC<AIAgentProps> = (props) => {
     const { menuSelected, getTranslation, selectedWorkspace } = props;
     const [isModalVisible, setIsModalVisible] = useState(false);
+    const [isLibraryModalVisible, setIsLibraryModalVisible] = useState(false);
+    const [openLibraryCreate, setOpenLibraryCreate] = useState<(() => void) | null>(null);
 
     // Hooks customizados para dados e ações
     const {
@@ -60,6 +63,7 @@ const AIAgent: FC<AIAgentProps> = (props) => {
             botId: null as string | null,
             isDefault: false,
             agentType: undefined as AgentType | undefined,
+            agentContext: null as AgentContext | null,
             modelName: 'gpt-4o-mini' as string,
             integrationId: undefined as string | undefined,
         },
@@ -202,14 +206,23 @@ const AIAgent: FC<AIAgentProps> = (props) => {
                 <Header
                     title={menuSelected.title}
                     action={
-                        <Button
-                            type='primary'
-                            icon={<PlusOutlined />}
-                            onClick={handleCreateAgent}
-                            className='antd-span-default-color'
-                        >
-                            {getTranslation('Criar Agente')}
-                        </Button>
+                        <Space size={12}>
+                            <Button
+                                icon={<BookOutlined />}
+                                onClick={() => setIsLibraryModalVisible(true)}
+                                className='antd-span-default-color'
+                            >
+                                {getTranslation('Biblioteca de Intenções')}
+                            </Button>
+                            <Button
+                                type='primary'
+                                icon={<PlusOutlined />}
+                                onClick={handleCreateAgent}
+                                className='antd-span-default-color'
+                            >
+                                {getTranslation('Criar Agente')}
+                            </Button>
+                        </Space>
                     }
                 />
             </Wrapper>
@@ -254,6 +267,44 @@ const AIAgent: FC<AIAgentProps> = (props) => {
                 personalities={personalities}
                 integrations={integrations}
             />
+
+            <Modal
+                title={
+                    <div
+                        style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            paddingRight: '48px',
+                        }}
+                    >
+                        <span>{getTranslation('Biblioteca de Intenções')}</span>
+                        <Button
+                            type='primary'
+                            icon={<PlusOutlined />}
+                            onClick={() => openLibraryCreate?.()}
+                            disabled={!selectedWorkspace?._id || !openLibraryCreate}
+                            className='antd-span-default-color'
+                        >
+                            {getTranslation('Nova intenção na biblioteca')}
+                        </Button>
+                    </div>
+                }
+                visible={isLibraryModalVisible}
+                onCancel={() => {
+                    setIsLibraryModalVisible(false);
+                    setOpenLibraryCreate(null);
+                }}
+                footer={null}
+                width={900}
+                destroyOnClose
+            >
+                <IntentLibraryManager
+                    workspaceId={selectedWorkspace?._id}
+                    getTranslation={getTranslation}
+                    onRegisterCreateAction={(handler) => setOpenLibraryCreate(() => handler)}
+                />
+            </Modal>
         </>
     );
 };
