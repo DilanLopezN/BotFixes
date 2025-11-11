@@ -57,6 +57,7 @@ export const ConfirmationSettingService = {
         const cloneData = {
             schedule: {
                 name: newName,
+                alias: originalSetting.alias || '',
                 active: false,
                 getScheduleInterval: originalSetting.getScheduleInterval ?? 60,
                 integrationId: originalSetting.integrationId,

@@ -7,6 +7,7 @@ export enum ExtractRule {
 export interface ScheduleSetting {
     id: number;
     name: string;
+    alias?: string;
     getScheduleInterval: number; //Determina de qt em qt tempo deve buscar agendamentos do integrations em minutos
     workspaceId: string;
     integrationId: string;
@@ -35,6 +36,7 @@ export interface CreateScheduleSetting {
     getScheduleInterval: number;
     integrationId: string;
     name: string;
+    alias?: string;
     active: boolean;
     extractAt: number;
     extractRule: ExtractRule;

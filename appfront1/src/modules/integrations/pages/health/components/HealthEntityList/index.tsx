@@ -9,7 +9,7 @@ import { PaginatedModel } from '../../../../../../model/PaginatedModel';
 import { ModalPosition } from '../../../../../../shared/Modal/ModalProps';
 import { ModalPortal } from '../../../../../../shared/ModalPortal/ModalPortal';
 import { addNotification } from '../../../../../../utils/AddNotification';
-import { isSystemAdmin, isSystemCsAdmin } from '../../../../../../utils/UserPermission';
+import { isSystemAdmin, isSystemCsAdmin, isSystemSupportAdmin } from '../../../../../../utils/UserPermission';
 import i18n from '../../../../../i18n/components/i18n';
 import { I18nProps } from '../../../../../i18n/interface/i18n.interface';
 import { HealthService } from '../../../../services/HealthService';
@@ -48,7 +48,8 @@ const HealthEntityList = ({
     const [deletingEntityId, setDeletingEntityId] = useState<string | undefined>(undefined);
     const [debuggingDoctor, setDebuggingDoctor] = useState<HealthEntity | undefined>(undefined);
     
-    const canDebug = loggedUser && (isSystemAdmin(loggedUser) || isSystemCsAdmin(loggedUser));
+    const canDebug =
+        loggedUser && (isSystemAdmin(loggedUser) || isSystemCsAdmin(loggedUser) || isSystemSupportAdmin(loggedUser));
     const [search, setSearch] = useState<string>('');
     const [loading, setLoading] = useState(true);
     const [modalCreateEntities, setModalCreateEntities] = useState(false);

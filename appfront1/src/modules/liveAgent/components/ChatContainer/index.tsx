@@ -29,6 +29,10 @@ import { TemplateMessage, TemplateType } from '../TemplateMessageList/interface'
 import { ActivityReaction, ChatContainerProps } from './props';
 import { Background, Body } from './styled';
 import './styles.scss';
+import { generateId } from '../../../../helpers/hex';
+import { FilePreviewItem } from '../FilePreview/props';
+import { DragDropZone } from './components/DragDropZone';
+import { ScrollToBottomButton } from './components/ScrollToBottom';
 
 let queueLock = false;
 
@@ -58,6 +62,9 @@ const ChatContainerComponent = ({
     const [fetchedConversation, setFetchedConversation] = useState(false);
     const [isFocusOnReply, setIsFocusOnReply] = useState(false);
     const [replayActivity, setReplayActivity] = useState<IActivity>();
+    const [showScrollButton, setShowScrollButton] = useState(false);
+    const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
+    const [lastSeenActivityId, setLastSeenActivityId] = useState<string | null>(null);
 
     const HandleReplayActivity = (activity: IActivity) => {
         setReplayActivity(activity);
@@ -65,6 +72,77 @@ const ChatContainerComponent = ({
     const handleReply = () => {
         setIsFocusOnReply(true);
     };
+
+    const checkScrollPosition = useCallback(() => {
+        const container = containerChat.current;
+        if (!container) return;
+
+        const isAtBottom = Math.abs(container.scrollTop) < 100;
+
+        // Se scrollou para o bottom, zera o contador e esconde o botão
+        if (isAtBottom) {
+            setShowScrollButton(false);
+            setUnreadMessagesCount(0);
+            const activitiesArray = Object.values(activities);
+            if (activitiesArray.length > 0) {
+                const lastActivity = activitiesArray[activitiesArray.length - 1];
+                setLastSeenActivityId(lastActivity._id ?? lastActivity.uuid ?? null);
+            }
+        }
+    }, [activities]);
+
+    useEffect(() => {
+        const container = containerChat.current;
+        if (!container) return;
+        container.addEventListener('scroll', checkScrollPosition);
+        return () => container.removeEventListener('scroll', checkScrollPosition);
+    }, [checkScrollPosition]);
+
+    const scrollToBottomNewMessages = useCallback(() => {
+        const container = containerChat.current;
+        if (!container) return;
+        container.scrollTo({ top: 0, behavior: 'smooth' });
+        setUnreadMessagesCount(0);
+
+        const activitiesArray = Object.values(activities);
+        if (activitiesArray.length > 0) {
+            const lastActivity = activitiesArray[activitiesArray.length - 1];
+            setLastSeenActivityId(lastActivity._id ?? lastActivity.uuid ?? null);
+        }
+    }, [activities]);
+
+    useEffect(() => {
+        const activitiesArray = Object.values(activities);
+        if (activitiesArray.length === 0) return;
+
+        const lastActivity = activitiesArray[activitiesArray.length - 1];
+        const lastActivityId = lastActivity._id ?? lastActivity.uuid ?? null;
+
+        if (lastSeenActivityId && lastActivityId !== lastSeenActivityId) {
+            // Verifica se NÃO está no bottom
+            const container = containerChat.current;
+            const isAtBottom = container ? Math.abs(container.scrollTop) < 100 : false;
+
+            if (!isAtBottom && lastActivity.from?.type === 'user') {
+                // Nova mensagem chegou e não está no bottom -> mostra botão
+                setShowScrollButton(true);
+                setUnreadMessagesCount((prev) => prev + 1);
+            } else if (isAtBottom) {
+                // Está no bottom, apenas atualiza o último visto
+                setLastSeenActivityId(lastActivityId);
+            }
+        }
+
+        if (!lastSeenActivityId && activitiesArray.length > 0) {
+            setLastSeenActivityId(lastActivityId);
+        }
+    }, [activities, lastSeenActivityId]);
+
+    useEffect(() => {
+        setShowScrollButton(false);
+        setUnreadMessagesCount(0);
+        setLastSeenActivityId(null);
+    }, [conversationSelected._id]);
 
     UseWindowEvent(
         'setIsFocusOnReplyEvent',
@@ -507,42 +585,117 @@ const ChatContainerComponent = ({
         }
     };
 
-    const onChangeInputFile = async (file?: File, template?: TemplateMessage) => {
-        if (template && template?.type === TemplateType.file) {
-            setFilePreview({
-                file,
-                template,
-                preview: template.fileUrl,
-                isImage: AttachmentService.isImageFile(template?.fileContentType || ''),
-                isPdf: template?.fileContentType === uploadFileTypes.pdf,
-                isVideo: AttachmentService.isVideoFile(template?.fileContentType || ''),
-            });
-            return;
-        }
-        if (!file) return;
+    const handleFileChange = async (files: FileList | File, template?: TemplateMessage) => {
+        // Suporta tanto File único quanto FileList (múltiplos)
+        const fileArray = files instanceof FileList ? Array.from(files) : [files];
 
-        const validation = validateWhatsappFile(file);
-
-        if (!validation.isValid) {
+        // máximo 5 arquivos
+        if (fileArray.length > 5) {
             return notification({
                 title: getTranslation('Error'),
-                message: getTranslation(validation.error),
+                message: getTranslation('You can select up to 5 files at once'),
                 type: 'danger',
                 duration: 3000,
             });
         }
 
-        const fileReader = new FileReader();
-        fileReader.readAsDataURL(file);
+        if (template && template?.type === TemplateType.file) {
+            // Lógica existente para templates - mantém apenas 1 arquivo
+            const fileReader = new FileReader();
+            fileReader.readAsDataURL(fileArray[0]);
 
-        fileReader.onload = () =>
-            setFilePreview({
-                file,
-                preview: fileReader.result,
-                isImage: AttachmentService.isImageFile(file.type),
-                isPdf: file.type === uploadFileTypes.pdf,
-                isVideo: AttachmentService.isVideoFile(file.type),
+            fileReader.onload = () => {
+                setFilePreview([
+                    {
+                        id: generateId(10),
+                        file: fileArray[0],
+                        template,
+                        preview: fileReader.result,
+                        isImage: AttachmentService.isImageFile(template?.fileContentType || ''),
+                        isPdf: template?.fileContentType === uploadFileTypes.pdf,
+                        isVideo: AttachmentService.isVideoFile(template?.fileContentType || ''),
+                    },
+                ]);
+            };
+            return;
+        }
+
+        const maxSizeMB = 10;
+        const invalidFiles: string[] = [];
+
+        const imageTypeValidation = (file: File) => {
+            if (AttachmentService.isImageFile(file.type)) {
+                const validTypes = [
+                    'image/jpg',
+                    'image/jpeg',
+                    'image/png',
+                    'image/webp',
+                    'image/svg+xml',
+                    'image/svg',
+                    'image/x-icon',
+                    'image/x-wmf',
+                    'image/x-emf',
+                ];
+                return validTypes.includes(file.type);
+            }
+            return true;
+        };
+
+        // Processar todos os arquivos em paralelo
+        const filePromises = fileArray.map((file) => {
+            return new Promise<FilePreviewItem | null>((resolve) => {
+                const isValidSize = file.size <= maxSizeMB * 1000000;
+
+                if (!isValidSize) {
+                    invalidFiles.push(`${file.name} (excede 10MB)`);
+                    resolve(null);
+                    return;
+                }
+
+                if (!imageTypeValidation(file)) {
+                    invalidFiles.push(`${file.name} (formato inválido)`);
+                    resolve(null);
+                    return;
+                }
+
+                // Processar preview do arquivo
+                const fileReader = new FileReader();
+                fileReader.onload = () => {
+                    resolve({
+                        id: generateId(10),
+                        file,
+                        preview: fileReader.result,
+                        isImage: AttachmentService.isImageFile(file.type),
+                        isPdf: file.type === uploadFileTypes.pdf,
+                        isVideo: AttachmentService.isVideoFile(file.type),
+                    });
+                };
+                fileReader.onerror = () => {
+                    invalidFiles.push(`${file.name} (erro ao ler)`);
+                    resolve(null);
+                };
+                fileReader.readAsDataURL(file);
             });
+        });
+
+        // Aguardar todos os arquivos serem processados
+        const results = await Promise.all(filePromises);
+        const validResults = results.filter((item): item is FilePreviewItem => item !== null);
+
+        // notificações de arquivos inválidos
+        if (invalidFiles.length > 0) {
+            notification({
+                title: getTranslation('Error'),
+                message: getTranslation('Some files could not be added') + ': ' + invalidFiles.join(', '),
+                type: 'danger',
+                duration: 5000,
+            });
+        }
+
+        // Atualizar preview com arquivos válidos
+        if (validResults.length > 0) {
+            setFilePreview(validResults);
+        }
     };
 
     const retryActivities = () => {
@@ -785,19 +938,26 @@ const ChatContainerComponent = ({
                     </Wrapper>
                 ) : (
                     <Body className={`chatContainerBody`}>
-                        <FilePreview
-                            replayActivity={replayActivity || ({} as IActivity)}
-                            isFocusOnReply={isFocusOnReply}
-                            setIsFocusOnReply={setIsFocusOnReply}
-                            conversation={currentConversation}
-                            filePreview={filePreview}
-                            notification={notification}
-                            setFilePreview={setFilePreview}
-                            loggedUser={loggedUser}
-                            workspaceId={workspaceId as string}
-                            channels={channelList}
-                            teams={teams}
+                        <DragDropZone
+                            onDrop={handleFileChange}
+                            disabled={readingMode || !conversationSelected.assumed}
+                            maxFiles={5}
                         />
+                        {!!filePreview && (
+                            <FilePreview
+                                replayActivity={replayActivity || ({} as IActivity)}
+                                isFocusOnReply={isFocusOnReply}
+                                setIsFocusOnReply={setIsFocusOnReply}
+                                conversation={conversationSelected}
+                                filePreview={filePreview}
+                                notification={notification}
+                                setFilePreview={setFilePreview}
+                                loggedUser={loggedUser}
+                                workspaceId={workspaceId as string}
+                                channels={channelList}
+                                teams={teams}
+                            />
+                        )}
 
                         <div
                             onScroll={dateFixedTop}
@@ -1001,6 +1161,12 @@ const ChatContainerComponent = ({
                                 </Wrapper>
                             )}
                         </div>
+
+                        <ScrollToBottomButton
+                            visible={showScrollButton}
+                            onClick={scrollToBottomNewMessages}
+                            unreadCount={unreadMessagesCount}
+                        />
                     </Body>
                 )}
 
@@ -1051,7 +1217,7 @@ const ChatContainerComponent = ({
                     workspaceId={workspaceId}
                     conversation={currentConversation}
                     sendActivity={sendActivity}
-                    onChangeInputFile={onChangeInputFile}
+                    onChangeInputFile={handleFileChange}
                     teams={teams}
                     channels={channelList}
                     forceUpdateConversation={forceUpdateConversation}

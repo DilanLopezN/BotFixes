@@ -1,12 +1,13 @@
-import { FC, useEffect, useState } from 'react';
+import { FC, useEffect, useState, useMemo } from 'react';
 import { Table, Button, Modal, Typography, DatePicker, Space, Input, Tooltip, Avatar, Divider } from 'antd';
-import { CommentOutlined, EyeOutlined, ReloadOutlined, UserOutlined, RobotOutlined } from '@ant-design/icons';
+import { CommentOutlined, EyeOutlined, ReloadOutlined, UserOutlined, RobotOutlined, MessageOutlined } from '@ant-design/icons';
 import { MessagesTabProps } from './props';
 import { ContextMessage, ContextMessageListParams } from '../../../../../../interfaces/fallback-message.interface';
 import { AIAgentService } from '../../../../../../service/AIAgentService';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import moment from 'moment';
+import { useSelector } from 'react-redux';
 
 const { Text, Paragraph } = Typography;
 const { RangePicker } = DatePicker;
@@ -20,6 +21,13 @@ const MessagesTab: FC<MessagesTabProps> = ({
     const [loading, setLoading] = useState(false);
     const [selectedMessage, setSelectedMessage] = useState<ContextMessage | null>(null);
     const [modalVisible, setModalVisible] = useState(false);
+    const [conversationPreview, setConversationPreview] = useState<{
+        visible: boolean;
+        workspaceId?: string;
+        conversationId?: string;
+    }>({
+        visible: false,
+    });
     const [pagination, setPagination] = useState({
         current: 1,
         pageSize: 10,
@@ -31,6 +39,16 @@ const MessagesTab: FC<MessagesTabProps> = ({
     ]);
     const [searchText, setSearchText] = useState('');
     const [debouncedSearchText, setDebouncedSearchText] = useState('');
+
+    const loggedUser = useSelector((state: any) => state.loginReducer?.loggedUser);
+
+    // Build the iframe URL for conversation preview
+    const iframeUrl = useMemo(() => {
+        if (!conversationPreview.visible || !conversationPreview.workspaceId || !conversationPreview.conversationId || !loggedUser?._id) {
+            return '';
+        }
+        return `${window.location.origin}/iframes?workspaceId=${conversationPreview.workspaceId}&conversationId=${conversationPreview.conversationId}&userId=${loggedUser._id}`;
+    }, [conversationPreview, loggedUser]);
 
     // Debounce search text
     useEffect(() => {
@@ -97,6 +115,21 @@ const MessagesTab: FC<MessagesTabProps> = ({
         setSelectedMessage(null);
     };
 
+    const handleOpenConversation = (message: ContextMessage) => {
+        const contextId = message.userMessage?.contextId || message.systemMessage?.contextId;
+        if (contextId && workspaceId) {
+            setConversationPreview({
+                visible: true,
+                conversationId: contextId,
+                workspaceId: workspaceId,
+            });
+        }
+    };
+
+    const handleCloseConversationPreview = () => {
+        setConversationPreview({ visible: false });
+    };
+
     const columns = [
         {
             title: getTranslation('Pergunta'),
@@ -146,17 +179,29 @@ const MessagesTab: FC<MessagesTabProps> = ({
         {
             title: getTranslation('Ações'),
             key: 'actions',
-            width: 100,
+            width: 180,
             render: (_, record: ContextMessage) => (
-                <Button
-                    type="text"
-                    icon={<EyeOutlined />}
-                    onClick={() => handleViewMessage(record)}
-                    title={getTranslation('Ver detalhes')}
-                    style={{ display: 'flex', alignItems: 'center', gap: 4 }}
-                >
-                    {getTranslation('Ver')}
-                </Button>
+                <Space size="small">
+                    <Button
+                        type="text"
+                        icon={<EyeOutlined />}
+                        onClick={() => handleViewMessage(record)}
+                        title={getTranslation('Ver detalhes')}
+                        style={{ display: 'flex', alignItems: 'center', gap: 4 }}
+                    >
+                        {getTranslation('Ver')}
+                    </Button>
+                    {(record.userMessage?.contextId || record.systemMessage?.contextId) && (
+                        <Tooltip title={getTranslation('Ver conversa completa')}>
+                            <Button
+                                type="text"
+                                icon={<MessageOutlined />}
+                                onClick={() => handleOpenConversation(record)}
+                                style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#1890ff' }}
+                            />
+                        </Tooltip>
+                    )}
+                </Space>
             ),
         },
     ];
@@ -395,6 +440,26 @@ const MessagesTab: FC<MessagesTabProps> = ({
                         </div>
 
                     </div>
+                )}
+            </Modal>
+
+            {/* Modal for conversation preview via iframe */}
+            <Modal
+                title={getTranslation('Visualização da conversa completa')}
+                open={conversationPreview.visible}
+                footer={null}
+                width={1000}
+                zIndex={2100}
+                destroyOnClose
+                onCancel={handleCloseConversationPreview}
+                bodyStyle={{ padding: 0 }}
+            >
+                {iframeUrl && (
+                    <iframe
+                        title='Live Agent'
+                        src={iframeUrl}
+                        style={{ width: '100%', height: 600, border: '1px solid #bfbfbf' }}
+                    />
                 )}
             </Modal>
         </div>

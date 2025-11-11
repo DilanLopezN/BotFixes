@@ -13,7 +13,6 @@ interface AgentFormProps {
     formik: any;
     getTranslation: (key: string) => string;
     bots: Bot[];
-    personalities: { identifier: string; content: string }[];
     integrations: HealthIntegration[];
 }
 
@@ -21,7 +20,6 @@ const AgentForm: FC<AgentFormProps> = ({
     formik, 
     getTranslation, 
     bots, 
-    personalities, 
     integrations 
 }) => {
     return (
@@ -74,30 +72,6 @@ const AgentForm: FC<AgentFormProps> = ({
                     onChange={(e) => formik.setFieldValue('prompt', e.target.value)}
                     style={{ height: '120px', resize: 'none' }}
                 />
-            </LabelWrapper>
-
-            <LabelWrapper
-                label={getTranslation('Personalidade')}
-                validate={{
-                    touched: formik.touched,
-                    errors: formik.errors,
-                    isSubmitted: formik.isSubmitting,
-                    fieldName: 'personality',
-                }}
-            >
-                <Select
-                    value={formik.values.personality}
-                    onChange={(value) => formik.setFieldValue('personality', value)}
-                    style={{ width: '100%' }}
-                    placeholder={getTranslation('Selecionar Personalidade')}
-                    allowClear
-                >
-                    {personalities.map((personality) => (
-                        <Option key={personality.identifier} value={personality.identifier}>
-                            {personality.content || personality.identifier}
-                        </Option>
-                    ))}
-                </Select>
             </LabelWrapper>
 
             <LabelWrapper

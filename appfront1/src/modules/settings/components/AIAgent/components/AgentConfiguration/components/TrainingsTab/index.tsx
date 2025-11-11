@@ -1,12 +1,11 @@
 import { FC, useEffect, useState, useRef, useMemo } from 'react';
-import { Table, Button, Modal, Card, Drawer, Input, Tag, Checkbox, Switch, Upload, Progress, Alert, Select, DatePicker } from 'antd';
+import { Table, Button, Modal, Card, Drawer, Input, Tag, Checkbox, Switch, Upload, Progress, Alert, Select, DatePicker, Dropdown, Menu } from 'antd';
 import styled from 'styled-components';
 import { useSelector } from 'react-redux';
 import {
     PlusOutlined,
     EditOutlined,
     DeleteOutlined,
-    EyeOutlined,
     ReloadOutlined,
     ClockCircleOutlined,
     CheckCircleOutlined,
@@ -18,6 +17,7 @@ import {
     BugOutlined,
     CalendarOutlined,
     CopyOutlined,
+    MenuOutlined,
 } from '@ant-design/icons';
 import { useFormik } from 'formik-latest';
 import {
@@ -210,20 +210,34 @@ const TrainingsTab: FC<TrainingsTabProps> = ({ agentId, workspaceId, getTranslat
             content: '',
             trainingEntryTypeId: '',
             expiresAt: null as string | null,
+            isActive: true,
         },
         enableReinitialize: true,
+        validate: (values) => {
+            const errors: any = {};
+            if (!values.identifier || values.identifier.trim() === '') {
+                errors.identifier = getTranslation('Pergunta é obrigatória');
+            }
+            if (!values.content || values.content.trim() === '') {
+                errors.content = getTranslation('Conteúdo é obrigatório');
+            }
+            if (values.content && values.content.length > 1000) {
+                errors.content = getTranslation('Conteúdo deve ter no máximo 1000 caracteres');
+            }
+            return errors;
+        },
         onSubmit: async (values) => {
             if (!workspaceId) return;
 
             try {
                 if (editingTraining) {
                     // Verificar se houve alterações
-                    const hasChanges = 
+                    const hasChanges =
                         values.identifier !== editingTraining.identifier ||
                         values.content !== editingTraining.content ||
                         values.trainingEntryTypeId !== (editingTraining.trainingEntryTypeId || '') ||
                         values.expiresAt !== (editingTraining.expiresAt || null);
-                    
+
                     if (!hasChanges) {
                         addNotification({
                             title: getTranslation('Atenção'),
@@ -235,7 +249,11 @@ const TrainingsTab: FC<TrainingsTabProps> = ({ agentId, workspaceId, getTranslat
                     }
 
                     const updateData: UpdateTrainingEntry = {
-                        ...values,
+                        identifier: values.identifier,
+                        content: values.content,
+                        trainingEntryTypeId: values.trainingEntryTypeId || undefined,
+                        expiresAt: values.expiresAt,
+                        isActive: values.isActive,
                         agentId: agentId!,
                     };
                     const response = await AIAgentService.updateTrainingEntry(
@@ -266,7 +284,11 @@ const TrainingsTab: FC<TrainingsTabProps> = ({ agentId, workspaceId, getTranslat
                     }
                 } else {
                     const createData: CreateTrainingEntry = {
-                        ...values,
+                        identifier: values.identifier,
+                        content: values.content,
+                        trainingEntryTypeId: values.trainingEntryTypeId || undefined,
+                        expiresAt: values.expiresAt,
+                        isActive: values.isActive,
                         agentId: agentId!,
                     };
                     const response = await AIAgentService.createTrainingEntry(workspaceId, createData, (err) => {
@@ -306,7 +328,7 @@ const TrainingsTab: FC<TrainingsTabProps> = ({ agentId, workspaceId, getTranslat
             formik.values.trainingEntryTypeId !== (editingTraining.trainingEntryTypeId || '') ||
             formik.values.expiresAt !== (editingTraining.expiresAt || null)
         );
-    }, [editingTraining, formik.values.identifier, formik.values.content, formik.values.trainingEntryTypeId]);
+    }, [editingTraining, formik.values.identifier, formik.values.content, formik.values.trainingEntryTypeId, formik.values.expiresAt]);
 
     // Form for training entry types
     const typeFormik = useFormik({
@@ -435,6 +457,7 @@ const TrainingsTab: FC<TrainingsTabProps> = ({ agentId, workspaceId, getTranslat
             content: training.content,
             trainingEntryTypeId: training.trainingEntryTypeId || '',
             expiresAt: training.expiresAt as string | null,
+            isActive: training.isActive !== false,
         });
         setIsDrawerVisible(true);
     };
@@ -618,6 +641,56 @@ const TrainingsTab: FC<TrainingsTabProps> = ({ agentId, workspaceId, getTranslat
         setIsDrawerVisible(true);
     };
 
+    const handleToggleActive = async (trainingId: string, currentStatus: boolean) => {
+        if (!workspaceId) return;
+
+        // Encontrar o treinamento completo para enviar todos os campos
+        const training = trainings.find(t => t.id === trainingId);
+        if (!training) {
+            addNotification({
+                title: getTranslation('Erro'),
+                message: getTranslation('Treinamento não encontrado'),
+                type: 'danger',
+                duration: 3000,
+            });
+            return;
+        }
+
+        try {
+            await AIAgentService.updateTrainingEntry(
+                workspaceId,
+                trainingId,
+                {
+                    identifier: training.identifier,
+                    content: training.content,
+                    trainingEntryTypeId: training.trainingEntryTypeId || undefined,
+                    expiresAt: training.expiresAt,
+                    agentId: agentId!,
+                    isActive: !currentStatus,
+                },
+                (err) => {
+                    addNotification({
+                        title: getTranslation('Erro'),
+                        message: getTranslation('Erro ao atualizar status do treinamento'),
+                        type: 'danger',
+                        duration: 3000,
+                    });
+                }
+            );
+
+            addNotification({
+                title: getTranslation('Sucesso'),
+                message: getTranslation('Status atualizado com sucesso'),
+                type: 'success',
+                duration: 3000,
+            });
+
+            loadTrainings();
+        } catch (error) {
+            console.error('Error toggling training status:', error);
+        }
+    };
+
     const columns = [
         {
             title: getTranslation('Pergunta'),
@@ -664,6 +737,19 @@ const TrainingsTab: FC<TrainingsTabProps> = ({ agentId, workspaceId, getTranslat
                     );
                 }
             },
+        },
+        {
+            title: getTranslation('Ativo'),
+            key: 'isActive',
+            width: 100,
+            render: (_, record: TrainingEntry) => (
+                <Switch
+                    checked={record.isActive !== false}
+                    onChange={() => handleToggleActive(record.id, record.isActive !== false)}
+                    size='small'
+                    title={record.isActive !== false ? getTranslation('Desativar') : getTranslation('Ativar')}
+                />
+            ),
         },
         {
             title: getTranslation('Status'),
@@ -719,30 +805,59 @@ const TrainingsTab: FC<TrainingsTabProps> = ({ agentId, workspaceId, getTranslat
         {
             title: getTranslation('Ações'),
             key: 'actions',
-            width: 150,
-            render: (_, record: TrainingEntry) => (
-                <div style={{ display: 'flex', gap: 4 }}>
-                    <Button
-                        size='small'
-                        icon={<EyeOutlined />}
-                        onClick={() => handleViewTraining(record)}
-                        title={getTranslation('Visualizar')}
-                    />
-                    <Button
-                        size='small'
-                        icon={<EditOutlined />}
-                        onClick={() => handleEditTraining(record)}
-                        title={getTranslation('Editar')}
-                    />
-                    <Button
-                        size='small'
-                        danger
-                        icon={<DeleteOutlined />}
-                        onClick={() => handleDeleteTraining(record.id)}
-                        title={getTranslation('Excluir')}
-                    />
-                </div>
-            ),
+            width: 72,
+            render: (_, record: TrainingEntry) => {
+                const menu = (
+                    <Menu>
+                        <Menu.Item
+                            key='view'
+                            onClick={(info) => {
+                                info.domEvent.stopPropagation();
+                                handleViewTraining(record);
+                            }}
+                        >
+                            {getTranslation('Visualizar')}
+                        </Menu.Item>
+                        <Menu.Item
+                            key='edit'
+                            onClick={(info) => {
+                                info.domEvent.stopPropagation();
+                                handleEditTraining(record);
+                            }}
+                        >
+                            {getTranslation('Editar')}
+                        </Menu.Item>
+                        <Menu.Item
+                            key='delete'
+                            onClick={(info) => {
+                                info.domEvent.stopPropagation();
+                                handleDeleteTraining(record.id);
+                            }}
+                        >
+                            <span style={{ color: '#ff4d4f' }}>{getTranslation('Excluir')}</span>
+                        </Menu.Item>
+                    </Menu>
+                );
+
+                return (
+                    <Dropdown overlay={menu} trigger={['click']} placement='bottomRight'>
+                        <Button
+                            type='text'
+                            icon={<MenuOutlined />}
+                            onClick={(event) => {
+                                event.stopPropagation();
+                            }}
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                width: 32,
+                                height: 32,
+                            }}
+                        />
+                    </Dropdown>
+                );
+            },
         },
     ];
 

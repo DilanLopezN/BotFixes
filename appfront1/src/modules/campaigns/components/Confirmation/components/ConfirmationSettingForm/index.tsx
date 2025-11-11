@@ -37,6 +37,7 @@ import { ToggleWrapper } from './style';
 export const defaultConfirmationSetting: ConfirmationSettingFormDto = {
     schedule: {
         name: '',
+        alias: '',
         active: true,
         integrationId: '',
         getScheduleInterval: 1,
@@ -173,6 +174,7 @@ const ConfirmationSettingForm: FC<ConfirmationSettingFormProps & I18nProps> = (p
                     getScheduleInterval: Number(values.schedule.getScheduleInterval),
                     integrationId: values.schedule.integrationId,
                     name: values.schedule.name,
+                    alias: values.schedule.alias,
                     active: values.schedule.active,
                     extractAt: values.schedule.extractAt,
                     extractRule: values.schedule.extractRule,
@@ -284,6 +286,7 @@ const ConfirmationSettingForm: FC<ConfirmationSettingFormProps & I18nProps> = (p
                     integrationId: values.schedule.integrationId,
                     active: values.schedule.active,
                     name: values.schedule.name,
+                    alias: values.schedule.alias,
                     id: values.schedule.id!,
                     workspaceId: selectedWorkspace._id,
                     extractAt: values.schedule.extractAt,
@@ -374,6 +377,7 @@ const ConfirmationSettingForm: FC<ConfirmationSettingFormProps & I18nProps> = (p
             setCurrentConfirmationForm({
                 schedule: {
                     name: response.name || '',
+                    alias: response.alias || '',
                     active: response.active,
                     getScheduleInterval: response.getScheduleInterval || 0,
                     integrationId: response.integrationId,
@@ -657,44 +661,67 @@ const ConfirmationSettingForm: FC<ConfirmationSettingFormProps & I18nProps> = (p
                         <>
                             <Card margin='0 0 15px 0' header={getTranslation('Scheduling Settings')}>
                                 <Row gutter={[16, 16]}>
-                                    <Col span={12}>
-                                        <LabelWrapper
-                                            validate={{
-                                                errors: formik.errors,
-                                                fieldName: 'schedule.name',
-                                                isSubmitted: formik.submitCount > 0,
-                                                touched: true,
-                                            }}
-                                            label={getTranslation('Schedule configuration name')}
-                                        >
-                                            <Input
-                                                value={formik.values.schedule.name}
-                                                maxLength={100}
-                                                onChange={(event) => {
-                                                    formik.setFieldValue('schedule.name', event.target.value);
-                                                }}
-                                            />
-                                        </LabelWrapper>
-                                    </Col>
-                                    <Col span={8}>
-                                        <LabelWrapper
-                                            validate={{
-                                                errors: formik.errors,
-                                                fieldName: 'schedule.extractRule',
-                                                isSubmitted: formik.submitCount > 0,
-                                                touched: true,
-                                            }}
-                                            label={getTranslation('Extract rule')}
-                                        >
-                                            <Select
-                                                value={formik.values.schedule.extractRule}
-                                                style={{ width: '100%' }}
-                                                options={optionsExtractRule()}
-                                                onChange={(value) => {
-                                                    formik.setFieldValue('schedule.extractRule', value);
-                                                }}
-                                            />
-                                        </LabelWrapper>
+                                    <Col span={20}>
+                                        <Row gutter={[16, 16]}>
+                                            <Col span={12}>
+                                                <LabelWrapper
+                                                    validate={{
+                                                        errors: formik.errors,
+                                                        fieldName: 'schedule.name',
+                                                        isSubmitted: formik.submitCount > 0,
+                                                        touched: true,
+                                                    }}
+                                                    label={getTranslation('Schedule configuration name')}
+                                                >
+                                                    <Input
+                                                        value={formik.values.schedule.name}
+                                                        maxLength={100}
+                                                        onChange={(event) => {
+                                                            formik.setFieldValue('schedule.name', event.target.value);
+                                                        }}
+                                                    />
+                                                </LabelWrapper>
+                                            </Col>
+                                            <Col span={6}>
+                                                <LabelWrapper
+                                                    validate={{
+                                                        errors: formik.errors,
+                                                        fieldName: 'schedule.alias',
+                                                        isSubmitted: formik.submitCount > 0,
+                                                        touched: true,
+                                                    }}
+                                                    label={getTranslation('Alias')}
+                                                >
+                                                    <Input
+                                                        value={formik.values.schedule.alias}
+                                                        maxLength={100}
+                                                        onChange={(event) => {
+                                                            formik.setFieldValue('schedule.alias', event.target.value);
+                                                        }}
+                                                    />
+                                                </LabelWrapper>
+                                            </Col>
+                                            <Col span={6}>
+                                                <LabelWrapper
+                                                    validate={{
+                                                        errors: formik.errors,
+                                                        fieldName: 'schedule.extractRule',
+                                                        isSubmitted: formik.submitCount > 0,
+                                                        touched: true,
+                                                    }}
+                                                    label={getTranslation('Extract rule')}
+                                                >
+                                                    <Select
+                                                        value={formik.values.schedule.extractRule}
+                                                        style={{ width: '100%' }}
+                                                        options={optionsExtractRule()}
+                                                        onChange={(value) => {
+                                                            formik.setFieldValue('schedule.extractRule', value);
+                                                        }}
+                                                    />
+                                                </LabelWrapper>
+                                            </Col>
+                                        </Row>
                                     </Col>
                                     <Col span={4}>
                                         <LabelWrapper label=' '>

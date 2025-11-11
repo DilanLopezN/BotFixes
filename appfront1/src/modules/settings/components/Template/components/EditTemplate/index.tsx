@@ -583,22 +583,36 @@ const EditTemplate: FC<EditTemplateProps & I18nProps> = ({
     };
 
     const onChangeVariable = (variable: TemplateVariable) => {
+        const normalizedValue = variable.value?.trim?.() ?? '';
+        const normalizedLabel = variable.label?.trim?.() ?? '';
+        const normalizedSampleValue =
+            variable.sampleValue === undefined ? undefined : variable.sampleValue.trim();
+
+        const isDefaultVariable = !!defaultVars.find((curr) => curr.value === normalizedValue);
+        const sampleIsRequired = currentTemplate.isHsm && !isDefaultVariable;
+
+        if (!normalizedValue || !normalizedLabel || (sampleIsRequired && !normalizedSampleValue)) {
+            return;
+        }
+
+        const normalizedVariable: TemplateVariable = {
+            ...variable,
+            value: normalizedValue,
+            label: normalizedLabel,
+            sampleValue: normalizedSampleValue,
+        };
+
         setTemplateVariables((prevState) => {
-            const exist = [...prevState].find((currVar) => currVar._id === variable?._id);
-            if (!!exist) {
-                prevState = prevState.map((currVariable) => {
-                    if (currVariable._id === exist._id) {
-                        return variable;
-                    }
-                    return currVariable;
-                });
-            } else {
-                const isDefault = !!defaultVars.find((curr) => curr.value === variable.value);
-                if (!isDefault) {
-                    prevState.push({ ...variable });
-                }
+            const nextState = [...prevState];
+            const existingIndex = nextState.findIndex((currVar) => currVar._id === normalizedVariable?._id);
+
+            if (existingIndex !== -1) {
+                nextState[existingIndex] = normalizedVariable;
+            } else if (!isDefaultVariable) {
+                nextState.push({ ...normalizedVariable });
             }
-            return [...prevState];
+
+            return nextState;
         });
     };
 

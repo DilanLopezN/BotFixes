@@ -87,6 +87,7 @@ export interface ConfirmationSettingFormDto {
     schedule: {
         id?: number;
         name: string;
+        alias?: string;
         active: boolean;
         integrationId: string;
         getScheduleInterval: number;

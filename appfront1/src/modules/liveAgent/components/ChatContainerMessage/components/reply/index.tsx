@@ -565,9 +565,14 @@ const TextareaReplyComponent: FC<TextareaReplyProps & I18nProps> = ({
                                         style={{ display: 'none' }}
                                         onChange={(event) => {
                                             setActionSelected(undefined);
-                                            onChangeInputFile(event.target.files?.[0]);
+                                            // Passa o FileList completo
+                                            const files = event.target.files;
+                                            if (files && files.length > 0) {
+                                                onChangeInputFile(files); // Passa FileList completo
+                                            }
                                         }}
                                         accept='*/*'
+                                        multiple
                                     />
                                 </div>
                             )}

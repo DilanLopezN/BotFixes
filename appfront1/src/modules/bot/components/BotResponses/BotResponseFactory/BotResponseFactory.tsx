@@ -57,6 +57,7 @@ import { BotResponseGenerativeAI } from '../BotResponseGenerativeAI';
 import { BotDesignerValidateDoctor } from '../Segments/Health/BdHealth/BotDesignerValidateDoctor';
 import { BotResponseGenerativeAIConv } from '../BotResponseGenerativeAIConv';
 import { BotResponseWhatsappFlow } from '../BotResponseWhatsappFlow/BotResponseWhatsappFlow';
+import { BotResponseSguOpenTitles } from '../Segments/Health/Sgu/SguOpenTitlesResponse/SguOpenTitlesResponse';
 
 interface SettingsProps {
     settings: OrganizationSettings & { generalFeatureFlag: { [key: string]: any } };
@@ -243,6 +244,9 @@ class BotResponseFactoryClass extends Component<BotResponseProps & SettingsProps
             }
              case ResponseType.GENERATIVE_AI_CONV: {
                 return <BotResponseGenerativeAIConv {...props} />;
+            }
+            case ResponseType.SGU_OPEN_TITLES: {
+                return <BotResponseSguOpenTitles {...props} />;
             }
             default:
                 return (<div>{this.props.response.type} - Not implemented yet.</div>) as any;

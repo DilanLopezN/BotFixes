@@ -1,15 +1,16 @@
 import { Progress } from 'antd';
-import React, { FC, useCallback, useEffect, useRef, useState } from 'react';
+import { FC, useCallback, useEffect, useRef, useState } from 'react';
 import styled from 'styled-components';
 import { Icon, Wrapper } from '../../../../ui-kissbot-v2/common';
 import { timeout } from '../../../../utils/Timer';
+import { generateId } from '../../../../helpers/hex';
 import i18n from '../../../i18n/components/i18n';
 import { I18nProps } from '../../../i18n/interface/i18n.interface';
 import { AttachmentService } from '../../service/Atttachment.service';
 import { TemplateMessage, TemplateType } from '../TemplateMessageList/interface';
 import ComponentMessageFile from './components/ComponentMessageFile';
-import { FilePreviewProps } from './props';
-const LazyPDFPreview = React.lazy(() => import('../PdfPreview'));
+import { FilePreviewProps, FilePreviewItem } from './props';
+import { FilePreviewGrid } from './components/FilePreviewGrid';
 
 const Scroll = styled(Wrapper)`
     &::-webkit-scrollbar {
@@ -39,27 +40,51 @@ const FilePreview: FC<FilePreviewProps & I18nProps> = ({
     workspaceId,
     channels,
     teams,
-    replayActivity,
-    isFocusOnReply,
-    setIsFocusOnReply,
 }) => {
     const [uploadingFile, setUploadingFile] = useState<boolean>(false);
     const [uploadPercent, setUploadPercent] = useState<number>(0);
-    const [numPagesPdf, setNumPagesPdf] = useState<number>(0);
-    const [currentMessage, setCurrentMessage] = useState('');
     const [templateVariableValues, setTemplateVariableValues] = useState<string[]>([]);
-    const [templateSelected, setTemplateSelected] = useState<TemplateMessage | undefined>(filePreview?.template);
+
+    // Inicializar files de forma mais segura com mensagem individual
+    const initializeFiles = (): FilePreviewItem[] => {
+        if (!filePreview) {
+            return [];
+        }
+
+        if (Array.isArray(filePreview)) {
+            return filePreview.map((item) => ({
+                ...item,
+                message: item.message || '', // Garantir que sempre tenha message
+            }));
+        }
+
+        return [
+            {
+                id: generateId(10),
+                file: filePreview.file,
+                preview: filePreview.preview,
+                isImage: filePreview.isImage,
+                isPdf: filePreview.isPdf,
+                isVideo: filePreview.isVideo,
+                template: filePreview.template,
+                message: '',
+            },
+        ];
+    };
+
+    const [files, setFiles] = useState<FilePreviewItem[]>(initializeFiles());
+    const [selectedFileId, setSelectedFileId] = useState<string | undefined>(
+        files.length > 0 ? files[0].id : undefined
+    );
+    const [templateSelected, setTemplateSelected] = useState<TemplateMessage | undefined>(files[0]?.template);
+
+    const selectedFile = files.find((f) => f.id === selectedFileId);
+    const isBatchUpload = files.length > 1;
 
     const uploadedRef: any = useRef(null);
     uploadedRef.current = {
         uploadingFile,
         setUploadingFile,
-    };
-
-    const currentMessageRef: any = useRef(null);
-    currentMessageRef.current = {
-        currentMessage,
-        setCurrentMessage,
     };
 
     const templateVariableValuesRef: any = useRef(null);
@@ -74,66 +99,103 @@ const FilePreview: FC<FilePreviewProps & I18nProps> = ({
         setTemplateSelected,
     };
 
+    // ← NOVO: Função para atualizar mensagem do arquivo selecionado
+    const updateFileMessage = useCallback(
+        (message: string) => {
+            setFiles((prevFiles) => prevFiles.map((f) => (f.id === selectedFileId ? { ...f, message } : f)));
+        },
+        [selectedFileId]
+    );
+
+    // ← NOVO: Pegar mensagem do arquivo selecionado
+    const currentFileMessage = selectedFile?.message || '';
+
+    // Atualiza files quando filePreview mudar
     useEffect(() => {
-        templateSelectedRef.current.setTemplateSelected(filePreview?.template);
-    }, [filePreview?.template]);
+        const newFiles = initializeFiles();
+        setFiles(newFiles);
+
+        if (newFiles.length > 0) {
+            setSelectedFileId(newFiles[0].id);
+        }
+    }, [filePreview]);
+
+    useEffect(() => {
+        if (files[0]?.template) {
+            templateSelectedRef.current.setTemplateSelected(files[0].template);
+        }
+    }, [files]);
+
+    const handleRemoveFile = useCallback(
+        (fileId: string) => {
+            const updatedFiles = files.filter((f) => f.id !== fileId);
+
+            if (updatedFiles.length === 0) {
+                setFilePreview(false);
+                return;
+            }
+
+            setFiles(updatedFiles);
+
+            if (selectedFileId === fileId) {
+                setSelectedFileId(updatedFiles[0].id);
+            }
+        },
+        [files, selectedFileId, setFilePreview]
+    );
 
     const uploadFileOnConversation = useCallback(
-        async (formData) => {
+        async (formData: FormData) => {
             const { _id } = conversation;
-            if (!loggedUser) return;
+            if (!loggedUser?._id) return false;
             const uploaded = await AttachmentService.sendAttachment(_id, loggedUser._id, formData);
-
-            currentMessageRef.current.setCurrentMessage('');
-            setTemplateSelected(undefined);
-            // setIsFocusOnReply(false);
             return uploaded;
         },
         [conversation, loggedUser]
     );
 
     const uploadFile = useCallback(async () => {
-        if (uploadedRef.current.uploadingFile) {
+        if (!loggedUser?._id) {
+            notification({
+                title: getTranslation('Error'),
+                message: getTranslation('User not authenticated'),
+                type: 'danger',
+                duration: 3000,
+            });
             return;
         }
-        setUploadingFile(true);
-        setUploadPercent(5);
 
-        let progressInterval = setInterval(() => {
-            uploadPercent <= 90 && setUploadPercent(uploadPercent + 10);
-        }, 800);
+        console.log('Iniciando upload de', files.length, 'arquivo(s)');
+
+        setUploadingFile(true);
+        setUploadPercent(0);
+
+        const progressInterval = setInterval(() => {
+            setUploadPercent((prevPercent) => {
+                if (prevPercent >= 95) {
+                    clearInterval(progressInterval);
+                    return 95;
+                }
+                return prevPercent + 5;
+            });
+        }, 100);
 
         try {
-            if (templateSelectedRef.current.templateSelected?.type === TemplateType.file) {
+            if (files[0]?.template && files[0].template?.type === TemplateType.file) {
+                // Template file logic
+                console.log('Upload de template file');
                 const { _id } = conversation;
-                let error;
 
-                await AttachmentService.sendFileTemplate(
-                    workspaceId,
-                    _id,
-                    {
-                        memberId: loggedUser._id as string,
-                        templateId: templateSelectedRef.current.templateSelected._id as string,
-                        message:
-                            currentMessageRef.current.currentMessage ||
-                            templateSelectedRef.current.templateSelected?.message,
-                        attributes: templateVariableValuesRef.current.templateVariableValues || [],
-                        // quoted: isFocusOnReply ? replayActivity?.hash : null,
-                    },
-                    (err) => {
-                        error = err;
-                    }
-                );
+                const sendFileTemplate = {
+                    templateId: files[0].template._id as string,
+                    memberId: loggedUser._id,
+                    message: files[0].message || undefined,
+                    attributes: templateVariableValues || undefined,
+                };
 
-                if (!error) {
-                    setCurrentMessage('');
-                    notification({
-                        title: getTranslation('Success'),
-                        message: getTranslation('Template sent successfully'),
-                        type: 'success',
-                        duration: 3000,
-                    });
-                } else {
+                const sent = await AttachmentService.sendFileTemplate(workspaceId, _id, sendFileTemplate);
+
+                if (!sent) {
                     notification({
                         title: getTranslation('Error'),
                         message: getTranslation('An error has occurred. Try again'),
@@ -141,17 +203,80 @@ const FilePreview: FC<FilePreviewProps & I18nProps> = ({
                         duration: 3000,
                     });
                 }
-            } else {
-                const formData = new FormData();
-                formData.append('attachment', filePreview.file);
-                formData.append('message', currentMessageRef.current.currentMessage || '');
-                formData.append('attributes', templateVariableValuesRef.current.templateVariableValues || []);
+            } else if (isBatchUpload) {
+                // ← ATUALIZADO: Upload sequencial com mensagem individual por arquivo
+                console.log('Enviando', files.length, 'arquivos com mensagens individuais');
 
-                if (templateSelectedRef.current.templateSelected) {
-                    formData.append('templateId', templateSelectedRef.current.templateSelected._id as string);
+                let successCount = 0;
+                let errorCount = 0;
+
+                // Enviar cada arquivo individualmente com sua mensagem
+                for (let i = 0; i < files.length; i++) {
+                    const fileItem = files[i];
+                    const progress = Math.round(((i + 1) / files.length) * 95);
+
+                    try {
+                        const formData = new FormData();
+                        formData.append('attachment', fileItem.file);
+
+                        // ← Cada arquivo leva sua própria mensagem
+                        if (fileItem.message) {
+                            formData.append('message', fileItem.message);
+                        }
+
+                        const uploaded = await uploadFileOnConversation(formData);
+
+                        if (uploaded) {
+                            successCount++;
+                            console.log(`✓ Arquivo ${i + 1}/${files.length} enviado com sucesso`);
+                        } else {
+                            errorCount++;
+                            console.log(`✗ Erro ao enviar arquivo ${i + 1}`);
+                        }
+
+                        setUploadPercent(progress);
+
+                        // Delay entre uploads
+                        if (i < files.length - 1) {
+                            await new Promise((resolve) => setTimeout(resolve, 300));
+                        }
+                    } catch (error) {
+                        errorCount++;
+                        console.error(`Erro no upload do arquivo ${i + 1}:`, error);
+                    }
+                }
+
+                // Mostrar resultado final
+                if (errorCount > 0) {
+                    notification({
+                        title: getTranslation('Warning'),
+                        message: `${successCount} ${getTranslation(
+                            'files sent successfully'
+                        )}, ${errorCount} ${getTranslation('failed')}`,
+                        type: 'warning',
+                        duration: 4000,
+                    });
+                } else {
+                    notification({
+                        title: getTranslation('Success'),
+                        message: `${successCount} ${getTranslation('files sent successfully')}`,
+                        type: 'success',
+                        duration: 3000,
+                    });
+                }
+            } else {
+                // Upload único com mensagem
+                console.log('Upload único do arquivo:', files[0].file.name);
+                const formData = new FormData();
+                formData.append('attachment', files[0].file);
+                formData.append('message', files[0].message || ''); // ← Usar mensagem do arquivo
+
+                if (templateSelected) {
+                    formData.append('templateId', templateSelected._id as string);
                 }
 
                 const uploaded = await uploadFileOnConversation(formData);
+
                 if (!uploaded) {
                     notification({
                         title: getTranslation('Error'),
@@ -162,6 +287,7 @@ const FilePreview: FC<FilePreviewProps & I18nProps> = ({
                 }
             }
         } catch (error) {
+            console.error('Erro no upload:', error);
             notification({
                 title: getTranslation('Error'),
                 message: getTranslation('An error has occurred. Try again'),
@@ -178,42 +304,24 @@ const FilePreview: FC<FilePreviewProps & I18nProps> = ({
             setUploadingFile(false);
         }, 1500);
     }, [
+        files,
         conversation,
-        filePreview.file,
+        isBatchUpload,
         getTranslation,
-        loggedUser._id,
+        loggedUser,
         notification,
         setFilePreview,
         uploadFileOnConversation,
-        uploadPercent,
+        templateSelected,
+        templateVariableValues,
         workspaceId,
     ]);
 
-    useEffect(() => {
-        if (uploadedRef.current.uploadingFile === false && !!filePreview) {
-            const sendWithEnter = (event: KeyboardEvent) => {
-                const keyCode = event.key;
-                if (
-                    templateSelectedRef.current.templateSelected &&
-                    templateSelectedRef.current.templateSelected?.variables?.length &&
-                    templateSelectedRef.current.templateSelected?.variables?.length >
-                        templateVariableValuesRef.current.templateVariableValues?.length
-                ) {
-                    return;
-                }
-                if (keyCode === 'Enter' && !event.shiftKey) {
-                    uploadFile();
-                }
-            };
-            window.addEventListener('keyup', sendWithEnter);
-            return () => {
-                templateVariableValuesRef.current.setTemplateVariableValues([]);
-                window.removeEventListener('keyup', sendWithEnter);
-            };
-        }
-    }, [filePreview, uploadFile]);
+    if (files.length === 0) {
+        return null;
+    }
 
-    return !!filePreview ? (
+    return (
         <Wrapper
             position='absolute'
             flexBox
@@ -230,6 +338,7 @@ const FilePreview: FC<FilePreviewProps & I18nProps> = ({
                 zIndex: '9',
             }}
         >
+            {/* Header */}
             <Wrapper flexBox height='50px' bgcolor='#59a3d6' position='relative'>
                 <Icon
                     name='close'
@@ -237,151 +346,131 @@ const FilePreview: FC<FilePreviewProps & I18nProps> = ({
                     size='24px'
                     margin='auto 20px'
                     onClick={() => {
-                        if (!uploadedRef.current.uploadingFile) {
-                            currentMessageRef.current.setCurrentMessage('');
-                            templateVariableValuesRef.current.setTemplateVariableValues([]);
-                            templateSelectedRef.current.setTemplateSelected(undefined);
+                        if (!uploadingFile) {
                             setFilePreview(false);
                         }
                     }}
                 />
                 <Wrapper color='#FFF' fontSize='18px' fontWeight='300' margin='auto 0'>
-                    {getTranslation('View')}
+                    {isBatchUpload
+                        ? `${getTranslation('View')} (${files.length} ${getTranslation('files')})`
+                        : getTranslation('View')}
                 </Wrapper>
-                {filePreview.isPdf && (
-                    <Wrapper
-                        flexBox
-                        flexDirection='column'
-                        alignItems='center'
-                        color='#f5f5f5'
-                        fontSize='14px'
-                        position='absolute'
-                        top='5px'
-                        left='47%'
-                    >
-                        <Wrapper color='#f5f5f5' fontWeight='bold'>
-                            {filePreview?.file?.name}
-                        </Wrapper>
-                        {numPagesPdf ? `${numPagesPdf} ${getTranslation('pages')}` : null}
+                {selectedFile && (
+                    <Wrapper color='#FFF' fontSize='12px' position='absolute' right='20px' opacity='0.9'>
+                        {selectedFile.file.name}
                     </Wrapper>
                 )}
             </Wrapper>
 
+            {/* Progress Bar */}
             <Wrapper height='10px' bgcolor='#e9ebeb'>
-                {!!uploadedRef.current.uploadingFile && (
+                {uploadingFile && (
                     <Progress strokeColor='#59a3d6' trailColor='#e9ebeb' percent={uploadPercent} showInfo={false} />
                 )}
             </Wrapper>
 
+            {/* Preview Area */}
             <Scroll
                 overflowY='auto'
                 flexBox
+                column
                 flex
-                textAlign='center'
                 bgcolor='#e9ebeb'
                 padding='20px'
-                opacity={uploadedRef.current.uploadingFile ? '0.8' : '1'}
+                opacity={uploadingFile ? '0.8' : '1'}
             >
-                {!!filePreview.isImage ? (
-                    <img
-                        alt='preview'
-                        src={filePreview.preview}
-                        style={{
-                            maxWidth: '97%',
-                            maxHeight: '60vh',
-                            margin: 'auto',
-                        }}
+                {/* Grid de thumbnails quando múltiplos arquivos */}
+                {isBatchUpload && (
+                    <FilePreviewGrid
+                        files={files}
+                        onRemove={handleRemoveFile}
+                        onSelect={setSelectedFileId}
+                        selectedId={selectedFileId}
                     />
-                ) : !!filePreview.isPdf ? (
-                    <>
-                        {filePreview?.template ? (
-                            <>
-                                <iframe
-                                    src={filePreview?.preview}
-                                    title='File Preview'
-                                    style={{ width: '85%', height: '90%', margin: '0 auto' }}
-                                ></iframe>
-                            </>
+                )}
+
+                {/* Preview do arquivo selecionado */}
+                {selectedFile && (
+                    <Wrapper
+                        flexBox
+                        justifyContent='center'
+                        alignItems='center'
+                        flex={!isBatchUpload ? 1 : undefined}
+                        marginTop={isBatchUpload ? '16px' : '0'}
+                        textAlign='center'
+                    >
+                        {selectedFile.isImage ? (
+                            <img
+                                alt='preview'
+                                src={selectedFile.preview as string}
+                                style={{
+                                    maxWidth: '97%',
+                                    maxHeight: isBatchUpload ? '35vh' : '60vh',
+                                    margin: 'auto',
+                                    border: '1px solid #ccc',
+                                }}
+                            />
+                        ) : selectedFile.isPdf ? (
+                            <Wrapper margin='auto'>
+                                <Icon name='file-pdf' size='48px' color='#d32f2f' />
+                                <Wrapper marginTop='8px'>{selectedFile.file.name}</Wrapper>
+                            </Wrapper>
                         ) : (
-                            <React.Suspense
-                                fallback={
-                                    <Wrapper
-                                        flexBox
-                                        width='100%'
-                                        justifyContent='center'
-                                        alignItems='center'
-                                        height='100%'
-                                    >
-                                        {`${getTranslation('Loading')}..`}
-                                    </Wrapper>
-                                }
-                            >
-                                <LazyPDFPreview onNumPages={(num) => setNumPagesPdf(num)} filePreview={filePreview} />
-                            </React.Suspense>
+                            <Wrapper margin='auto'>
+                                <Icon name='file' size='48px' />
+                                <Wrapper marginTop='8px'>{selectedFile.file.name}</Wrapper>
+                            </Wrapper>
                         )}
-                    </>
-                ) : (
-                    <Wrapper margin='auto'>
-                        <Icon name='file' size='48px' />
-                        <Wrapper>{filePreview?.file?.name || filePreview?.template?.fileOriginalName}</Wrapper>
                     </Wrapper>
                 )}
             </Scroll>
 
-            {((!!templateSelectedRef.current.templateSelected &&
-                !!templateSelectedRef.current.templateSelected?.isHsm) ||
-                filePreview.isImage) && (
+            {/* ← NOVO: Input de mensagem - sempre visível */}
+            {!uploadingFile && (
                 <ComponentMessageFile
                     conversation={conversation}
                     loggedUser={loggedUser}
                     workspaceId={workspaceId}
-                    currentMessage={currentMessageRef.current.currentMessage}
-                    setCurrentMessage={(value: string) => {
-                        currentMessageRef.current.setCurrentMessage(value);
-                    }}
-                    setTemplateVariableValues={(value) =>
-                        templateVariableValuesRef.current.setTemplateVariableValues(value)
-                    }
-                    uploadingFile={uploadedRef.current.uploadingFile}
+                    currentMessage={currentFileMessage}
+                    setCurrentMessage={updateFileMessage}
+                    setTemplateVariableValues={setTemplateVariableValues}
+                    uploadingFile={uploadingFile}
                     channels={channels}
                     teams={teams}
                     uploadFile={uploadFile}
-                    template={templateSelectedRef.current.templateSelected || filePreview?.template}
+                    template={templateSelected || selectedFile?.template}
                     closePreviewFile={() => {
-                        currentMessageRef.current.setCurrentMessage('');
-                        templateSelectedRef.current.setTemplateSelected(undefined);
+                        setFiles([]);
                         setFilePreview(false);
                     }}
                 />
             )}
 
-            <Wrapper
-                height='157px'
-                bgcolor='#d8d8d8'
-                position='relative'
-                opacity={uploadedRef.current.uploadingFile ? '0.8' : '1'}
-            >
+            {/* Botão de envio */}
+            <Wrapper height='60px' bgcolor='#d8d8d8' position='relative' opacity={uploadingFile ? '0.8' : '1'}>
                 <Wrapper
                     width='60px'
                     height='60px'
                     position='absolute'
                     top='-31px'
                     right='50px'
-                    bgcolor={uploadedRef.current.uploadingFile ? '#6194b8' : '#59a3d6'}
+                    bgcolor={uploadingFile ? '#6194b8' : '#59a3d6'}
                     borderRadius='45px'
                     textAlign='center'
                     padding='4px 0 0 6px'
+                    cursor={uploadingFile ? 'not-allowed' : 'pointer'}
                 >
                     <Icon
                         name='send'
-                        color={uploadedRef.current.uploadingFile ? '#d1d1d1' : '#FFFFFF'}
+                        color={uploadingFile ? '#d1d1d1' : '#FFFFFF'}
                         size='36px'
-                        onClick={() => !uploadedRef.current.uploadingFile && uploadFile()}
+                        onClick={() => !uploadingFile && uploadFile()}
                     />
                 </Wrapper>
             </Wrapper>
         </Wrapper>
-    ) : null;
+    );
 };
 
 export default i18n(FilePreview) as FC<FilePreviewProps>;

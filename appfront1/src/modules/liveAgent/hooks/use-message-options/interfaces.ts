@@ -6,6 +6,7 @@ export interface UseAudioOptionsProps {
     isAudioPlayer?: boolean;
     canReaction?: boolean;
     audioTranscription?: AudioTranscription | null;
+    activityText?: string;
     handleReact?: () => void;
     handleReply?: () => void;
     getAudioTranscription?: () => Promise<void>;

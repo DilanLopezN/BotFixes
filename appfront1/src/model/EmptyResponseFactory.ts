@@ -1130,10 +1130,25 @@ export class EmptyResponseFactory {
                     isResponseValid: true,
                 };
             }
-              case ResponseType.GENERATIVE_AI_CONV: {
+            case ResponseType.GENERATIVE_AI_CONV: {
                 return {
                     type: ResponseType.GENERATIVE_AI_CONV,
                     elements: [{ startMessage: '' } as IResponseElementGenerativeAIConv],
+                    ...getBaseResponseBody(),
+                    isResponseValid: true,
+                };
+            }
+            case ResponseType.SGU_OPEN_TITLES: {
+                return {
+                    type: ResponseType.SGU_OPEN_TITLES,
+                    elements: [{
+                            attrNameCarteirinha: '',
+                            isEmptyGoto: '',
+                            isErrorGoto: '',
+                            sguToken: '',
+                            sguUrl: ''
+                        } as any
+                    ],
                     ...getBaseResponseBody(),
                     isResponseValid: true,
                 };

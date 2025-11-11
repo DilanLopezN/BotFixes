@@ -103,6 +103,7 @@ const ChatMessage = ({
         handleReply,
         isAudioPlayer,
         canReaction: canReaction,
+        activityText: activity.text,
     });
 
     return (

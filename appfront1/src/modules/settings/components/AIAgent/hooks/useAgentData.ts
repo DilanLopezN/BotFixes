@@ -15,7 +15,6 @@ export const useAgentData = ({ selectedWorkspace, getTranslation }: UseAgentData
     const [agents, setAgents] = useState<Agent[]>([]);
     const [loading, setLoading] = useState(false);
     const [bots, setBots] = useState<Bot[]>([]);
-    const [personalities, setPersonalities] = useState<{ identifier: string; content: string }[]>([]);
     const [integrations, setIntegrations] = useState<HealthIntegration[]>([]);
 
     const loadAgents = async () => {
@@ -50,19 +49,6 @@ export const useAgentData = ({ selectedWorkspace, getTranslation }: UseAgentData
         }
     };
 
-    const loadPersonalities = async () => {
-        if (!selectedWorkspace?._id) return;
-
-        try {
-            const response = await AIAgentService.listPredefinedPersonalities(selectedWorkspace._id, (err) => {
-                console.error('Error loading personalities:', err);
-            });
-            setPersonalities(response || []);
-        } catch (error) {
-            console.error('Error loading personalities:', error);
-        }
-    };
-
     const loadIntegrations = async () => {
         if (!selectedWorkspace?._id) return;
 
@@ -78,7 +64,6 @@ export const useAgentData = ({ selectedWorkspace, getTranslation }: UseAgentData
         await Promise.all([
             loadAgents(),
             loadBots(),
-            loadPersonalities(),
             loadIntegrations()
         ]);
     };
@@ -91,11 +76,9 @@ export const useAgentData = ({ selectedWorkspace, getTranslation }: UseAgentData
         agents,
         loading,
         bots,
-        personalities,
         integrations,
         loadAgents,
         loadBots,
-        loadPersonalities,
         loadIntegrations,
         loadAllData
     };

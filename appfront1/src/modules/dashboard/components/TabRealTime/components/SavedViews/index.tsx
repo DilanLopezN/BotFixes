@@ -33,7 +33,7 @@ const SavedViews: FC<SavedViewsProps & I18nProps> = ({
             setLoading(true);
             const views = await DashboardService.getUserSettings(workspaceId, USER_SETTING_TYPE);
             // Filtra valores undefined/null e garante que é um array válido
-            const validViews = Array.isArray(views) ? views.filter(v => v && v.id) : [];
+            const validViews = Array.isArray(views) ? views.filter((v) => v && v.id) : [];
             setSavedViews(validViews);
         } catch (error) {
             console.error('Erro ao carregar visões salvas:', error);
@@ -189,15 +189,10 @@ const SavedViews: FC<SavedViewsProps & I18nProps> = ({
         try {
             setLoading(true);
 
-            const updatedView = await DashboardService.updateUserSetting(
-                workspaceId!,
-                USER_SETTING_TYPE,
-                view.key,
-                {
-                    value: configToSave,
-                    label: view.label, // Mantém o nome original
-                }
-            );
+            const updatedView = await DashboardService.updateUserSetting(workspaceId!, USER_SETTING_TYPE, view.key, {
+                value: configToSave,
+                label: view.label, // Mantém o nome original
+            });
 
             // Valida se a resposta é válida antes de mostrar sucesso
             if (!updatedView || !updatedView.id) {
@@ -261,66 +256,69 @@ const SavedViews: FC<SavedViewsProps & I18nProps> = ({
                       disabled: true,
                   },
               ]
-            : savedViews.filter(v => v && v.id).slice(0, 10).map((view) => ({
-                  key: view.id,
-                  label: (
-                      <div
-                          style={{
-                              display: 'flex',
-                              justifyContent: 'space-between',
-                              alignItems: 'center',
-                              minWidth: 280,
-                          }}
-                      >
-                          <div style={{ flex: 1, cursor: 'pointer' }} onClick={() => loadView(view)}>
-                              <div style={{ fontWeight: 500 }}>{view.label}</div>
-                              {/* <div style={{ fontSize: '12px', color: '#8c8c8c' }}>
-                                  {new Date(view.createdAt).toLocaleDateString()} às{' '}
-                                  {new Date(view.createdAt).toLocaleTimeString('pt-BR', {
-                                      hour: '2-digit',
-                                      minute: '2-digit',
-                                  })}
-                              </div> */}
-                          </div>
-                          <Space size='small'>
-                              <Button
-                                  size='small'
-                                  type='text'
-                                  icon={<SaveOutlined />}
-                                  onClick={(e) => handleUpdateViewFilters(view, e)}
-                                  title={getTranslation('Salvar filtros nessa visão')}
-                                  loading={loading}
-                              />
-                              <Popover
-                                  content={getDeletePopoverContent(view)}
-                                  title={getTranslation('Confirmar exclusão')}
-                                  trigger='click'
-                                  open={deletePopoverVisible === view.id}
-                                  onOpenChange={(visible) => {
-                                      if (visible) {
-                                          setDeletePopoverVisible(view.id);
-                                      } else {
-                                          setDeletePopoverVisible(null);
-                                      }
-                                  }}
-                                  placement='topRight'
-                                  overlayStyle={{ zIndex: 2200 }}
-                              >
+            : savedViews
+                  .filter((v) => v && v.id)
+                  .slice(0, 10)
+                  .map((view) => ({
+                      key: view.id,
+                      label: (
+                          <div
+                              style={{
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  alignItems: 'center',
+                                  minWidth: 280,
+                              }}
+                          >
+                              <div style={{ flex: 1, cursor: 'pointer' }} onClick={() => loadView(view)}>
+                                  <div style={{ fontWeight: 500 }}>{view.label}</div>
+                                  <div style={{ fontSize: '12px', color: '#8c8c8c' }}>
+                                      {new Date(view.createdAt).toLocaleDateString()} às{' '}
+                                      {new Date(view.createdAt).toLocaleTimeString('pt-BR', {
+                                          hour: '2-digit',
+                                          minute: '2-digit',
+                                      })}
+                                  </div>
+                              </div>
+                              <Space size='small'>
                                   <Button
                                       size='small'
                                       type='text'
-                                      danger
-                                      icon={<DeleteOutlined />}
-                                      onClick={(e) => {
-                                          e.stopPropagation();
-                                      }}
-                                      title={getTranslation('Excluir visão')}
+                                      icon={<SaveOutlined />}
+                                      onClick={(e) => handleUpdateViewFilters(view, e)}
+                                      title={getTranslation('Salvar filtros nessa visão')}
+                                      loading={loading}
                                   />
-                              </Popover>
-                          </Space>
-                      </div>
-                  ),
-              }))),
+                                  <Popover
+                                      content={getDeletePopoverContent(view)}
+                                      title={getTranslation('Confirmar exclusão')}
+                                      trigger='click'
+                                      open={deletePopoverVisible === view.id}
+                                      onOpenChange={(visible) => {
+                                          if (visible) {
+                                              setDeletePopoverVisible(view.id);
+                                          } else {
+                                              setDeletePopoverVisible(null);
+                                          }
+                                      }}
+                                      placement='topRight'
+                                      overlayStyle={{ zIndex: 2200 }}
+                                  >
+                                      <Button
+                                          size='small'
+                                          type='text'
+                                          danger
+                                          icon={<DeleteOutlined />}
+                                          onClick={(e) => {
+                                              e.stopPropagation();
+                                          }}
+                                          title={getTranslation('Excluir visão')}
+                                      />
+                                  </Popover>
+                              </Space>
+                          </div>
+                      ),
+                  }))),
         ...(savedViews && savedViews.length > 10
             ? [
                   {
@@ -371,7 +369,8 @@ const SavedViews: FC<SavedViewsProps & I18nProps> = ({
                     onClick={() => setIsDropdownVisible(!isDropdownVisible)}
                     style={{ display: 'inline-flex', alignItems: 'center' }}
                 >
-                    {getTranslation('Visões')} ({Array.isArray(savedViews) ? savedViews.filter(v => v && v.id).length : 0})
+                    {getTranslation('Visões')} (
+                    {Array.isArray(savedViews) ? savedViews.filter((v) => v && v.id).length : 0})
                     <DownOutlined style={{ marginLeft: 4, fontSize: '10px' }} />
                 </Button>
             </Dropdown>

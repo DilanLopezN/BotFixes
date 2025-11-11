@@ -11,7 +11,7 @@ import { PlusOutlined, BookOutlined } from '@ant-design/icons';
 import { useFormik } from 'formik-latest';
 import { AIAgentService, AgentType, AgentContext } from '../../service/AIAgentService';
 import { addNotification } from '../../../../utils/AddNotification';
-import AgentTable from './components/AgentTable';
+import AgentCards from './components/AgentCards';
 import CreateAgentModal from './components/CreateAgentModal';
 import AgentDetailsDrawer from './components/AgentDetailsDrawer';
 import { useAgentData } from './hooks/useAgentData';
@@ -29,7 +29,6 @@ const AIAgent: FC<AIAgentProps> = (props) => {
         agents,
         loading,
         bots,
-        personalities,
         integrations,
         loadAgents
     } = useAgentData({ selectedWorkspace, getTranslation });
@@ -48,8 +47,7 @@ const AIAgent: FC<AIAgentProps> = (props) => {
     } = useAgentActions({ 
         selectedWorkspace, 
         getTranslation, 
-        onAgentChange: loadAgents,
-        personalities 
+        onAgentChange: loadAgents
     });
 
 
@@ -59,13 +57,14 @@ const AIAgent: FC<AIAgentProps> = (props) => {
             name: '',
             description: '',
             prompt: '',
-            personality: '',
             botId: null as string | null,
             isDefault: false,
             agentType: undefined as AgentType | undefined,
             agentContext: null as AgentContext | null,
             modelName: 'gpt-4o-mini' as string,
             integrationId: undefined as string | undefined,
+            allowSendAudio: false,
+            allowResponseWelcome: false,
         },
         validate: (values) => {
             const errors: any = {};
@@ -93,13 +92,8 @@ const AIAgent: FC<AIAgentProps> = (props) => {
             if (!selectedWorkspace?._id) return;
 
             try {
-                const personalityContent = values.personality 
-                    ? personalities.find(p => p.identifier === values.personality)?.content || values.personality
-                    : values.personality;
-
                 const submitData = {
                     ...values,
-                    personality: personalityContent
                 };
 
                 await AIAgentService.createAgent(selectedWorkspace._id, submitData);
@@ -132,12 +126,14 @@ const AIAgent: FC<AIAgentProps> = (props) => {
             name: '',
             description: '',
             prompt: '',
-            personality: '',
             botId: null as string | null,
             isDefault: false,
             agentType: undefined as AgentType | undefined,
+            agentContext: null as AgentContext | null,
             modelName: 'gpt-4o-mini' as string,
             integrationId: undefined as string | undefined,
+            allowSendAudio: false,
+            allowResponseWelcome: false,
         },
         validate: (values) => {
             const errors: any = {};
@@ -170,20 +166,18 @@ const AIAgent: FC<AIAgentProps> = (props) => {
     };
 
     const handleEditAgent = (agent: any) => {
-        const personalityIdentifier = agent.personality 
-            ? personalities.find(p => p.content === agent.personality)?.identifier || agent.personality
-            : '';
-        
         editFormik.setValues({
             name: agent.name,
             description: agent.description,
             prompt: agent.prompt,
-            personality: personalityIdentifier,
             botId: agent.botId || null,
             isDefault: agent.isDefault,
             agentType: agent.agentType,
+            agentContext: agent.agentContext || null,
             modelName: agent.modelName || 'gpt-4o-mini',
             integrationId: agent.integrationId || undefined,
+            allowSendAudio: agent.allowSendAudio || false,
+            allowResponseWelcome: agent.allowResponseWelcome || false,
         });
         
         handleEditInDrawer(agent);
@@ -227,18 +221,14 @@ const AIAgent: FC<AIAgentProps> = (props) => {
                 />
             </Wrapper>
             <ScrollView id='content-AIAgent'>
-                <Wrapper margin='0 auto' maxWidth='100%' minWidth='800px' padding='20px 30px'>
-                    <Wrapper flexBox width='100%'>
-                        <Card>
-                            <AgentTable
-                                agents={agents}
-                                loading={loading}
-                                getTranslation={getTranslation}
-                                onConfigure={handleConfigureAgent}
-                                onDelete={handleDeleteAgent}
-                            />
-                        </Card>
-                    </Wrapper>
+                <Wrapper margin='0 auto' maxWidth='100%' padding='20px 30px'>
+                    <AgentCards
+                        agents={agents}
+                        loading={loading}
+                        getTranslation={getTranslation}
+                        onConfigure={handleConfigureAgent}
+                        onDelete={handleDeleteAgent}
+                    />
                 </Wrapper>
             </ScrollView>
 
@@ -249,7 +239,6 @@ const AIAgent: FC<AIAgentProps> = (props) => {
                 formik={createFormik}
                 getTranslation={getTranslation}
                 bots={bots}
-                personalities={personalities}
                 integrations={integrations}
             />
 
@@ -264,7 +253,6 @@ const AIAgent: FC<AIAgentProps> = (props) => {
                 formik={editFormik}
                 getTranslation={getTranslation}
                 bots={bots}
-                personalities={personalities}
                 integrations={integrations}
             />
 

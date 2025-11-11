@@ -98,7 +98,7 @@ export function validateWhatsappFile(file: File): { isValid: boolean; error?: st
     const fileType = file.type.split(';')[0].trim();
 
     // const rules = Object.values(WHATSAPP_MEDIA_RULES).find((rule) => rule.mimes.includes(fileType));
-    const rules = { maxSize: 100 * 1024 * 1024, name: file.type }
+    const rules = { maxSize: 100 * 1024 * 1024, name: file.type };
 
     if (!rules) {
         return {
@@ -204,6 +204,17 @@ export const AttachmentService = {
                     'Content-Type': 'multipart/form-data',
                 },
                 timeout: 60000,
+            })
+        );
+    },
+
+    sendAttachmentBatch: async (conversationId: string, memberId: string, formData: FormData) => {
+        return await doRequest(
+            apiInstance.post(`/conversations/${conversationId}/members/${memberId}/attachments/batch`, formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                },
+                timeout: 120000, // 2min
             })
         );
     },

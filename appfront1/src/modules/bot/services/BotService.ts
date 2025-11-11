@@ -47,25 +47,10 @@ export const BotService = {
             apiInstance.post('/workspaces/' + workspaceId + '/bots/' + botId + '/interactions', interaction)
         );
     },
-    deleteInteraction: async (
-        workspaceId: string,
-        botId: string,
-        interactionId: string,
-        errCb?: (e: any) => any
-    ): Promise<any> => {
+    deleteInteraction: async (workspaceId: string, botId: string, interactionId: string, errCb?): Promise<any> => {
         return await doRequest(
-            apiInstance.delete(`/workspaces/${workspaceId}/bots/${botId}/interactions/${interactionId}`),
-            false,
-            (err) => {
-                window.dispatchEvent(
-                    new CustomEvent('interaction-goto-error', {
-                        detail: {
-                            interactionId,
-                            error: err,
-                        },
-                    })
-                );
-            }
+            apiInstance.delete('/workspaces/' + workspaceId + '/bots/' + botId + '/interactions/' + interactionId),
+            errCb
         );
     },
     getBotAttributes: async (workspaceId: string, botId: string): Promise<PaginatedModel<BotAttribute>> => {

@@ -88,6 +88,7 @@ const ChatCard: FC<any> = ({
         handleReact,
         handleReply,
         canReaction: canReaction,
+        activityText: activity.text,
     });
 
     const numberButtonVisible = (channel: string) => {

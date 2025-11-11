@@ -21,6 +21,9 @@ const SortType: FC<SortTypeProps & I18nProps> = ({ getTranslation, value, onChan
         [AppointmentSortTypes.default]: {
             label: getTranslation('Random'),
         },
+        [AppointmentSortTypes.firstEachDoctorBalanced]: {
+            label: getTranslation('firstEachDoctorBalanced'),
+        },
         [AppointmentSortTypes.firstEachPeriodDay]: {
             label: getTranslation('firstEachPeriodDay'),
         },

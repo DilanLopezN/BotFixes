@@ -32,11 +32,13 @@ export interface ContextMessage {
         id: string;
         content: string;
         createdAt: string;
+        contextId: string;
     };
     systemMessage: {
         id: string;
         content: string;
         createdAt: string;
+        contextId: string;
     };
 }
 

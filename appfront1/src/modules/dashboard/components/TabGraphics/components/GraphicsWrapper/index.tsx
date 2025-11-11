@@ -83,16 +83,7 @@ const GraphicsWrapper: FC<GraphicsWrapperProps & I18nProps> = ({
 
     const getWorkspaceUsers = async () => {
         try {
-            const query = {
-                $and: [
-                    {
-                        'roles.role': {
-                            $nin: ['WORKSPACE_INACTIVE'],
-                        },
-                    },
-                ],
-            };
-            const response = await WorkspaceUserService.getAll(selectedWorkspace._id, 'name', query);
+            const response = await WorkspaceUserService.getAll(selectedWorkspace._id, 'name');
             if (response?.data) {
                 setWorkspaceUsers(response.data);
             }

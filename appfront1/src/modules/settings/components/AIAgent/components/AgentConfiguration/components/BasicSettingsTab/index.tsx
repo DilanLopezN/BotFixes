@@ -29,28 +29,20 @@ const BasicSettingsTab: FC<BasicSettingsTabProps> = ({
     const [form] = Form.useForm();
     const [loading, setLoading] = useState(false);
     const [bots, setBots] = useState<Bot[]>([]);
-    const [personalities, setPersonalities] = useState<{ identifier: string; content: string }[]>([]);
     const [integrations, setIntegrations] = useState<HealthIntegration[]>([]);
 
     // Load data only once
     useEffect(() => {
         loadBots();
-        loadPersonalities();
         loadIntegrations();
     }, [workspaceId]);
 
-    // Set form values when agent or personalities change
+    // Populate form when agent changes
     useEffect(() => {
-        // Find personality identifier that matches the stored content
-        const personalityIdentifier = agent.personality 
-            ? personalities.find(p => p.content === agent.personality)?.identifier || agent.personality
-            : '';
-        
         form.setFieldsValue({
             name: agent.name,
             description: agent.description,
             prompt: agent.prompt,
-            personality: personalityIdentifier,
             botId: agent.botId,
             isDefault: agent.isDefault,
             agentType: agent.agentType,
@@ -58,8 +50,9 @@ const BasicSettingsTab: FC<BasicSettingsTabProps> = ({
             modelName: agent.modelName || 'gpt-4o-mini', // Default to gpt-4o-mini if not set
             integrationId: agent.integrationId,
             allowSendAudio: agent.allowSendAudio || false,
+            allowResponseWelcome: agent.allowResponseWelcome || false,
         });
-    }, [agent, personalities, form]);
+    }, [agent, form]);
 
     const loadBots = async () => {
         if (!workspaceId) return;
@@ -69,19 +62,6 @@ const BasicSettingsTab: FC<BasicSettingsTabProps> = ({
             setBots(response?.data || []);
         } catch (error) {
             console.error('Error loading bots:', error);
-        }
-    };
-
-    const loadPersonalities = async () => {
-        if (!workspaceId) return;
-
-        try {
-            const response = await AIAgentService.listPredefinedPersonalities(workspaceId, (err) => {
-                console.error('Error loading personalities:', err);
-            });
-            setPersonalities(response || []);
-        } catch (error) {
-            console.error('Error loading personalities:', error);
         }
     };
 
@@ -99,14 +79,8 @@ const BasicSettingsTab: FC<BasicSettingsTabProps> = ({
     const handleSubmit = async (values: any) => {
         setLoading(true);
         try {
-            // Convert personality identifier to content before sending
-            const personalityContent = values.personality 
-                ? personalities.find(p => p.identifier === values.personality)?.content || values.personality
-                : values.personality;
-
             const submitData = {
                 ...values,
-                personality: personalityContent
             };
 
             await AIAgentService.updateAgent(
@@ -219,25 +193,43 @@ const BasicSettingsTab: FC<BasicSettingsTabProps> = ({
                         </Form.Item>
                     </div>
 
-                    <Form.Item
-                        label={
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                <BranchesOutlined style={{ color: '#1890ff' }} />
-                                <span>{getTranslation('Contexto do Agente')}</span>
-                            </div>
-                        }
-                        name="agentContext"
-                        style={{ marginBottom: 16 }}
-                    >
-                        <Select placeholder={getTranslation('Selecionar Contexto')} allowClear>
-                            <Option value={AgentContext.FAQ}>
-                                {getTranslation('FAQ')}
-                            </Option>
-                            <Option value={AgentContext.GENERAL}>
-                                {getTranslation('Geral')}
-                            </Option>
-                        </Select>
-                    </Form.Item>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+                        <Form.Item
+                            label={
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <BranchesOutlined style={{ color: '#1890ff' }} />
+                                    <span>{getTranslation('Contexto do Agente')}</span>
+                                </div>
+                            }
+                            name="agentContext"
+                        >
+                            <Select placeholder={getTranslation('Selecionar Contexto')} allowClear>
+                                <Option value={AgentContext.FAQ}>
+                                    {getTranslation('FAQ')}
+                                </Option>
+                                <Option value={AgentContext.GENERAL}>
+                                    {getTranslation('Geral')}
+                                </Option>
+                            </Select>
+                        </Form.Item>
+
+                        <Form.Item
+                            label={
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <ThunderboltOutlined style={{ color: '#1890ff' }} />
+                                    <span>{getTranslation('Modelo')}</span>
+                                </div>
+                            }
+                            name="modelName"
+                            rules={[{ required: true, message: getTranslation('Modelo é obrigatório') }]}
+                        >
+                            <Select placeholder={getTranslation('Selecionar Modelo')}>
+                                <Option value="gpt-4o-mini">GPT-4o Mini</Option>
+                                <Option value="gpt-4.1-mini">GPT-4.1 Mini</Option>
+                                <Option value="gpt-5-mini">GPT-5 Mini</Option>
+                            </Select>
+                        </Form.Item>
+                    </div>
 
                     <Form.Item
                         label={
@@ -301,62 +293,6 @@ const BasicSettingsTab: FC<BasicSettingsTabProps> = ({
                         </Form.Item>
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
-                        <Form.Item
-                            label={
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                    <span>{getTranslation('Personalidade')}</span>
-                                </div>
-                            }
-                            name="personality"
-                        >
-                            <Select
-                                placeholder={getTranslation('Selecionar Personalidade')}
-                                allowClear
-                                showSearch
-                                optionFilterProp="children"
-                            >
-                                {personalities.map((personality) => (
-                                    <Option 
-                                        key={personality.identifier} 
-                                        value={personality.identifier}
-                                        title={personality.identifier}
-                                    >
-                                        <div style={{ 
-                                            maxWidth: '300px',
-                                            whiteSpace: 'pre-wrap',
-                                            wordBreak: 'break-word'
-                                        }}>
-                                            <strong style={{ color: '#1890ff', display: 'block', marginBottom: 4 }}>
-                                                {personality.identifier}
-                                            </strong>
-                                            <span style={{ color: '#666', fontSize: '12px', lineHeight: '1.4' }}>
-                                                {personality.content}
-                                            </span>
-                                        </div>
-                                    </Option>
-                                ))}
-                            </Select>
-                        </Form.Item>
-
-                        <Form.Item
-                            label={
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                    <ThunderboltOutlined style={{ color: '#1890ff' }} />
-                                    <span>{getTranslation('Modelo')}</span>
-                                </div>
-                            }
-                            name="modelName"
-                            rules={[{ required: true, message: getTranslation('Modelo é obrigatório') }]}
-                        >
-                            <Select placeholder={getTranslation('Selecionar Modelo')}>
-                                <Option value="gpt-4o-mini">GPT-4o Mini</Option>
-                                <Option value="gpt-4.1-mini">GPT-4.1 Mini</Option>
-                                <Option value="gpt-5-mini">GPT-5 Mini</Option>
-                            </Select>
-                        </Form.Item>
-                    </div>
-
                     <Divider />
 
                     <Form.Item
@@ -390,6 +326,12 @@ const BasicSettingsTab: FC<BasicSettingsTabProps> = ({
                     <Form.Item name="allowSendAudio" valuePropName="checked">
                         <Checkbox>
                             {getTranslation('Permitir envio de áudio')}
+                        </Checkbox>
+                    </Form.Item>
+
+                    <Form.Item name="allowResponseWelcome" valuePropName="checked">
+                        <Checkbox>
+                            {getTranslation('Responder com mensagem de boas-vindas')}
                         </Checkbox>
                     </Form.Item>
 

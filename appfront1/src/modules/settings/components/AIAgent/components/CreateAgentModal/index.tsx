@@ -11,7 +11,6 @@ interface CreateAgentModalProps {
     formik: any;
     getTranslation: (key: string) => string;
     bots: Bot[];
-    personalities: { identifier: string; content: string }[];
     integrations: HealthIntegration[];
 }
 
@@ -22,7 +21,6 @@ const CreateAgentModal: FC<CreateAgentModalProps> = ({
     formik,
     getTranslation,
     bots,
-    personalities,
     integrations
 }) => {
     return (
@@ -42,7 +40,6 @@ const CreateAgentModal: FC<CreateAgentModalProps> = ({
                     formik={formik}
                     getTranslation={getTranslation}
                     bots={bots}
-                    personalities={personalities}
                     integrations={integrations}
                 />
             </form>

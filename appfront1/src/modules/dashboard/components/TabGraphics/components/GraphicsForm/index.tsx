@@ -4,6 +4,7 @@ import orderBy from 'lodash/orderBy';
 import moment from 'moment';
 import { FC, useEffect, useMemo } from 'react';
 import { BsPlus } from 'react-icons/bs';
+import { UserRoles } from 'kissbot-core';
 import { LabelWrapper } from '../../../../../../shared/StyledForms/LabelWrapper/LabelWrapper';
 import { Wrapper } from '../../../../../../ui-kissbot-v2/common';
 import { channelToLabel } from '../../../../../../utils/ChannelToLabel';
@@ -122,6 +123,89 @@ const GraphicsForm: FC<GraphicsFormProps & I18nProps> = ({
         return [...activeOptions, ...deletedOptions];
     }, [conversationObjectives]);
 
+    const { activeUsers, inactiveUsers } = useMemo(() => {
+        const workspaceId = selectedWorkspace?._id ? String(selectedWorkspace._id) : undefined;
+        const activeList: typeof users = [];
+        const inactiveList: typeof users = [];
+
+        (users ?? []).forEach((user) => {
+            const roles = user.roles ?? [];
+
+            const inactiveInWorkspace = roles.some((role) => {
+                if (role.role !== UserRoles.WORKSPACE_INACTIVE) return false;
+                const roleResourceId = role.resourceId ? String(role.resourceId) : undefined;
+                if (!workspaceId) return true;
+                return roleResourceId === workspaceId;
+            });
+
+            if (inactiveInWorkspace) {
+                inactiveList.push(user);
+                return;
+            }
+
+            const activeInWorkspace = roles.some((role) => {
+                if (role.role === UserRoles.WORKSPACE_INACTIVE) return false;
+                const roleResourceId = role.resourceId ? String(role.resourceId) : undefined;
+                if (!workspaceId) return true;
+                if (!roleResourceId) return true;
+                return roleResourceId === workspaceId;
+            });
+
+            if (activeInWorkspace) {
+                activeList.push(user);
+                return;
+            }
+
+            activeList.push(user);
+        });
+
+        return {
+            activeUsers: orderBy(activeList, 'name'),
+            inactiveUsers: orderBy(inactiveList, 'name'),
+        };
+    }, [users, selectedWorkspace?._id]);
+
+    const getNormalizedOptionText = (option: any): string => {
+        const toText = (node: any): string => {
+            if (node === undefined || node === null) {
+                return '';
+            }
+
+            if (typeof node === 'string' || typeof node === 'number') {
+                return String(node);
+            }
+
+            if (Array.isArray(node)) {
+                return node.map((child) => toText(child)).join(' ');
+            }
+
+            if (node?.props) {
+                return toText(node.props.children);
+            }
+
+            return '';
+        };
+
+        if (option?.props) {
+            const { label, children, value } = option.props;
+            return [children, label, value].map((item) => toText(item)).join(' ').trim();
+        }
+
+        return toText(option);
+    };
+
+    const filterOption = (input: string, option?: any) => {
+        if (!option) {
+            return false;
+        }
+        const normalized = getNormalizedOptionText(option);
+        if (!normalized) {
+            return false;
+        }
+
+        return normalized.toLowerCase().includes(input.toLowerCase());
+    };
+
     const getOptionsByField = (field: string, index: number) => {
         switch (field) {
             case TemplateGroupField.assigned_to_team_id:
@@ -138,8 +222,9 @@ const GraphicsForm: FC<GraphicsFormProps & I18nProps> = ({
                 const includesBot = formik.values?.conditions[index].values.includes(FixedClosedBy.bot);
                 const includesNotClosed = formik.values?.conditions[index].values.includes(FixedClosedBy.not_closed);
                 const includesAllAgents = formik.values?.conditions[index].values.includes(FixedClosedBy.all_agents);
+                const isAgentOptionDisabled = includesBot || includesNotClosed || includesAllAgents;
                 return [
-                    <OptGroup label={getTranslation('System')}>
+                    <OptGroup label={getTranslation('System')} key='system'>
                         <Option disabled={includesNotClosed} value={FixedClosedBy.bot}>
                             {getTranslation('Bot')}
                         </Option>
@@ -150,18 +235,28 @@ const GraphicsForm: FC<GraphicsFormProps & I18nProps> = ({
                             {getTranslation('All agents')}
                         </Option>
                     </OptGroup>,
-                    <OptGroup label={getTranslation('Agents')}>
-                        {users.map((user) => {
-                            return (
-                                <Option
-                                    disabled={includesBot || includesNotClosed || includesAllAgents}
-                                    value={user._id}
-                                >
-                                    {user.name}
-                                </Option>
-                            );
-                        })}
-                    </OptGroup>,
+                    activeUsers.length ? (
+                        <OptGroup label={getTranslation('Active')} key='active'>
+                            {activeUsers.map((user) => {
+                                return (
+                                    <Option disabled={isAgentOptionDisabled} value={user._id} key={user._id}>
+                                        {user.name}
+                                    </Option>
+                                );
+                            })}
+                        </OptGroup>
+                    ) : null,
+                    inactiveUsers.length ? (
+                        <OptGroup label={getTranslation('Inactive')} key='inactive'>
+                            {inactiveUsers.map((user) => {
+                                return (
+                                    <Option disabled={isAgentOptionDisabled} value={user._id} key={user._id}>
+                                        {user.name}
+                                    </Option>
+                                );
+                            })}
+                        </OptGroup>
+                    ) : null,
                 ];
 
             case TemplateGroupField.created_by_channel:
@@ -733,6 +828,9 @@ const GraphicsForm: FC<GraphicsFormProps & I18nProps> = ({
                                                                 ? 'tags'
                                                                 : 'multiple'
                                                         }
+                                                        showSearch
+                                                        optionFilterProp='children'
+                                                        filterOption={filterOption}
                                                         placeholder={getTranslation('Value')}
                                                         allowClear
                                                         value={

@@ -8017,6 +8017,10 @@ export const wordsList: Words = {
         pt: 'Nome da configuração de agendamento',
         en: 'Schedule configuration name',
     },
+    Alias: {
+        pt: 'Alias',
+        en: 'Alias',
+    },
     'Scheduling Settings': {
         pt: 'Configurações de agendamento',
         en: 'Scheduling Settings',
@@ -8775,37 +8779,56 @@ export const wordsList: Words = {
         en: 'Feature not available for this workspace',
         pt: 'Funcionalidade não disponível para este workspace',
     },
-    'Cannot delete interaction': {
-        en: 'Cannot delete interaction',
-        pt: 'Não é possível deletar a interaction',
+    'Drop files here': {
+        en: 'Drop files here',
+        pt: 'Solte os arquivos aqui',
     },
-    'The interaction cannot be deleted because it is being referenced in the following GOTOs:': {
-        en: 'The interaction cannot be deleted because it is being referenced in the following GOTOs:',
-        pt: 'A interaction não pode ser deletada pois está sendo referenciada nos seguintes GOTOs:',
+    'Up to {{max}} files at once': {
+        en: 'Up to {{max}} files at once',
+        pt: 'Até {{max}} arquivos por vez',
     },
-    'Delete references and interaction': {
-        en: 'Delete references and interaction',
-        pt: 'Deletar referências e interaction',
+    'Sending {{count}} files...': {
+        en: 'Sending {{count}} files...',
+        pt: 'Enviando {{count}} arquivos...',
     },
-    'Go to interaction': {
-        en: 'Go to interaction',
-        pt: 'Ir para interaction',
+    files: {
+        en: 'files',
+        pt: 'arquivos',
     },
-
-    'Response Type': {
-        en: 'Response Type',
-        pt: 'Tipo de resposta',
+    '{{success}} files sent successfully, {{error}} failed': {
+        en: '{{success}} files sent successfully, {{error}} failed',
+        pt: '{{success}} arquivos enviados com sucesso, {{error}} falharam',
     },
-    'Interaction deleted successfully': {
-        en: 'Interaction deleted successfully',
-        pt: 'Interaction deletada com sucesso',
+    '{{count}} files sent successfully': {
+        en: '{{count}} files sent successfully',
+        pt: '{{count}} arquivos enviados com sucesso',
     },
-    'Failed to delete interaction': {
-        en: 'Failed to delete interaction',
-        pt: 'Falha ao deletar interaction',
+    'files sent successfully': {
+        en: 'files sent successfully',
+        pt: 'arquivos enviados com sucesso',
     },
-    'An error occurred while deleting references': {
-        en: 'An error occurred while deleting references',
-        pt: 'Ocorreu um erro ao deletar as referências',
+    failed: {
+        en: 'failed',
+        pt: 'falharam',
+    },
+    'Scroll to bottom': {
+        en: 'Scroll to bottom',
+        pt: 'Ir para o fim',
+    },
+    'Copy message': {
+        en: 'Copy message',
+        pt: 'Copiar mensagem',
+    },
+    'Message copied!': {
+        en: 'Message copied!',
+        pt: 'Mensagem copiada!',
+    },
+    'No text to copy': {
+        en: 'No text to copy',
+        pt: 'Sem texto para copiar',
+    },
+    'Failed to copy': {
+        en: 'Failed to copy',
+        pt: 'Falha ao copiar',
     },
 };

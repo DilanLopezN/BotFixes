@@ -8,14 +8,12 @@ interface UseAgentActionsProps {
     selectedWorkspace: any;
     getTranslation: (key: string) => string;
     onAgentChange: () => void;
-    personalities: { identifier: string; content: string }[];
 }
 
 export const useAgentActions = ({ 
     selectedWorkspace, 
     getTranslation, 
-    onAgentChange,
-    personalities 
+    onAgentChange
 }: UseAgentActionsProps) => {
     const history = useHistory();
     const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
@@ -89,13 +87,8 @@ export const useAgentActions = ({
         if (!selectedWorkspace?._id || !editingInDrawer) return;
 
         try {
-            const personalityContent = formik.values.personality 
-                ? personalities.find(p => p.identifier === formik.values.personality)?.content || formik.values.personality
-                : formik.values.personality;
-
             const submitData = {
                 ...formik.values,
-                personality: personalityContent
             };
 
             await AIAgentService.updateAgent(

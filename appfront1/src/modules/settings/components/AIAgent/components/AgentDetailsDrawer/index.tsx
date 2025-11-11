@@ -9,8 +9,7 @@ import {
     TeamOutlined, 
     DatabaseOutlined, 
     ThunderboltOutlined, 
-    BranchesOutlined, 
-    ExperimentOutlined 
+    BranchesOutlined
 } from '@ant-design/icons';
 import AgentForm from '../AgentForm';
 import { Agent, AgentType } from '../../../../service/AIAgentService';
@@ -28,7 +27,6 @@ interface AgentDetailsDrawerProps {
     formik: any;
     getTranslation: (key: string) => string;
     bots: Bot[];
-    personalities: { identifier: string; content: string }[];
     integrations: HealthIntegration[];
 }
 
@@ -43,7 +41,6 @@ const AgentDetailsDrawer: FC<AgentDetailsDrawerProps> = ({
     formik,
     getTranslation,
     bots,
-    personalities,
     integrations
 }) => {
     const renderViewMode = () => {
@@ -166,27 +163,6 @@ const AgentDetailsDrawer: FC<AgentDetailsDrawerProps> = ({
                         </div>
                     )}
 
-                    {selectedAgent.personality && (
-                        <div style={{ marginBottom: 16 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                                <ExperimentOutlined style={{ color: '#1890ff', fontSize: '16px' }} />
-                                <strong style={{ color: '#1890ff' }}>{getTranslation('Personalidade')}:</strong>
-                            </div>
-                            <div style={{ 
-                                marginTop: 4, 
-                                fontSize: '14px', 
-                                marginLeft: 24,
-                                padding: '12px',
-                                background: '#f6f8ff',
-                                border: '1px solid #e6f0ff',
-                                borderRadius: '6px',
-                                color: '#1890ff',
-                                fontWeight: '500'
-                            }}>
-                                {personalities.find(p => p.identifier === selectedAgent.personality)?.content || selectedAgent.personality}
-                            </div>
-                        </div>
-                    )}
                 </AntCard>
 
                 <AntCard>
@@ -233,7 +209,6 @@ const AgentDetailsDrawer: FC<AgentDetailsDrawerProps> = ({
                 formik={formik}
                 getTranslation={getTranslation}
                 bots={bots}
-                personalities={personalities}
                 integrations={integrations}
             />
         </div>

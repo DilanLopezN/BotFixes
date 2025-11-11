@@ -44,7 +44,20 @@ const Block: FC<BlockProps & I18nProps> = ({ getTranslation, props, setOpenEditV
     const [defaultVariable, setDefaultVariable] = useState<boolean>(isDefault);
     const [variable, setVariable] = useState<TemplateVariable>(getVariable());
 
-    const notIncludeInVariables = !templateVariables.find((curr) => curr?.value === text);
+    const isVariableDataValid = (variableToValidate?: TemplateVariable) => {
+        if (!variableToValidate) {
+            return false;
+        }
+
+        const hasValue = !!variableToValidate.value?.trim();
+        const hasLabel = !!variableToValidate.label?.trim();
+        const hasSample = !isHsm || !!variableToValidate.sampleValue?.trim();
+
+        return hasValue && hasLabel && hasSample;
+    };
+
+    const savedVariable = templateVariables.find((curr) => curr?.value === text);
+    const shouldHighlightAsPending = !isDefault && !isVariableDataValid(savedVariable);
 
     useEffect(() => {
         if (open) {
@@ -56,10 +69,7 @@ const Block: FC<BlockProps & I18nProps> = ({ getTranslation, props, setOpenEditV
         }
     }, [open]);
 
-    const invalidVaribleHsm =
-        isHsm && (!variable.value.trim() || !variable.label.trim() || !variable.sampleValue?.trim());
-    const invalidVarible = !isHsm && (!variable.value.trim() || !variable.label.trim());
-    const disabled = !defaultVariable && (invalidVaribleHsm || invalidVarible);
+    const isConfirmDisabled = !defaultVariable && !isVariableDataValid(variable);
 
     return (
         <Popover
@@ -170,8 +180,9 @@ const Block: FC<BlockProps & I18nProps> = ({ getTranslation, props, setOpenEditV
                         <Button
                             size='small'
                             className='antd-span-default-color'
+                            disabled={isConfirmDisabled}
                             onClick={() => {
-                               
+                                if (isConfirmDisabled) return;
                                 setOpen(false);
                                 onChangeVariable(variable, props.start, props.end);
                                 setOpenEditVariable(false);
@@ -184,7 +195,7 @@ const Block: FC<BlockProps & I18nProps> = ({ getTranslation, props, setOpenEditV
                 </div>
             }
         >
-            {notIncludeInVariables && !isDefault ? (
+            {shouldHighlightAsPending ? (
                 <Tooltip placement='bottom' title={getTranslation('Variable has not yet been edited')} color={'#ef3232'}>
                     <div
                         data-offset-key={props?.offsetKey}

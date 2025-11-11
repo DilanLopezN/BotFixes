@@ -1,5 +1,5 @@
 import { FC, useEffect, useState, useRef } from 'react';
-import { Modal, Input, Button, Alert, Tag, Divider } from 'antd';
+import { Modal, Input, Button, Alert, Tag, Divider, Drawer } from 'antd';
 import styled from 'styled-components';
 import {
     BugOutlined,
@@ -12,20 +12,39 @@ import {
     RobotOutlined,
     UserOutlined,
     CopyOutlined,
+    LoadingOutlined,
 } from '@ant-design/icons';
-import { AIAgentService, DoQuestionResponse } from '../../../../../../service/AIAgentService';
+import { AIAgentService, DoQuestionResponse, ConversationTrace } from '../../../../../../service/AIAgentService';
 import { addNotification } from '../../../../../../../../utils/AddNotification';
 
 const LoadingDotsAnimation = styled.div`
     @keyframes loading-dots {
-        0%, 80%, 100% { 
+        0%, 80%, 100% {
             transform: scale(0);
             opacity: 0.5;
-        } 
-        40% { 
+        }
+        40% {
             transform: scale(1);
             opacity: 1;
         }
+    }
+`;
+
+const TraceContainer = styled.div`
+    background-color: #1e1e1e;
+    padding: 16px;
+    border-radius: 4px;
+    height: 100%;
+    overflow-y: auto;
+
+    pre {
+        margin: 0;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', monospace;
+        font-size: 13px;
+        color: #d4d4d4;
+        line-height: 1.6;
     }
 `;
 
@@ -45,6 +64,8 @@ interface ChatMessage {
     timestamp: Date;
     result?: DoQuestionResponse;
     responseTime?: number;
+    traceId?: string;
+    trace?: ConversationTrace;
 }
 
 const TestTrainingModal: FC<TestTrainingModalProps> = ({
@@ -65,7 +86,11 @@ const TestTrainingModal: FC<TestTrainingModalProps> = ({
     const [debugParameters, setDebugParameters] = useState<Record<string, string>>({});
     const [showParametersPanel, setShowParametersPanel] = useState(false);
     const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
-    
+    const [traceDrawerVisible, setTraceDrawerVisible] = useState(false);
+    const [selectedTrace, setSelectedTrace] = useState<ConversationTrace | null>(null);
+    const [loadingTrace, setLoadingTrace] = useState(false);
+    const [currentSuggestedActions, setCurrentSuggestedActions] = useState<any[]>([]);
+
     const chatAreaRef = useRef<HTMLDivElement>(null);
     const textAreaRef = useRef<any>(null);
 
@@ -179,7 +204,8 @@ const TestTrainingModal: FC<TestTrainingModalProps> = ({
         setContextId(generateUUID());
         setUseHistoricMessages(false);
         setChatHistory([]);
-        
+        setCurrentSuggestedActions([]);
+
         setTimeout(() => {
             if (textAreaRef.current) {
                 textAreaRef.current.focus();
@@ -222,10 +248,58 @@ const TestTrainingModal: FC<TestTrainingModalProps> = ({
         }, 100);
     };
 
-    const handleDebugQuestion = async () => {
+    const handleToggleTrace = async (messageId: string) => {
+        const message = chatHistory.find(m => m.id === messageId);
+        if (!message || !message.traceId) return;
+
+        // If trace already loaded, just show it
+        if (message.trace) {
+            setSelectedTrace(message.trace);
+            setTraceDrawerVisible(true);
+            return;
+        }
+
+        // Otherwise, load it first
+        setLoadingTrace(true);
+        setTraceDrawerVisible(true);
+        setSelectedTrace(null);
+
+        try {
+            const trace = await AIAgentService.getConversationTrace(
+                workspaceId,
+                message.traceId,
+                (err) => {
+                    console.error('Error loading trace:', err);
+                    addNotification({
+                        title: getTranslation('Erro'),
+                        message: getTranslation('Erro ao carregar trace'),
+                        type: 'danger',
+                        duration: 3000,
+                    });
+                }
+            );
+
+            // Update message with trace
+            setChatHistory(prev => prev.map(m =>
+                m.id === messageId
+                    ? { ...m, trace }
+                    : m
+            ));
+
+            setSelectedTrace(trace);
+        } catch (error) {
+            console.error('Error loading trace:', error);
+            setTraceDrawerVisible(false);
+        } finally {
+            setLoadingTrace(false);
+        }
+    };
+
+    const handleDebugQuestion = async (textToSend?: string) => {
         const botId = agent?.botId;
-        
-        if (!debugText.trim() || !botId || !contextId.trim()) {
+        const questionText = textToSend || debugText;
+
+        if (!questionText.trim() || !botId || !contextId.trim()) {
             addNotification({
                 title: getTranslation('Erro'),
                 message: getTranslation('Erro ao processar pergunta'),
@@ -235,17 +309,21 @@ const TestTrainingModal: FC<TestTrainingModalProps> = ({
             return;
         }
 
+        // Clear suggested actions when sending a message
+        if (textToSend) {
+            setCurrentSuggestedActions([]);
+        }
+
         // Add user message to chat
         const userMessageId = Date.now().toString();
         const userMessage: ChatMessage = {
             id: userMessageId,
             type: 'user',
-            content: debugText,
+            content: questionText,
             timestamp: new Date()
         };
-        
+
         setChatHistory(prev => [...prev, userMessage]);
-        const questionText = debugText;
         setDebugText('');
         setDebugLoading(true);
         setDebugError(null);
@@ -285,10 +363,15 @@ const TestTrainingModal: FC<TestTrainingModalProps> = ({
                     content: botMessageContent,
                     timestamp: new Date(),
                     result: response,
-                    responseTime: responseTime
+                    responseTime: responseTime,
+                    traceId: response.traceId
                 };
-                
+
                 setChatHistory(prev => [...prev, botMessage]);
+
+                // Update suggested actions
+                const suggestedActions = response?.message?.nextStep?.suggestedActions || [];
+                setCurrentSuggestedActions(suggestedActions);
             }
         } catch (error) {
             console.error('Error in debug question:', error);
@@ -772,6 +855,25 @@ const TestTrainingModal: FC<TestTrainingModalProps> = ({
                                                         <span>{getTranslation('Fallback')}</span>
                                                     </>
                                                 )}
+                                                {message.traceId && (
+                                                    <>
+                                                        <span>•</span>
+                                                        <Button
+                                                            type="link"
+                                                            size="small"
+                                                            icon={<EyeOutlined />}
+                                                            onClick={() => handleToggleTrace(message.id)}
+                                                            style={{
+                                                                fontSize: '10px',
+                                                                padding: '0 4px',
+                                                                height: 'auto',
+                                                                color: '#1890ff'
+                                                            }}
+                                                        >
+                                                            {getTranslation('Ver Trace')}
+                                                        </Button>
+                                                    </>
+                                                )}
                                             </div>
                                         )}
 
@@ -917,11 +1019,65 @@ const TestTrainingModal: FC<TestTrainingModalProps> = ({
                     </div>
 
                     {/* Input Area */}
-                    <div style={{ 
-                        padding: '16px 20px', 
+                    <div style={{
+                        padding: '16px 20px',
                         borderTop: '1px solid #e8e8e8',
                         backgroundColor: '#fff'
                     }}>
+                        {/* Suggested Actions above textarea */}
+                        {currentSuggestedActions.length > 0 && (
+                            <div style={{
+                                marginBottom: '8px',
+                                display: 'flex',
+                                flexWrap: 'wrap',
+                                gap: '6px',
+                                alignItems: 'center'
+                            }}>
+                                <span style={{
+                                    fontSize: '11px',
+                                    color: '#8c8c8c',
+                                    fontWeight: '500'
+                                }}>
+                                    {getTranslation('Sugestões')}:
+                                </span>
+                                {currentSuggestedActions.map((action: any, index: number) => (
+                                    <Button
+                                        key={index}
+                                        size="small"
+                                        type="default"
+                                        onClick={() => {
+                                            if (!debugLoading) {
+                                                const textToSend = action.value || action.label;
+                                                handleDebugQuestion(textToSend);
+                                            }
+                                        }}
+                                        disabled={debugLoading}
+                                        style={{
+                                            borderRadius: '4px',
+                                            fontSize: '12px',
+                                            height: '32px',
+                                            paddingLeft: '16px',
+                                            paddingRight: '16px',
+                                            borderColor: '#1890ff',
+                                            color: '#1890ff',
+                                            backgroundColor: '#fff',
+                                            fontWeight: '500'
+                                        }}
+                                        onMouseEnter={(e) => {
+                                            if (!debugLoading) {
+                                                e.currentTarget.style.backgroundColor = '#e6f7ff';
+                                            }
+                                        }}
+                                        onMouseLeave={(e) => {
+                                            e.currentTarget.style.backgroundColor = '#fff';
+                                        }}
+                                    >
+                                        {action.label}
+                                    </Button>
+                                ))}
+                            </div>
+                        )}
+
                         <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
                             <Input.TextArea
                                 ref={textAreaRef}
@@ -935,7 +1091,6 @@ const TestTrainingModal: FC<TestTrainingModalProps> = ({
                                     borderRadius: '18px',
                                     paddingTop: '8px'
                                 }}
-                                disabled={debugLoading}
                             />
                             <Button
                                 type="default"
@@ -978,8 +1133,7 @@ const TestTrainingModal: FC<TestTrainingModalProps> = ({
                             <Button
                                 type="primary"
                                 icon={<SendOutlined />}
-                                onClick={handleDebugQuestion}
-                                loading={debugLoading}
+                                onClick={() => handleDebugQuestion()}
                                 disabled={!debugText.trim() || !agent?.botId}
                                 className="antd-span-default-color"
                                 style={{
@@ -998,6 +1152,50 @@ const TestTrainingModal: FC<TestTrainingModalProps> = ({
                 </div>
                 <LoadingDotsAnimation />
             </Modal>
+
+            {/* Trace Drawer */}
+            <Drawer
+                title={
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <BugOutlined style={{ color: '#1890ff' }} />
+                        <span>{getTranslation('Trace de Execução')}</span>
+                    </div>
+                }
+                placement="right"
+                onClose={() => setTraceDrawerVisible(false)}
+                open={traceDrawerVisible}
+                width={700}
+                bodyStyle={{ padding: 0, backgroundColor: '#1e1e1e' }}
+            >
+                {loadingTrace ? (
+                    <div style={{
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        height: '100%',
+                        color: '#d4d4d4'
+                    }}>
+                        <LoadingOutlined style={{ fontSize: 32, marginRight: 12 }} />
+                        <span>{getTranslation('Carregando trace...')}</span>
+                    </div>
+                ) : selectedTrace ? (
+                    <TraceContainer>
+                        <pre>
+                            {JSON.stringify(selectedTrace, null, 2)}
+                        </pre>
+                    </TraceContainer>
+                ) : (
+                    <div style={{
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        height: '100%',
+                        color: '#d4d4d4'
+                    }}>
+                        {getTranslation('Nenhum trace selecionado')}
+                    </div>
+                )}
+            </Drawer>
         </>
     );
 };

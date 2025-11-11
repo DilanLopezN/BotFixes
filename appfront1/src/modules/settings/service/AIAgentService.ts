@@ -69,6 +69,7 @@ export interface Agent {
     modelName?: string;
     integrationId?: string;
     allowSendAudio?: boolean;
+    allowResponseWelcome?: boolean;
 }
 
 export interface TrainingEntry {
@@ -86,6 +87,7 @@ export interface TrainingEntry {
     updatedAt?: string;
     deletedAt?: string | null;
     expiresAt?: string | null;
+    isActive?: boolean;
 }
 
 export interface TrainingEntryType {
@@ -109,6 +111,7 @@ export interface CreateTrainingEntry {
     agentId: string;
     trainingEntryTypeId?: string;
     expiresAt?: string | null;
+    isActive?: boolean;
 }
 
 export interface UpdateTrainingEntry {
@@ -117,6 +120,7 @@ export interface UpdateTrainingEntry {
     agentId: string;
     trainingEntryTypeId?: string;
     expiresAt?: string | null;
+    isActive?: boolean;
 }
 
 export interface ContextVariable {
@@ -246,6 +250,13 @@ export interface DoQuestionResponse {
         type: string;
         createdAt: string;
         id: string;
+        nextStep?: {
+            suggestedActions?: Array<{
+                label: string;
+                value: string;
+                type: string;
+            }>;
+        };
     } | null;
     nextStep: {
         intent: string;
@@ -283,6 +294,19 @@ export interface DoQuestionResponse {
             [key: string]: any;
         } | null;
     };
+    traceId?: string;
+}
+
+export interface ConversationTrace {
+    traceId: string;
+    logs: Array<{
+        timestamp: string;
+        level: string;
+        message: string;
+        data?: any;
+        [key: string]: any;
+    }>;
+    [key: string]: any;
 }
 
 export interface AgentSkill {
@@ -764,6 +788,21 @@ export const AIAgentService = {
         const response = await doRequest(
             apiInstance.post(`/workspaces/${workspaceId}/context-ai-implementor/doQuestion`, requestBody, {
                 timeout: 120_000,
+            }),
+            undefined,
+            errCb
+        );
+        return response?.data;
+    },
+
+    getConversationTrace: async (
+        workspaceId: string,
+        traceId: string,
+        errCb?
+    ): Promise<ConversationTrace> => {
+        const response = await doRequest(
+            apiInstance.post(`/workspaces/${workspaceId}/conversation-traces/getTrace`, {
+                traceId,
             }),
             undefined,
             errCb
