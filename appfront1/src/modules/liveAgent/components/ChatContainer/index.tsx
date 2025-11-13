@@ -65,7 +65,7 @@ const ChatContainerComponent = ({
     const [showScrollButton, setShowScrollButton] = useState(false);
     const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
     const [lastSeenActivityId, setLastSeenActivityId] = useState<string | null>(null);
-
+    const [messageTypeSelected, setMessageTypeSelected] = useState<'reply' | 'comment'>('reply');
     const HandleReplayActivity = (activity: IActivity) => {
         setReplayActivity(activity);
     };
@@ -588,7 +588,35 @@ const ChatContainerComponent = ({
     const handleFileChange = async (files: FileList | File, template?: TemplateMessage) => {
         // Suporta tanto File único quanto FileList (múltiplos)
         const fileArray = files instanceof FileList ? Array.from(files) : [files];
+        if (messageTypeSelected === 'comment') {
+            try {
+                for (const file of fileArray) {
+                    const formData = new FormData();
+                    formData.append('attachment', file);
+                    formData.append('type', 'comment');
 
+                    await AttachmentService.sendAttachment(conversationSelected._id, loggedUser._id, formData);
+                }
+
+                notification({
+                    title: getTranslation('Success'),
+                    message:
+                        fileArray.length === 1
+                            ? getTranslation('Annotation sent successfully')
+                            : `${fileArray.length} ${getTranslation('annotations sent successfully')}`,
+                    type: 'success',
+                    duration: 3000,
+                });
+            } catch (error) {
+                notification({
+                    title: getTranslation('Error'),
+                    message: getTranslation('An error has occurred. Try again'),
+                    type: 'danger',
+                    duration: 3000,
+                });
+            }
+            return;
+        }
         // máximo 5 arquivos
         if (fileArray.length > 5) {
             return notification({
@@ -1220,6 +1248,7 @@ const ChatContainerComponent = ({
                     onChangeInputFile={handleFileChange}
                     teams={teams}
                     channels={channelList}
+                    onMessageTypeChange={setMessageTypeSelected}
                     forceUpdateConversation={forceUpdateConversation}
                     onUpdatedConversationSelected={handleConversationUpdate}
                 />

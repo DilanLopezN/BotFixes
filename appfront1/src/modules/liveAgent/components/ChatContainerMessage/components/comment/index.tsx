@@ -33,36 +33,39 @@ const TextareaComment: FC<TextareaCommentProps & I18nProps> = ({
     const [isUploading, setIsUploading] = useState(false);
     const [fileError, setFileError] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
 
     const createCommentActivity = async () => {
-        if (!currentMessage.trim() && !selectedFile) {
+        if (!currentMessage.trim() && selectedFiles.length === 0) {
             return;
         }
 
         const message = currentMessage.trim();
 
-        if (!conversation || (message === '' && !selectedFile)) {
+        if (!conversation || (message === '' && selectedFiles.length === 0)) {
             return;
         }
 
         try {
-            if (selectedFile) {
+            if (selectedFiles.length > 0) {
                 setIsUploading(true);
 
-                const formData = new FormData();
-                formData.append('attachment', selectedFile);
-                if (message) {
-                    formData.append('message', message);
+                for (let i = 0; i < selectedFiles.length; i++) {
+                    const formData = new FormData();
+                    formData.append('attachment', selectedFiles[i]);
+
+                    if (message && i === 0) {
+                        formData.append('message', message);
+                    }
+
+                    formData.append('type', 'comment');
+
+                    await AttachmentService.sendAttachment(conversation._id, loggedUser._id, formData);
                 }
-                formData.append('type', 'comment');
-
-                const { _id } = conversation;
-
-                const response = await AttachmentService.sendAttachment(_id, loggedUser._id, formData);
 
                 setIsUploading(false);
                 setCurrentMessage('');
-                setSelectedFile(null);
+                setSelectedFiles([]);
                 setFileError(null);
 
                 if (fileInputRef.current) {
@@ -118,26 +121,43 @@ const TextareaComment: FC<TextareaCommentProps & I18nProps> = ({
     };
 
     const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (file) {
-            const validation = validateWhatsappFile(file);
+        const files = event.target.files;
+        if (!files || files.length === 0) return;
 
-            if (!validation.isValid) {
-                setFileError(getTranslation(validation.error));
+        const fileArray = Array.from(files);
 
-                if (fileInputRef.current) {
-                    fileInputRef.current.value = '';
-                }
-
-                setTimeout(() => {
-                    setFileError(null);
-                }, 3000);
-
-                return;
+        if (fileArray.length > 5) {
+            setFileError(getTranslation('You can select up to 5 files at once'));
+            if (fileInputRef.current) {
+                fileInputRef.current.value = '';
             }
-            setFileError(null);
-            setSelectedFile(file);
+            setTimeout(() => setFileError(null), 3000);
+            return;
         }
+
+        const invalidFiles: string[] = [];
+        const validFiles: File[] = [];
+
+        fileArray.forEach((file) => {
+            const validation = validateWhatsappFile(file);
+            if (!validation.isValid) {
+                invalidFiles.push(file.name);
+            } else {
+                validFiles.push(file);
+            }
+        });
+
+        if (invalidFiles.length > 0) {
+            setFileError(`${getTranslation('Invalid files')}: ${invalidFiles.join(', ')}`);
+            if (fileInputRef.current) {
+                fileInputRef.current.value = '';
+            }
+            setTimeout(() => setFileError(null), 3000);
+            return;
+        }
+
+        setFileError(null);
+        setSelectedFiles(validFiles);
     };
 
     const removeSelectedFile = () => {
@@ -162,47 +182,45 @@ const TextareaComment: FC<TextareaCommentProps & I18nProps> = ({
         <>
             <TextareaContainer disabled={!conversation.assumed || conversation?.invalidNumber}>
                 <Wrapper opacity={!conversation.assumed || conversation?.invalidNumber ? '0.5' : '1'}>
-                    {selectedFile && (
+                    {selectedFiles.length > 0 && (
                         <div
                             style={{
                                 backgroundColor: isUploading ? '#f0f8ff' : '#e6f3ff',
                                 padding: '8px 12px',
                                 borderRadius: '.3em .3em 0 0',
                                 display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
+                                flexDirection: 'column',
+                                gap: '4px',
                                 margin: '0 0 -1px 0',
                                 border: '1px solid #d1d5db',
                             }}
                         >
-                            <Space align='center'>
-                                <Typography.Text type='secondary' style={{ fontSize: '12px' }}>
-                                    <FileIcon style={{ marginRight: '4px', fontSize: '12px' }} />
-                                    {selectedFile.name} ({formatFileSize(selectedFile.size)})
-                                    {isUploading && (
-                                        <span style={{ marginLeft: '8px', color: '#1890ff' }}>
-                                            {getTranslation('Sending...')}
-                                        </span>
-                                    )}
-                                </Typography.Text>
-                            </Space>
-
-                            <Button
-                                type='text'
-                                size='small'
-                                icon={<CloseOutlined />}
-                                onClick={removeSelectedFile}
-                                disabled={isUploading}
-                                title={getTranslation('Remove file')}
-                                style={{
-                                    minWidth: '20px',
-                                    height: '20px',
-                                    padding: 0,
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                }}
-                            />
+                            {selectedFiles.map((file, index) => (
+                                <div
+                                    key={index}
+                                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+                                >
+                                    <Space align='center'>
+                                        <Typography.Text type='secondary' style={{ fontSize: '12px' }}>
+                                            <FileIcon style={{ marginRight: '4px', fontSize: '12px' }} />
+                                            {file.name} ({formatFileSize(file.size)})
+                                        </Typography.Text>
+                                    </Space>
+                                    <Button
+                                        type='text'
+                                        size='small'
+                                        icon={<CloseOutlined />}
+                                        onClick={() => setSelectedFiles((prev) => prev.filter((_, i) => i !== index))}
+                                        disabled={isUploading}
+                                        title={getTranslation('Remove file')}
+                                    />
+                                </div>
+                            ))}
+                            {isUploading && (
+                                <span style={{ fontSize: '11px', color: '#1890ff' }}>
+                                    {getTranslation('Sending...')}
+                                </span>
+                            )}
                         </div>
                     )}
                     {fileError && <Alert style={{ marginBottom: '8px' }} message={fileError} type='error' showIcon />}
@@ -240,6 +258,7 @@ const TextareaComment: FC<TextareaCommentProps & I18nProps> = ({
                                 onChange={handleFileSelect}
                                 accept='*/*'
                                 disabled={isUploading}
+                                multiple
                             />
 
                             <EmojiSelector

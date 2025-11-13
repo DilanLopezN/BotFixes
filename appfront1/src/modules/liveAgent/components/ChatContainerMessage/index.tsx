@@ -60,17 +60,23 @@ const ChatContainerMessageComponent: FC<ChatContainerMessageProps & I18nProps> =
     setIsFocusOnReply,
     replayActivity,
     scrollToActivity,
+    onMessageTypeChange,
 }) => {
     const { contactSelected } = useContactContext();
     const [messageTypeSelected, setMessageTypeSelected] = useState<MessageType>(MessageType.reply);
+
     useEffect(() => {
         timeout(focusTextArea, 0);
     }, []);
-
+    useEffect(() => {
+        if (onMessageTypeChange) {
+            onMessageTypeChange(messageTypeSelected === MessageType.reply ? 'reply' : 'comment');
+        }
+    }, [messageTypeSelected, onMessageTypeChange]);
     UseWindowEvent(
         'setComponentToActivity',
         (event) => {
-            setMessageTypeSelected(MessageType.reply);
+            setMessageTypeSelected?.(MessageType.reply);
             setTimeout(() => {
                 dispatchWindowEvent('setCommentToActivity', { message: event.detail.message });
             }, 100);
@@ -147,7 +153,7 @@ const ChatContainerMessageComponent: FC<ChatContainerMessageProps & I18nProps> =
                                 title={getTranslation('Message to user')}
                                 onClick={() => {
                                     if (setIsFocusOnReply) setIsFocusOnReply(false);
-                                    setMessageTypeSelected(MessageType.reply);
+                                    setMessageTypeSelected && setMessageTypeSelected(MessageType.reply);
                                 }}
                                 className={messageTypeSelected === MessageType.reply ? 'active' : undefined}
                             >
@@ -157,7 +163,7 @@ const ChatContainerMessageComponent: FC<ChatContainerMessageProps & I18nProps> =
                                 title={`${getTranslation('Annotation')} (${getTranslation('Not sent to user')})`}
                                 onClick={() => {
                                     if (setIsFocusOnReply) setIsFocusOnReply(false);
-                                    setMessageTypeSelected(MessageType.comment);
+                                    setMessageTypeSelected && setMessageTypeSelected(MessageType.comment);
                                 }}
                                 className={messageTypeSelected === MessageType.comment ? 'active' : undefined}
                             >

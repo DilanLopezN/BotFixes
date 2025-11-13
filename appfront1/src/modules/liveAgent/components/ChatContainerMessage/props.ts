@@ -22,6 +22,7 @@ export interface ChatContainerMessageProps {
     sendActivity: Function;
     setMessageStorage: Function;
     onChangeInputFile: (file?: any, template?: TemplateMessage) => any;
+    onMessageTypeChange?: (type: 'reply' | 'comment') => void;
     teams: Team[];
     channels: ChannelConfig[];
     forceUpdateConversation: () => void;

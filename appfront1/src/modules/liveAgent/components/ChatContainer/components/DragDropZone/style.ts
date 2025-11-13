@@ -1,13 +1,13 @@
 import styled from 'styled-components';
 
 const DropZoneOverlay = styled.div<{ isActive: boolean }>`
-    position: fixed;
-    top: 0;
+    position: absolute;
+    top: 60px;
     left: 0;
     right: 0;
     bottom: 0;
     background: rgba(89, 163, 214, 0.95);
-    z-index: 999;
+    z-index: 1;
     display: ${(props) => (props.isActive ? 'flex' : 'none')};
     flex-direction: column;
     align-items: center;

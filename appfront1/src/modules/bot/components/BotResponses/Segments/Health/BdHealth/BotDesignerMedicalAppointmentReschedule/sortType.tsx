@@ -1,8 +1,8 @@
-import { AppointmentSortTypes } from 'kissbot-core'
-import React, { FC } from 'react'
-import { CustomSelect } from '../../../../../../../../shared/StyledForms/CustomSelect/CustomSelect'
-import i18n from '../../../../../../../i18n/components/i18n'
-import { I18nProps } from '../../../../../../../i18n/interface/i18n.interface'
+import { AppointmentSortTypes } from 'kissbot-core';
+import React, { FC } from 'react';
+import { CustomSelect } from '../../../../../../../../shared/StyledForms/CustomSelect/CustomSelect';
+import i18n from '../../../../../../../i18n/components/i18n';
+import { I18nProps } from '../../../../../../../i18n/interface/i18n.interface';
 
 interface Item {
     label: string;
@@ -14,41 +14,39 @@ export interface SortTypeProps {
     onChange: (item: Item) => void;
 }
 
-type SortLabels = { [key in keyof typeof AppointmentSortTypes]: { label: string } }
+type SortLabels = { [key in keyof typeof AppointmentSortTypes]: { label: string } };
 
-const SortType: FC<SortTypeProps & I18nProps> = ({
-    getTranslation,
-    value,
-    onChange
-}) => {
-
+const SortType: FC<SortTypeProps & I18nProps> = ({ getTranslation, value, onChange }) => {
     const sortType: SortLabels = {
         [AppointmentSortTypes.default]: {
             label: getTranslation('Random'),
         },
         [AppointmentSortTypes.firstEachPeriodDay]: {
-            label: getTranslation('First period')
+            label: getTranslation('First period'),
         },
         [AppointmentSortTypes.firstEachHourDay]: {
-            label: getTranslation('First hour')
+            label: getTranslation('First hour'),
         },
         [AppointmentSortTypes.firstEachAnyPeriodDay]: {
-            label: getTranslation('First of day')
+            label: getTranslation('First of day'),
         },
         [AppointmentSortTypes.sequential]: {
-            label: getTranslation('Sequential')
+            label: getTranslation('Sequential'),
         },
         [AppointmentSortTypes.combineDatePeriodByOrganization]: {
-            label: getTranslation('combineDatePeriodByOrganization')
-        }
-    }
+            label: getTranslation('combineDatePeriodByOrganization'),
+        },
+        [AppointmentSortTypes.firstEachDoctorBalanced]: {
+            label: getTranslation('firstEachDoctorBalanced'),
+        },
+    };
 
     const getOptions = (): Item[] => {
-        return Object.keys(sortType).map(key => ({
+        return Object.keys(sortType).map((key) => ({
             label: sortType[key].label,
             value: key,
         }));
-    }
+    };
 
     const replaceToLabel = (key?: AppointmentSortTypes): Item => {
         let selected = key ? sortType[key] : sortType[AppointmentSortTypes.default];
@@ -56,8 +54,8 @@ const SortType: FC<SortTypeProps & I18nProps> = ({
         return {
             label: selected.label,
             value: key || AppointmentSortTypes.default,
-        }
-    }
+        };
+    };
 
     const options = getOptions();
     const replacedLabel = replaceToLabel(value);
@@ -72,7 +70,7 @@ const SortType: FC<SortTypeProps & I18nProps> = ({
             placeholder={getTranslation('Sort type')}
             onChange={(item: Item) => onChange(item)}
         />
-    )
-}
+    );
+};
 
 export default i18n(SortType) as FC<SortTypeProps>;

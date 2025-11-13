@@ -8831,4 +8831,24 @@ export const wordsList: Words = {
         en: 'Failed to copy',
         pt: 'Falha ao copiar',
     },
+    'Annotation sent successfully': {
+        en: 'Annotation sent successfully',
+        pt: 'Anotação enviada com sucesso',
+    },
+    'annotations sent successfully': {
+        en: 'annotations sent successfully',
+        pt: 'anotações enviadas com sucesso',
+    },
+    'You can select up to 5 files at once': {
+        en: 'You can select up to 5 files at once',
+        pt: 'Você pode selecionar até 5 arquivos por vez',
+    },
+    'Invalid files': {
+        en: 'Invalid files',
+        pt: 'Arquivos inválidos',
+    },
+    'User not authenticated': {
+        en: 'User not authenticated',
+        pt: 'Usuário não autenticado',
+    },
 };

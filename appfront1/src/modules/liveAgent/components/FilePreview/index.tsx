@@ -45,7 +45,6 @@ const FilePreview: FC<FilePreviewProps & I18nProps> = ({
     const [uploadPercent, setUploadPercent] = useState<number>(0);
     const [templateVariableValues, setTemplateVariableValues] = useState<string[]>([]);
 
-    // Inicializar files de forma mais segura com mensagem individual
     const initializeFiles = (): FilePreviewItem[] => {
         if (!filePreview) {
             return [];
@@ -54,7 +53,7 @@ const FilePreview: FC<FilePreviewProps & I18nProps> = ({
         if (Array.isArray(filePreview)) {
             return filePreview.map((item) => ({
                 ...item,
-                message: item.message || '', // Garantir que sempre tenha message
+                message: item.message || '',
             }));
         }
 
@@ -99,7 +98,6 @@ const FilePreview: FC<FilePreviewProps & I18nProps> = ({
         setTemplateSelected,
     };
 
-    // ← NOVO: Função para atualizar mensagem do arquivo selecionado
     const updateFileMessage = useCallback(
         (message: string) => {
             setFiles((prevFiles) => prevFiles.map((f) => (f.id === selectedFileId ? { ...f, message } : f)));
@@ -107,10 +105,8 @@ const FilePreview: FC<FilePreviewProps & I18nProps> = ({
         [selectedFileId]
     );
 
-    // ← NOVO: Pegar mensagem do arquivo selecionado
     const currentFileMessage = selectedFile?.message || '';
 
-    // Atualiza files quando filePreview mudar
     useEffect(() => {
         const newFiles = initializeFiles();
         setFiles(newFiles);
@@ -144,16 +140,6 @@ const FilePreview: FC<FilePreviewProps & I18nProps> = ({
         [files, selectedFileId, setFilePreview]
     );
 
-    const uploadFileOnConversation = useCallback(
-        async (formData: FormData) => {
-            const { _id } = conversation;
-            if (!loggedUser?._id) return false;
-            const uploaded = await AttachmentService.sendAttachment(_id, loggedUser._id, formData);
-            return uploaded;
-        },
-        [conversation, loggedUser]
-    );
-
     const uploadFile = useCallback(async () => {
         if (!loggedUser?._id) {
             notification({
@@ -181,8 +167,8 @@ const FilePreview: FC<FilePreviewProps & I18nProps> = ({
         }, 100);
 
         try {
+            // === Upload via template ===
             if (files[0]?.template && files[0].template?.type === TemplateType.file) {
-                // Template file logic
                 console.log('Upload de template file');
                 const { _id } = conversation;
 
@@ -203,79 +189,61 @@ const FilePreview: FC<FilePreviewProps & I18nProps> = ({
                         duration: 3000,
                     });
                 }
-            } else if (isBatchUpload) {
-                // ← ATUALIZADO: Upload sequencial com mensagem individual por arquivo
-                console.log('Enviando', files.length, 'arquivos com mensagens individuais');
+            }
 
-                let successCount = 0;
-                let errorCount = 0;
+            // === Upload múltiplo (vários arquivos + mensagens) ===
+            else if (isBatchUpload) {
+                console.log('Enviando batch de', files.length, 'arquivos');
 
-                // Enviar cada arquivo individualmente com sua mensagem
-                for (let i = 0; i < files.length; i++) {
-                    const fileItem = files[i];
-                    const progress = Math.round(((i + 1) / files.length) * 95);
+                const formData = new FormData();
 
-                    try {
-                        const formData = new FormData();
-                        formData.append('attachment', fileItem.file);
+                // adiciona os arquivos
+                files.forEach((fileItem) => {
+                    formData.append('attachments', fileItem.file);
+                });
 
-                        // ← Cada arquivo leva sua própria mensagem
-                        if (fileItem.message) {
-                            formData.append('message', fileItem.message);
-                        }
+                // adiciona as mensagens em JSON
+                const messages = files.map((f) => f.message || '');
+                formData.append('messages', JSON.stringify(messages));
 
-                        const uploaded = await uploadFileOnConversation(formData);
+                const uploaded = await AttachmentService.sendAttachmentBatch(
+                    conversation._id,
+                    loggedUser._id,
+                    formData
+                );
 
-                        if (uploaded) {
-                            successCount++;
-                            console.log(`✓ Arquivo ${i + 1}/${files.length} enviado com sucesso`);
-                        } else {
-                            errorCount++;
-                            console.log(`✗ Erro ao enviar arquivo ${i + 1}`);
-                        }
-
-                        setUploadPercent(progress);
-
-                        // Delay entre uploads
-                        if (i < files.length - 1) {
-                            await new Promise((resolve) => setTimeout(resolve, 300));
-                        }
-                    } catch (error) {
-                        errorCount++;
-                        console.error(`Erro no upload do arquivo ${i + 1}:`, error);
-                    }
-                }
-
-                // Mostrar resultado final
-                if (errorCount > 0) {
+                if (!uploaded) {
                     notification({
-                        title: getTranslation('Warning'),
-                        message: `${successCount} ${getTranslation(
-                            'files sent successfully'
-                        )}, ${errorCount} ${getTranslation('failed')}`,
-                        type: 'warning',
-                        duration: 4000,
+                        title: getTranslation('Error'),
+                        message: getTranslation('An error has occurred. Try again'),
+                        type: 'danger',
+                        duration: 3000,
                     });
                 } else {
                     notification({
                         title: getTranslation('Success'),
-                        message: `${successCount} ${getTranslation('files sent successfully')}`,
+                        message: `${files.length} ${getTranslation('files sent successfully')}`,
                         type: 'success',
                         duration: 3000,
                     });
                 }
-            } else {
-                // Upload único com mensagem
+            }
+
+            // === Upload único ===
+            else {
                 console.log('Upload único do arquivo:', files[0].file.name);
                 const formData = new FormData();
                 formData.append('attachment', files[0].file);
-                formData.append('message', files[0].message || ''); // ← Usar mensagem do arquivo
+
+                if (files[0].message) {
+                    formData.append('message', files[0].message);
+                }
 
                 if (templateSelected) {
                     formData.append('templateId', templateSelected._id as string);
                 }
 
-                const uploaded = await uploadFileOnConversation(formData);
+                const uploaded = await AttachmentService.sendAttachment(conversation._id, loggedUser._id, formData);
 
                 if (!uploaded) {
                     notification({
@@ -311,7 +279,6 @@ const FilePreview: FC<FilePreviewProps & I18nProps> = ({
         loggedUser,
         notification,
         setFilePreview,
-        uploadFileOnConversation,
         templateSelected,
         templateVariableValues,
         workspaceId,
@@ -338,7 +305,6 @@ const FilePreview: FC<FilePreviewProps & I18nProps> = ({
                 zIndex: '9',
             }}
         >
-            {/* Header */}
             <Wrapper flexBox height='50px' bgcolor='#59a3d6' position='relative'>
                 <Icon
                     name='close'
@@ -363,14 +329,12 @@ const FilePreview: FC<FilePreviewProps & I18nProps> = ({
                 )}
             </Wrapper>
 
-            {/* Progress Bar */}
             <Wrapper height='10px' bgcolor='#e9ebeb'>
                 {uploadingFile && (
                     <Progress strokeColor='#59a3d6' trailColor='#e9ebeb' percent={uploadPercent} showInfo={false} />
                 )}
             </Wrapper>
 
-            {/* Preview Area */}
             <Scroll
                 overflowY='auto'
                 flexBox
@@ -380,7 +344,6 @@ const FilePreview: FC<FilePreviewProps & I18nProps> = ({
                 padding='20px'
                 opacity={uploadingFile ? '0.8' : '1'}
             >
-                {/* Grid de thumbnails quando múltiplos arquivos */}
                 {isBatchUpload && (
                     <FilePreviewGrid
                         files={files}
@@ -390,7 +353,6 @@ const FilePreview: FC<FilePreviewProps & I18nProps> = ({
                     />
                 )}
 
-                {/* Preview do arquivo selecionado */}
                 {selectedFile && (
                     <Wrapper
                         flexBox
@@ -406,7 +368,7 @@ const FilePreview: FC<FilePreviewProps & I18nProps> = ({
                                 src={selectedFile.preview as string}
                                 style={{
                                     maxWidth: '97%',
-                                    maxHeight: isBatchUpload ? '35vh' : '60vh',
+                                    maxHeight: isBatchUpload ? '50vh' : '70vh',
                                     margin: 'auto',
                                     border: '1px solid #ccc',
                                 }}
@@ -426,7 +388,6 @@ const FilePreview: FC<FilePreviewProps & I18nProps> = ({
                 )}
             </Scroll>
 
-            {/* ← NOVO: Input de mensagem - sempre visível */}
             {!uploadingFile && (
                 <ComponentMessageFile
                     conversation={conversation}
@@ -447,7 +408,6 @@ const FilePreview: FC<FilePreviewProps & I18nProps> = ({
                 />
             )}
 
-            {/* Botão de envio */}
             <Wrapper height='60px' bgcolor='#d8d8d8' position='relative' opacity={uploadingFile ? '0.8' : '1'}>
                 <Wrapper
                     width='60px'

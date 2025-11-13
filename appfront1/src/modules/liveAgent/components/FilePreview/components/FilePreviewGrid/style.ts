@@ -3,18 +3,17 @@ import styled from 'styled-components';
 const GridContainer = styled.div`
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-    gap: 12px;
+    gap: 3.5rem;
     padding: 16px;
-    max-height: 300px;
+    height: 300px;
     overflow-y: auto;
 `;
 
 const ThumbnailWrapper = styled.div<{ selected?: boolean }>`
     position: relative;
-    width: 120px;
-    height: 120px;
+    width: 168px;
+    height: 182px;
     border-radius: 8px;
-    overflow: hidden;
     background: #f5f5f5;
     border: 2px solid ${(props) => (props.selected ? '#59a3d6' : '#e0e0e0')};
     cursor: pointer;
@@ -81,7 +80,7 @@ const MessageBadge = styled.div`
     left: 4px;
     background: rgba(89, 163, 214, 0.9);
     color: white;
-    font-size: 10px;
+    font-size: 14px;
     padding: 2px 6px;
     border-radius: 4px;
     z-index: 2;
