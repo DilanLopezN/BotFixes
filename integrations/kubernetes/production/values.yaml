@@ -1,0 +1,54 @@
+nameOverride: "botdesigner-integrations"
+fullnameOverride: "botdesigner-integrations"
+
+app:
+  prometheus: true
+  http:
+    args:
+    - http
+    replicaCount: 6
+    ingress:
+      host: "integrations.botdesigner.io"
+      gateway: "gateway"
+    resources:
+      requests:
+        cpu: 0.2
+        memory: 400Mi
+      limits:
+        cpu: 0.8
+        memory: 550Mi
+  batch:
+    replicaCount: 1
+    enabled: true
+    resources:
+      requests:
+        cpu: 0.3
+        memory: 1200Mi
+      limits:
+        cpu: 0.9
+        memory: 1400Mi
+  envs:
+    NODE_ENV: "production"
+    EVENT_EXCHANGE_NAME: "events-production"
+    REDIS_HOST: "redis-master.devops.svc.cluster.local"
+    REDIS_HOST_ELASTICACHE: "redis-eks.md7wqi.ng.0001.sae1.cache.amazonaws.com"
+    REDIS_PORT: "6379"
+    TZ: "America/Sao_Paulo"
+    API_URI: "http://botdesigner-api.production.svc.cluster.local"
+    API_URL: "https://api.botdesigner.io"
+    KAFKA_BROKERS: blue-lorry.srvs.cloudkafka.com:9094
+    SCHEDULING_APP_URL: https://agendamento.botdesigner.io
+    SCHEDULING_LINK_BASE_URL: https://atend.clinic
+    INTEGRATIONS_URL: https://integrations.botdesigner.io
+    INTEGRATIONS_SECRET: secrets/production/botdesigner-integrations
+
+image:
+  repository: registry.gitlab.com/kissbot/kissbot-integrations/app
+  tag: latest
+  pullPolicy: Always
+  imagePullSecrets: gitlab-registry
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 9091

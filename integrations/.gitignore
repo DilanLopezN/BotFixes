@@ -1,0 +1,8 @@
+node_modules/
+.history/
+dist/
+data/
+.idea/
+*.error*
+.env
+coverage

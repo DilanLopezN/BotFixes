@@ -1,0 +1,39 @@
+export interface ExtractedSchedule {
+  scheduleCode: string;
+  principalScheduleCode?: string;
+  isPrincipal?: boolean;
+  scheduleDate: string;
+  appointmentTypeCode: string;
+  appointmentTypeName?: string;
+  insurancePlanCode?: string;
+  insurancePlanName?: string;
+  insuranceSubPlanCode?: string;
+  insuranceSubPlanName?: string;
+  insuranceCategoryCode?: string;
+  insuranceCategoryName?: string;
+  insuranceCode: string;
+  insuranceName?: string;
+  organizationUnitCode: string;
+  organizationUnitName?: string;
+  specialityCode: string;
+  specialityName?: string;
+  procedureCode: string;
+  procedureName?: string;
+  doctorCode: string;
+  doctorName?: string;
+  occupationAreaCode?: string;
+  occupationAreaName?: string;
+  isFirstComeFirstServed?: boolean;
+  organizationUnitAddress?: string;
+  patient: {
+    name?: string;
+    emails?: string[];
+    cpf?: string;
+    bornDate?: string;
+    code: string;
+    phones: string[];
+  };
+  guidance?: string;
+  observation?: string;
+  data?: any;
+}

@@ -1,0 +1,64 @@
+export interface CreateScheduleInput {
+  patientErpCode: string;
+  patientCpf?: string;
+  patientName?: string;
+  patientSex?: string;
+  patientBornDate?: string;
+  patientEmail?: string;
+  patientPhone?: string;
+  patientWeight?: string;
+  patientHeight?: string;
+  duration?: string;
+  scheduleDate: string;
+  scheduleCode: string;
+  data?: Record<string, string>;
+  insuranceCode: string;
+  insurancePlanCode: string;
+  insurancePlanCategoryCode: string;
+  organizationUnitCode: string;
+  procedureCode: string;
+  specialityCode: string;
+  specialityType: string;
+  doctorCode: string;
+  typeOfServiceCode: string;
+  appointmentTypeCode: string;
+  scheduleType: string;
+}
+
+export interface CreateScheduleOutput {
+  scheduleCode: string;
+  duration: string;
+  scheduleDate: string;
+  doctorCode?: string;
+  doctorName?: string;
+  procedureCode?: string;
+  procedureName?: string;
+  organizationUnitCode?: string;
+  organizationUnitName?: string;
+  organizationUnitAdress?: string;
+  insuranceCode?: string;
+  insuranceName?: string;
+  specialityCode?: string;
+  specialityName?: string;
+  insurancePlanCode?: string;
+  insurancePlanName?: string;
+  insuranceSubPlanCode?: string;
+  insuranceSubPlanName?: string;
+  planCategoryCode?: string;
+  planCategoryName?: string;
+  appointmentTypeCode?: string;
+  appointmentTypeName?: string;
+  occupationAreaCode?: string;
+  occupationAreaName?: string;
+  organizationUnitLocationCode?: string;
+  organizationUnitLocationName?: string;
+  typeOfServiceCode?: string;
+  typeOfServiceName?: string;
+  guidance?: string;
+  guidanceLink?: string;
+  observation?: string;
+  warning?: string;
+  isFollowUp?: boolean;
+  price?: string;
+  data?: any;
+}

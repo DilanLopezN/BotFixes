@@ -1,0 +1,3 @@
+const PUBLIC_TOKEN_CACHE_EXPIRATION = 7_100; // 2 horas de expiração
+
+export { PUBLIC_TOKEN_CACHE_EXPIRATION };

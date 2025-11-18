@@ -1,0 +1,140 @@
+stages:
+  - test
+  - build_npm
+  - push_registry
+  - deploy
+
+cache:
+  paths:
+    - node_modules/
+
+build:npm:
+  stage: build_npm
+  image: node:22.11.0-alpine
+  before_script:
+    - apk update && apk upgrade && apk add --no-cache git
+    - apk --no-cache add g++ gcc libgcc libstdc++ linux-headers make python3
+  script:
+    - npm ci --production --ignore-scripts --legacy-peer-deps
+    - npm i @nestjs/cli@10.1.16 --legacy-peer-deps
+    - npm i typescript@5.2.2 --legacy-peer-deps
+    - npm run prestart:prod
+    - ls -la
+  only:
+    - develop
+    - master
+    - eks
+  artifacts:
+    expire_in: '24h00min'
+    paths:
+      - dist/
+      - node_modules/
+
+push_registry:
+  stage: push_registry
+  image: docker:20.10.12 #registry.gitlab.com/kissbot/devops/docker-build:latest
+ # variables:
+ #   DOCKER_HOST: tcp://localhost:2375
+ #   DOCKER_TLS_CERTDIR: ""
+  services:
+    - docker:20.10.12-dind
+  before_script:
+    - apk update && apk upgrade && apk add --no-cache git
+    - git remote set-url origin https://${GITLAB_CI_USER}:${GITLAB_CI_PASSWORD}@gitlab.com/${CI_PROJECT_NAMESPACE}/${CI_PROJECT_NAME}.git
+    - docker login -u $GITLAB_CI_USER -p $GITLAB_CI_PASSWORD registry.gitlab.com
+  script:
+    - export TAG_FORMATION=null
+    - export RELEASE_TYPE=null
+    - case "$CI_COMMIT_REF_NAME" in "master") RELEASE_TYPE="release-";; "eks") RELEASE_TYPE="alpha-release-";; "develop") RELEASE_TYPE="alpha-release-";; esac
+    - export TAG_FORMATION=$RELEASE_TYPE$CI_PIPELINE_ID
+    # Build App
+    - echo $REGISTRY_URL_BASE
+    - docker build -f $DOCKER_FILE_PATH_APP -t $CI_REGISTRY_IMAGE/$BASE_APP_NAME:$TAG_FORMATION --no-cache .
+    - docker push $CI_REGISTRY_IMAGE/$BASE_APP_NAME:$TAG_FORMATION
+    # Push Tag
+    - echo "Current Tag -> "$TAG_FORMATION
+    - git tag $TAG_FORMATION
+    - git push --tags
+  only:
+    - develop
+    - quality
+    - master
+    - eks
+  #tags:
+  #  - build
+  dependencies:
+    - build:npm
+
+.deploy_helm: &deploy_helm
+  image: alpine/helm:3.8.1
+  before_script:
+    - helm repo add ${CHARTMUSEUM_NAMESPACE} ${CHARTMUSEUM_URL}
+    - helm repo update
+  script:
+    #APP Envs
+    - export PROJECT_NAME_APP_FULL="botdesigner-${PROJECT_NAME_APP}"
+    - export HELM_CHART_NAME_APP="${CHARTMUSEUM_NAMESPACE}/botdesigner-chart"
+    - export RELEASE_NAME_APP="${PROJECT_NAME_APP_FULL}"
+    # Show Tag Infos
+    - echo $CI_COMMIT_REF_NAME
+    - echo $CI_COMMIT_TAG
+    # Deploy API
+    - |
+      helm upgrade $RELEASE_NAME_APP ${HELM_CHART_NAME_APP} --namespace=${NAMESPACE} \
+        -f kubernetes/${NAMESPACE}/values.yaml --set image.tag=$CI_COMMIT_TAG \
+        --wait --timeout 10m
+
+.setup-tests: &setup-tests
+  stage: test
+  only:
+    - develop
+    - master
+  image: node:22.11.0-alpine
+
+unit test:
+  <<: *setup-tests
+  services:
+    - mongo:6.0.4
+    - postgres:13.15
+    - redis:7.0.8
+  variables:
+    NODE_ENV: test
+    MONGO_URI: mongodb://mongo/kissbot-integrations
+    POSTGRES_DB: botdesigner
+    POSTGRES_USER: postgres
+    POSTGRES_PASSWORD: postgres
+    POSTGRESQL_URI: postgres://postgres:postgres@postgres/botdesigner
+    POSTGRES_HOST_AUTH_METHOD: trust
+    REDIS_HOST: redis
+  environment:
+    name: test
+  before_script:
+    - apk add postgresql-client
+    - apk update && apk upgrade && apk add --no-cache git
+    - export PGPASSWORD=$POSTGRES_PASSWORD
+    - psql -h "postgres" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -f ./docker/tests.sql
+  script:
+    - npm rebuild
+    - npm install -f
+    - npm i typescript@5.2.2 --legacy-peer-deps
+    - npm run test
+
+deploy_botdesigner_production:
+  <<: *deploy_helm
+  variables:
+    NAMESPACE: 'production'
+  stage: deploy
+  tags:
+    - botdesigner-eks
+  only:
+    - /^release-.*$/i
+
+deploy_botdesigner_dev:
+  <<: *deploy_helm
+  variables:
+    NAMESPACE: 'developer'
+  stage: deploy
+  tags:
+    - botdesigner-eks
+  only:
+    - /^alpha-release.*$/i
