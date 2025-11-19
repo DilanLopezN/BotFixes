@@ -11,15 +11,20 @@ import { requestsExternalCounter } from '../../../../common/prom-metrics';
 import { IntegrationType } from '../../../interfaces/integration-types';
 import { AuditDataType } from '../../../audit/audit.interface';
 import { castObjectIdToString } from '../../../../common/helpers/cast-objectid';
+import { HttpErrorOrigin, HTTP_ERROR_THROWER, INTERNAL_ERROR_THROWER } from '../../../../common/exceptions.service';
+import { formatException } from '../../../../common/helpers/format-exception-audit';
 
 import {
+  PDResponse,
   PDResponseBasicUsuarioViewModel,
   PDResponseLocalProdoctorBasicoViewModel,
   PDResponseConvenioBasicViewModel,
   UsuarioListarRequest,
   LocalProdoctorListarRequest,
   ConvenioListarRequest,
+  CodigoBaseRequest,
 } from '../interfaces/base.interface';
+
 import {
   PacienteBuscarRequest,
   PacienteCRUDRequest,
@@ -29,8 +34,27 @@ import {
   PDResponsePacienteViewModel,
   PDResponsePacienteListaViewModel,
 } from '../interfaces/patient.interface';
-import { HttpErrorOrigin, HTTP_ERROR_THROWER, INTERNAL_ERROR_THROWER } from '../../../../common/exceptions.service';
-import { formatException } from '../../../../common/helpers/format-exception-audit';
+
+import {
+  AgendamentoListarPorUsuarioRequest,
+  AgendamentoBuscarRequest,
+  AgendamentoInserirRequest,
+  AgendamentoAlterarRequest,
+  HorariosDisponiveisRequest,
+  PDResponseDiaAgendaConsultaViewModel,
+  PDResponseAgendamentosViewModel,
+  PDResponseAgendamentoDetalhadoViewModel,
+  PDResponseAgendamentoInseridoViewModel,
+  PDResponseAgendamentoOperacaoViewModel,
+  PDResponseHorariosDisponiveisViewModel,
+} from '../interfaces/schedule.interface';
+
+interface ProdoctorConfig {
+  apiUrl: string;
+  apiKey: string;
+  apiPassword: string;
+  useFakeApi?: boolean;
+}
 
 @Injectable()
 export class ProdoctorApiService {
@@ -98,17 +122,10 @@ export class ProdoctorApiService {
     }
   }
 
-  /**
-   * Obtém configurações da integração
-   */
   private async getConfig(integration: IntegrationDocument): Promise<ProdoctorConfig> {
     return await this.credentialsHelper.getConfig<ProdoctorConfig>(integration);
   }
 
-  /**
-   * Faz requisição para a API ProDoctor
-   * Suporta fake API para testes
-   */
   private async makeRequest<T>(
     integration: IntegrationDocument,
     method: 'POST' | 'GET' | 'PUT' | 'DELETE' | 'PATCH',
@@ -120,17 +137,13 @@ export class ProdoctorApiService {
 
     try {
       const config = await this.getConfig(integration);
-
-      // Se estiver usando fake API
       const baseUrl = config.useFakeApi ? 'http://localhost:7575' : config.apiUrl;
-
       const url = `${baseUrl}${endpoint}`;
 
       const headers: any = {
         'Content-Type': 'application/json',
       };
 
-      // Adicionar headers de autenticação apenas para API real
       if (!config.useFakeApi) {
         headers['X-APIKEY'] = config.apiKey;
         headers['X-APIPASSWORD'] = config.apiPassword;
@@ -143,10 +156,7 @@ export class ProdoctorApiService {
         params,
       };
 
-      // Debug request
       this.debugRequest(integration, { url, method, data, params }, methodName);
-
-      // Audit request
       this.dispatchAuditEvent(integration, { data, params }, methodName, AuditDataType.externalRequest);
 
       let response;
@@ -169,17 +179,13 @@ export class ProdoctorApiService {
           break;
       }
 
-      // Audit response
       this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
 
       return response.data;
     } catch (error) {
-      // Handle error
       await this.handleResponseError(integration, error, data, methodName);
 
-      // Extrair mensagem de erro da API ProDoctor
       const errorMessage = error.response?.data?.mensagens?.[0] || error.response?.data?.message || error.message;
-
       const errorStatus = error.response?.status || HttpStatus.BAD_REQUEST;
 
       throw HTTP_ERROR_THROWER(
@@ -196,10 +202,6 @@ export class ProdoctorApiService {
 
   // ========== VALIDAÇÃO ==========
 
-  /**
-   * Valida conexão com a API ProDoctor
-   * Tenta listar usuários como teste de conectividade
-   */
   async validateConnection(integration: IntegrationDocument): Promise<boolean> {
     try {
       const request: UsuarioListarRequest = {
@@ -222,9 +224,6 @@ export class ProdoctorApiService {
 
   // ========== USUÁRIOS ==========
 
-  /**
-   * Lista usuários (médicos/profissionais)
-   */
   async listUsuarios(
     integration: IntegrationDocument,
     request: UsuarioListarRequest,
@@ -239,9 +238,6 @@ export class ProdoctorApiService {
 
   // ========== LOCAIS PRODOCTOR ==========
 
-  /**
-   * Lista locais ProDoctor (unidades)
-   */
   async listLocaisProDoctor(
     integration: IntegrationDocument,
     request: LocalProdoctorListarRequest,
@@ -256,9 +252,6 @@ export class ProdoctorApiService {
 
   // ========== CONVÊNIOS ==========
 
-  /**
-   * Lista convênios
-   */
   async listConvenios(
     integration: IntegrationDocument,
     request: ConvenioListarRequest,
@@ -273,10 +266,6 @@ export class ProdoctorApiService {
 
   // ========== PACIENTES ==========
 
-  /**
-   * Busca paciente por CPF, nome ou telefone
-   * Endpoint: POST /api/v1/Paciente/Buscar
-   */
   async searchPatient(
     integration: IntegrationDocument,
     request: PacienteBuscarRequest,
@@ -289,7 +278,6 @@ export class ProdoctorApiService {
         request,
       );
     } catch (error) {
-      // Se paciente não encontrado, retornar null ao invés de erro
       if (error.status === HttpStatus.NOT_FOUND) {
         return {
           payload: { paciente: null },
@@ -301,16 +289,13 @@ export class ProdoctorApiService {
     }
   }
 
-  /**
-   * Busca paciente por CPF (helper)
-   */
   async getPatientByCpf(
     integration: IntegrationDocument,
     cpf: string,
     localProDoctorCodigo?: number,
   ): Promise<PDResponsePacienteSearchViewModel> {
     const request: PacienteBuscarRequest = {
-      cpf: cpf.replace(/\D/g, ''), // Remove formatação
+      cpf: cpf.replace(/\D/g, ''),
     };
 
     if (localProDoctorCodigo) {
@@ -320,10 +305,6 @@ export class ProdoctorApiService {
     return await this.searchPatient(integration, request);
   }
 
-  /**
-   * Detalha paciente por código
-   * Endpoint: GET /api/v1/Paciente/Detalhar/{codigo}
-   */
   async getPatientDetails(integration: IntegrationDocument, patientCode: number): Promise<PDResponsePacienteViewModel> {
     try {
       return await this.makeRequest<PDResponsePacienteViewModel>(
@@ -336,10 +317,6 @@ export class ProdoctorApiService {
     }
   }
 
-  /**
-   * Insere novo paciente
-   * Endpoint: POST /api/v1/Pacientes/Inserir
-   */
   async createPatient(
     integration: IntegrationDocument,
     request: PacienteCRUDRequest,
@@ -352,7 +329,6 @@ export class ProdoctorApiService {
         request,
       );
     } catch (error) {
-      // Tratar erro de paciente já existente
       if (error.status === HttpStatus.CONFLICT || error.message?.includes('já existe')) {
         throw HTTP_ERROR_THROWER(
           HttpStatus.CONFLICT,
@@ -367,10 +343,6 @@ export class ProdoctorApiService {
     }
   }
 
-  /**
-   * Atualiza paciente existente
-   * Endpoint: PUT /api/v1/Pacientes/Alterar
-   */
   async updatePatient(
     integration: IntegrationDocument,
     request: PacienteCRUDRequest,
@@ -397,11 +369,7 @@ export class ProdoctorApiService {
     }
   }
 
-  /**
-   * Lista pacientes com filtros
-   * Endpoint: POST /api/v1/Pacientes/Listar
-   */
-  async listPatients(
+  async listPacientes(
     integration: IntegrationDocument,
     request: PacienteListarRequest,
   ): Promise<PDResponsePacienteListaViewModel> {
@@ -409,23 +377,201 @@ export class ProdoctorApiService {
       return await this.makeRequest<PDResponsePacienteListaViewModel>(
         integration,
         'POST',
-        '/api/v1/Pacientes/Listar',
+        '/api/v1/Pacientes',
         request,
       );
     } catch (error) {
-      throw INTERNAL_ERROR_THROWER('ProdoctorApiService.listPatients', error);
+      throw INTERNAL_ERROR_THROWER('ProdoctorApiService.listPacientes', error);
     }
   }
 
-  /**
-   * Exclui paciente
-   * Endpoint: DELETE /api/v1/Pacientes/Excluir/{codigo}
-   */
-  async deletePatient(integration: IntegrationDocument, patientCode: number): Promise<void> {
+  async listAniversariantes(
+    integration: IntegrationDocument,
+    request: {
+      dataInicio: string;
+      dataFinal: string;
+      locaisProDoctor?: CodigoBaseRequest[];
+    },
+  ): Promise<PDResponse<{ periodo: any; aniversariantes: any[] }>> {
     try {
-      await this.makeRequest<void>(integration, 'DELETE', `/api/v1/Pacientes/Excluir/${patientCode}`);
+      return await this.makeRequest<PDResponse<{ periodo: any; aniversariantes: any[] }>>(
+        integration,
+        'POST',
+        '/api/v1/Pacientes/Aniversariantes',
+        request,
+      );
     } catch (error) {
-      throw INTERNAL_ERROR_THROWER('ProdoctorApiService.deletePatient', error);
+      throw INTERNAL_ERROR_THROWER('ProdoctorApiService.listAniversariantes', error);
+    }
+  }
+
+  // ========== AGENDAMENTOS ==========
+
+  async listAgendamentos(
+    integration: IntegrationDocument,
+    request: AgendamentoListarPorUsuarioRequest,
+  ): Promise<PDResponseDiaAgendaConsultaViewModel> {
+    try {
+      return await this.makeRequest<PDResponseDiaAgendaConsultaViewModel>(
+        integration,
+        'POST',
+        '/api/v1/Agenda/Listar',
+        request,
+      );
+    } catch (error) {
+      throw INTERNAL_ERROR_THROWER('ProdoctorApiService.listAgendamentos', error);
+    }
+  }
+
+  async searchAgendamentos(
+    integration: IntegrationDocument,
+    request: AgendamentoBuscarRequest,
+  ): Promise<PDResponseAgendamentosViewModel> {
+    try {
+      return await this.makeRequest<PDResponseAgendamentosViewModel>(
+        integration,
+        'POST',
+        '/api/v1/Agenda/Buscar',
+        request,
+      );
+    } catch (error) {
+      throw INTERNAL_ERROR_THROWER('ProdoctorApiService.searchAgendamentos', error);
+    }
+  }
+
+  async getAgendamentoDetails(
+    integration: IntegrationDocument,
+    codigo: number,
+  ): Promise<PDResponseAgendamentoDetalhadoViewModel> {
+    try {
+      return await this.makeRequest<PDResponseAgendamentoDetalhadoViewModel>(
+        integration,
+        'GET',
+        `/api/v1/Agenda/Detalhar/${codigo}`,
+      );
+    } catch (error) {
+      throw INTERNAL_ERROR_THROWER('ProdoctorApiService.getAgendamentoDetails', error);
+    }
+  }
+
+  async createAgendamento(
+    integration: IntegrationDocument,
+    request: AgendamentoInserirRequest,
+  ): Promise<PDResponseAgendamentoInseridoViewModel> {
+    try {
+      return await this.makeRequest<PDResponseAgendamentoInseridoViewModel>(
+        integration,
+        'POST',
+        '/api/v1/Agenda/Inserir',
+        request,
+      );
+    } catch (error) {
+      throw INTERNAL_ERROR_THROWER('ProdoctorApiService.createAgendamento', error);
+    }
+  }
+
+  async updateAgendamento(
+    integration: IntegrationDocument,
+    request: AgendamentoAlterarRequest,
+  ): Promise<PDResponseAgendamentoOperacaoViewModel> {
+    try {
+      return await this.makeRequest<PDResponseAgendamentoOperacaoViewModel>(
+        integration,
+        'PUT',
+        '/api/v1/Agenda/Alterar',
+        request,
+      );
+    } catch (error) {
+      throw INTERNAL_ERROR_THROWER('ProdoctorApiService.updateAgendamento', error);
+    }
+  }
+
+  async cancelAgendamento(
+    integration: IntegrationDocument,
+    codigo: number,
+    motivo?: string,
+  ): Promise<PDResponseAgendamentoOperacaoViewModel> {
+    try {
+      const params = motivo ? { motivo } : undefined;
+      return await this.makeRequest<PDResponseAgendamentoOperacaoViewModel>(
+        integration,
+        'DELETE',
+        `/api/v1/Agenda/Deletar/${codigo}`,
+        undefined,
+        params,
+      );
+    } catch (error) {
+      throw INTERNAL_ERROR_THROWER('ProdoctorApiService.cancelAgendamento', error);
+    }
+  }
+
+  async getAvailableSchedules(
+    integration: IntegrationDocument,
+    request: HorariosDisponiveisRequest,
+  ): Promise<PDResponseHorariosDisponiveisViewModel> {
+    try {
+      return await this.makeRequest<PDResponseHorariosDisponiveisViewModel>(
+        integration,
+        'POST',
+        '/api/v1/Agenda/BuscarHorariosDisponiveis',
+        request,
+      );
+    } catch (error) {
+      throw INTERNAL_ERROR_THROWER('ProdoctorApiService.getAvailableSchedules', error);
+    }
+  }
+
+  // ========== PROCEDIMENTOS ==========
+
+  async listProcedimentos(
+    integration: IntegrationDocument,
+    request: {
+      descricao?: string;
+      tabela?: CodigoBaseRequest;
+      quantidade?: number;
+    },
+  ): Promise<PDResponse<{ total: number; itens: any[] }>> {
+    try {
+      return await this.makeRequest<PDResponse<{ total: number; itens: any[] }>>(
+        integration,
+        'POST',
+        '/api/v1/Procedimentos',
+        request,
+      );
+    } catch (error) {
+      throw INTERNAL_ERROR_THROWER('ProdoctorApiService.listProcedimentos', error);
+    }
+  }
+
+  async getProcedimentoDetails(
+    integration: IntegrationDocument,
+    tabelaCodigo: number,
+    procedimentoCodigo: string,
+  ): Promise<PDResponse<any>> {
+    try {
+      return await this.makeRequest<PDResponse<any>>(
+        integration,
+        'GET',
+        `/api/v1/Procedimentos/Detalhar/${tabelaCodigo}/${procedimentoCodigo}`,
+      );
+    } catch (error) {
+      throw INTERNAL_ERROR_THROWER('ProdoctorApiService.getProcedimentoDetails', error);
+    }
+  }
+
+  async listTabelasProcedimentos(
+    integration: IntegrationDocument,
+    request: { quantidade?: number } = {},
+  ): Promise<PDResponse<{ total: number; itens: any[] }>> {
+    try {
+      return await this.makeRequest<PDResponse<{ total: number; itens: any[] }>>(
+        integration,
+        'POST',
+        '/api/v1/TabelasProcedimentos',
+        request,
+      );
+    } catch (error) {
+      throw INTERNAL_ERROR_THROWER('ProdoctorApiService.listTabelasProcedimentos', error);
     }
   }
 }
