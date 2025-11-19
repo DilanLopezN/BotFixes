@@ -7,7 +7,7 @@ import { CreatePatient } from './interfaces/create-patient.interface';
 import { IntegrationDocument } from '../integration/schema/integration.schema';
 import { OkResponse } from '../../common/interfaces/ok-response.interface';
 import { INTEGRATIONS_CONNECTION_NAME } from '../ormconfig';
-import { convertPhoneNumber, getNumberWith9, getNumberWithout9 } from '../../common/helpers/format-phone';
+import { convertPhoneNumber, formatPhone, getNumberWith9, getNumberWithout9 } from '../../common/helpers/format-phone';
 import { castObjectIdToString } from '../../common/helpers/cast-objectid';
 
 @Injectable()
@@ -143,15 +143,23 @@ export class PatientDataService {
     }
 
     if (bornDate) {
-      query.andWhere("date_trunc('day', to_timestamp(born_date / 1000)) = :bornDate", {
-        bornDate: moment(bornDate).toISOString(),
+      query.andWhere("date_trunc('day', to_timestamp(born_date / 1000))::date = :bornDate", {
+        bornDate: moment(bornDate).utc().startOf('day').toISOString(),
       });
     }
 
-    const validPhoneNumber = convertPhoneNumber(phone);
+    const validPhoneNumber = formatPhone(convertPhoneNumber(phone));
+
+    // variantes com e sem 9 com DDI
     const phone1 = getNumberWithout9(validPhoneNumber);
     const phone2 = getNumberWith9(validPhoneNumber);
 
-    return await query.andWhere('(phone = :phone1 OR phone = :phone2)', { phone1, phone2 }).getMany();
+    // variantes com e sem 9 sem DDI
+    const phone3 = formatPhone(getNumberWithout9(convertPhoneNumber(phone)), true);
+    const phone4 = formatPhone(getNumberWith9(convertPhoneNumber(phone)), true);
+
+    const phones = [...new Set([phone1, phone2, phone3, phone4])];
+
+    return await query.andWhere('phone IN (:...phones)', { phones }).getMany();
   }
 }

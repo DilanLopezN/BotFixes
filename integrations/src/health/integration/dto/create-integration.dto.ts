@@ -16,6 +16,7 @@ import {
 import { IntegrationType } from '../../interfaces/integration-types';
 import { Type } from 'class-transformer';
 import { EntityType } from '../../interfaces/entity.interface';
+import { HealthEntityType } from 'kissbot-core';
 
 export class IntegrationRulesDto {
   @IsBoolean()
@@ -158,6 +159,10 @@ export class IntegrationRulesDto {
   @IsOptional()
   [IntegrationRules.doNotAllowSameHourScheduling]?: boolean;
 
+  @IsBoolean()
+  @IsOptional()
+  [IntegrationRules.doNotAllowSameDayForProcedureWithLaterality]?: boolean;
+
   @IsNumber()
   @IsOptional()
   [IntegrationRules.minutesAfterAppointmentCanSchedule]?: number;
@@ -165,6 +170,10 @@ export class IntegrationRulesDto {
   @IsBoolean()
   @IsOptional()
   [IntegrationRules.useInsuranceSuggestion]?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  [IntegrationRules.useScheduleSuggestion]?: boolean;
 
   @IsBoolean()
   @IsOptional()
@@ -218,6 +227,10 @@ export class IntegrationRulesDto {
   @IsBoolean()
   @IsOptional()
   [IntegrationRules.useListInAllSteps]?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  [IntegrationRules.useCachedEntitiesFromErp]?: boolean;
 }
 
 export class IntegrationMessagesDto {
@@ -240,6 +253,25 @@ export class IntegrationMessagesDto {
   @IsObject()
   @IsOptional()
   [IntegrationMessages.stepMessages]?: any;
+
+  @IsOptional()
+  @IsEnum(HealthEntityType)
+  @ApiProperty({ enum: HealthEntityType, isArray: true })
+  [IntegrationMessages.entitiesToExcludeFromConfirmationMessage]?: HealthEntityType[];
+}
+
+export class IntegrationSchedulingConfigDocumentsDto {
+  @IsOptional()
+  @IsBoolean()
+  enableDocumentsUpload?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  documentsMaxSizeInMb?: number;
+
+  @IsOptional()
+  @IsString()
+  suporteMessage?: string;
 }
 
 export class IntegrationSchedulingConfigWhatsappDto {
@@ -325,6 +357,11 @@ export class IntegrationSchedulingConfig {
   @IsOptional()
   @Type(() => IntegrationSchedulingConfigResourcesDto)
   resources?: IntegrationSchedulingConfigResourcesDto;
+
+  @ValidateNested()
+  @IsOptional()
+  @Type(() => IntegrationSchedulingConfigDocumentsDto)
+  documents?: IntegrationSchedulingConfigDocumentsDto;
 }
 
 export class IntegrationSchedulingDto implements Scheduling {
@@ -337,9 +374,7 @@ export class IntegrationSchedulingDto implements Scheduling {
   @ApiProperty({ enum: SchedulingGuidanceFormat })
   guidanceFormatType: SchedulingGuidanceFormat;
 
-  @IsBoolean()
-  createScheduleNotification: boolean;
-
+  @IsOptional()
   @IsBoolean()
   createSchedulingLinkAfterCreateSchedule: boolean;
 
@@ -361,6 +396,16 @@ export class RecoverAccessProtocolDto {
   @IsEnum(RecoverAccessProtocolSteps)
   @ApiProperty({ enum: RecoverAccessProtocolSteps, isArray: true })
   steps?: RecoverAccessProtocolSteps[];
+}
+
+export class IntegrationConfigDocumentsDto {
+  @IsOptional()
+  @IsBoolean()
+  enableDocumentsUpload?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  documentsMaxSizeInMb?: number;
 }
 
 export class CreateIntegrationDto implements IIntegration {
@@ -468,4 +513,9 @@ export class CreateIntegrationDto implements IIntegration {
   @IsOptional()
   @Type(() => RecoverAccessProtocolDto)
   recoverAccessProtocol?: RecoverAccessProtocol;
+
+  @ValidateNested()
+  @IsOptional()
+  @Type(() => IntegrationConfigDocumentsDto)
+  documents?: IntegrationConfigDocumentsDto;
 }

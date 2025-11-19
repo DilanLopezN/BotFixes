@@ -27,6 +27,12 @@ class DoctorDto {
   code: string;
 }
 
+class LateralityDto {
+  @IsString()
+  @ApiProperty()
+  code: string;
+}
+
 class TypeOfServiceDto {
   @IsString()
   @ApiProperty()
@@ -202,6 +208,12 @@ export class CreateAppointmentDto {
   @ValidateNested()
   @Type(() => DoctorDto)
   doctor?: DoctorDto;
+
+  @IsOptional()
+  @ApiProperty({ type: LateralityDto })
+  @ValidateNested()
+  @Type(() => LateralityDto)
+  laterality?: LateralityDto;
 
   @IsOptional()
   @ApiProperty({ type: AppointmentTypeDto })

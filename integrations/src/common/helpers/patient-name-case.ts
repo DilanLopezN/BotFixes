@@ -4,7 +4,7 @@ import { capitalizeText } from './capitalize-text';
 
 export const patientNameCaseFormat = (integration: IntegrationDocument, patientName: string): string => {
   if (integration?.rules?.patientNameCase) {
-    switch (integration.rules.patientNameCase) {
+    switch (integration.rules?.patientNameCase) {
       case IntegrationPatientNameCase.CAPITALIZE:
         return capitalizeText(patientName);
 

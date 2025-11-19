@@ -18,6 +18,7 @@ interface IFlow {
   integrationId: string;
   actions?: FlowAction[];
   step?: FlowSteps[];
+  opposeStep?: FlowSteps[];
   type: FlowType;
   deletedAt?: number;
   createdAt?: number;
@@ -62,6 +63,7 @@ enum FlowSteps {
   insuranceSubPlan = 'insuranceSubPlan',
   group = 'group',
   occupationArea = 'occupationArea',
+  laterality = 'laterality',
   organizationUnitLocation = 'organizationUnitLocation',
   listAppointments = 'listAppointments',
   doAppointment = 'doAppointment',
@@ -77,6 +79,7 @@ enum FlowSteps {
   reason = 'reason',
   confirmPassive = 'confirmPassive',
   appointmentValue = 'appointmentValue',
+  scheduleSuggestion = 'scheduleSuggestion',
 }
 
 enum FlowTriggerType {

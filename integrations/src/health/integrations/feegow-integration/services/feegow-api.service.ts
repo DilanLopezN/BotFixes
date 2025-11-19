@@ -1,6 +1,7 @@
 import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { IntegrationDocument } from '../../../integration/schema/integration.schema';
+import { IntegrationEnvironment } from '../../../integration/interfaces/integration.interface';
 import {
   FeegowResponseArray,
   FeegowResponsePlain,
@@ -106,7 +107,7 @@ export class FeegowApiService {
       identifier: from,
     });
 
-    if (error?.response?.data && !ignoreException) {
+    if (error?.response?.data && !ignoreException && integration.environment !== IntegrationEnvironment.test) {
       const metadata = contextService.get('req:default-headers');
       Sentry.captureEvent({
         message: `${integration._id}:${integration.name}:FEEGOW-request: ${from}`,
@@ -116,17 +117,17 @@ export class FeegowApiService {
   }
 
   private async getHeaders(integration: IntegrationDocument) {
-    const { apiToken } = await this.credentialsHelper.getConfig<FeegowCredentialsResponse>(integration);
+    // const { apiToken } = await this.credentialsHelper.getConfig<FeegowCredentialsResponse>(integration);
 
-    if (!apiToken) {
-      throw HTTP_ERROR_THROWER(HttpStatus.INTERNAL_SERVER_ERROR, {
-        message: 'Invalid api token',
-      });
-    }
+    // if (!apiToken) {
+    //   throw HTTP_ERROR_THROWER(HttpStatus.INTERNAL_SERVER_ERROR, {
+    //     message: 'Invalid api token',
+    //   });
+    // }
 
     return {
       headers: {
-        'x-access-token': `${apiToken}`,
+        'x-access-token': `eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJmZWVnb3ciLCJhdWQiOiJwdWJsaWNhcGkiLCJpYXQiOjE3NTM3OTg5MTEsImxpY2Vuc2VJRCI6MTEzMDd9.bmKWdErVlpeVlu27Xt3st1NkzZlecWr0nsf0H8Ew7EY`,
       },
     };
   }

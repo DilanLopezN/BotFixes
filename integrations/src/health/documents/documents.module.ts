@@ -7,6 +7,8 @@ import { INTEGRATIONS_CONNECTION_NAME } from '../ormconfig';
 import { S3Module } from '../../common/s3-module/s3.module';
 import { IntegratorModule } from '../integrator/integrator.module';
 import { IntegrationModule } from '../integration/integration.module';
+import { IntegrationCacheUtilsModule } from '../integration-cache-utils/integration-cache-utils.module';
+import { AuditModule } from '../audit/audit.module';
 
 @Module({
   imports: [
@@ -14,6 +16,8 @@ import { IntegrationModule } from '../integration/integration.module';
     IntegrationModule,
     S3Module,
     forwardRef(() => IntegratorModule),
+    IntegrationCacheUtilsModule,
+    AuditModule,
   ],
   controllers: [DocumentsController],
   providers: [DocumentsService],

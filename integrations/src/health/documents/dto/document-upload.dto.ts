@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString } from 'class-validator';
+import { IsOptional, IsString } from 'class-validator';
 
 export class DocumentUploadDto {
   @IsString()
@@ -19,6 +19,7 @@ export class DocumentUploadDto {
   fileTypeCode: string;
 
   @IsString()
+  @IsOptional()
   @ApiProperty()
-  patientCode: string;
+  externalId?: string;
 }

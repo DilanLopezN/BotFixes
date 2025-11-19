@@ -27,6 +27,8 @@ import {
   TypeOfServiceEntitySchema,
   ReasonEntity,
   ReasonEntitySchema,
+  LateralityEntity,
+  LateralityEntitySchema,
 } from './schema';
 import { EntitiesService } from './services/entities.service';
 
@@ -44,6 +46,7 @@ const models: ModelDefinition[] = [
   { name: OrganizationUnitLocationEntity.name, schema: OrganizationUnitLocationEntitySchema },
   { name: TypeOfServiceEntity.name, schema: TypeOfServiceEntitySchema },
   { name: ReasonEntity.name, schema: ReasonEntitySchema },
+  { name: LateralityEntity.name, schema: LateralityEntitySchema },
 ];
 
 @Module({

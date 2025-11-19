@@ -19,6 +19,7 @@ interface ClinuxSchedule {
   ds_medico: string;
   ds_telefone: string;
   sn_autoriza_fone: boolean;
+  cd_aviso?: number;
 }
 
 export { ClinuxListSchedulesParamsRequest, ClinuxSchedule };

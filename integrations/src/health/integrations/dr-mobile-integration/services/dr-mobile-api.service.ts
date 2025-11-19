@@ -10,6 +10,7 @@ import { formatException } from '../../../../common/helpers/format-exception-aud
 import { requestsExternalCounter } from '../../../../common/prom-metrics';
 import { AuditDataType } from '../../../audit/audit.interface';
 import { IntegrationDocument } from '../../../integration/schema/integration.schema';
+import { IntegrationEnvironment } from '../../../integration/interfaces/integration.interface';
 import { IntegrationType } from '../../../interfaces/integration-types';
 import { SentryErrorHandlerService } from '../../../shared/metadata-sentry.service';
 import {
@@ -107,7 +108,7 @@ export class DrMobileApiService {
       identifier: from,
     });
 
-    if (error?.response?.data && !ignoreException) {
+    if (error?.response?.data && !ignoreException && integration.environment !== IntegrationEnvironment.test) {
       const metadata = contextService.get('req:default-headers');
       Sentry.captureEvent({
         message: `${integration._id}:${integration.name}:DR_MOBILE-request: ${from}`,

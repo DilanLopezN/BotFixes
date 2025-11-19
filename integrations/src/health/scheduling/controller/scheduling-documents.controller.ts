@@ -29,6 +29,9 @@ import { DeleteDocumentDto } from '../dto/documents/delete-document.dto';
 import { ListDocumentsDto } from '../dto/documents/list-documents.dto';
 import { UploadedDocument } from '../interfaces/documents/list-documents.interface';
 import { ALLOWED_MIMED_TYPES, FILE_SIZE_LIMIT } from '../../documents/default';
+import { KissbotEventType } from 'kissbot-core';
+import { EventsService } from '../../events/events.service';
+import { DocumentSourceType } from '../../documents/interfaces/documents.interface';
 
 @ApiTags('Documents')
 @Controller({
@@ -38,6 +41,7 @@ export class SchedulingDocumentsController {
   constructor(
     private readonly schedulingEventsService: SchedulingEventsService,
     private readonly schedulingDocumentsService: SchedulingDocumentsService,
+    private readonly eventsService: EventsService,
   ) {}
 
   @UseGuards(SchedulingAuthGuard)
@@ -83,12 +87,22 @@ export class SchedulingDocumentsController {
       console.error(error);
     }
 
-    return this.schedulingDocumentsService.uploadDocument(integrationId, {
+    const response = await this.schedulingDocumentsService.uploadDocument(integrationId, {
       ...data,
       patientCode: tokenData.patientErpCode,
       file,
       integrationId,
+      source: DocumentSourceType.patient_portal,
     });
+
+    if (response.ok) {
+      await this.eventsService.dispatch(KissbotEventType.SCHEDULE_DOCUMENT_UPLOADED, {
+        patientCode: tokenData.patientErpCode,
+        scheduleCode: data.scheduleCode,
+      });
+    }
+
+    return response;
   }
 
   @UseGuards(SchedulingAuthGuard)

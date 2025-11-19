@@ -12,3 +12,4 @@ export * from './procedure-entity.schema';
 export * from './speciality-entity.schema';
 export * from './type-of-service-entity.schema';
 export * from './reson-entity.schema';
+export * from './laterality-entity.schema';

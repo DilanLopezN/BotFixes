@@ -10,6 +10,7 @@ import { formatException } from '../../../../common/helpers/format-exception-aud
 import { requestsExternalCounter } from '../../../../common/prom-metrics';
 import { AuditDataType } from '../../../audit/audit.interface';
 import { IntegrationDocument } from '../../../integration/schema/integration.schema';
+import { IntegrationEnvironment } from '../../../integration/interfaces/integration.interface';
 import { IntegrationType } from '../../../interfaces/integration-types';
 import { SentryErrorHandlerService } from '../../../shared/metadata-sentry.service';
 import {
@@ -93,7 +94,7 @@ export class MatrixApiService {
         return retryCount * retryCount * 500;
       },
       retryCondition: (error) => {
-        return error?.response?.status >= 400 || error?.code === 'ECONNABORTED';
+        return error?.response?.status > 400 || error?.code === 'ECONNABORTED';
       },
     });
   }
@@ -168,7 +169,7 @@ export class MatrixApiService {
       identifier: from,
     });
 
-    if (error?.response?.data && !ignoreException) {
+    if (error?.response?.data && !ignoreException && integration.environment !== IntegrationEnvironment.test) {
       const metadata = contextService.get('req:default-headers');
       Sentry.captureEvent({
         message: `${integration._id}:${integration.name}:MATRIX-request: ${from}`,
@@ -533,15 +534,14 @@ export class MatrixApiService {
     payload: MatrixAvailableSchedules,
     useIntelligentSearch = false,
   ): Promise<MatrixAvailableSchedulesResponse['procedimentos']> {
-    const methodName = 'listAvailableSchedules';
-
     const url = useIntelligentSearch ? '/busca-horario-inteligente' : '/busca-horarios';
+    const methodName = useIntelligentSearch ? 'listAvailableSchedulesIntelligent' : 'listAvailableSchedules';
 
     try {
       payload = cleanseObject(payload, { replaceNegativeWithEmptyString: true });
     } catch (error) {}
 
-    this.debugRequest(integration, payload, this.listAvailableSchedules.name);
+    this.debugRequest(integration, payload, methodName);
     this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
     try {
@@ -730,6 +730,21 @@ export class MatrixApiService {
       this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response.data;
     } catch (error) {
+      try {
+        // Identificado com a Marina da tecnolab que sempre que retorna este erro
+        // é porque o agendamento já foi cancelado dentro do erp. Então foi acordado
+        // que ao retornar este erro será tratado como um cancelamento efetuado
+        const errorMessage = error?.response?.data?.erro ?? '';
+        if (typeof errorMessage === 'string' && errorMessage.includes('Não foi possível desmarcar o agendamento.')) {
+          return;
+        }
+      } catch (e) {
+        throw HTTP_ERROR_THROWER(
+          error?.response?.status || HttpStatus.BAD_REQUEST,
+          e,
+          HttpErrorOrigin.INTEGRATION_ERROR,
+        );
+      }
       await this.handleResponseError(integration, error, params, 'cancelSchedule');
       throw HTTP_ERROR_THROWER(
         error?.response?.status || HttpStatus.BAD_REQUEST,

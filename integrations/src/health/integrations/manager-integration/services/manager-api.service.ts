@@ -3,6 +3,7 @@ import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { lastValueFrom } from 'rxjs';
 import { HttpErrorOrigin, HTTP_ERROR_THROWER } from '../../../../common/exceptions.service';
 import { IntegrationDocument } from '../../../integration/schema/integration.schema';
+import { IntegrationEnvironment } from '../../../integration/interfaces/integration.interface';
 import { SentryErrorHandlerService } from '../../../shared/metadata-sentry.service';
 import {
   ManagerAppointmentTypeResponse,
@@ -27,6 +28,8 @@ import {
   ManagerPatientAuthParamsRequest,
   ManagerPatientAuthResponse,
   ManagerPatientExistsParamsRequest,
+  ManagerPatientFollowUpResponse,
+  ManagerFollowUpSchedulesResponse,
   ManagerPatientResponse,
   ManagerPatientSchedules,
   ManagerPatientSchedulesResponse,
@@ -41,6 +44,7 @@ import {
   ManagerSpecialitiesParamsRequest,
   ManagerSpecialitiesResponse,
   ManagerUpdatePatient,
+  ManagerFollowUpSchedulesRequest,
 } from '../interfaces';
 import * as contextService from 'request-context';
 import * as Sentry from '@sentry/node';
@@ -66,6 +70,7 @@ interface PatientDataToAuth {
 @Injectable()
 export class ManagerApiService {
   private readonly logger = new Logger(ManagerApiService.name);
+
   constructor(
     private readonly httpService: HttpService,
     private readonly sentryErrorHandlerService: SentryErrorHandlerService,
@@ -102,7 +107,7 @@ export class ManagerApiService {
       identifier: from,
     });
 
-    if (error?.response?.data && !ignoreException) {
+    if (error?.response?.data && !ignoreException && integration.environment !== IntegrationEnvironment.test) {
       const metadata = contextService.get('req:default-headers');
       Sentry.captureEvent({
         message: `${integration._id}:${integration.name}:MANAGER-request: ${from}`,
@@ -247,12 +252,14 @@ export class ManagerApiService {
       payload = cleanseObject(payload);
     } catch (error) {}
     this.debugRequest(integration, payload, this.createPatient.name);
+    this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
     try {
       const config = await this.getPublicParams(integration);
       const apiUrl = await this.getApiUrl(integration, '/agendador/pacientes/cadastrar-com-usuario/');
       const response = await lastValueFrom(this.httpService.post<ManagerCreatePatienResponse>(apiUrl, payload, config));
 
+      this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;
     } catch (error) {
       await this.handleResponseError(integration, error, payload, methodName);
@@ -311,10 +318,13 @@ export class ManagerApiService {
     params: ManagerPatientSchedules,
     isRetry?: boolean,
   ): Promise<{ content: ManagerPatientSchedulesResponse[] }> {
+    const methodName = 'listPatientSchedules';
+
     try {
       params = cleanseObject(params);
     } catch (error) {}
     this.debugRequest(integration, params, this.listPatientSchedules.name);
+    this.dispatchAuditEvent(integration, params, methodName, AuditDataType.externalRequest);
 
     try {
       const config = await this.getPublicParams(integration);
@@ -330,9 +340,10 @@ export class ManagerApiService {
         }),
       );
 
+      this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;
     } catch (error) {
-      await this.handleResponseError(integration, error, params, 'listPatientSchedules');
+      await this.handleResponseError(integration, error, params, methodName);
       if (error?.response?.status === HttpStatus.UNAUTHORIZED && !isRetry) {
         await this.getPublicParams(integration, true);
         return this.listPatientSchedules(integration, params, true);
@@ -365,7 +376,7 @@ export class ManagerApiService {
       this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response.data;
     } catch (error) {
-      await this.handleResponseError(integration, error, { scheduleCode }, 'cancelSchedule');
+      await this.handleResponseError(integration, error, { scheduleCode }, methodName);
       if (error?.response?.status === HttpStatus.UNAUTHORIZED && !isRetry) {
         await this.getPublicParams(integration, true);
         return this.cancelSchedule(integration, scheduleCode, true);
@@ -456,7 +467,10 @@ export class ManagerApiService {
     isRetry?: boolean,
     ignoreException?: boolean,
   ): Promise<ManagerOrganizationUnitsResponse[]> {
+    const methodName = 'listOrganizationUnits';
+
     this.debugRequest(integration, {}, this.listOrganizationUnits.name);
+    this.dispatchAuditEvent(integration, {}, methodName, AuditDataType.externalRequest);
 
     try {
       const config = await this.getPublicParams(integration);
@@ -470,9 +484,10 @@ export class ManagerApiService {
         }),
       );
 
+      this.dispatchAuditEvent(integration, request?.data, methodName, AuditDataType.externalResponse);
       return request?.data;
     } catch (error) {
-      await this.handleResponseError(integration, error, undefined, 'listOrganizationUnits', ignoreException);
+      await this.handleResponseError(integration, error, undefined, methodName, ignoreException);
       if (error?.response?.status === HttpStatus.UNAUTHORIZED && !isRetry) {
         await this.getPublicParams(integration, true);
         return this.listOrganizationUnits(integration, true, ignoreException);
@@ -491,11 +506,14 @@ export class ManagerApiService {
     isRetry?: boolean,
     ignoreException?: boolean,
   ): Promise<ManagerInsurancesResponse[]> {
+    const methodName = 'listInsurances';
+
     try {
       params = cleanseObject(params);
     } catch (error) {}
 
     this.debugRequest(integration, params, this.listInsurances.name);
+    this.dispatchAuditEvent(integration, params, methodName, AuditDataType.externalRequest);
 
     try {
       const config = await this.getPublicParams(integration);
@@ -510,9 +528,10 @@ export class ManagerApiService {
         }),
       );
 
+      this.dispatchAuditEvent(integration, request?.data, methodName, AuditDataType.externalResponse);
       return request?.data;
     } catch (error) {
-      await this.handleResponseError(integration, error, { params }, 'listInsurances', ignoreException);
+      await this.handleResponseError(integration, error, { params }, methodName, ignoreException);
       if (error?.response?.status === HttpStatus.UNAUTHORIZED && !isRetry) {
         await this.getPublicParams(integration, true);
         return this.listInsurances(integration, params, true, ignoreException);
@@ -530,11 +549,14 @@ export class ManagerApiService {
     params: ManagerInsurancePlansParamsRequest,
     isRetry?: boolean,
   ): Promise<ManagerInsurancePlansResponse[]> {
+    const methodName = 'listInsurancePlans';
+
     try {
       params = cleanseObject(params);
     } catch (error) {}
 
     this.debugRequest(integration, params, this.listInsurancePlans.name);
+    this.dispatchAuditEvent(integration, params, methodName, AuditDataType.externalRequest);
 
     try {
       const config = await this.getPublicParams(integration);
@@ -546,9 +568,10 @@ export class ManagerApiService {
         }),
       );
 
+      this.dispatchAuditEvent(integration, request?.data, methodName, AuditDataType.externalResponse);
       return request?.data;
     } catch (error) {
-      await this.handleResponseError(integration, error, { params }, 'listInsurancePlans');
+      await this.handleResponseError(integration, error, { params }, methodName);
       if (error?.response?.status === HttpStatus.UNAUTHORIZED && !isRetry) {
         await this.getPublicParams(integration, true);
         return this.listInsurancePlans(integration, params, true);
@@ -573,6 +596,7 @@ export class ManagerApiService {
     } catch (error) {}
 
     this.debugRequest(integration, params, this.listDoctors.name);
+    this.dispatchAuditEvent(integration, params, methodName, AuditDataType.externalRequest);
 
     try {
       const config = await this.getPublicParams(integration);
@@ -587,6 +611,7 @@ export class ManagerApiService {
         }),
       );
 
+      this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;
     } catch (error) {
       await this.handleResponseError(integration, error, { params }, methodName);
@@ -607,11 +632,14 @@ export class ManagerApiService {
     params: ManagerResourceDoctorDetailsParamsRequest,
     isRetry?: boolean,
   ): Promise<ManagerResourceDoctorDetailsResponse> {
+    const methodName = 'getResourceDoctorDetails';
+
     try {
       params = cleanseObject(params);
     } catch (error) {}
 
     this.debugRequest(integration, params, this.getResourceDoctorDetails.name);
+    this.dispatchAuditEvent(integration, params, methodName, AuditDataType.externalRequest);
 
     try {
       const config = await this.getPublicParams(integration);
@@ -623,9 +651,10 @@ export class ManagerApiService {
         }),
       );
 
+      this.dispatchAuditEvent(integration, request?.data, methodName, AuditDataType.externalResponse);
       return request?.data;
     } catch (error) {
-      await this.handleResponseError(integration, error, { params }, 'getResourceDoctorDetails');
+      await this.handleResponseError(integration, error, { params }, methodName);
       if (error?.response?.status === HttpStatus.UNAUTHORIZED && !isRetry) {
         await this.getPublicParams(integration, true);
         return this.getResourceDoctorDetails(integration, params, true);
@@ -642,16 +671,20 @@ export class ManagerApiService {
     integration: IntegrationDocument,
     isRetry?: boolean,
   ): Promise<ManagerAppointmentTypeResponse[]> {
+    const methodName = 'listAppointmentTypes';
+
     this.debugRequest(integration, {}, this.listAppointmentTypes.name);
+    this.dispatchAuditEvent(integration, {}, methodName, AuditDataType.externalRequest);
 
     try {
       const config = await this.getPublicParams(integration);
       const apiUrl = await this.getApiUrl(integration, '/agendador/servicos/tipos-agendamento');
       const request = await lastValueFrom(this.httpService.get<ManagerAppointmentTypeResponse[]>(apiUrl, config));
 
+      this.dispatchAuditEvent(integration, request?.data, methodName, AuditDataType.externalResponse);
       return request?.data;
     } catch (error) {
-      await this.handleResponseError(integration, error, undefined, 'listAppointmentTypes');
+      await this.handleResponseError(integration, error, undefined, methodName);
       if (error?.response?.status === HttpStatus.UNAUTHORIZED && !isRetry) {
         await this.getPublicParams(integration, true);
         return this.listAppointmentTypes(integration, true);
@@ -676,6 +709,7 @@ export class ManagerApiService {
     } catch (error) {}
 
     this.debugRequest(integration, params, this.listSpecialities.name);
+    this.dispatchAuditEvent(integration, params, methodName, AuditDataType.externalRequest);
 
     try {
       const config = await this.getPublicParams(integration);
@@ -690,6 +724,7 @@ export class ManagerApiService {
         }),
       );
 
+      this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;
     } catch (error) {
       await this.handleResponseError(integration, error, { params }, methodName);
@@ -717,6 +752,7 @@ export class ManagerApiService {
     } catch (error) {}
 
     this.debugRequest(integration, params, this.listProcedures.name);
+    this.dispatchAuditEvent(integration, params, methodName, AuditDataType.externalRequest);
 
     try {
       const config = await this.getPublicParams(integration);
@@ -731,6 +767,7 @@ export class ManagerApiService {
         }),
       );
 
+      this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;
     } catch (error) {
       await this.handleResponseError(integration, error, { params }, methodName);
@@ -751,11 +788,14 @@ export class ManagerApiService {
     params: ManagerProceduresExamsParamsRequest,
     isRetry?: boolean,
   ): Promise<ManagerProceduresResponse[]> {
+    const methodName = 'listProceduresExams';
+
     try {
       params = cleanseObject(params);
     } catch (error) {}
 
     this.debugRequest(integration, params, this.listProceduresExams.name);
+    this.dispatchAuditEvent(integration, params, methodName, AuditDataType.externalRequest);
 
     try {
       const config = await this.getPublicParams(integration);
@@ -770,9 +810,10 @@ export class ManagerApiService {
         }),
       );
 
+      this.dispatchAuditEvent(integration, request?.data, methodName, AuditDataType.externalResponse);
       return request?.data;
     } catch (error) {
-      await this.handleResponseError(integration, error, { params }, 'listProceduresExams');
+      await this.handleResponseError(integration, error, { params }, methodName);
       if (error?.response?.status === HttpStatus.UNAUTHORIZED && !isRetry) {
         await this.getPublicParams(integration, true);
         return this.listProceduresExams(integration, params, true);
@@ -790,11 +831,14 @@ export class ManagerApiService {
     params: ManagerSpecialitiesExamsParamsRequest,
     isRetry?: boolean,
   ): Promise<ManagerSpecialitiesResponse[]> {
+    const methodName = 'listProceduresExamsGroups';
+
     try {
       params = cleanseObject(params);
     } catch (error) {}
 
     this.debugRequest(integration, params, this.listProceduresExamsGroups.name);
+    this.dispatchAuditEvent(integration, params, methodName, AuditDataType.externalRequest);
 
     try {
       const config = await this.getPublicParams(integration);
@@ -809,9 +853,10 @@ export class ManagerApiService {
         }),
       );
 
+      this.dispatchAuditEvent(integration, request?.data, methodName, AuditDataType.externalResponse);
       return request?.data;
     } catch (error) {
-      await this.handleResponseError(integration, error, { params }, 'listProceduresExamsGroups');
+      await this.handleResponseError(integration, error, { params }, methodName);
       if (error?.response?.status === HttpStatus.UNAUTHORIZED && !isRetry) {
         await this.getPublicParams(integration, true);
         return this.listProceduresExamsGroups(integration, params, true);
@@ -848,7 +893,7 @@ export class ManagerApiService {
       this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;
     } catch (error) {
-      await this.handleResponseError(integration, error, payload, 'listAvailableSchedules');
+      await this.handleResponseError(integration, error, payload, methodName);
       if (error?.response?.status === HttpStatus.UNAUTHORIZED && !isRetry) {
         await this.getPublicParams(integration, true);
         return this.listAvailableSchedules(integration, payload, true);
@@ -1026,7 +1071,10 @@ export class ManagerApiService {
     params: ManagerPatientExistsParamsRequest,
     isRetry?: boolean,
   ): Promise<boolean> {
+    const methodName = 'checkPatientExists';
+
     this.debugRequest(integration, params, this.checkPatientExists.name);
+    this.dispatchAuditEvent(integration, params, methodName, AuditDataType.externalRequest);
 
     try {
       const config = await this.getPublicParams(integration);
@@ -1038,9 +1086,10 @@ export class ManagerApiService {
         }),
       );
 
+      this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;
     } catch (error) {
-      await this.handleResponseError(integration, error, params, 'checkPatientExists');
+      await this.handleResponseError(integration, error, params, methodName);
       if (error?.response?.status === HttpStatus.UNAUTHORIZED && !isRetry) {
         await this.getPublicParams(integration, true);
         return this.checkPatientExists(integration, params, true);
@@ -1059,7 +1108,10 @@ export class ManagerApiService {
     patient: PatientDataToAuth,
     isRetry?: boolean,
   ): Promise<ManagerPatientResponse> {
+    const methodName = 'getAuthenticatedPatient';
+
     this.debugRequest(integration, patient, this.getAuthenticatedPatient.name);
+    this.dispatchAuditEvent(integration, patient, methodName, AuditDataType.externalRequest);
 
     try {
       const config = await this.getPatientParams(integration, patient);
@@ -1070,9 +1122,10 @@ export class ManagerApiService {
         }),
       );
 
+      this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;
     } catch (error) {
-      await this.handleResponseError(integration, error, undefined, 'getAuthenticatedPatient');
+      await this.handleResponseError(integration, error, undefined, methodName);
       if (error?.response?.status === HttpStatus.UNAUTHORIZED && !isRetry) {
         await this.getPatientParams(integration, patient, true);
         return this.getAuthenticatedPatient(integration, patient, true);
@@ -1080,6 +1133,81 @@ export class ManagerApiService {
 
       throw HTTP_ERROR_THROWER(
         HttpStatus.BAD_REQUEST,
+        error.response?.data || error,
+        HttpErrorOrigin.INTEGRATION_ERROR,
+      );
+    }
+  }
+
+  public async listPatientFollowUpSchedules(
+    integration: IntegrationDocument,
+    patientCode: number,
+    isRetry?: boolean,
+  ): Promise<ManagerPatientFollowUpResponse[]> {
+    const methodName = 'listPatientFollowUpSchedules';
+
+    this.debugRequest(integration, { patientCode }, this.listPatientFollowUpSchedules.name);
+    this.dispatchAuditEvent(integration, { patientCode }, methodName, AuditDataType.externalRequest);
+
+    try {
+      const config = await this.getPublicParams(integration);
+      const apiUrl = await this.getApiUrl(integration, '/atendimento/agendamentos/retornos');
+      const response = await lastValueFrom(
+        this.httpService.get<any[]>(apiUrl, {
+          ...config,
+          params: {
+            paciente: patientCode,
+          },
+        }),
+      );
+
+      this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
+      return response?.data;
+    } catch (error) {
+      await this.handleResponseError(integration, error, { patientCode }, methodName);
+      if (error?.response?.status === HttpStatus.UNAUTHORIZED && !isRetry) {
+        await this.getPublicParams(integration, true);
+        return this.listPatientFollowUpSchedules(integration, patientCode, true);
+      }
+      throw HTTP_ERROR_THROWER(
+        error?.response?.status || HttpStatus.BAD_REQUEST,
+        error.response?.data || error,
+        HttpErrorOrigin.INTEGRATION_ERROR,
+      );
+    }
+  }
+
+  public async listFollowUpSchedules(
+    integration: IntegrationDocument,
+    payload: ManagerFollowUpSchedulesRequest,
+    isRetry?: boolean,
+  ): Promise<ManagerFollowUpSchedulesResponse> {
+    const methodName = 'listFollowUpSchedules';
+
+    try {
+      payload = cleanseObject(payload);
+    } catch (error) {}
+
+    this.debugRequest(integration, payload, this.listFollowUpSchedules.name);
+    this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
+
+    try {
+      const config = await this.getPublicParams(integration);
+      const apiUrl = await this.getApiUrl(integration, '/agenda/busca-horarios-retorno');
+      const response = await lastValueFrom(
+        this.httpService.post<ManagerFollowUpSchedulesResponse>(apiUrl, payload, config),
+      );
+
+      this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
+      return response?.data;
+    } catch (error) {
+      await this.handleResponseError(integration, error, payload, methodName);
+      if (error?.response?.status === HttpStatus.UNAUTHORIZED && !isRetry) {
+        await this.getPublicParams(integration, true);
+        return this.listFollowUpSchedules(integration, payload, true);
+      }
+      throw HTTP_ERROR_THROWER(
+        error?.response?.status || HttpStatus.BAD_REQUEST,
         error.response?.data || error,
         HttpErrorOrigin.INTEGRATION_ERROR,
       );

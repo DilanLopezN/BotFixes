@@ -30,6 +30,7 @@ import {
   CorrelationFilterByKeys,
 } from '../../interfaces/correlation-filter.interface';
 import { IntegrationDocument } from '../../integration/schema/integration.schema';
+import { LateralityEntity, LateralityEntityDocument } from '../schema/laterality-entity.schema';
 
 @Injectable()
 export class EntitiesService {
@@ -59,6 +60,7 @@ export class EntitiesService {
     @InjectModel(OccupationAreaEntity.name) private occupationAreaEntityModel: Model<OccupationAreaEntityDocument>,
     @InjectModel(TypeOfServiceEntity.name) private typeOfServiceEntityModel: Model<TypeOfServiceEntityDocument>,
     @InjectModel(ReasonEntity.name) private reasonEntityModel: Model<ReasonEntityDocument>,
+    @InjectModel(LateralityEntity.name) private lateralityEntityModel: Model<LateralityEntityDocument>,
     @InjectConnection()
     private readonly connection: Connection,
   ) {}
@@ -78,6 +80,7 @@ export class EntitiesService {
       [EntityType.organizationUnitLocation]: this.organizationUnitLocationEntityModel,
       [EntityType.typeOfService]: this.typeOfServiceEntityModel,
       [EntityType.reason]: this.reasonEntityModel,
+      [EntityType.laterality]: this.lateralityEntityModel,
     };
 
     return models[entityType];
@@ -120,7 +123,11 @@ export class EntitiesService {
     data: { [entityType: string]: IExternalEntity[] },
   ): Promise<void> {
     const session = await this.connection.startSession();
-    session.startTransaction();
+    session.startTransaction({
+      maxCommitTimeMS: 60_000,
+      readConcern: { level: 'majority' },
+      writeConcern: { w: 'majority', wtimeout: 60_000 },
+    });
 
     try {
       for (const entityType of Object.keys(data)) {
@@ -341,6 +348,49 @@ export class EntitiesService {
     }
 
     return entities;
+  }
+
+  async getEntitiesByIdsPreservingOrder(
+    integrationId: Types.ObjectId,
+    entityType: EntityType,
+    ids: Types.ObjectId[],
+  ): Promise<EntityDocument[]> {
+    if (!ids?.length) {
+      return [];
+    }
+
+    const entities = await this.getCollection(entityType)
+      .aggregate([
+        {
+          $match: {
+            integrationId: castObjectId(integrationId),
+            canView: true,
+            $or: [{ activeErp: true }, { activeErp: { $exists: false } }, { activeErp: { $eq: null } }],
+            _id: { $in: ids },
+          },
+        },
+        {
+          $addFields: {
+            __order: { $indexOfArray: [ids, '$_id'] },
+          },
+        },
+        {
+          $sort: { __order: 1 },
+        },
+        {
+          $project: {
+            __order: 0,
+            synonyms: 0,
+            version: 0,
+            updatedAt: 0,
+            createdAt: 0,
+            internalSynonyms: 0,
+          },
+        },
+      ])
+      .exec();
+
+    return entities as EntityDocument[];
   }
 
   async getValidErpEntitiesByCode(

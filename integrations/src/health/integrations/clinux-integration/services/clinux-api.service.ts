@@ -4,6 +4,7 @@ import { lastValueFrom } from 'rxjs';
 import * as Sentry from '@sentry/node';
 import { HttpErrorOrigin, HTTP_ERROR_THROWER } from '../../../../common/exceptions.service';
 import { IntegrationDocument } from '../../../integration/schema/integration.schema';
+import { IntegrationEnvironment } from '../../../integration/interfaces/integration.interface';
 import { SentryErrorHandlerService } from '../../../shared/metadata-sentry.service';
 import {
   ClinuxDoctorsParamsRequest,
@@ -112,7 +113,7 @@ export class ClinuxApiService {
       identifier: from,
     });
 
-    if (error?.response?.data && !ignoreException) {
+    if (error?.response?.data && !ignoreException && integration.environment !== IntegrationEnvironment.test) {
       Sentry.captureEvent({
         message: `${integration._id}:${integration.name}:CLINUX-request: ${from}`,
         ...this.sentryErrorHandlerService.defaultApiIntegrationError(payload, error?.response, metadata),
@@ -817,7 +818,7 @@ export class ClinuxApiService {
   ): Promise<ClinuxGetPatientResponse[]> {
     try {
       if (!payload.cd_paciente && !payload.ds_cpf) {
-        throw HTTP_ERROR_THROWER(HttpStatus.BAD_GATEWAY, 'Invalid patient params');
+        throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, 'Invalid patient params');
       }
 
       const requestParams = await this.getDefaultRequestParams(integration, payload);

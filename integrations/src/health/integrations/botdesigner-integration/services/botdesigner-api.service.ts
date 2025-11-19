@@ -88,6 +88,10 @@ import {
   AgentDeleteScheduleFile,
   PatientDeleteScheduleFileResponse,
   PatientDeleteScheduleFile,
+  ListLateralitiesFilters,
+  LateralityEntity,
+  PatientScheduleToUploadFile,
+  ListPatientSchedulesToUploadFileFilters,
 } from 'kissbot-health-core';
 import { OkResponse } from '../interface/ok-response';
 import { AuditService } from '../../../audit/services/audit.service';
@@ -159,6 +163,12 @@ export class BotdesignerApiService {
   }
 
   private async getDefaultHeaders(integration: IntegrationDocument) {
+    if (process.env.NODE_ENV === 'local' && process.env.DEBUG_BOTDESIGNER_TOKEN) {
+      return {
+        Authorization: `Bearer ${process.env.DEBUG_BOTDESIGNER_TOKEN}`,
+      };
+    }
+
     const { apiToken } = await this.credentialsHelper.getConfig<BotDesignerCredentialsResponse>(integration);
 
     if (!apiToken) {
@@ -173,6 +183,10 @@ export class BotdesignerApiService {
   }
 
   private async getApiUrl(integration: IntegrationDocument): Promise<string> {
+    if (process.env.NODE_ENV === 'local' && process.env.DEBUG_BOTDESIGNER_URL) {
+      return process.env.DEBUG_BOTDESIGNER_URL;
+    }
+
     const { apiUrl } = await this.credentialsHelper.getConfig<BotDesignerCredentialsResponse>(integration);
 
     if (!apiUrl) {
@@ -182,6 +196,14 @@ export class BotdesignerApiService {
     }
 
     return apiUrl;
+  }
+
+  private getIntegrationId(integration: IntegrationDocument): string {
+    if (process.env.NODE_ENV === 'local' && process.env.DEBUG_BOTDESIGNER_INTEGRATION_ID) {
+      return process.env.DEBUG_BOTDESIGNER_INTEGRATION_ID;
+    }
+
+    return castObjectIdToString(integration._id);
   }
 
   private handleResponseException(
@@ -202,7 +224,7 @@ export class BotdesignerApiService {
       identifier: from,
     });
 
-    if (error && !ignoreException) {
+    if (error && !ignoreException && integration.environment !== IntegrationEnvironment.test) {
       Sentry.captureEvent({
         message: `${integration._id}:${integration.name}:BOTDESIGNER-request: ${from}`,
         user: {
@@ -253,7 +275,7 @@ export class BotdesignerApiService {
 
       const response = await lastValueFrom(
         this.httpService.post<DefaultResponse<OnDutyMedicalScale[]>>(
-          `${apiUrl}/integrator/${integration._id}/listOnDutyMedicalScale`,
+          `${apiUrl}/integrator/${this.getIntegrationId(integration)}/listOnDutyMedicalScale`,
           undefined,
           {
             headers,
@@ -288,7 +310,7 @@ export class BotdesignerApiService {
 
       const response = await lastValueFrom(
         this.httpService.post<DefaultResponse<AvailableSchedule[]>>(
-          `${apiUrl}/integrator/${integration._id}/listAvailableSchedules`,
+          `${apiUrl}/integrator/${this.getIntegrationId(integration)}/listAvailableSchedules`,
           payload,
           {
             headers,
@@ -320,7 +342,7 @@ export class BotdesignerApiService {
 
       const response = await lastValueFrom(
         this.httpService.post<DefaultResponse<Schedule[]>>(
-          `${apiUrl}/integrator/${integration._id}/listSchedules`,
+          `${apiUrl}/integrator/${this.getIntegrationId(integration)}/listSchedules`,
           payload,
           {
             headers,
@@ -352,7 +374,7 @@ export class BotdesignerApiService {
 
       const response = await lastValueFrom(
         this.httpService.post<DefaultResponse<DoctorEntity[]>>(
-          `${apiUrl}/integrator/${integration._id}/entities/listDoctors`,
+          `${apiUrl}/integrator/${this.getIntegrationId(integration)}/entities/listDoctors`,
           payload,
           {
             headers,
@@ -387,7 +409,7 @@ export class BotdesignerApiService {
 
       const response = await lastValueFrom(
         this.httpService.post<DefaultResponse<ListDoctorSchedulesResponse[]>>(
-          `${apiUrl}/integrator/${integration._id}/doctors/listDoctorSchedules`,
+          `${apiUrl}/integrator/${this.getIntegrationId(integration)}/doctors/listDoctorSchedules`,
           payload,
           {
             headers,
@@ -419,7 +441,7 @@ export class BotdesignerApiService {
 
       const response = await lastValueFrom(
         this.httpService.post<DefaultResponse<FindDoctorResponse>>(
-          `${apiUrl}/integrator/${integration._id}/doctors/findDoctor`,
+          `${apiUrl}/integrator/${this.getIntegrationId(integration)}/doctors/findDoctor`,
           payload,
           {
             headers,
@@ -454,7 +476,7 @@ export class BotdesignerApiService {
 
       const response = await lastValueFrom(
         this.httpService.post<DefaultResponse<InsuranceCategoryEntity[]>>(
-          `${apiUrl}/integrator/${integration._id}/entities/listInsuranceCategories`,
+          `${apiUrl}/integrator/${this.getIntegrationId(integration)}/entities/listInsuranceCategories`,
           payload,
           {
             headers,
@@ -489,7 +511,7 @@ export class BotdesignerApiService {
 
       const response = await lastValueFrom(
         this.httpService.post<DefaultResponse<InsurancePlanEntity[]>>(
-          `${apiUrl}/integrator/${integration._id}/entities/listInsurancePlans`,
+          `${apiUrl}/integrator/${this.getIntegrationId(integration)}/entities/listInsurancePlans`,
           payload,
           {
             headers,
@@ -524,7 +546,7 @@ export class BotdesignerApiService {
 
       const response = await lastValueFrom(
         this.httpService.post<DefaultResponse<InsuranceSubPlanEntity[]>>(
-          `${apiUrl}/integrator/${integration._id}/entities/listInsuranceSubPlans`,
+          `${apiUrl}/integrator/${this.getIntegrationId(integration)}/entities/listInsuranceSubPlans`,
           payload,
           {
             headers,
@@ -560,7 +582,7 @@ export class BotdesignerApiService {
 
       const response = await lastValueFrom(
         this.httpService.post<DefaultResponse<InsuranceEntity[]>>(
-          `${apiUrl}/integrator/${integration._id}/entities/listInsurances`,
+          `${apiUrl}/integrator/${this.getIntegrationId(integration)}/entities/listInsurances`,
           payload,
           {
             headers,
@@ -596,7 +618,7 @@ export class BotdesignerApiService {
 
       const response = await lastValueFrom(
         this.httpService.post<DefaultResponse<OrganizationUnitEntity[]>>(
-          `${apiUrl}/integrator/${integration._id}/entities/listOrganizationUnits`,
+          `${apiUrl}/integrator/${this.getIntegrationId(integration)}/entities/listOrganizationUnits`,
           payload,
           {
             headers,
@@ -631,7 +653,7 @@ export class BotdesignerApiService {
 
       const response = await lastValueFrom(
         this.httpService.post<DefaultResponse<ProcedureEntity[]>>(
-          `${apiUrl}/integrator/${integration._id}/entities/listProcedures`,
+          `${apiUrl}/integrator/${this.getIntegrationId(integration)}/entities/listProcedures`,
           payload,
           {
             headers,
@@ -666,7 +688,42 @@ export class BotdesignerApiService {
 
       const response = await lastValueFrom(
         this.httpService.post<DefaultResponse<SpecialityEntity[]>>(
-          `${apiUrl}/integrator/${integration._id}/entities/listSpecialities`,
+          `${apiUrl}/integrator/${this.getIntegrationId(integration)}/entities/listSpecialities`,
+          payload,
+          {
+            headers,
+          },
+        ),
+      );
+
+      this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
+      return response.data?.data ?? [];
+    } catch (error) {
+      this.handleResponseException(integration, error, payload, methodName);
+      throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, error, HttpErrorOrigin.INTEGRATION_ERROR);
+    }
+  }
+
+  public async listLateralities(
+    integration: IntegrationDocument,
+    payload: ListLateralitiesFilters,
+  ): Promise<LateralityEntity[]> {
+    const methodName = this.listLateralities.name;
+
+    try {
+      payload = cleanseObject(payload);
+    } catch (error) {}
+
+    try {
+      const headers = await this.getDefaultHeaders(integration);
+      const apiUrl = await this.getApiUrl(integration);
+
+      this.debugRequest(integration, payload);
+      this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
+
+      const response = await lastValueFrom(
+        this.httpService.post<DefaultResponse<SpecialityEntity[]>>(
+          `${apiUrl}/integrator/${this.getIntegrationId(integration)}/entities/listLateralities`,
           payload,
           {
             headers,
@@ -697,7 +754,7 @@ export class BotdesignerApiService {
 
       const response = await lastValueFrom(
         this.httpService.post<DefaultResponse<OkResponse>>(
-          `${apiUrl}/integrator/${integration._id}/confirmSchedule`,
+          `${apiUrl}/integrator/${this.getIntegrationId(integration)}/confirmSchedule`,
           payload,
           {
             headers,
@@ -727,7 +784,7 @@ export class BotdesignerApiService {
 
       const response = await lastValueFrom(
         this.httpService.post<DefaultResponse<OkResponse>>(
-          `${apiUrl}/integrator/${integration._id}/cancelSchedule`,
+          `${apiUrl}/integrator/${this.getIntegrationId(integration)}/cancelSchedule`,
           payload,
           {
             headers,
@@ -757,7 +814,7 @@ export class BotdesignerApiService {
 
       const response = await lastValueFrom(
         this.httpService.post<DefaultResponse<Patient>>(
-          `${apiUrl}/integrator/${integration._id}/patient/getPatient`,
+          `${apiUrl}/integrator/${this.getIntegrationId(integration)}/patient/getPatient`,
           payload,
           {
             headers,
@@ -791,7 +848,7 @@ export class BotdesignerApiService {
 
       const response = await lastValueFrom(
         this.httpService.post<DefaultResponse<CreateScheduleExamResponse>>(
-          `${apiUrl}/integrator/${integration._id}/createScheduleExam`,
+          `${apiUrl}/integrator/${this.getIntegrationId(integration)}/createScheduleExam`,
           payload,
           {
             headers,
@@ -833,7 +890,7 @@ export class BotdesignerApiService {
 
       const response = await lastValueFrom(
         this.httpService.post<DefaultResponse<CreateScheduleResponse>>(
-          `${apiUrl}/integrator/${integration._id}/createSchedule`,
+          `${apiUrl}/integrator/${this.getIntegrationId(integration)}/createSchedule`,
           payload,
           {
             headers,
@@ -872,7 +929,7 @@ export class BotdesignerApiService {
 
       const response = await lastValueFrom(
         this.httpService.post<DefaultResponse<RescheduleResponse>>(
-          `${apiUrl}/integrator/${integration._id}/reschedule`,
+          `${apiUrl}/integrator/${this.getIntegrationId(integration)}/reschedule`,
           payload,
           {
             headers,
@@ -914,7 +971,7 @@ export class BotdesignerApiService {
 
       const response = await lastValueFrom(
         this.httpService.post<DefaultResponse<RescheduleResponse>>(
-          `${apiUrl}/integrator/${integration._id}/rescheduleExam`,
+          `${apiUrl}/integrator/${this.getIntegrationId(integration)}/rescheduleExam`,
           payload,
           {
             headers,
@@ -953,7 +1010,7 @@ export class BotdesignerApiService {
 
       const response = await lastValueFrom(
         this.httpService.post<DefaultResponse<CreatePatientResponse>>(
-          `${apiUrl}/integrator/${integration._id}/patient/createPatient`,
+          `${apiUrl}/integrator/${this.getIntegrationId(integration)}/patient/createPatient`,
           payload,
           {
             headers,
@@ -984,7 +1041,7 @@ export class BotdesignerApiService {
 
       const response = await lastValueFrom(
         this.httpService.post<DefaultResponse<CreatePatientResponse>>(
-          `${apiUrl}/integrator/${integration._id}/patient/updatePatient`,
+          `${apiUrl}/integrator/${this.getIntegrationId(integration)}/patient/updatePatient`,
           payload,
           {
             headers,
@@ -1019,7 +1076,42 @@ export class BotdesignerApiService {
 
       const response = await lastValueFrom(
         this.httpService.post<DefaultResponse<PatientSchedule[]>>(
-          `${apiUrl}/integrator/${integration._id}/patient/listSchedules`,
+          `${apiUrl}/integrator/${this.getIntegrationId(integration)}/patient/listSchedules`,
+          payload,
+          {
+            headers,
+          },
+        ),
+      );
+
+      this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
+      return orderBy(response.data?.data ?? [], 'scheduleDate', 'asc');
+    } catch (error) {
+      this.handleResponseException(integration, error, payload, methodName);
+      throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, error, HttpErrorOrigin.INTEGRATION_ERROR);
+    }
+  }
+
+  public async listPatientSchedulesToUploadFile(
+    integration: IntegrationDocument,
+    payload: ListPatientSchedulesToUploadFileFilters,
+  ): Promise<PatientScheduleToUploadFile[]> {
+    const methodName = 'listPatientSchedulesToUploadFile';
+
+    try {
+      payload = cleanseObject(payload);
+    } catch (error) {}
+
+    try {
+      const headers = await this.getDefaultHeaders(integration);
+      const apiUrl = await this.getApiUrl(integration);
+
+      this.debugRequest(integration, payload);
+      this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
+
+      const response = await lastValueFrom(
+        this.httpService.post<DefaultResponse<PatientScheduleToUploadFile[]>>(
+          `${apiUrl}/integrator/${this.getIntegrationId(integration)}/files/listPatientSchedulesToUploadFile`,
           payload,
           {
             headers,
@@ -1054,7 +1146,7 @@ export class BotdesignerApiService {
 
       const response = await lastValueFrom(
         this.httpService.post<DefaultResponse<TypeOfServiceEntity[]>>(
-          `${apiUrl}/integrator/${integration._id}/entities/listTypesOfService`,
+          `${apiUrl}/integrator/${this.getIntegrationId(integration)}/entities/listTypesOfService`,
           payload,
           {
             headers,
@@ -1089,7 +1181,7 @@ export class BotdesignerApiService {
 
       const response = await lastValueFrom(
         this.httpService.post<DefaultResponse<OccupationAreaEntity[]>>(
-          `${apiUrl}/integrator/${integration._id}/entities/listOccupationAreas`,
+          `${apiUrl}/integrator/${this.getIntegrationId(integration)}/entities/listOccupationAreas`,
           payload,
           {
             headers,
@@ -1124,7 +1216,7 @@ export class BotdesignerApiService {
 
       const response = await lastValueFrom(
         this.httpService.post<DefaultResponse<OrganizationUnitLocationEntity[]>>(
-          `${apiUrl}/integrator/${integration._id}/entities/listOrganizationUnitLocations`,
+          `${apiUrl}/integrator/${this.getIntegrationId(integration)}/entities/listOrganizationUnitLocations`,
           payload,
           {
             headers,
@@ -1160,7 +1252,7 @@ export class BotdesignerApiService {
 
       const response = await lastValueFrom(
         this.httpService.post<DefaultResponse<ScheduledSending[]>>(
-          `${apiUrl}/integrator/${integration._id}/scheduled-sending/listScheduledSending`,
+          `${apiUrl}/integrator/${this.getIntegrationId(integration)}/scheduled-sending/listScheduledSending`,
           payload,
           {
             headers,
@@ -1189,7 +1281,7 @@ export class BotdesignerApiService {
 
       const response = await lastValueFrom(
         this.httpService.get<DefaultResponse<ScheduledSending[]>>(
-          `${apiUrl}/integrator/${integration._id}/scheduled-sending/executeScheduledSendingLoader`,
+          `${apiUrl}/integrator/${this.getIntegrationId(integration)}/scheduled-sending/executeScheduledSendingLoader`,
           {
             headers,
           },
@@ -1225,7 +1317,7 @@ export class BotdesignerApiService {
 
       const response = await lastValueFrom(
         this.httpService.post<DefaultResponse<OkResponse>>(
-          `${apiUrl}/integrator/${integration._id}/scheduled-sending/updateScheduledSending`,
+          `${apiUrl}/integrator/${this.getIntegrationId(integration)}/scheduled-sending/updateScheduledSending`,
           payload,
           {
             headers,
@@ -1261,7 +1353,7 @@ export class BotdesignerApiService {
 
       const response = await lastValueFrom(
         this.httpService.post<DefaultResponse<GetScheduleValueResponse>>(
-          `${apiUrl}/integrator/${integration._id}/getScheduleValue`,
+          `${apiUrl}/integrator/${this.getIntegrationId(integration)}/getScheduleValue`,
           payload,
           {
             headers,
@@ -1297,7 +1389,7 @@ export class BotdesignerApiService {
 
       const response = await lastValueFrom(
         this.httpService.post<DefaultResponse<RecoverAccessProtocolResponse>>(
-          `${apiUrl}/integrator/${integration._id}/access-protocol/recoverAccessProtocol`,
+          `${apiUrl}/integrator/${this.getIntegrationId(integration)}/access-protocol/recoverAccessProtocol`,
           payload,
           {
             headers,
@@ -1333,7 +1425,7 @@ export class BotdesignerApiService {
 
       const response = await lastValueFrom(
         this.httpService.post<DefaultResponse<OkResponse>>(
-          `${apiUrl}/integrator/${integration._id}/report-sending/updateReportSending`,
+          `${apiUrl}/integrator/${this.getIntegrationId(integration)}/report-sending/updateReportSending`,
           payload,
           {
             headers,
@@ -1369,7 +1461,7 @@ export class BotdesignerApiService {
 
       const response = await lastValueFrom(
         this.httpService.post<DefaultResponse<ReportSending[]>>(
-          `${apiUrl}/integrator/${integration._id}/report-sending/listReportSending`,
+          `${apiUrl}/integrator/${this.getIntegrationId(integration)}/report-sending/listReportSending`,
           payload,
           {
             headers,
@@ -1405,7 +1497,7 @@ export class BotdesignerApiService {
 
       const response = await lastValueFrom(
         this.httpService.post<DefaultResponse<GetReportSendingResponseUrl>>(
-          `${apiUrl}/integrator/${integration._id}/report-sending/getReportSendingUrl`,
+          `${apiUrl}/integrator/${this.getIntegrationId(integration)}/report-sending/getReportSendingUrl`,
           payload,
           {
             headers,
@@ -1458,7 +1550,7 @@ export class BotdesignerApiService {
 
       const response = await lastValueFrom(
         this.httpService.post<DefaultResponse<SuggestedDoctorEntity[]>>(
-          `${apiUrl}/integrator/${integration._id}/entities/listSuggestedDoctors`,
+          `${apiUrl}/integrator/${this.getIntegrationId(integration)}/entities/listSuggestedDoctors`,
           payload,
           {
             headers,
@@ -1486,7 +1578,7 @@ export class BotdesignerApiService {
 
       const response = await lastValueFrom(
         this.httpService.post<DefaultResponse<ListFileTypesResponse>>(
-          `${apiUrl}/integrator/${integration._id}/files/listFileTypesToUpload`,
+          `${apiUrl}/integrator/${this.getIntegrationId(integration)}/files/listFileTypesToUpload`,
           undefined,
           {
             headers,
@@ -1522,7 +1614,7 @@ export class BotdesignerApiService {
 
       const response = await lastValueFrom(
         this.httpService.post<DefaultResponse<PatientUploadScheduleFileResponse>>(
-          `${apiUrl}/integrator/${integration._id}/files/patientUploadScheduleFile`,
+          `${apiUrl}/integrator/${this.getIntegrationId(integration)}/files/patientUploadScheduleFile`,
           payload,
           {
             headers,
@@ -1558,7 +1650,7 @@ export class BotdesignerApiService {
 
       const response = await lastValueFrom(
         this.httpService.post<DefaultResponse<AgentUploadScheduleFileResponse>>(
-          `${apiUrl}/integrator/${integration._id}/files/agentUploadScheduleFile`,
+          `${apiUrl}/integrator/${this.getIntegrationId(integration)}/files/agentUploadScheduleFile`,
           payload,
           {
             headers,
@@ -1594,7 +1686,7 @@ export class BotdesignerApiService {
 
       const response = await lastValueFrom(
         this.httpService.post<DefaultResponse<AgentDeleteScheduleFileResponse>>(
-          `${apiUrl}/integrator/${integration._id}/files/agentDeleteScheduleFile`,
+          `${apiUrl}/integrator/${this.getIntegrationId(integration)}/files/agentDeleteScheduleFile`,
           payload,
           {
             headers,
@@ -1630,7 +1722,7 @@ export class BotdesignerApiService {
 
       const response = await lastValueFrom(
         this.httpService.post<DefaultResponse<PatientDeleteScheduleFileResponse>>(
-          `${apiUrl}/integrator/${integration._id}/files/patientDeleteScheduleFile`,
+          `${apiUrl}/integrator/${this.getIntegrationId(integration)}/files/patientDeleteScheduleFile`,
           payload,
           {
             headers,

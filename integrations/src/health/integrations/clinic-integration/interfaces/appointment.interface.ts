@@ -61,7 +61,7 @@ interface ClinicSchedule {
   hour_schedule: string;
   healthInsuranceID: number;
   healthInsurance: string;
-  status: 'Paciente desmarcou' | 'Paciente não chegou' | string;
+  status: 'Paciente desmarcou' | 'Paciente não chegou' | 'Paciente faltou' | string;
   confirm: 'A Confirmar' | string;
   record: number;
   patient_id: number;

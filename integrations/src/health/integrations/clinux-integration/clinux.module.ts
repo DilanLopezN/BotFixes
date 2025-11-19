@@ -13,11 +13,12 @@ import { ClinuxConfirmationService } from './services/clinux-confirmation.servic
 import { SchedulesModule } from '../../schedules/schedules.module';
 import { SchedulingModule } from '../../scheduling/scheduling.module';
 import { ClinuxApiService } from './services/clinux-api.service';
+import { ClinuxApiV2Service } from './services/clinux-api-v2.service';
 
 @Module({
   imports: [
     HttpModule.register({
-      timeout: 45_000,
+      timeout: 60_000,
     }),
     EntitiesModule,
     FlowModule,
@@ -29,6 +30,6 @@ import { ClinuxApiService } from './services/clinux-api.service';
     SchedulesModule,
     SchedulingModule,
   ],
-  providers: [ClinuxService, ClinuxHelpersService, ClinuxConfirmationService, ClinuxApiService],
+  providers: [ClinuxService, ClinuxHelpersService, ClinuxConfirmationService, ClinuxApiService, ClinuxApiV2Service],
 })
 export class ClinuxModule {}

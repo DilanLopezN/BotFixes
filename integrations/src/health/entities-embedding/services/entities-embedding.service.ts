@@ -3,7 +3,7 @@ import { AiEmbeddingService } from '../../ai/ai-embedding.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntitiesEmbedding } from '../entities/entities-embedding.entity';
 import { INTEGRATIONS_CONNECTION_NAME } from '../../ormconfig';
-import { In, Repository } from 'typeorm';
+import { In, IsNull, Repository } from 'typeorm';
 
 @Injectable()
 export class EntitiesEmbeddingService {
@@ -28,6 +28,17 @@ export class EntitiesEmbeddingService {
       return this.entitiesEmbeddingRepository.findBy({ entityId });
     } catch (error) {
       console.error(error);
+    }
+  }
+
+  async countEmbeddingsByIntegrationId(integrationId: string): Promise<number> {
+    try {
+      return this.entitiesEmbeddingRepository.count({
+        where: { integrationId, deletedAt: IsNull() },
+      });
+    } catch (error) {
+      console.error(error);
+      return 0;
     }
   }
 
@@ -75,18 +86,18 @@ export class EntitiesEmbeddingService {
   public async listEmbeddingsByWorkspaceId(
     integrationId: string,
     textToSearch: string,
-    entitiesIds?: string[],
-  ): Promise<string[]> {
+    entitiesIds: string[],
+    limit = 10,
+  ): Promise<Array<{ entity_id: string; similarity: number }>> {
     const questionEmbedding = await this.getEmbeddingFromText(textToSearch);
 
-    const limit = 15;
-    const minimalSimilarity = 0.4;
+    const minimalSimilarity = 0.35;
     const embedding = `${JSON.stringify(questionEmbedding.embedding)}`;
 
     const queryBuilder = this.entitiesEmbeddingRepository
       .createQueryBuilder('e')
-      .select('DISTINCT ON (e.entity_id) e.id, e.original_name, e.entity_id')
-      .addSelect('e.embedding <=> CAST(:embedding AS VECTOR)', 'similarity')
+      .select('e.entity_id', 'entity_id')
+      .addSelect('MIN(e.embedding <=> CAST(:embedding AS VECTOR))', 'similarity')
       .where('e.integration_id = :integrationId')
       .andWhere('e.deleted_at IS NULL')
       .andWhere('e.embedding <=> CAST(:embedding AS VECTOR) <= :threshold');
@@ -96,18 +107,19 @@ export class EntitiesEmbeddingService {
     }
 
     const results = await queryBuilder
-      .addOrderBy('similarity', 'ASC')
-      .orderBy('e.entity_id', 'ASC')
+      .groupBy('e.entity_id')
+      .orderBy('similarity', 'ASC')
       .limit(limit)
       .setParameters({
         embedding,
         integrationId,
         threshold: minimalSimilarity,
       })
-      .execute();
+      .getRawMany();
 
-    const entityIds = results.map((el) => el.entity_id);
-
-    return entityIds;
+    return results.map((result) => ({
+      entity_id: result.entity_id,
+      similarity: Number(result.similarity),
+    }));
   }
 }

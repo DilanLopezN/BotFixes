@@ -45,7 +45,7 @@ const PROBLEMATIC_KEYS = new Set([
   'decompress',
 ]);
 
-function sanitizeRecursively(obj: any, depth: number = 0, maxDepth: number = 10): any {
+function sanitizeRecursively(obj: any, depth: number = 0, maxDepth: number = 20): any {
   if (depth > maxDepth) return '[Max Depth Reached]';
   if (obj == null) return obj;
   if (typeof obj !== 'object') return obj;

@@ -64,7 +64,7 @@ export class ApiService {
       identifier: from,
     });
 
-    if (error && !ignoreException) {
+    if (error && !ignoreException && integration.environment !== IntegrationEnvironment.test) {
       Sentry.captureEvent({
         message: `${castObjectIdToString(integration._id)}:${integration.name}:BOTDESIGNER-request: ${from}`,
         user: {
@@ -95,7 +95,7 @@ export class ApiService {
 
       return response.data;
     } catch (error) {
-      throw HTTP_ERROR_THROWER(HttpStatus.BAD_GATEWAY, error, HttpErrorOrigin.API_ERROR);
+      throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, error, HttpErrorOrigin.API_ERROR);
     }
   }
 

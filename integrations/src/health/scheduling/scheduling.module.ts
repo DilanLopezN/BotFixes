@@ -28,6 +28,7 @@ import { SchedulingAppointmentsService } from './services/scheduling-appointment
 import { SchedulingDocumentsService } from './services/scheduling-documents.service';
 import { SchedulingDocumentsController } from './controller/scheduling-documents.controller';
 import { DocumentsModule } from '../documents/documents.module';
+import { SchedulesModule } from '../schedules/schedules.module';
 
 @Module({
   imports: [

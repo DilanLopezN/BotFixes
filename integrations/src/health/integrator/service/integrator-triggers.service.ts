@@ -26,9 +26,9 @@ export class IntegratorTriggersService {
     switch (trigger) {
       case TriggerType.updatePatientBeforeCreateSchedule:
         return (
-          integration.rules.updatePatientEmailBeforeCreateSchedule ||
-          integration.rules.updatePatientPhoneBeforeCreateSchedule ||
-          integration.rules.updatePatientSexBeforeCreateSchedule
+          integration.rules?.updatePatientEmailBeforeCreateSchedule ||
+          integration.rules?.updatePatientPhoneBeforeCreateSchedule ||
+          integration.rules?.updatePatientSexBeforeCreateSchedule
         );
 
       default:
@@ -75,13 +75,13 @@ export class IntegratorTriggersService {
     let canUpdatePatient = false;
     const newPatient: Patient = { ...patientCache };
 
-    if (integration.rules.updatePatientSexBeforeCreateSchedule && patientCache.sex !== patient.sex && !!patient.sex) {
+    if (integration.rules?.updatePatientSexBeforeCreateSchedule && patientCache.sex !== patient.sex && !!patient.sex) {
       canUpdatePatient = true;
       newPatient.sex = patient.sex;
     }
 
     if (
-      integration.rules.updatePatientEmailBeforeCreateSchedule &&
+      integration.rules?.updatePatientEmailBeforeCreateSchedule &&
       patientCache.email !== patient.email &&
       !!patient.email
     ) {
@@ -89,7 +89,7 @@ export class IntegratorTriggersService {
       newPatient.email = patient.email;
     }
 
-    if (integration.rules.updatePatientPhoneBeforeCreateSchedule) {
+    if (integration.rules?.updatePatientPhoneBeforeCreateSchedule) {
       if (patient.phone !== undefined && patient.phone !== '' && patientCache.phone !== patient.phone) {
         canUpdatePatient = true;
         newPatient.phone = patient.phone;

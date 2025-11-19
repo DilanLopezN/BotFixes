@@ -106,7 +106,7 @@ export class CacheService {
       }
       const _key = this.getKey(key);
       if (_key) {
-        return client.del(_key);
+        return client.unlink(_key);
       }
       return null;
     } catch (e) {
@@ -155,31 +155,40 @@ export class CacheService {
     const integrationKeyPattern = `${prefix}${pattern}`;
     const client = this.getClient(namespace);
 
-    const keys = await new Promise<string[]>((resolve, reject) => {
-      client.keys(integrationKeyPattern, (err, keys) => {
-        if (err) {
-          reject(err);
-        }
+    try {
+      const keys: string[] = [];
+      let cursor = '0';
 
-        if (!keys?.length) {
-          return resolve([]);
-        }
+      do {
+        const [newCursor, foundKeys] = await client.scan(cursor, 'MATCH', integrationKeyPattern, 'COUNT', 100);
+        cursor = newCursor;
+        keys.push(...foundKeys);
+      } while (cursor !== '0');
 
-        if (patternsToIgnore?.length) {
-          keys = keys.filter((key) => !patternsToIgnore.includes(key));
-        }
+      if (!keys.length) return;
 
-        return resolve(keys);
-      });
-    });
+      const filteredKeys = patternsToIgnore?.length ? keys.filter((key) => !patternsToIgnore.includes(key)) : keys;
 
-    const pipeline = client.pipeline();
+      if (!filteredKeys.length) return;
 
-    keys.forEach(function (key) {
-      pipeline.del(key.replace(`${prefix}`, ''));
-    });
+      const batches = [];
+      for (let i = 0; i < filteredKeys.length; i += 100) {
+        batches.push(filteredKeys.slice(i, i + 100));
+      }
 
-    pipeline.exec();
+      for (const batch of batches) {
+        const pipeline = client.pipeline();
+        batch.forEach((key: string) => {
+          pipeline.unlink(key.replace(`${prefix}`, ''));
+        });
+        await pipeline.exec();
+      }
+
+      this.logger.log(`Removed ${filteredKeys.length} keys matching ${pattern}`);
+    } catch (error) {
+      this.logger.error(`Error removing keys pattern ${pattern}:`, error);
+      throw error;
+    }
   }
 
   public async getTTL(key: string): Promise<number> {

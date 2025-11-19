@@ -15,7 +15,7 @@ import { CredentialsModule } from '../../credentials/credentials.module';
 @Module({
   imports: [
     HttpModule.register({
-      timeout: 100_000,
+      timeout: 120_000,
     }),
     EntitiesModule,
     FlowModule,

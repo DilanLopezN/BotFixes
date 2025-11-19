@@ -551,6 +551,13 @@ export class CmService implements IIntegratorService {
             return canReturnAppointment;
           })
           .map(async (cmAppointment) => {
+            // removendo offset de horário vindo do servidor
+            if (cmAppointment.horario?.dataHoraAgendamento) {
+              cmAppointment.horario.dataHoraAgendamento = moment(cmAppointment.horario.dataHoraAgendamento).format(
+                'YYYY-MM-DDTHH:mm:ss',
+              );
+            }
+
             const [appointment] = await this.transformAppointments(integration, [
               await this.cmHelpersService.createPatientApointmentObject(integration, cmAppointment),
             ]);
@@ -651,10 +658,15 @@ export class CmService implements IIntegratorService {
             canReturnAppointment = betweenDate(appointment.horario?.dataHoraAgendamento, startDate, endDate);
             return canReturnAppointment;
           })
-          .map(
-            async (cmAppointment) =>
-              await this.cmHelpersService.createPatientApointmentObject(integration, cmAppointment),
-          ),
+          .map(async (cmAppointment) => {
+            // removendo offset de horário vindo do servidor
+            if (cmAppointment.horario?.dataHoraAgendamento) {
+              cmAppointment.horario.dataHoraAgendamento = moment(cmAppointment.horario.dataHoraAgendamento).format(
+                'YYYY-MM-DDTHH:mm:ss',
+              );
+            }
+            return await this.cmHelpersService.createPatientApointmentObject(integration, cmAppointment);
+          }),
       );
 
       const appointments = await this.transformAppointments(integration, rawAppointments);
@@ -706,7 +718,7 @@ export class CmService implements IIntegratorService {
         }
       }
     } catch (error) {
-      throw HTTP_ERROR_THROWER(HttpStatus.BAD_GATEWAY, error);
+      throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, error);
     }
 
     const { codeIntegration } = await this.credentialsHelper.getConfig<CMCredentialsResponse>(integration);
@@ -736,7 +748,7 @@ export class CmService implements IIntegratorService {
       // se inicio do periodo é maior que data limite, retorna exception pois não tem nada para retornar
       if (moment(payload.dataHoraInicio).valueOf() > moment(dateLimit).valueOf()) {
         throw HTTP_ERROR_THROWER(
-          HttpStatus.BAD_GATEWAY,
+          HttpStatus.BAD_REQUEST,
           {
             message: `dateLimit effect : initialDate ${payload.dataHoraInicio}`,
           },
@@ -774,7 +786,7 @@ export class CmService implements IIntegratorService {
           );
         }
       }
-    } else if (integration.rules.runFirstScheduleRule) {
+    } else if (integration.rules?.runFirstScheduleRule) {
       try {
         const cmTypeOfService = await this.getTypeOfService(integration, patient?.code, filter);
         payload.tipoClassificacao = cmTypeOfService;
@@ -893,7 +905,7 @@ export class CmService implements IIntegratorService {
 
         if (!entities.length) {
           throw HTTP_ERROR_THROWER(
-            HttpStatus.BAD_GATEWAY,
+            HttpStatus.BAD_REQUEST,
             {
               message: 'occupationArea: No doctors found',
             },
@@ -979,6 +991,7 @@ export class CmService implements IIntegratorService {
             // Filtra apenas horários futuros e normaliza horario API (+3h)
             ?.filter((item) => moment(item.dataHoraAgendamento).add(3, 'hours').isSameOrAfter(moment()))
             .forEach((item) => {
+              item.dataHoraAgendamento = moment(item.dataHoraAgendamento).format('YYYY-MM-DDTHH:mm:ss');
               response.result.horarios.push(item);
             });
 
@@ -1302,7 +1315,7 @@ export class CmService implements IIntegratorService {
 
       const appointment: Appointment = {
         appointmentCode: data.result?.codigo,
-        appointmentDate: data.result?.horario?.dataHoraAgendamento,
+        appointmentDate: moment(data.result?.horario?.dataHoraAgendamento).format('YYYY-MM-DDTHH:mm:ss'),
         duration: data.result?.horario?.duracao,
         status: AppointmentStatus.scheduled,
       };
@@ -2211,7 +2224,7 @@ export class CmService implements IIntegratorService {
           if (appointment.idMedico === doctorEntity.code) {
             replacedAppointments.push({
               appointmentCode: appointment.codigo,
-              appointmentDate: appointment.dataHoraAgendamento,
+              appointmentDate: moment(appointment.dataHoraAgendamento).format('YYYY-MM-DDTHH:mm:ss'),
               duration: appointment.duracao,
               procedureId: appointment.idProcedimento,
               doctorId: appointment.idMedico,

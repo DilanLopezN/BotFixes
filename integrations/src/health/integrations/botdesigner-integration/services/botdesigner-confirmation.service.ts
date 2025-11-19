@@ -55,8 +55,11 @@ export class BotdesignerConfirmationService {
   }
 
   async getSchedule(integration: IntegrationDocument, scheduleCode: string): Promise<Schedule[]> {
+    const dateFormat = 'YYYY-MM-DDTHH:mm:ss';
     const payload: ListSchedulesFilters = {
       params: {
+        startDate: moment().clone().subtract(1, 'year').format(dateFormat),
+        endDate: moment().clone().add(1, 'year').format(dateFormat),
         scheduleCode,
       },
       offset: 0,
@@ -305,10 +308,6 @@ export class BotdesignerConfirmationService {
             integrationId: integration._id,
             entitiesFilter: scheduleCorrelation,
             targetFlowTypes: [FlowSteps.confirmActive],
-            filters: {
-              patientBornDate: schedule.patientBornDate,
-              patientCpf: schedule.patientCpf,
-            },
           });
 
           if (actions?.length) {

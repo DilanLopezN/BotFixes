@@ -19,6 +19,7 @@ export class SchedulingDocumentsService {
       patientCode: data.patientCode,
       scheduleCode: data.scheduleCode,
       description: data.description,
+      source: data.source,
     });
   }
 
@@ -27,7 +28,7 @@ export class SchedulingDocumentsService {
   }
 
   public async listDocuments(integrationId: string, data: ListDocuments): Promise<UploadedDocument[]> {
-    return await this.documentsService.listDocumentsForSchedule({
+    return await this.documentsService.listAllDocumentsForSchedule({
       ...data,
       integrationId,
     });
@@ -38,5 +39,9 @@ export class SchedulingDocumentsService {
       ...data,
       integrationId,
     });
+  }
+
+  public async getDocumentsCountForSchedule(integrationId: string, scheduleCode: string): Promise<number> {
+    return await this.documentsService.getDocumentsCountForSchedule(integrationId, scheduleCode);
   }
 }

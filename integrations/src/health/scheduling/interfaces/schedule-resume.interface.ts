@@ -25,6 +25,7 @@ interface ScheduleResume {
     allowReschedule: boolean;
   };
   data?: any;
+  documentsSendedCount?: number;
 }
 
 type ScheduleResumeType = 'rawText' | 'file';

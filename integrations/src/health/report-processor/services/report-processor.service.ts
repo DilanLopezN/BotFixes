@@ -8,6 +8,8 @@ import { castObjectId, castObjectIdToString } from '../../../common/helpers/cast
 import {
   ExtractMedicalRequestAI,
   ExtractMedicalRequestDataResponse,
+  ListValidProceduresParams,
+  ExtractMedicalRequestDataParams,
 } from '../interfaces/extract-medical-request-data.inteface';
 import { AIProviderType } from '../../ai/interfaces';
 import { ProcedureEntityDocument } from '../../entities/schema';
@@ -18,9 +20,14 @@ import { CtxMetadata } from 'common/interfaces/ctx-metadata';
 import * as contextService from 'request-context';
 import { IntegrationDocument } from 'health/integration/schema/integration.schema';
 import { IntegrationService } from 'health/integration/integration.service';
-import { CorrelationFilterByKey } from '../../interfaces/correlation-filter.interface';
 import * as Sentry from '@sentry/node';
-import { ChannelIdConfig } from 'kissbot-core';
+import { OkResponse } from '../../../common/interfaces/ok-response.interface';
+import { FlowService } from '../../flow/service/flow.service';
+import { FlowSteps, FlowAction } from '../../flow/interfaces/flow.interface';
+
+type EntityWithActions = ProcedureEntityDocument & {
+  actions?: FlowAction[];
+};
 
 @Injectable()
 export class ReportProcessorService {
@@ -33,9 +40,19 @@ export class ReportProcessorService {
     private readonly entitiesEmbeddingBatchService: EntitiesEmbeddingBatchService,
     private readonly entitiesEmbeddingService: EntitiesEmbeddingService,
     private readonly integrationService: IntegrationService,
+    private readonly flowService: FlowService,
     @Inject(forwardRef(() => IntegratorService))
     private readonly integratorService: IntegratorService,
   ) {}
+
+  public async importRagProceduresUsingIntegrationId(integrationId: string) {
+    try {
+      const integration = await this.integrationService.getOne(integrationId);
+      return this.importRagProcedures(integration);
+    } catch (err) {
+      throw err;
+    }
+  }
 
   private async getFirstPartExecution({
     file,
@@ -113,32 +130,35 @@ export class ReportProcessorService {
         - **HOL** = Holter
         - **POL** = Polissonografia`;
 
-    const result = await this.aiService.executeFile({
-      prompt,
-      file,
-      fileUrl,
-      provider: this.provider,
-    });
-
     try {
+      const result = await this.aiService.executeFile({
+        prompt,
+        file,
+        fileUrl,
+        provider: this.provider,
+      });
+
       await this.reportProcessorAnalyticsService.updateAnalyticsRecord(analyticsRecordId, {
         extractedText: result.message,
         promptTokensIn: result.promptTokens,
         promptTokensOut: result.completionTokens,
       });
-    } catch (analyticsError) {
-      console.error('Failed to update first prompt execution:', analyticsError);
-    }
 
-    if (result?.message?.includes('```')) {
-      result.message = result.message
-        .replace(/^```json\s*/i, '')
-        .replace(/^```\s*/, '')
-        .replace(/\s*```$/, '')
-        .trim();
-    }
+      if (result?.message?.includes('```')) {
+        result.message = result.message
+          .replace(/^```json\s*/i, '')
+          .replace(/^```\s*/, '')
+          .replace(/\s*```$/, '')
+          .trim();
+      }
 
-    return JSON.parse(result.message) as ExtractMedicalRequestAI;
+      return JSON.parse(result.message) as ExtractMedicalRequestAI;
+    } catch (error) {
+      return {
+        error: 'ERR_99',
+        result: null,
+      };
+    }
   }
 
   public async getSecondPartExecution({
@@ -149,7 +169,6 @@ export class ReportProcessorService {
     integrationId: string;
     resultFile: ExtractMedicalRequestAI;
     speciality?: string;
-    organizationUnitLocationId?: string;
     entitiesIds?: string[];
   }): Promise<string[]> {
     let result = await this.entitiesEmbeddingService.listEmbeddingsByWorkspaceId(
@@ -157,44 +176,73 @@ export class ReportProcessorService {
       resultFile.result[0].extractedExam,
       entitiesIds,
     );
+
+    if (!result.length) {
+      return [];
+    }
+
     let i = 0;
+
     do {
-      if (result.length) return result;
+      if (result.length) {
+        return result.map((item) => item.entity_id);
+      }
+
       result = await this.entitiesEmbeddingService.listEmbeddingsByWorkspaceId(
         integrationId,
         resultFile.result[0].possibilityName[i].name,
         entitiesIds,
       );
       i++;
-      if (resultFile.result[0].possibilityName.length <= i) return [];
+
+      if (resultFile.result[0].possibilityName.length <= i) {
+        return [];
+      }
     } while (!result.length);
+
+    return [];
   }
 
-  public async importRagProcedures(integration: IntegrationDocument) {
+  public async importRagProcedures(integration: IntegrationDocument): Promise<OkResponse> {
     if (
       !integration.rules?.useReportProcessorAISpecialityAndProcedureDetection &&
       !integration.rules?.useReportProcessorAIProcedureDetection
     ) {
-      return { ok: true };
+      return {
+        ok: true,
+        message:
+          'disabled useReportProcessorAISpecialityAndProcedureDetection & useReportProcessorAIProcedureDetection rule',
+      };
     }
 
     await this.entitiesEmbeddingBatchService.execute(integration);
     return { ok: true };
   }
 
+  public async listValidProceduresWithSpeciality({
+    integrationId,
+    filter,
+  }: ListValidProceduresParams): Promise<string[]> {
+    try {
+      const { data: allProcedures } = await this.integratorService.getEntityList(integrationId, {
+        filter,
+        targetEntity: EntityType.procedure,
+        patient: null,
+      });
+
+      return allProcedures.map((procedure) => castObjectIdToString(procedure._id));
+    } catch (error) {
+      console.error(error);
+      return [];
+    }
+  }
+
   public async extractMedicalRequestData({
     integrationId,
     file,
     fileUrl,
-    specialityId,
-    organizationUnitLocationId,
-  }: {
-    integrationId: string;
-    file: File;
-    fileUrl: string;
-    specialityId?: string;
-    organizationUnitLocationId?: string;
-  }): Promise<ExtractMedicalRequestDataResponse> {
+    filter,
+  }: ExtractMedicalRequestDataParams): Promise<ExtractMedicalRequestDataResponse> {
     try {
       const integration = await this.integrationService.getOne(integrationId);
       if (
@@ -207,14 +255,16 @@ export class ReportProcessorService {
           errorMessage: 'A funcionalidade está desativada para esta integração.',
         };
       }
+
       const metadata: CtxMetadata = contextService.get('req:default-headers');
       const { conversationId } = metadata;
 
-      if (metadata.channelId !== ChannelIdConfig.webemulator) {
+      const embeddingsCount = await this.entitiesEmbeddingService.countEmbeddingsByIntegrationId(integrationId);
+      if (embeddingsCount === 0) {
         return {
           procedures: [],
           error: 'ERR_04',
-          errorMessage: 'A funcionalidade está desativada para esta integração.',
+          errorMessage: 'Nenhum embedding encontrado para esta integração.',
         };
       }
 
@@ -223,6 +273,19 @@ export class ReportProcessorService {
         integrationId,
         modelProvider: this.provider,
       });
+
+      const validProcedureIds = await this.listValidProceduresWithSpeciality({
+        integrationId,
+        filter,
+      });
+
+      if (validProcedureIds?.length < 5) {
+        return {
+          error: 'ERR_98',
+          errorMessage: 'Quantidade mínima de procedimentos não atende para execução: 5',
+          procedures: [],
+        };
+      }
 
       const analyticsRecordId = analyticsRecord.id;
       const resultFile = await this.getFirstPartExecution({
@@ -260,53 +323,55 @@ export class ReportProcessorService {
         resultFile,
       };
 
-      let validProcedureIds: string[] = [];
-
-      try {
-        if (specialityId || organizationUnitLocationId) {
-          const entityModel = await this.entitiesService.getEntityById(
-            castObjectId(specialityId || organizationUnitLocationId),
-            specialityId ? EntityType.speciality : EntityType.organizationUnitLocation,
-            castObjectId(integrationId),
-          );
-
-          const correlationFilterList: CorrelationFilterByKey = {
-            appointmentType: 'E',
-            organizationUnitLocation: organizationUnitLocationId ? String(entityModel.code) : undefined,
-            speciality: specialityId ? String(entityModel.code) : undefined,
-          };
-
-          const correlationFilter = await this.entitiesService.createCorrelationFilterData(
-            correlationFilterList,
-            'code',
-            castObjectId(integrationId),
-          );
-
-          const { data: allProcedures } = await this.integratorService.getEntityList(integrationId, {
-            filter: correlationFilter,
-            targetEntity: EntityType.procedure,
-            patient: null,
-          });
-
-          validProcedureIds = allProcedures.map((procedure) => String(procedure._id));
-        }
-      } catch (error) {
-        console.error(error);
-      }
-
       const procedureIds = await this.getSecondPartExecution({ ...data, entitiesIds: validProcedureIds });
 
-      const procedures = (await this.entitiesService.getEntitiesByIds(
+      const procedures = (await this.entitiesService.getEntitiesByIdsPreservingOrder(
         integration._id,
         EntityType.procedure,
         procedureIds.map((id) => castObjectId(id)),
-        { sort: false },
       )) as unknown as ProcedureEntityDocument[];
 
-      let resultProcedures = procedures;
+      const specialityCodes = [...new Set(procedures.map((proc) => proc.specialityCode))];
+
+      const specialityEntities = await this.entitiesService.getValidEntitiesbyCode(
+        integration._id,
+        specialityCodes,
+        EntityType.speciality,
+      );
+
+      const [specialitiesWithActions] = await this.flowService.matchEntitiesFlows({
+        entities: specialityEntities,
+        entitiesFilter: filter,
+        filters: {},
+        integrationId: castObjectId(integrationId),
+        targetEntity: FlowSteps.speciality,
+      });
+
+      const specialityMap = new Map();
+      specialitiesWithActions.forEach((speciality) => specialityMap.set(speciality.code, speciality));
+
+      const [proceduresWithActions] = await this.flowService.matchEntitiesFlows({
+        entities: procedures,
+        entitiesFilter: filter,
+        filters: {},
+        integrationId: castObjectId(integrationId),
+        targetEntity: FlowSteps.procedure,
+      });
+
+      const proceduresWithSpecialityAndActions = proceduresWithActions.map((procedureWithActions) => {
+        const procedure = procedureWithActions as EntityWithActions;
+        const speciality = specialityMap.get((procedure as ProcedureEntityDocument).specialityCode) || null;
+        const actions = procedure.actions || [];
+
+        return {
+          ...procedure,
+          speciality,
+          actions,
+        };
+      });
 
       const response = {
-        procedures: resultProcedures,
+        procedures: proceduresWithSpecialityAndActions,
         error: null,
         errorMessage: null,
       };

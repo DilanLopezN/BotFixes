@@ -32,7 +32,6 @@ import {
 import { MatrixListSchedulesCachedService } from './matrix-list-schedules-cached.service';
 import * as Sentry from '@sentry/node';
 import { MatrixGuidanceTecnolab } from './matrix-guidances';
-import { IIntegration } from '../../../integration/interfaces/integration.interface';
 import { SchedulingLinksService } from '../../../scheduling/services/scheduling-links.service';
 
 @Injectable()

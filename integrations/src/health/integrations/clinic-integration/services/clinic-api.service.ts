@@ -4,6 +4,7 @@ import { SentryErrorHandlerService } from '../../../shared/metadata-sentry.servi
 import { requestsExternalCounter } from '../../../../common/prom-metrics';
 import { IntegrationType } from '../../../interfaces/integration-types';
 import { IntegrationDocument } from '../../../integration/schema/integration.schema';
+import { IntegrationEnvironment } from '../../../integration/interfaces/integration.interface';
 import { HTTP_ERROR_THROWER, HttpErrorOrigin } from '../../../../common/exceptions.service';
 import { AuditDataType } from '../../../audit/audit.interface';
 import { formatException } from '../../../../common/helpers/format-exception-audit';
@@ -96,7 +97,7 @@ export class ClinicApiService {
       identifier: from,
     });
 
-    if (error?.response?.data && !ignoreException) {
+    if (error?.response?.data && !ignoreException && integration.environment !== IntegrationEnvironment.test) {
       const metadata = contextService.get('req:default-headers');
       Sentry.captureEvent({
         message: `${integration._id}:${integration.name}:${IntegrationType.CLINIC}-request: ${from}`,
@@ -181,6 +182,7 @@ export class ClinicApiService {
     params: ClinicPatientParams,
   ): Promise<ClinicResponseArray<ClinicPatientResponse>> {
     this.debugRequest(integration, params, this.getPatient.name);
+    this.dispatchAuditEvent(integration, params, this.getPatient.name, AuditDataType.externalRequest);
 
     try {
       const config = await this.getDefaultConfig(integration);
@@ -192,6 +194,7 @@ export class ClinicApiService {
         }),
       );
 
+      this.dispatchAuditEvent(integration, response?.data, this.getPatient.name, AuditDataType.externalResponse);
       return response?.data;
     } catch (error) {
       await this.handleResponseError(integration, error, undefined, 'getPatient');
@@ -207,7 +210,8 @@ export class ClinicApiService {
     integration: IntegrationDocument,
     patientCode: string,
   ): Promise<ClinicResponse<ClinicSinglePatientResponse>> {
-    this.debugRequest(integration, { patientCode }, this.getPatient.name);
+    this.debugRequest(integration, { patientCode }, this.getSinglePatient.name);
+    this.dispatchAuditEvent(integration, { patientCode }, this.getSinglePatient.name, AuditDataType.externalRequest);
 
     try {
       const config = await this.getDefaultConfig(integration);
@@ -221,6 +225,7 @@ export class ClinicApiService {
         }),
       );
 
+      this.dispatchAuditEvent(integration, response?.data, this.getSinglePatient.name, AuditDataType.externalResponse);
       return response?.data;
     } catch (error) {
       await this.handleResponseError(integration, error, undefined, 'getSinglePatient');
@@ -380,7 +385,8 @@ export class ClinicApiService {
 
   public async listInsurances(integration: IntegrationDocument): Promise<ClinicResponseArray<ClinicInsuranceResponse>> {
     const funcName = this.listInsurances.name;
-    this.debugRequest(integration, null, funcName);
+    this.debugRequest(integration, {}, funcName);
+    this.dispatchAuditEvent(integration, {}, funcName, AuditDataType.externalRequest);
 
     try {
       const config = await this.getDefaultConfig(integration);
@@ -389,6 +395,7 @@ export class ClinicApiService {
         this.httpService.get<ClinicResponseArray<ClinicInsuranceResponse>>(apiUrl, config),
       );
 
+      this.dispatchAuditEvent(integration, response?.data, funcName, AuditDataType.externalResponse);
       return response?.data;
     } catch (error) {
       await this.handleResponseError(integration, error, null, funcName);
@@ -405,7 +412,8 @@ export class ClinicApiService {
     ignoreException?: boolean,
   ): Promise<ClinicResponseArray<ClinicOrganizationUnitResponse>> {
     const funcName = this.listOrganizationUnits.name;
-    this.debugRequest(integration, null, funcName);
+    this.debugRequest(integration, {}, funcName);
+    this.dispatchAuditEvent(integration, {}, funcName, AuditDataType.externalRequest);
 
     try {
       const config = await this.getDefaultConfig(integration);
@@ -414,6 +422,7 @@ export class ClinicApiService {
         this.httpService.get<ClinicResponseArray<ClinicOrganizationUnitResponse>>(apiUrl, config),
       );
 
+      this.dispatchAuditEvent(integration, response?.data, funcName, AuditDataType.externalResponse);
       return response?.data;
     } catch (error) {
       await this.handleResponseError(integration, error, null, funcName, ignoreException);
@@ -430,7 +439,8 @@ export class ClinicApiService {
     params: ClinicDoctorParamsRequest,
   ): Promise<ClinicResponseArray<ClinicDoctorResponse>> {
     const funcName = this.listDoctors.name;
-    this.debugRequest(integration, null, funcName);
+    this.debugRequest(integration, params, funcName);
+    this.dispatchAuditEvent(integration, params, funcName, AuditDataType.externalRequest);
 
     try {
       const config = await this.getDefaultConfig(integration);
@@ -442,6 +452,7 @@ export class ClinicApiService {
         }),
       );
 
+      this.dispatchAuditEvent(integration, response?.data, funcName, AuditDataType.externalResponse);
       return response?.data;
     } catch (error) {
       await this.handleResponseError(integration, error, null, funcName);
@@ -458,7 +469,8 @@ export class ClinicApiService {
     params: ClinicSpecialitiesParamsRequest,
   ): Promise<ClinicResponseArray<ClinicSpecialitiesResponse>> {
     const funcName = this.listSpecialities.name;
-    this.debugRequest(integration, null, funcName);
+    this.debugRequest(integration, params, funcName);
+    this.dispatchAuditEvent(integration, params, funcName, AuditDataType.externalRequest);
 
     try {
       const config = await this.getDefaultConfig(integration);
@@ -470,6 +482,7 @@ export class ClinicApiService {
         }),
       );
 
+      this.dispatchAuditEvent(integration, response?.data, funcName, AuditDataType.externalResponse);
       return response?.data;
     } catch (error) {
       await this.handleResponseError(integration, error, null, funcName);
@@ -487,7 +500,8 @@ export class ClinicApiService {
     data: ClinicListAvailableScheduleData,
   ): Promise<ClinicResponseArray<ClinicAvailableSchedule>> {
     const funcName = this.listAvailableSchedules.name;
-    this.debugRequest(integration, null, funcName);
+    this.debugRequest(integration, { params, data }, funcName);
+    this.dispatchAuditEvent(integration, { params, data }, funcName, AuditDataType.externalRequest);
 
     try {
       const config = await this.getDefaultConfig(integration);
@@ -502,6 +516,7 @@ export class ClinicApiService {
         }),
       );
 
+      this.dispatchAuditEvent(integration, response?.data, funcName, AuditDataType.externalResponse);
       return response?.data;
     } catch (error) {
       await this.handleResponseError(integration, error, null, funcName);
@@ -519,8 +534,8 @@ export class ClinicApiService {
     data: ClinicCreateScheduleData,
   ): Promise<ClinicResponse<ClinicCreateScheduleResponse>> {
     const funcName = this.createSchedule.name;
-    this.debugRequest(integration, null, funcName);
-    this.dispatchAuditEvent(integration, data, funcName, AuditDataType.externalRequest);
+    this.debugRequest(integration, { payload, data }, funcName);
+    this.dispatchAuditEvent(integration, { payload, data }, funcName, AuditDataType.externalRequest);
 
     try {
       const config = await this.getDefaultConfig(integration);
@@ -612,7 +627,8 @@ export class ClinicApiService {
     data: ClinicDoctorSpecialityDataRequest,
   ): Promise<ClinicResponse<ClinicDoctorSpecialityResponse>> {
     const funcName = this.getDoctor.name;
-    this.debugRequest(integration, null, funcName);
+    this.debugRequest(integration, data, funcName);
+    this.dispatchAuditEvent(integration, data, funcName, AuditDataType.externalRequest);
 
     try {
       const config = await this.getDefaultConfig(integration);
@@ -621,6 +637,7 @@ export class ClinicApiService {
         this.httpService.get<ClinicResponse<ClinicDoctorSpecialityResponse>>(apiUrl, config),
       );
 
+      this.dispatchAuditEvent(integration, response?.data, funcName, AuditDataType.externalResponse);
       return response?.data;
     } catch (error) {
       await this.handleResponseError(integration, error, null, funcName);
@@ -636,7 +653,8 @@ export class ClinicApiService {
     integration: IntegrationDocument,
   ): Promise<ClinicResponse<ClinicOrganizationUnitAddressResponse>> {
     const funcName = this.listOrganizationUnitAddress.name;
-    this.debugRequest(integration, null, funcName);
+    this.debugRequest(integration, {}, funcName);
+    this.dispatchAuditEvent(integration, {}, funcName, AuditDataType.externalRequest);
 
     try {
       const config = await this.getDefaultConfig(integration);
@@ -645,6 +663,7 @@ export class ClinicApiService {
         this.httpService.get<ClinicResponse<ClinicOrganizationUnitAddressResponse>>(apiUrl, config),
       );
 
+      this.dispatchAuditEvent(integration, response?.data, funcName, AuditDataType.externalResponse);
       return response?.data;
     } catch (error) {
       await this.handleResponseError(integration, error, null, funcName);
@@ -660,7 +679,8 @@ export class ClinicApiService {
     integration: IntegrationDocument,
   ): Promise<ClinicResponseArray<ClinicConsultationTypesResponse>> {
     const funcName = this.listConsultationTypes.name;
-    this.debugRequest(integration, null, funcName);
+    this.debugRequest(integration, {}, funcName);
+    this.dispatchAuditEvent(integration, {}, funcName, AuditDataType.externalRequest);
 
     try {
       const config = await this.getDefaultConfig(integration);
@@ -672,6 +692,7 @@ export class ClinicApiService {
         this.httpService.get<ClinicResponseArray<ClinicConsultationTypesResponse>>(apiUrl, config),
       );
 
+      this.dispatchAuditEvent(integration, response?.data, funcName, AuditDataType.externalResponse);
       return response?.data;
     } catch (error) {
       await this.handleResponseError(integration, error, null, funcName);

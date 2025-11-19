@@ -81,6 +81,8 @@ import { ConfirmationSchedule } from '../../../interfaces/confirmation-schedule.
 import { GetScheduleByIdData } from '../../../integrator/interfaces/get-schedule-by-id.interface';
 import { Schedules } from '../../../schedules/entities/schedules.entity';
 import { SchedulesService } from '../../../schedules/schedules.service';
+import { MatrixDoctorService } from './matrix-doctor.service';
+import { ValidateDoctorData } from '../../../integrator/interfaces/validate-doctor.interface';
 
 @Injectable()
 export class MatrixService implements IIntegratorService {
@@ -96,6 +98,7 @@ export class MatrixService implements IIntegratorService {
     private readonly integrationCacheUtilsService: IntegrationCacheUtilsService,
     private readonly externalInsurancesService: ExternalInsurancesService,
     private readonly matrixDownloadService: MatrixDownloadService,
+    private readonly matrixDoctorService: MatrixDoctorService,
     private readonly matrixRecoverPasswordService: MatrixRecoverPasswordService,
     private readonly rulesHandlerService: RulesHandlerService,
     private readonly schedulesService: SchedulesService,
@@ -129,8 +132,11 @@ export class MatrixService implements IIntegratorService {
       return { ok: true };
     } catch (error) {
       const errorMessage = error.response.error.erro;
+      // Identificado com a Marina da tecnolab que sempre que retorna este erro
+      // é porque o agendamento já foi cancelado dentro do erp. Então foi acordado
+      // que ao retornar este erro será tratado como um cancelamento efetuado
       if (errorMessage.includes('Não foi possível desmarcar o agendamento.')) {
-        return { ok: false };
+        return { ok: true };
       }
 
       throw INTERNAL_ERROR_THROWER('MatrixService.cancelSchedule', error);
@@ -500,12 +506,12 @@ export class MatrixService implements IIntegratorService {
     const doctorsSet = new Set([]);
     const organizationUnitsSet = new Set([]);
 
-    resultsByValidOrganizationUnit.forEach((procedimento) => {
-      procedimento.horarios.forEach((horario) => {
+    resultsByValidOrganizationUnit
+      .flatMap((schedulesByValidOrganizationUnit) => schedulesByValidOrganizationUnit.horarios)
+      .forEach((horario) => {
         doctorsSet.add(horario.responsavel_id);
         organizationUnitsSet.add(horario.unidade_id);
       });
-    });
 
     const doctors: DoctorEntityDocument[] = await this.entitiesService.getValidEntitiesbyCode(
       integration._id,
@@ -602,33 +608,32 @@ export class MatrixService implements IIntegratorService {
       );
     }
 
-    const schedules: RawAppointment[] = [];
-
-    for await (const matrixSchedule of resultsByValidOrganizationUnit) {
-      for (const matrixTimeSchedule of matrixSchedule.horarios) {
-        if (doctorsMap[matrixTimeSchedule.responsavel_id] && organizationUnitsMap[matrixTimeSchedule.unidade_id]) {
-          const procedureId = filter?.procedure?.code
+    const schedules: RawAppointment[] = resultsByValidOrganizationUnit.flatMap((matrixSchedule) =>
+      matrixSchedule.horarios
+        .filter(
+          (matrixTimeSchedule) =>
+            doctorsMap[matrixTimeSchedule.responsavel_id] && organizationUnitsMap[matrixTimeSchedule.unidade_id],
+        )
+        .map((matrixTimeSchedule) => ({
+          appointmentTypeId: filter.appointmentType.code,
+          procedureId: filter?.procedure?.code
             ? this.matrixHelpersService.getCompositeProcedureCode(integration, filter?.procedure?.code).code
-            : null;
-          const schedule: RawAppointment = {
-            appointmentTypeId: filter.appointmentType.code,
-            procedureId,
-            insuranceId: filter.insurance.code,
-            appointmentCode: String(matrixTimeSchedule.horario_id),
-            duration: '-1',
-            appointmentDate: this.matrixHelpersService.convertDate(matrixTimeSchedule.dataHora),
-            status: AppointmentStatus.scheduled,
-            doctorId: String(matrixTimeSchedule.responsavel_id),
-            organizationUnitId: String(matrixTimeSchedule.unidade_id || filter.organizationUnit.code),
-            data: {
-              sala_id: matrixTimeSchedule.sala_id,
-              duracao: matrixTimeSchedule.duracao,
-            },
-          };
-          schedules.push(schedule);
-        }
-      }
-    }
+            : null,
+          insuranceId: filter.insurance.code,
+          appointmentCode: String(matrixTimeSchedule.horario_id),
+          duration: matrixTimeSchedule?.duracao ?? '-1',
+          appointmentDate: this.matrixHelpersService.convertDate(matrixTimeSchedule.dataHora),
+          status: AppointmentStatus.scheduled,
+          doctorId: String(matrixTimeSchedule.responsavel_id),
+          organizationUnitId: String(matrixTimeSchedule.unidade_id || filter.organizationUnit.code),
+          data: {
+            sala_id: matrixTimeSchedule.sala_id,
+            duracao: matrixTimeSchedule.duracao,
+            // lateralidade: se não vem da API, pega do filtro de busca
+            codigoRegiaoColeta: matrixSchedule.codigoRegiaoColeta || payload.procedimentos[0].codigoRegiaoColeta,
+          },
+        })),
+    );
 
     // filtrando por periodo do dia.
     const appointmentsFiltered = this.appointmentService.filterPeriodOfDay(
@@ -804,12 +809,6 @@ export class MatrixService implements IIntegratorService {
     if (insurance.code === 'PART') {
       payload.convenio_id = 'CARTEC';
       payload.plano_id = 'CARTEC';
-    }
-
-    // Lógica fixa para a tecnolab. Para teste em homologação
-    if (insurance.code === 'PART' && castObjectIdToString(integration._id) === '65e62055dab10e90925eb704') {
-      payload.convenio_id = 'VITAL';
-      payload.plano_id = 'VITAL';
     }
 
     try {
@@ -1213,6 +1212,10 @@ export class MatrixService implements IIntegratorService {
     }
 
     return null;
+  }
+
+  async validateDoctor(integration: IntegrationDocument, data: ValidateDoctorData): Promise<OkResponse> {
+    return await this.matrixDoctorService.validateDoctorCrm(data.crm, data.uf);
   }
 
   async validateRecoverAccessProtocol(

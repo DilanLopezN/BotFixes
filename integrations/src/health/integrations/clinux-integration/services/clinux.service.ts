@@ -331,7 +331,7 @@ export class ClinuxService implements IIntegratorService {
 
     let payload;
 
-    if (integration.rules.useClinuxApiV2) {
+    if (integration.rules?.useClinuxApiV2) {
       payload = {
         startTime: moment()
           .add(newFromDay, 'days')
@@ -429,13 +429,13 @@ export class ClinuxService implements IIntegratorService {
         await this.createListAvailableSchedulesObject(integration, availableSchedules, retryifEmptyCount);
       const payloadV1 = payload as ClinuxListAvailableSchedulesParamsRequest;
 
-      if (insurancePlan?.code && !integration.rules.useClinuxApiV2) {
+      if (insurancePlan?.code && !integration.rules?.useClinuxApiV2) {
         payloadV1.cd_subplano = Number(insurancePlan.code);
       }
 
       let response: ClinuxListAvailableSchedulesResponseV2[] | ClinuxListAvailableSchedulesResponse[];
 
-      if (integration.rules.useClinuxApiV2) {
+      if (integration.rules?.useClinuxApiV2) {
         const payloadV2 = payload as ClinuxListAvailableSchedulesParamsRequestV2;
         response = (await this.clinuxApiService.listAvailableSchedulesV2(
           integration,
@@ -476,7 +476,7 @@ export class ClinuxService implements IIntegratorService {
       // cria um array temporário para passar para o appointmentService aplicar
       // a lógica de randomização
       for await (const appointment of response) {
-        if (integration.rules.useClinuxApiV2) {
+        if (integration.rules?.useClinuxApiV2) {
           const appointmentV2 = appointment as ClinuxListAvailableSchedulesResponseV2;
           const startDateAndHour = moment(appointmentV2?.date, 'DD/MM/YYYY HH:mm');
           const endDateandHour = moment(appointmentV2.enddate, 'DD/MM/YYYY HH:mm');
@@ -657,7 +657,7 @@ export class ClinuxService implements IIntegratorService {
     }
 
     // Filters para Vida VG
-    if (integration.rules.useClinuxApiV2) {
+    if (integration.rules?.useClinuxApiV2) {
       if (targetEntity === EntityType.insurance) {
         // se for Consulta, empresa 0
         const organizationCode =

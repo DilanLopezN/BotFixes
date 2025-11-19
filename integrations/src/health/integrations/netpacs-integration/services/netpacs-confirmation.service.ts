@@ -15,6 +15,7 @@ import {
   ConfirmationScheduleGuidance,
   ConfirmationScheduleGuidanceResponse,
   ValidateScheduleConfirmation,
+  ExtractType,
 } from '../../../integrator/interfaces';
 import { INTERNAL_ERROR_THROWER } from '../../../../common/exceptions.service';
 import { FlowService } from '../../../flow/service/flow.service';
@@ -44,6 +45,8 @@ import { ExtractedSchedule } from '../../../schedules/interfaces/extracted-sched
 import { groupBy } from 'lodash';
 import { OkResponse } from '../../../../common/interfaces/ok-response.interface';
 import { castObjectIdToString } from '../../../../common/helpers/cast-objectid';
+import { GetScheduleByIdData } from '../../../integrator/interfaces/get-schedule-by-id.interface';
+import { Schedules } from '../../../schedules/entities/schedules.entity';
 
 @Injectable()
 export class NetpacsConfirmationService {
@@ -70,6 +73,8 @@ export class NetpacsConfirmationService {
       page: 1,
     };
 
+    const isNoShowRecover = erpParams?.EXTRACT_TYPE === ExtractType.recover_lost_schedule;
+
     if (erpParams?.listConfirmed) {
       requestFilters.listIdSituacao = [2, 3]; //Lista 'a confirmar' e 'confirmados'
     } else {
@@ -81,10 +86,17 @@ export class NetpacsConfirmationService {
     let page = 1;
 
     do {
-      response = await this.netpacsApiService.getAttendances(integration, {
-        ...requestFilters,
-        page,
-      });
+      if (!isNoShowRecover) {
+        response = await this.netpacsApiService.getAttendances(integration, {
+          ...requestFilters,
+          page,
+        });
+      } else {
+        response = await this.netpacsApiService.getLostAttendances(integration, {
+          ...requestFilters,
+          page,
+        });
+      }
 
       if (response?.length > 0) {
         response.forEach((schedule) => {
@@ -263,10 +275,6 @@ export class NetpacsConfirmationService {
           integrationId: integration._id,
           entitiesFilter: scheduleCorrelation,
           targetFlowTypes: [FlowSteps.confirmActive],
-          filters: {
-            patientBornDate: moment(schedule.patientBornDate).format('YYYY-MM-DD'),
-            patientCpf: schedule.patientCpf,
-          },
         });
 
         if (actions?.length) {
@@ -358,10 +366,6 @@ export class NetpacsConfirmationService {
           integrationId: integration._id,
           entitiesFilter: correlation,
           targetFlowTypes: [FlowSteps.confirmActive],
-          filters: {
-            patientBornDate: schedule.patientBornDate,
-            patientCpf: schedule.patientCpf,
-          },
           trigger: FlowTriggerType.active_confirmation_confirm,
         });
 
@@ -483,10 +487,6 @@ export class NetpacsConfirmationService {
           integrationId: integration._id,
           entitiesFilter: correlation,
           targetFlowTypes: [FlowSteps.confirmActive],
-          filters: {
-            patientBornDate: schedule.patientBornDate,
-            patientCpf: schedule.patientCpf,
-          },
           trigger: FlowTriggerType.active_confirmation_confirm,
         });
 
@@ -575,6 +575,9 @@ export class NetpacsConfirmationService {
         error?.response?.error?.message?.includes('O Atendimento já se encontra na situação que deseja alterar.') ||
         error?.response?.error?.message?.includes(
           'encontra-se na situação de Cancelado. A situação não pode ser alterada.',
+        ) ||
+        error?.response?.error?.message?.includes(
+          'A situação não pode ser alterada, pois existe uma regra de atendimento',
         );
 
       if (!isAlreadyConfirmed) {
@@ -608,6 +611,18 @@ export class NetpacsConfirmationService {
     } catch (error) {
       console.error(error);
       throw INTERNAL_ERROR_THROWER('NetpacsConfirmationService.validateScheduleData', error);
+    }
+  }
+
+  async getConfirmationScheduleById(integration: IntegrationDocument, data: GetScheduleByIdData): Promise<Schedules> {
+    try {
+      return await this.schedulesService.getScheduleByCodeOrId(
+        castObjectIdToString(integration._id),
+        null,
+        data.scheduleId,
+      );
+    } catch (error) {
+      throw INTERNAL_ERROR_THROWER('NetpacsConfirmationService.getConfirmationScheduleById', error);
     }
   }
 }

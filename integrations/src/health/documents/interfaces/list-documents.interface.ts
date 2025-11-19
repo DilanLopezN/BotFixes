@@ -9,8 +9,16 @@ interface SimplifiedDocument {
   originalName: string;
   fileTypeCode: string;
   createdAt: Date;
-  url: string;
-  extension: string;
 }
 
-export type { ListDocuments, SimplifiedDocument };
+interface SignedSimplifiedDocument {
+  id: string;
+  originalName: string;
+  fileTypeCode: string;
+  createdAt: Date;
+  url: string;
+  extension: string;
+  externalId?: string;
+}
+
+export type { ListDocuments, SimplifiedDocument, SignedSimplifiedDocument };

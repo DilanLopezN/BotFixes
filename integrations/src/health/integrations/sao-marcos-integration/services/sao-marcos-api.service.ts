@@ -37,6 +37,7 @@ import {
 } from '../interfaces';
 import * as Sentry from '@sentry/node';
 import { IntegrationDocument } from '../../../integration/schema/integration.schema';
+import { IntegrationEnvironment } from '../../../integration/interfaces/integration.interface';
 import * as contextService from 'request-context';
 import { SentryErrorHandlerService } from '../../../shared/metadata-sentry.service';
 import * as https from 'https';
@@ -106,7 +107,7 @@ export class SaoMarcosApiService {
       identifier: from,
     });
 
-    if (error?.response?.data) {
+    if (error?.response?.data && integration.environment !== IntegrationEnvironment.test) {
       const metadata = contextService.get('req:default-headers');
       Sentry.captureEvent({
         message: `${integration._id}:${integration.name}:SAO_MARCOS-request: ${from}`,

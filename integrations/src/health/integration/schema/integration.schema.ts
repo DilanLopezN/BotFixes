@@ -11,6 +11,7 @@ import {
   SchedulingGuidanceFormat,
 } from '../interfaces/integration.interface';
 import { Types } from 'mongoose';
+import { HealthEntityType } from 'kissbot-core';
 
 export type IntegrationDocument = Integration & Document;
 
@@ -30,6 +31,9 @@ class IntegrationMessages {
 
   @Prop({ type: Object, required: false })
   stepMessages?: any;
+
+  @Prop({ type: [String], enum: HealthEntityType, required: false })
+  entitiesToExcludeFromConfirmationMessage?: HealthEntityType[];
 }
 
 @Schema({ versionKey: false, _id: false })
@@ -37,7 +41,7 @@ class IntegrationRules {
   @Prop({ type: Boolean, required: false, default: false })
   listConsultationTypesAsProcedure?: boolean;
 
-  @Prop({ type: Boolean, required: false, default: true })
+  @Prop({ type: Boolean, required: false, default: false })
   listOnlyDoctorsWithAvailableSchedules?: boolean;
 
   @Prop({ type: Boolean, required: false, default: false })
@@ -70,19 +74,19 @@ class IntegrationRules {
   @Prop({ type: Boolean, required: false, default: false })
   splitInsuranceIntoInsurancePlansV2?: boolean;
 
-  @Prop({ type: Boolean, required: false, default: true })
+  @Prop({ type: Boolean, required: false, default: false })
   updatePatientEmailBeforeCreateSchedule?: boolean;
 
   @Prop({ type: Boolean, required: false, default: false })
   updatePatientSexBeforeCreateSchedule?: boolean;
 
-  @Prop({ type: Boolean, required: false, default: true })
+  @Prop({ type: Boolean, required: false, default: false })
   updatePatientPhoneBeforeCreateSchedule?: boolean;
 
-  @Prop({ type: Boolean, required: false, default: true })
+  @Prop({ type: Boolean, required: false, default: false })
   usesCorrelation?: boolean;
 
-  @Prop({ type: Boolean, required: false, default: true })
+  @Prop({ type: Boolean, required: false, default: false })
   showFutureSearchInAvailableScheduleList?: boolean;
 
   @Prop({ type: Boolean, required: false, default: false })
@@ -109,7 +113,7 @@ class IntegrationRules {
   @Prop({ type: Number, required: false })
   limitUntilDaySearchAppointmentsWithDoctor?: number;
 
-  @Prop({ type: Boolean, required: false, default: true })
+  @Prop({ type: Boolean, required: false, default: false })
   runInterAppointment?: boolean;
 
   @Prop({ type: Number, required: false })
@@ -139,6 +143,9 @@ class IntegrationRules {
   @Prop({ type: Boolean, required: false, default: false })
   doNotAllowSameHourScheduling?: boolean;
 
+  @Prop({ type: Boolean, required: false, default: false })
+  doNotAllowSameDayForProcedureWithLaterality?: boolean;
+
   @Prop({ type: Number, required: false })
   minutesAfterAppointmentCanSchedule?: number;
 
@@ -147,6 +154,9 @@ class IntegrationRules {
 
   @Prop({ type: Boolean, required: false, default: false })
   useDoctorSuggestion?: boolean;
+
+  @Prop({ type: Boolean, required: false, default: false })
+  useScheduleSuggestion?: boolean;
 
   @Prop({ type: Boolean, required: false, default: false })
   useClinuxApiV2?: boolean;
@@ -159,9 +169,6 @@ class IntegrationRules {
 
   @Prop({ type: Boolean, required: false, default: false })
   useScheduledSending?: boolean;
-
-  @Prop({ type: [String], enum: EntityType, required: false, default: [] })
-  showExternalEntities?: EntityType[];
 
   @Prop({ type: Boolean, required: false, default: false })
   doNotCancelBefore24hours?: boolean;
@@ -186,6 +193,9 @@ class IntegrationRules {
 
   @Prop({ type: Boolean, required: false, default: false })
   useReportProcessorAIProcedureDetection?: boolean;
+
+  @Prop({ type: Boolean, required: false, default: true })
+  useCachedEntitiesFromErp?: boolean;
 }
 
 @Schema({ versionKey: false, _id: false })
@@ -201,6 +211,9 @@ class IntegrationSchedulingConfigWhatsapp {
 
   @Prop({ type: String, required: false })
   startSchedulingMessage?: string;
+
+  @Prop({ type: String, required: false })
+  startReschedulingMessage?: string;
 }
 
 @Schema({ versionKey: false, _id: false })
@@ -271,7 +284,7 @@ class IntegrationSchedulingConfig {
   @Prop({ type: IntegrationSchedulingConfigResources, required: false })
   resources?: IntegrationSchedulingConfigResources;
 
-  @Prop({ type: IntegrationSchedulingConfigResources, required: false })
+  @Prop({ type: IntegrationSchedulingDocuments, required: false })
   documents?: IntegrationSchedulingDocuments;
 }
 

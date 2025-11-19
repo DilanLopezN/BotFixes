@@ -5,8 +5,4 @@ export class ListDocumentsDto {
   @IsString()
   @ApiProperty()
   scheduleCode: string;
-
-  @IsString()
-  @ApiProperty()
-  patientCode: string;
 }

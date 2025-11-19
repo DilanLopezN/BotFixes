@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { shuffle } from 'lodash';
 import * as moment from 'moment';
-import { EntityDocument } from '../entities/schema';
+import { EntityDocument, TypeOfService } from '../entities/schema';
 import { Appointment, AppointmentSortMethod, AppointmentStatus } from '../interfaces/appointment.interface';
 import { IIntegration } from '../integration/interfaces/integration.interface';
 import { IntegrationDocument } from '../integration/schema/integration.schema';
@@ -157,6 +157,11 @@ export class AppointmentService {
       return { appointments, metadata: null };
     }
 
+    if (filters.sortMethod === AppointmentSortMethod.firstEachDoctorBalanced) {
+      const appointments = this.getAppointmentsByDoctorBalanced(integration, filters, validAppointments);
+      return { appointments, metadata: null };
+    }
+
     if (!filters.sortMethod || filters.sortMethod === AppointmentSortMethod.firstEachPeriodDay) {
       const appointments = this.getAppointmentsByDayPeriod(integration, filters, validAppointments);
       return { appointments, metadata: null };
@@ -237,7 +242,7 @@ export class AppointmentService {
   private getPeriodFromAppointmentDate = (integration: IIntegration, appointment: PreAppointment) => {
     const hours = appointment.appointmentDate.hours();
 
-    if (hours >= 18 && integration.rules.usesNightTimeInTheSelectionOfPeriod) {
+    if (hours >= 18 && integration.rules?.usesNightTimeInTheSelectionOfPeriod) {
       return PeriodEnum.NIGHT;
     }
 
@@ -326,6 +331,67 @@ export class AppointmentService {
     flattenedAppointments.sort((a, b) => a.appointmentDate.diff(b.appointmentDate));
 
     return this.convertAppointments(flattenedAppointments);
+  }
+
+  private getAppointmentsByDoctorBalanced(
+    integration: IIntegration,
+    { limit, periodOfDay }: AppointmentsFilter,
+    appointments: PreAppointment[],
+  ): RawAppointment[] {
+    const resolvedPeriod: PeriodEnum = this.getPeriodOfDay(periodOfDay);
+
+    // 1) Filtrar por período (quando especificado) e agrupar por médico
+    const firstByDoctor: { [doctorId: string]: PreAppointment } = {};
+
+    for (const appointment of appointments) {
+      // Buscar o código do médico de diferentes fontes (mantido do original)
+      const rawAppointment = appointment as any;
+      const doctorCode =
+        appointment.doctor?.code?.toString() ||
+        rawAppointment.doctorDefault?.code?.toString() ||
+        rawAppointment.doctorId?.toString() ||
+        'unknown';
+
+      // Respeitar o período configurado (mantido do original)
+      if (resolvedPeriod !== PeriodEnum.ANY) {
+        const appointmentPeriod = this.getPeriodFromAppointmentDate(integration, appointment);
+        if (appointmentPeriod !== resolvedPeriod) continue;
+      }
+
+      // Guardar apenas o PRIMEIRO horário (mais cedo) de cada médico
+      const current = firstByDoctor[doctorCode];
+      if (!current || appointment.appointmentDate.isBefore(current.appointmentDate)) {
+        firstByDoctor[doctorCode] = appointment;
+      }
+    }
+
+    // 2) Temos 1 horário por médico. Agora, se houverem horários iguais entre médicos,
+    //    sortear 1 por timestamp e descartar os demais.
+    const perTimeBuckets = new Map<string, PreAppointment[]>();
+    for (const appt of Object.values(firstByDoctor)) {
+      const key = appt.appointmentDate.toISOString(); // mesmo instante
+      const list = perTimeBuckets.get(key);
+      if (list) list.push(appt);
+      else perTimeBuckets.set(key, [appt]);
+    }
+
+    const uniqueByTime: PreAppointment[] = [];
+    for (const [, list] of perTimeBuckets.entries()) {
+      if (list.length === 1) {
+        uniqueByTime.push(list[0]);
+      } else {
+        // empate: mais de um médico no MESMO horário → escolher aleatoriamente
+        const randomIndex = Math.floor(Math.random() * list.length);
+        uniqueByTime.push(list[randomIndex]);
+      }
+    }
+
+    // 3) Ordenar por data/hora crescente e aplicar limit
+    uniqueByTime.sort((a, b) => a.appointmentDate.diff(b.appointmentDate));
+    const finalAppointments = limit && limit > 0 ? uniqueByTime.slice(0, limit) : uniqueByTime;
+
+    // 4) Converter para o tipo de saída esperado (mantido do original)
+    return this.convertAppointments(finalAppointments);
   }
 
   private getAppointmentsByDayPeriod(
@@ -565,8 +631,12 @@ export class AppointmentService {
         }
 
         // Para não permitir reagendamento no agendamento do tipo retorno
-        if (replacedAppointment.isFollowUp && replacedAppointment[EntityType.appointmentType]) {
-          replacedAppointment[EntityType.appointmentType].canReschedule = false;
+        if (
+          (replacedAppointment.isFollowUp ||
+            replacedAppointment[EntityType.typeOfService]?.params?.referenceTypeOfService === TypeOfService.followUp) &&
+          replacedAppointment[EntityType.typeOfService]
+        ) {
+          replacedAppointment[EntityType.typeOfService].canReschedule = false;
         }
       }
 

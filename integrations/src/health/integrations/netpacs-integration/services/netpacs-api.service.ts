@@ -3,6 +3,7 @@ import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { lastValueFrom } from 'rxjs';
 import { HttpErrorOrigin, HTTP_ERROR_THROWER } from '../../../../common/exceptions.service';
 import { IntegrationDocument } from '../../../integration/schema/integration.schema';
+import { IntegrationEnvironment } from '../../../integration/interfaces/integration.interface';
 import {
   BranchesResponse,
   CancelAttendanceRequest,
@@ -114,7 +115,7 @@ export class NetpacsApiService {
       identifier: from,
     });
 
-    if (error?.response?.data && !ignoreException) {
+    if (error?.response?.data && !ignoreException && integration.environment !== IntegrationEnvironment.test) {
       const metadata = contextService.get('req:default-headers');
 
       Sentry.captureEvent({
@@ -607,6 +608,34 @@ export class NetpacsApiService {
       return request?.data;
     } catch (error) {
       this.handleResponseError(integration, error, params, 'getAttendances');
+      throw HTTP_ERROR_THROWER(
+        error?.response?.status || HttpStatus.BAD_REQUEST,
+        error?.response?.data || error,
+        HttpErrorOrigin.INTEGRATION_ERROR,
+      );
+    }
+  }
+
+  public async getLostAttendances(
+    integration: IntegrationDocument,
+    params: AttendancesRequestParams,
+  ): Promise<AttendanceResponse[]> {
+    this.debugRequest(integration, params);
+
+    try {
+      const request = await lastValueFrom(
+        this.httpService.get<AttendanceResponse[]>(
+          await this.getApiUrl(integration, '/netris/api/atendimentos/pacienteFaltou'),
+          {
+            ...(await this.getHeaders(integration)),
+            params,
+          },
+        ),
+      );
+
+      return request?.data;
+    } catch (error) {
+      this.handleResponseError(integration, error, params, 'getLostAttendances');
       throw HTTP_ERROR_THROWER(
         error?.response?.status || HttpStatus.BAD_REQUEST,
         error?.response?.data || error,

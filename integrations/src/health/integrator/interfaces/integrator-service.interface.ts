@@ -66,6 +66,8 @@ import { ListSuggestedDoctors } from './list-suggested-doctors.interface';
 import { AgentDeleteFile } from './documents/agent-delete-file.interface';
 import { PatientDeleteFile } from './documents/patient-delete-file.interface';
 import { ExtractedSchedule } from '../../schedules/interfaces/extracted-schedule.interface';
+import { PatientSchedulesToUploadFile } from './patient-schedules-to-upload-file.interface';
+import { ValidateDoctorData } from './validate-doctor.interface';
 
 export interface IIntegratorService {
   cancelSchedule(integration: IntegrationDocument, cancelSchedule: CancelSchedule): Promise<OkResponse>;
@@ -151,6 +153,8 @@ export interface IIntegratorService {
 
   downloadDocument?(integration: IntegrationDocument, data: DownloadDocumentData): Promise<Buffer>;
 
+  validateDoctor?(integration: IntegrationDocument, data: ValidateDoctorData): Promise<OkResponse>;
+
   downloadMedicalReport?(integration: IntegrationDocument, data: DownloadMedicalReportTokenData): Promise<Buffer>;
   getMedicalReportUrl?(integration: IntegrationDocument, data: DownloadMedicalReportTokenData): Promise<string>;
   listAvailableMedicalReports?(
@@ -197,4 +201,8 @@ export interface IIntegratorService {
   agentUploadScheduleFile?(integration: IntegrationDocument, data: AgentUploadFile): Promise<OkResponse>;
   agentDeleteScheduleFile?(integration: IntegrationDocument, data: AgentDeleteFile): Promise<OkResponse>;
   patientDeleteScheduleFile?(integration: IntegrationDocument, data: PatientDeleteFile): Promise<OkResponse>;
+  listPatientSchedulesToUploadFile?(
+    integration: IntegrationDocument,
+    data: PatientSchedulesToUploadFile,
+  ): Promise<Appointment[]>;
 }

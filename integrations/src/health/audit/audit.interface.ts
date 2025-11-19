@@ -10,7 +10,6 @@ export enum AuditDataType {
 export interface CreateAudit {
   integrationId: string;
   conversationId?: string;
-  patientPhone: string;
   data: any;
   dataType: AuditDataType;
   ctxId: string;
@@ -21,6 +20,7 @@ export enum AuditIdentifier {
   interAppointment = 'interAppointment',
   listPreviousInsurances = 'listPreviousInsurances',
   matrixRecoverPassword = 'matrixRecoverPassword',
+  uploadDocumentFailed = 'uploadDocumentFailed',
 }
 
 export type CreateAuditDefault = Omit<CreateAudit, 'conversationId' | 'patientPhone' | 'ctxId'>;

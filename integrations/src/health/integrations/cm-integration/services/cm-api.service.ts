@@ -119,7 +119,7 @@ export class CmApiService {
     const metadata = contextService.get('req:default-headers');
 
     if (!!response?.data?.error || !!response?.data?.[0]?.error) {
-      if (!ignoreException) {
+      if (!ignoreException && integration.environment !== IntegrationEnvironment.test) {
         Sentry.captureEvent({
           message: `${integration._id}:${integration.name}:CM${envKey}-request: ${from}`,
           ...this.sentryErrorHandlerService.defaultApiIntegrationError(payload, response, metadata),
@@ -153,7 +153,7 @@ export class CmApiService {
     const metadata = contextService.get('req:default-headers');
     const envKey = integration.environment === IntegrationEnvironment.test ? '-TEST' : '';
 
-    if (error && !ignoreException) {
+    if (error && !ignoreException && integration.environment !== IntegrationEnvironment.test) {
       Sentry.captureEvent({
         message: `${integration._id}:${integration.name}:CM${envKey}-request: ${from}`,
         user: {
@@ -380,7 +380,9 @@ export class CmApiService {
         }),
       );
 
-      if (!this.handleResponseError(integration, response, payload, 'doResourceListRequest')) {
+      if (
+        !this.handleResponseError(integration, response, payload, 'doResourceListRequest', undefined, ignoreException)
+      ) {
         return response.data?.[0];
       }
     } catch (error) {

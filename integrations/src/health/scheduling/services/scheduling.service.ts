@@ -61,6 +61,8 @@ import {
   SpecialityEntityDocument,
   TypeOfServiceEntityDocument,
 } from 'health/entities/schema';
+import { SchedulingDocumentsService } from './scheduling-documents.service';
+import { AppointmentStatus } from '../../interfaces/appointment.interface';
 
 @Injectable()
 export class SchedulingService {
@@ -72,6 +74,7 @@ export class SchedulingService {
     private readonly schedulingCacheService: SchedulingCacheService,
     private readonly schedulingDownloadReportService: SchedulingDownloadReportService,
     private readonly schedulingEntitiesService: SchedulingEntitiesService,
+    private readonly schedulingDocumentsService: SchedulingDocumentsService,
   ) {}
 
   public async downloadGuidance(integrationId: string, data: DownloadTokenData): Promise<Buffer> {
@@ -112,14 +115,6 @@ export class SchedulingService {
         expiresIn: '3 days',
       },
     );
-
-    // Lógica removida. Se necessário acessar diretamente o link de agendamento, deve enviar no campo link
-    // o caminho final. Como 'resume/345646' e não apenas 'resume'.
-
-    // if (schedulingLink.link === 'resume' && schedulingLink.scheduleCode) {
-    //   const newPath = `${schedulingLink.link}/${schedulingLink.scheduleCode}`;
-    //   return { token, link: newPath };
-    // }
 
     return { token, link: schedulingLink.link };
   }
@@ -474,6 +469,7 @@ export class SchedulingService {
 
     const integration = await this.integrationService.getOne(integrationId);
     const createDownloadLinks = integration.scheduling?.guidanceFormatType === SchedulingGuidanceFormat.file;
+    const enabledDocumentsUpload = integration.scheduling?.config?.documents?.enableDocumentsUpload;
 
     const response: ListSchedulesResumeResponse = {
       defaultGuidanceLink: null,
@@ -490,17 +486,26 @@ export class SchedulingService {
       validSchedules.push(...nextSchedules);
     }
 
-    response.schedules = validSchedules.map((schedule) => ({
-      ...this.transformerService.transformPatientSchedule(integration, schedule),
-      guidanceLink: createDownloadLinks
-        ? this.schedulingDownloadReportService.createProcedureGuidanceDownloadLink(
-            integration._id,
-            data.patientErpCode,
-            data.shortId,
-            schedule.appointmentCode,
-          )
-        : undefined,
-    }));
+    response.schedules = await Promise.all(
+      validSchedules.map(async (schedule) => {
+        const documentsSendedCount = enabledDocumentsUpload
+          ? await this.schedulingDocumentsService.getDocumentsCountForSchedule(integrationId, schedule.appointmentCode)
+          : undefined;
+
+        return {
+          ...this.transformerService.transformPatientSchedule(integration, schedule),
+          guidanceLink: createDownloadLinks
+            ? this.schedulingDownloadReportService.createProcedureGuidanceDownloadLink(
+                integration._id,
+                data.patientErpCode,
+                data.shortId,
+                schedule.appointmentCode,
+              )
+            : undefined,
+          documentsSendedCount,
+        };
+      }),
+    );
 
     if (createDownloadLinks) {
       const defaultDownloadLink = this.schedulingDownloadReportService.createProcedureGuidanceDownloadLink(
@@ -522,7 +527,7 @@ export class SchedulingService {
 
   public async confirmSchedule(
     integrationId: string,
-    { patientErpCode, data, scheduleCode, scheduleId }: ConfirmSchedule,
+    { patientErpCode, scheduleCode, scheduleId }: ConfirmSchedule,
   ): Promise<OkResponse> {
     const integration = await this.integrationService.getOne(integrationId);
 
@@ -573,7 +578,7 @@ export class SchedulingService {
 
   public async cancelSchedule(
     integrationId: string,
-    { patientErpCode, data, scheduleCode, scheduleId }: CancelSchedule,
+    { patientErpCode, scheduleCode, scheduleId }: CancelSchedule,
   ): Promise<OkResponse> {
     const integration = await this.integrationService.getOne(integrationId);
 

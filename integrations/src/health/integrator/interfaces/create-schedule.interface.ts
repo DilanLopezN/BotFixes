@@ -23,6 +23,10 @@ interface AppointmentType {
   code: string;
 }
 
+interface Laterality {
+  code: string;
+}
+
 interface Speciality {
   code: string;
   specialityType?: string;
@@ -69,5 +73,6 @@ export interface CreateSchedule {
   typeOfService?: ITypeOfService;
   appointmentType?: AppointmentType;
   scheduleType?: TypeOfService;
+  laterality?: Laterality;
   data?: Record<string, any>;
 }

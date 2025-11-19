@@ -20,6 +20,7 @@ import { RulesHandlerService } from '../../rules-handler/rules-handler.service';
 import { SchedulesModule } from '../../schedules/schedules.module';
 import { MatrixListSchedulesCachedService } from './services/matrix-list-schedules-cached.service';
 import { IntegrationModule } from '../../integration/integration.module';
+import { MatrixDoctorService } from './services/matrix-doctor.service';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { IntegrationModule } from '../../integration/integration.module';
     MatrixApiService,
     MatrixEntitiesService,
     MatrixDownloadService,
+    MatrixDoctorService,
     MatrixRecoverPasswordService,
     MatrixConfirmationService,
     RulesHandlerService,

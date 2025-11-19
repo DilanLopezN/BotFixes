@@ -31,6 +31,7 @@ import {
   TdsaLockScheduleRequest,
 } from '../../../integrations/tdsa-integration/interfaces';
 import { IntegrationDocument } from '../../../integration/schema/integration.schema';
+import { IntegrationEnvironment } from '../../../integration/interfaces/integration.interface';
 import * as contextService from 'request-context';
 import { SentryErrorHandlerService } from '../../../shared/metadata-sentry.service';
 import { AuditDataType } from '../../../audit/audit.interface';
@@ -100,7 +101,7 @@ export class TdsaApiService {
       identifier: from,
     });
 
-    if (error?.response?.data && !ignoreException) {
+    if (error?.response?.data && !ignoreException && integration.environment !== IntegrationEnvironment.test) {
       const metadata = contextService.get('req:default-headers');
       Sentry.captureEvent({
         message: `${castObjectIdToString(integration._id)}:${integration.name}:TDSA-request: ${from}`,
@@ -138,7 +139,7 @@ export class TdsaApiService {
     this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
     if (!cpf && !code) {
-      throw HTTP_ERROR_THROWER(HttpStatus.BAD_GATEWAY, 'Invalid patient params');
+      throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, 'Invalid patient params');
     }
 
     try {

@@ -1,6 +1,8 @@
 export interface ClinuxListConfirmationErpParams {
   // Ignora agendamentos das salas listadas no array abaixo
   omitSalaCodeList?: number[];
+  // Ignora agendamentos com os códigos de aviso listados no array abaixo
+  omitAvisoCodeList?: number[];
   // pega apenas agendamentos das salas listadas no array abaixo
   filterSalaCodeList?: number[];
   // pega apenas agendamentos com o nome de modalidade listadas no array abaixo
@@ -14,4 +16,6 @@ export interface ClinuxListConfirmationErpParams {
   useSpecialityAsProcedureName?: boolean;
   // Omite a informação de médico na extração de horarios para confirmação
   omitDoctorName?: boolean;
+  // Vai usar novo service de api apontando pro v2
+  useApiV2?: boolean;
 }

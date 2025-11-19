@@ -49,7 +49,7 @@ async function bootstrap() {
       workspaceId: req.headers?.['x-workspace-id'] ?? '',
       memberId: req.headers?.['x-member-id'] ?? '',
       channelId: req.headers?.['x-channel-id'] ?? '',
-      ctxId: req.headers?.['x-context-id'] || nanoid(),
+      ctxId: req.headers?.['x-context-id'] || nanoid(5),
     });
     next();
   });

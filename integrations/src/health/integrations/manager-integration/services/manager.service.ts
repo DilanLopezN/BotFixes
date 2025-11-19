@@ -1,7 +1,7 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { orderBy, uniqBy } from 'lodash';
 import * as moment from 'moment';
-import { HTTP_ERROR_THROWER, INTERNAL_ERROR_THROWER } from '../../../../common/exceptions.service';
+import { HTTP_ERROR_THROWER, INTERNAL_ERROR_THROWER, HttpErrorOrigin } from '../../../../common/exceptions.service';
 import { formatCurrency } from '../../../../common/helpers/format-currency';
 import { convertPhoneNumber, formatPhone } from '../../../../common/helpers/format-phone';
 import { OkResponse } from '../../../../common/interfaces/ok-response.interface';
@@ -10,6 +10,7 @@ import {
   ScheduleType,
   DoctorEntityDocument,
   EntityDocument,
+  TypeOfService,
 } from '../../../entities/schema';
 import { EntitiesService } from '../../../entities/services/entities.service';
 import { FlowSteps } from '../../../flow/interfaces/flow.interface';
@@ -55,6 +56,9 @@ import {
   ManagerScheduleValue,
   ManagerScheduleValueResponse,
   ManagerUpdatePatient,
+  ManagerFollowUpSchedulesResponse,
+  ManagerFollowUpSchedulesRequest,
+  ManagerPatientFollowUpResponse,
 } from '../interfaces';
 import { ManagerApiService } from './manager-api.service';
 import { ManagerEntitiesService } from './manager-entities.service';
@@ -67,8 +71,10 @@ import { DoctorData } from '../interfaces/entities';
 import { InterAppointmentService } from '../../../shared/inter-appointment.service';
 import { betweenDate } from '../../../../common/helpers/between';
 import { EntitiesFiltersService } from '../../../shared/entities-filters.service';
-import { UpdatePatient } from '../../../integrator/interfaces';
-import { castObjectIdToString } from '../../../../common/helpers/cast-objectid';
+import { Reschedule, UpdatePatient } from '../../../integrator/interfaces';
+import { castObjectIdToString, castObjectId } from '../../../../common/helpers/cast-objectid';
+import { FollowUpAppointment } from '../../../interfaces/appointment.interface';
+import { TypeOfServiceEntityDocument } from '../../../entities/schema';
 
 type DoctorEntityWithData = DoctorEntityDocument & { data: DoctorData };
 
@@ -124,7 +130,7 @@ export class ManagerService implements IIntegratorService {
     integration: IntegrationDocument,
     createSchedule: CreateSchedule,
   ): Promise<ManagerCreateScheduleResponse> {
-    const { appointment, organizationUnit, insurance, procedure, patient, appointmentType, speciality } =
+    const { appointment, organizationUnit, insurance, procedure, patient, appointmentType, speciality, typeOfService } =
       createSchedule;
 
     const payload: ManagerCreateSchedule = {
@@ -145,6 +151,11 @@ export class ManagerService implements IIntegratorService {
       servicos: null,
       recurso: Number(appointment.data.handle),
     };
+
+    // Se o tipo de serviço for retorno (code 3), é agendado na API como retorno
+    if (typeOfService?.code === '3') {
+      payload.tipoAgendamento = 'R';
+    }
 
     // Lógica para saúde santa monica, não sei do impacto de enviar para as demais
     // integrações que já estão funcionando
@@ -373,7 +384,7 @@ export class ManagerService implements IIntegratorService {
         }
       }
     } catch (error) {
-      throw HTTP_ERROR_THROWER(HttpStatus.BAD_GATEWAY, error);
+      throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, error);
     }
 
     const { fromDay } = availableSchedules;
@@ -405,6 +416,7 @@ export class ManagerService implements IIntegratorService {
       tipoProcedimento: null,
       servico: null,
       especialidade: null,
+      usarCache: true,
     };
 
     if (patient?.bornDate) {
@@ -507,6 +519,139 @@ export class ManagerService implements IIntegratorService {
     return managerResponse;
   }
 
+  private createFollowUpSchedulesObject(
+    filter: CorrelationFilter,
+    allPatientsFollowUpSchedules: ManagerPatientFollowUpResponse[],
+  ): ManagerFollowUpSchedulesRequest {
+    const patientFollowUpScheduleMatch = allPatientsFollowUpSchedules.find(
+      (schedule) =>
+        schedule?.recurso?.handle === Number(filter?.doctor?.code) &&
+        schedule?.convenio?.handle === Number(filter?.insurance?.code) &&
+        schedule?.especialidade?.handle === Number(filter?.speciality?.code),
+    );
+
+    const dataInicial = moment().startOf('day').format('YYYY-MM-DDTHH:mm:ss');
+    const dataFinal = patientFollowUpScheduleMatch.prazoMaximoParaRetorno;
+
+    const doctorCode = filter?.doctor?.code || patientFollowUpScheduleMatch?.recurso?.handle;
+    const insuranceCode = filter?.insurance?.code || patientFollowUpScheduleMatch?.convenio?.handle;
+    const insurancePlanCode = filter?.insurancePlan?.code || patientFollowUpScheduleMatch?.plano?.handle;
+    const specialityCode = filter?.speciality?.code || patientFollowUpScheduleMatch?.especialidade?.handle;
+    const procedureCode = filter?.procedure?.code || patientFollowUpScheduleMatch?.servico?.handle;
+    const organizationUnitCode = filter?.organizationUnit?.code || patientFollowUpScheduleMatch?.unidadeFilial?.handle;
+
+    // campos obrigatórios: recurso (doctor.code), dataInicial, dataFinal, convenio
+    const payload: ManagerFollowUpSchedulesRequest = {
+      recurso: Number(doctorCode),
+      convenio: Number(insuranceCode),
+      dataInicial,
+      dataFinal,
+      usarCache: true,
+      tipoServico: null,
+      disponivelWeb: true,
+      unidadesFiliais: [],
+      unidadeFilial: null,
+      plano: null,
+      servico: null,
+      especialidade: null,
+      peso: null,
+      altura: null,
+      idade: null,
+      medicosResponsaveis: null,
+      medicoResponsavel: null,
+      sexo: null,
+      duracao: null,
+      intervalo: null,
+    };
+
+    if (specialityCode) {
+      payload.especialidade = Number(specialityCode);
+    }
+
+    if (procedureCode) {
+      payload.servico = Number(procedureCode);
+    }
+
+    if (insurancePlanCode) {
+      payload.plano = Number(insurancePlanCode);
+    }
+
+    if (organizationUnitCode) {
+      payload.unidadesFiliais.push(Number(organizationUnitCode));
+    }
+
+    return payload;
+  }
+
+  private transformFollowUpSchedulesToAvailableSchedules(
+    followUpSchedules: ManagerFollowUpSchedulesResponse,
+  ): ManagerAvailableSchedulesResponse[] {
+    if (!followUpSchedules?.datasDisponiveisExame?.length) return [];
+
+    // Agrupa por unidadeFilial
+    const unidadesMap = new Map<
+      number,
+      {
+        handleUnidadeFilial: number;
+        nomeUnidadeFilial: string;
+        recursosServico: any[][];
+      }
+    >();
+
+    followUpSchedules.datasDisponiveisExame.forEach((dateData) => {
+      dateData.horarios.forEach((horario) => {
+        const unidadeFilial = horario.unidadeFilial;
+        const nomeUnidadeFilial = horario.unidadeFilialNome;
+
+        if (!unidadesMap.has(unidadeFilial)) {
+          unidadesMap.set(unidadeFilial, {
+            handleUnidadeFilial: unidadeFilial,
+            nomeUnidadeFilial: nomeUnidadeFilial,
+            recursosServico: [],
+          });
+        }
+
+        // Monta o recursoServico no mesmo padrão da listagem
+        const recursoServico = {
+          handle: followUpSchedules.handle,
+          handleServico: followUpSchedules.handleServico,
+          handleRecursoMedicoResponsavel: followUpSchedules.handleRecursoMedicoResponsavel,
+          recursoMedicoResponsavel: followUpSchedules.recursoMedicoResponsavel,
+          nome: followUpSchedules.nome,
+          datasDisponiveisExame: [
+            {
+              data: dateData.data,
+              horarios: [horario],
+            },
+          ],
+        };
+
+        // Procura se já existe um recurso igual para agrupar os horários na mesma data
+        let recursos = unidadesMap.get(unidadeFilial).recursosServico;
+        let recursoExistente = recursos.find(
+          (rs) => rs[0].handle === recursoServico.handle && rs[0].handleServico === recursoServico.handleServico,
+        );
+
+        if (recursoExistente) {
+          // Agrupa datasDisponiveisExame
+          let dataExistente = recursoExistente[0].datasDisponiveisExame.find((d) => d.data === dateData.data);
+          if (dataExistente) {
+            dataExistente.horarios.push(horario);
+          } else {
+            recursoExistente[0].datasDisponiveisExame.push({
+              data: dateData.data,
+              horarios: [horario],
+            });
+          }
+        } else {
+          recursos.push([recursoServico]);
+        }
+      });
+    });
+
+    return Array.from(unidadesMap.values());
+  }
+
   async getAvailableSchedules(
     integration: IntegrationDocument,
     availableSchedules: ListAvailableSchedules,
@@ -521,14 +666,65 @@ export class ManagerService implements IIntegratorService {
         limit,
         periodOfDay,
       } = availableSchedules;
-      const { payload, interAppointmentPeriodApplied, doctorsScheduledMapped } =
-        await this.createListAvailableSchedulesObject(integration, availableSchedules);
 
-      const metadata: AvailableSchedulesMetadata = {
-        interAppointmentPeriod: interAppointmentPeriodApplied,
-      };
+      const isFollowUpAppointment = filter.typeOfService?.params?.referenceTypeOfService === TypeOfService.followUp;
 
-      const response = await this.splitListAvailableSchedules(payload, availableSchedules, integration);
+      if (isFollowUpAppointment && !patient?.code) {
+        return { schedules: [], metadata: {} };
+      }
+
+      let response: ManagerAvailableSchedulesResponse[] = [];
+      let metadata: AvailableSchedulesMetadata = {};
+      let doctorsScheduledMappedFromObject: Map<string, number> = new Map<string, number>();
+
+      if (isFollowUpAppointment) {
+        // pega do cache a lista horários para retornos do paciente
+        // precisa complementar a informação com limite de data de retorno
+        let patientFollowUpSchedules = await this.integrationCacheUtilsService.getPatientSchedulesGenericsCache<
+          ManagerPatientFollowUpResponse[]
+        >(integration, patient.code, TypeOfService.followUp);
+
+        if (!patientFollowUpSchedules) {
+          patientFollowUpSchedules = await this.managerApiService.listPatientFollowUpSchedules(
+            integration,
+            Number(patient.code),
+          );
+        }
+
+        if (!patientFollowUpSchedules || !patientFollowUpSchedules.length) {
+          return { schedules: [], metadata };
+        }
+
+        const payload = this.createFollowUpSchedulesObject(filter, patientFollowUpSchedules);
+
+        const availableFollowUpSchedulesForPatient = await this.managerApiService.listFollowUpSchedules(
+          integration,
+          payload,
+        );
+
+        if (!availableFollowUpSchedulesForPatient?.datasDisponiveisExame?.length) {
+          return { schedules: [], metadata };
+        }
+
+        // transformar follow up em available schedules
+        response = this.transformFollowUpSchedulesToAvailableSchedules(availableFollowUpSchedulesForPatient);
+      }
+      // fluxo padrão de busca de horários - quando não é busca de horários para retorno.
+      else {
+        const { payload, interAppointmentPeriodApplied, doctorsScheduledMapped } =
+          await this.createListAvailableSchedulesObject(integration, availableSchedules);
+
+        doctorsScheduledMappedFromObject.clear();
+        doctorsScheduledMapped.forEach((value, key) => {
+          doctorsScheduledMappedFromObject.set(key, value);
+        });
+
+        metadata = {
+          interAppointmentPeriod: interAppointmentPeriodApplied,
+        };
+
+        response = await this.splitListAvailableSchedules(payload, availableSchedules, integration);
+      }
 
       // se não tem horário para nenhuma unidade que retornou na request
       if (!response?.length || response?.every((data) => !data?.recursosServico?.length)) {
@@ -657,17 +853,20 @@ export class ManagerService implements IIntegratorService {
                         resourceCode: String(resourceDate.recurso),
                       },
                     };
+                    if (isFollowUpAppointment) {
+                      schedules.push(schedule);
+                    } else {
+                      const filteredInterAppointmentSchedules =
+                        this.interAppointmentService.filterInterAppointmentByDoctorCode(
+                          integration,
+                          schedule,
+                          doctorsScheduledMappedFromObject,
+                          filter,
+                        );
 
-                    const filteredInterAppointmentSchedules =
-                      this.interAppointmentService.filterInterAppointmentByDoctorCode(
-                        integration,
-                        schedule,
-                        doctorsScheduledMapped,
-                        filter,
-                      );
-
-                    if (filteredInterAppointmentSchedules) {
-                      schedules.push(filteredInterAppointmentSchedules);
+                      if (filteredInterAppointmentSchedules) {
+                        schedules.push(filteredInterAppointmentSchedules);
+                      }
                     }
                   });
                 });
@@ -718,16 +917,20 @@ export class ManagerService implements IIntegratorService {
                       },
                     };
 
-                    const filteredInterAppointmentSchedules =
-                      this.interAppointmentService.filterInterAppointmentByDoctorCode(
-                        integration,
-                        schedule,
-                        doctorsScheduledMapped,
-                        filter,
-                      );
+                    if (isFollowUpAppointment) {
+                      schedules.push(schedule);
+                    } else {
+                      const filteredInterAppointmentSchedules =
+                        this.interAppointmentService.filterInterAppointmentByDoctorCode(
+                          integration,
+                          schedule,
+                          doctorsScheduledMappedFromObject,
+                          filter,
+                        );
 
-                    if (filteredInterAppointmentSchedules) {
-                      schedules.push(filteredInterAppointmentSchedules);
+                      if (filteredInterAppointmentSchedules) {
+                        schedules.push(filteredInterAppointmentSchedules);
+                      }
                     }
                   }
                 });
@@ -1035,8 +1238,60 @@ export class ManagerService implements IIntegratorService {
     }
   }
 
-  reschedule(): Promise<Appointment> {
-    throw HTTP_ERROR_THROWER(HttpStatus.NOT_IMPLEMENTED, 'ManagerService.reschedule: Not implemented');
+  public async reschedule(integration: IntegrationDocument, reschedule: Reschedule): Promise<Appointment> {
+    const { scheduleToCancelCode, scheduleToCreate, patient } = reschedule;
+
+    try {
+      // busca agendamentos do paciente para pegar dados de qual será cancelado
+      let patientAppointments = await this.getPatientSchedules(integration, { patientCode: patient.code });
+      const appointmentToCancel = patientAppointments.find(
+        (appointment) => appointment.appointmentCode == scheduleToCancelCode,
+      );
+
+      if (!appointmentToCancel) {
+        throw INTERNAL_ERROR_THROWER('ManagerService.reschedule', {
+          message: 'ManagerService.reschedule: unable to find appointment to cancel',
+        });
+      }
+
+      const { procedure, appointmentCode, speciality } = appointmentToCancel;
+      const cancelSchedulePayload = {
+        appointmentCode,
+        patientCode: patient.code,
+        procedure: {
+          code: null,
+          specialityCode: procedure?.specialityCode || speciality?.code,
+          specialityType: procedure?.specialityType || speciality?.specialityType,
+        },
+      };
+      const canceledOldAppointment = await this.cancelSchedule(integration, cancelSchedulePayload);
+
+      if (!canceledOldAppointment.ok) {
+        throw HTTP_ERROR_THROWER(
+          HttpStatus.BAD_REQUEST,
+          {
+            message: 'ManagerService.reschedule: unable to cancel old appointment',
+          },
+          HttpErrorOrigin.INTEGRATION_ERROR,
+        );
+      }
+
+      const createdAppointment = await this.createSchedule(integration, scheduleToCreate);
+
+      if (!createdAppointment.appointmentCode) {
+        throw HTTP_ERROR_THROWER(
+          HttpStatus.BAD_REQUEST,
+          {
+            message: 'ManagerService.reschedule: error creating new schedule',
+          },
+          HttpErrorOrigin.INTEGRATION_ERROR,
+        );
+      }
+
+      return createdAppointment;
+    } catch (error) {
+      throw INTERNAL_ERROR_THROWER('ManagerService.reschedule', error);
+    }
   }
 
   async updatePatient(
@@ -1203,7 +1458,7 @@ export class ManagerService implements IIntegratorService {
     patient?: InitialPatient,
   ) {
     if (
-      integration.rules.listOnlyDoctorsWithAvailableSchedules ||
+      integration.rules?.listOnlyDoctorsWithAvailableSchedules ||
       // hoje se for exame só busca médicos se pegar de quem tem horários disponíveis
       // @TODO: ver futuramente se tem outra forma de buscar
       filters.appointmentType?.params?.referenceScheduleType === ScheduleType.Exam
@@ -1237,5 +1492,69 @@ export class ManagerService implements IIntegratorService {
 
     const groupedDoctors = uniqBy(doctorsWithCrm, 'data.crm') || [];
     return [...groupedDoctors, ...doctorsWithoutCrm];
+  }
+
+  async getPatientFollowUpSchedules(integration: IntegrationDocument, filters: any): Promise<FollowUpAppointment[]> {
+    const { patientCode } = filters;
+
+    try {
+      // lista horários para retorno do paciente
+      const patientFollowUpSchedules = await this.managerApiService.listPatientFollowUpSchedules(
+        integration,
+        Number(patientCode),
+      );
+
+      if (!patientFollowUpSchedules?.length) {
+        return [];
+      }
+
+      if (patientFollowUpSchedules) {
+        await this.integrationCacheUtilsService.setPatientSchedulesGenericsCache<ManagerPatientFollowUpResponse[]>(
+          integration,
+          patientCode,
+          patientFollowUpSchedules,
+          TypeOfService.followUp,
+        );
+      }
+
+      const typeOfServiceFollowUp: TypeOfServiceEntityDocument = await this.entitiesService
+        .getModel(EntityType.typeOfService)
+        .findOne({
+          'params.referenceTypeOfService': TypeOfService.followUp,
+          integrationId: castObjectId(integration._id),
+        });
+
+      const schedules: FollowUpAppointment[] = await Promise.all(
+        patientFollowUpSchedules.map(async (singleFollowUpSchedule) => {
+          const replacedEntities = await this.entitiesService.createCorrelationFilterData(
+            {
+              procedure: singleFollowUpSchedule.servico?.handle?.toString(),
+              doctor: singleFollowUpSchedule.recurso?.handle?.toString(),
+              insurance: singleFollowUpSchedule.convenio?.handle?.toString(),
+              insurancePlan: singleFollowUpSchedule.plano?.handle?.toString(),
+              organizationUnit: singleFollowUpSchedule.unidadeFilial?.handle?.toString(),
+              speciality: singleFollowUpSchedule.especialidade?.handle?.toString(),
+              appointmentType: 'C',
+            },
+            'code',
+            integration._id,
+          );
+
+          const followUpSchedule: FollowUpAppointment = {
+            ...replacedEntities,
+            followUpLimit: singleFollowUpSchedule.prazoMaximoParaRetorno,
+            appointmentDate: singleFollowUpSchedule.dataHoraAtendimento,
+            inFollowUpPeriod: moment(singleFollowUpSchedule.prazoMaximoParaRetorno).isSameOrAfter(moment()),
+            typeOfServiceFollowUp,
+          };
+
+          return followUpSchedule;
+        }),
+      );
+
+      return schedules;
+    } catch (error) {
+      throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, error, HttpErrorOrigin.INTEGRATION_ERROR);
+    }
   }
 }

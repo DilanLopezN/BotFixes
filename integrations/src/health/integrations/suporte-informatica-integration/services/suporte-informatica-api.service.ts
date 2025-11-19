@@ -4,6 +4,7 @@ import { lastValueFrom } from 'rxjs';
 import * as Sentry from '@sentry/node';
 import { HttpErrorOrigin, HTTP_ERROR_THROWER } from '../../../../common/exceptions.service';
 import { IntegrationDocument } from '../../../integration/schema/integration.schema';
+import { IntegrationEnvironment } from '../../../integration/interfaces/integration.interface';
 import * as contextService from 'request-context';
 import {
   SICheckPatientExistsRequest,
@@ -122,7 +123,7 @@ export class SuporteInformaticaApiService {
       identifier: from,
     });
 
-    if (error?.response?.data) {
+    if (error?.response?.data && integration.environment !== IntegrationEnvironment.test) {
       const metadata = contextService.get('req:default-headers');
       Sentry.captureEvent({
         message: `${integration._id}:${integration.name}:SI-request: ${from}`,

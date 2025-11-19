@@ -19,14 +19,17 @@ import * as contextService from 'request-context';
 import { CtxMetadata } from '../../../common/interfaces/ctx-metadata';
 import { isHomologChannel } from '../../../common/helpers/homolog-channel';
 import { FlowFilters, FlowsByFilter } from '../interfaces/flow-filters.interface';
+import { FlowCacheService } from './flow-cache.service';
 
 @Injectable()
 export class FlowService {
   private readonly logger = new Logger(FlowService.name);
+
   constructor(
     @InjectModel(Flow.name) protected flowModel: Model<FlowDocument>,
     @InjectModel(FlowDraft.name) protected flowDraftModel: Model<FlowDraftDocument>,
     private readonly flowTransformerService: FlowTransformerService,
+    private readonly flowCacheService: FlowCacheService,
   ) {}
 
   private getModel(): Model<FlowDocument | FlowDraftDocument> {
@@ -101,6 +104,9 @@ export class FlowService {
       });
 
       await Promise.all(chunk(bulkOps, 50).map((bulkOpsChunk) => this.flowDraftModel.bulkWrite(bulkOpsChunk)));
+
+      await this.flowCacheService.clearMatchFlowsAndGetActionsCacheByIntegrationId(castObjectIdToString(integrationId));
+
       return {
         ok: true,
       };
@@ -118,7 +124,11 @@ export class FlowService {
     });
 
     const session = await this.flowModel.db.startSession();
-    session.startTransaction();
+    session.startTransaction({
+      maxCommitTimeMS: 60_000,
+      readConcern: { level: 'majority' },
+      writeConcern: { w: 'majority', wtimeout: 60_000 },
+    });
 
     try {
       await this.flowModel.deleteMany(
@@ -147,6 +157,9 @@ export class FlowService {
 
       await this.flowModel.insertMany(flows, { session });
       await session.commitTransaction();
+
+      await this.flowCacheService.clearMatchFlowsAndGetActionsCacheByIntegrationId(castObjectIdToString(integrationId));
+
       return {
         ok: true,
       };
@@ -213,12 +226,51 @@ export class FlowService {
       return [
         ...acc,
         {
-          $or: [
-            { [formattedMatchedEntityTypeKey]: { $in: [castObjectId(entitiesFilter[matchedEntityTypeKey]._id)] } },
-            { [formattedMatchedEntityTypeKey]: { $exists: false } },
-            { [formattedMatchedEntityTypeKey]: { $eq: null } },
-            { [formattedMatchedEntityTypeKey]: { $size: 0 } },
-          ],
+          $expr: {
+            $cond: {
+              if: { $in: [matchedEntityTypeKey, { $ifNull: ['$opposeStep', []] }] },
+              then: {
+                $or: [
+                  {
+                    $not: [
+                      {
+                        $in: [
+                          castObjectId(entitiesFilter[matchedEntityTypeKey]._id),
+                          { $ifNull: [`$${formattedMatchedEntityTypeKey}`, []] },
+                        ],
+                      },
+                    ],
+                  },
+                  { $eq: [{ $type: `$${formattedMatchedEntityTypeKey}` }, 'missing'] },
+                  { $eq: [`$${formattedMatchedEntityTypeKey}`, null] },
+                  {
+                    $and: [
+                      { $isArray: `$${formattedMatchedEntityTypeKey}` },
+                      { $eq: [{ $size: `$${formattedMatchedEntityTypeKey}` }, 0] },
+                    ],
+                  },
+                ],
+              },
+              else: {
+                $or: [
+                  {
+                    $in: [
+                      castObjectId(entitiesFilter[matchedEntityTypeKey]._id),
+                      { $ifNull: [`$${formattedMatchedEntityTypeKey}`, []] },
+                    ],
+                  },
+                  { $eq: [{ $type: `$${formattedMatchedEntityTypeKey}` }, 'missing'] },
+                  { $eq: [`$${formattedMatchedEntityTypeKey}`, null] },
+                  {
+                    $and: [
+                      { $isArray: `$${formattedMatchedEntityTypeKey}` },
+                      { $eq: [{ $size: `$${formattedMatchedEntityTypeKey}` }, 0] },
+                    ],
+                  },
+                ],
+              },
+            },
+          },
         },
       ];
     }, []);
@@ -379,7 +431,7 @@ export class FlowService {
       ];
     }
 
-    return await this.getModel().find(query);
+    return await this.getModel().aggregate([{ $match: { ...query } }]);
   }
 
   private getHexId(id: any) {
@@ -514,24 +566,51 @@ export class FlowService {
       let skip = false;
 
       flowsWithoutIncludeOnly.forEach((flow) => {
-        // se existir um flow com o mesmo tipo da entidade, adicionar acões na propria entidade
-        if (flow.type === FlowType.action) {
-          if (
-            this.getHexIds(flow[`${targetEntity}Id`]).includes(this.getHexId(entity._id)) ||
-            (!forceTargetEntityToCompare && !flow[`${targetEntity}Id`]?.length)
-          ) {
-            executedFlows.set(castObjectIdToString(flow._id), flow.type);
-            return actions.push(...flow.actions);
+        let isOpposedStep = null;
+        if (flow.opposeStep && flow.opposeStep.length > 0) {
+          isOpposedStep = flow.opposeStep.filter((step) => step === targetEntity)?.[0];
+        }
+
+        if (isOpposedStep) {
+          if (flow.type === FlowType.action) {
+            if (
+              !this.getHexIds(flow[`${targetEntity}Id`]).includes(this.getHexId(entity._id)) ||
+              (!forceTargetEntityToCompare && !flow[`${targetEntity}Id`]?.length)
+            ) {
+              executedFlows.set(castObjectIdToString(flow._id), flow.type);
+              return actions.push(...flow.actions);
+            }
+          } else if (flow.type === FlowType.omit) {
+            if (!this.getHexIds(flow[`${targetEntity}Id`]).includes(this.getHexId(entity._id))) {
+              executedFlows.set(castObjectIdToString(flow._id), flow.type);
+              skip = true;
+              // já realizada combinações no mongo, entao se tiver qualquer um, ignorar
+              // se não tem nenhum match no flow da entidade atual, ignora tudo com base nos filtros
+            } else if (!flow[`${targetEntity}Id`]?.length && this.implementAnyFlowFilters(flow, entitiesFilter)) {
+              executedFlows.set(castObjectIdToString(flow._id), flow.type);
+              skip = true;
+            }
           }
-        } else if (flow.type === FlowType.omit) {
-          if (this.getHexIds(flow[`${targetEntity}Id`]).includes(this.getHexId(entity._id))) {
-            executedFlows.set(castObjectIdToString(flow._id), flow.type);
-            skip = true;
-            // já realizada combinações no mongo, entao se tiver qualquer um, ignorar
-            // se não tem nenhum match no flow da entidade atual, ignora tudo com base nos filtros
-          } else if (!flow[`${targetEntity}Id`]?.length && this.implementAnyFlowFilters(flow, entitiesFilter)) {
-            executedFlows.set(castObjectIdToString(flow._id), flow.type);
-            skip = true;
+        } else {
+          // se existir um flow com o mesmo tipo da entidade, adicionar acões na propria entidade
+          if (flow.type === FlowType.action) {
+            if (
+              this.getHexIds(flow[`${targetEntity}Id`]).includes(this.getHexId(entity._id)) ||
+              (!forceTargetEntityToCompare && !flow[`${targetEntity}Id`]?.length)
+            ) {
+              executedFlows.set(castObjectIdToString(flow._id), flow.type);
+              return actions.push(...flow.actions);
+            }
+          } else if (flow.type === FlowType.omit) {
+            if (this.getHexIds(flow[`${targetEntity}Id`]).includes(this.getHexId(entity._id))) {
+              executedFlows.set(castObjectIdToString(flow._id), flow.type);
+              skip = true;
+              // já realizada combinações no mongo, entao se tiver qualquer um, ignorar
+              // se não tem nenhum match no flow da entidade atual, ignora tudo com base nos filtros
+            } else if (!flow[`${targetEntity}Id`]?.length && this.implementAnyFlowFilters(flow, entitiesFilter)) {
+              executedFlows.set(castObjectIdToString(flow._id), flow.type);
+              skip = true;
+            }
           }
         }
       });
@@ -602,35 +681,75 @@ export class FlowService {
       let skip = false;
 
       flows.forEach((flow) => {
-        if (
-          flow.type === FlowType.action &&
-          (this.getHexIds(flow.doctorId).includes(this.getHexId(appointment.doctor?._id)) || !flow.doctorId)
-        ) {
-          executedFlows.set(castObjectIdToString(flow._id), flow.type);
-          return actions.push(...flow.actions);
-        } else if (flow.type === FlowType.omit) {
-          // unica entidade que pode não vir, pois é opcional no appointment
-          if (this.getHexIds(flow.doctorId).includes(this.getHexId(appointment.doctor?._id))) {
-            skip = true;
+        let isOpposedStep = null;
+        if (flow.opposeStep && flow.opposeStep.length > 0) {
+          isOpposedStep = flow.opposeStep.filter((step) => step === targetEntity)?.[0];
+        }
+
+        if (isOpposedStep) {
+          if (
+            flow.type === FlowType.action &&
+            (!this.getHexIds(flow.doctorId).includes(this.getHexId(appointment.doctor?._id)) || !flow.doctorId)
+          ) {
             executedFlows.set(castObjectIdToString(flow._id), flow.type);
-          } else if (!flow[`${FlowSteps.doctor}Id`]) {
-            // tentar trocar isso para a func implementAnyFlowFilters
-            if (
-              this.getHexIds(flow.insuranceId).includes(entitiesFilter.insurance._id) ||
-              this.getHexIds(flow.appointmentTypeId).includes(entitiesFilter.appointmentType?._id) ||
-              this.getHexIds(flow.insurancePlanId).includes(entitiesFilter.insurancePlan?._id) ||
-              this.getHexIds(flow.insuranceSubPlanId).includes(entitiesFilter.insuranceSubPlan?._id) ||
-              this.getHexIds(flow.organizationUnitId).includes(entitiesFilter.organizationUnit?._id) ||
-              this.getHexIds(flow.planCategoryId).includes(entitiesFilter.planCategory?._id) ||
-              this.getHexIds(flow.procedureId).includes(entitiesFilter.procedure?._id) ||
-              this.getHexIds(flow.doctorId).includes(entitiesFilter.doctor?._id) ||
-              this.getHexIds(flow.specialityId).includes(entitiesFilter.speciality?._id) ||
-              this.getHexIds(flow.occupationAreaId).includes(entitiesFilter.occupationArea?._id) ||
-              this.getHexIds(flow.typeOfServiceId).includes(entitiesFilter.typeOfService?._id) ||
-              this.getHexIds(flow.organizationUnitLocationId).includes(entitiesFilter.organizationUnitLocation?._id)
-            ) {
-              executedFlows.set(castObjectIdToString(flow._id), flow.type);
+            return actions.push(...flow.actions);
+          } else if (flow.type === FlowType.omit) {
+            // unica entidade que pode não vir, pois é opcional no appointment
+            if (!this.getHexIds(flow.doctorId).includes(this.getHexId(appointment.doctor?._id))) {
               skip = true;
+              executedFlows.set(castObjectIdToString(flow._id), flow.type);
+            } else if (!flow[`${FlowSteps.doctor}Id`]) {
+              // tentar trocar isso para a func implementAnyFlowFilters
+              if (
+                this.getHexIds(flow.insuranceId).includes(entitiesFilter.insurance._id) ||
+                this.getHexIds(flow.appointmentTypeId).includes(entitiesFilter.appointmentType?._id) ||
+                this.getHexIds(flow.insurancePlanId).includes(entitiesFilter.insurancePlan?._id) ||
+                this.getHexIds(flow.insuranceSubPlanId).includes(entitiesFilter.insuranceSubPlan?._id) ||
+                this.getHexIds(flow.organizationUnitId).includes(entitiesFilter.organizationUnit?._id) ||
+                this.getHexIds(flow.planCategoryId).includes(entitiesFilter.planCategory?._id) ||
+                this.getHexIds(flow.procedureId).includes(entitiesFilter.procedure?._id) ||
+                this.getHexIds(flow.doctorId).includes(entitiesFilter.doctor?._id) ||
+                this.getHexIds(flow.specialityId).includes(entitiesFilter.speciality?._id) ||
+                this.getHexIds(flow.occupationAreaId).includes(entitiesFilter.occupationArea?._id) ||
+                this.getHexIds(flow.typeOfServiceId).includes(entitiesFilter.typeOfService?._id) ||
+                this.getHexIds(flow.organizationUnitLocationId).includes(entitiesFilter.organizationUnitLocation?._id)
+              ) {
+                executedFlows.set(castObjectIdToString(flow._id), flow.type);
+                skip = true;
+              }
+            }
+          }
+        } else {
+          if (
+            flow.type === FlowType.action &&
+            (this.getHexIds(flow.doctorId).includes(this.getHexId(appointment.doctor?._id)) || !flow.doctorId)
+          ) {
+            executedFlows.set(castObjectIdToString(flow._id), flow.type);
+            return actions.push(...flow.actions);
+          } else if (flow.type === FlowType.omit) {
+            // unica entidade que pode não vir, pois é opcional no appointment
+            if (this.getHexIds(flow.doctorId).includes(this.getHexId(appointment.doctor?._id))) {
+              skip = true;
+              executedFlows.set(castObjectIdToString(flow._id), flow.type);
+            } else if (!flow[`${FlowSteps.doctor}Id`]) {
+              // tentar trocar isso para a func implementAnyFlowFilters
+              if (
+                this.getHexIds(flow.insuranceId).includes(entitiesFilter.insurance._id) ||
+                this.getHexIds(flow.appointmentTypeId).includes(entitiesFilter.appointmentType?._id) ||
+                this.getHexIds(flow.insurancePlanId).includes(entitiesFilter.insurancePlan?._id) ||
+                this.getHexIds(flow.insuranceSubPlanId).includes(entitiesFilter.insuranceSubPlan?._id) ||
+                this.getHexIds(flow.organizationUnitId).includes(entitiesFilter.organizationUnit?._id) ||
+                this.getHexIds(flow.planCategoryId).includes(entitiesFilter.planCategory?._id) ||
+                this.getHexIds(flow.procedureId).includes(entitiesFilter.procedure?._id) ||
+                this.getHexIds(flow.doctorId).includes(entitiesFilter.doctor?._id) ||
+                this.getHexIds(flow.specialityId).includes(entitiesFilter.speciality?._id) ||
+                this.getHexIds(flow.occupationAreaId).includes(entitiesFilter.occupationArea?._id) ||
+                this.getHexIds(flow.typeOfServiceId).includes(entitiesFilter.typeOfService?._id) ||
+                this.getHexIds(flow.organizationUnitLocationId).includes(entitiesFilter.organizationUnitLocation?._id)
+              ) {
+                executedFlows.set(castObjectIdToString(flow._id), flow.type);
+                skip = true;
+              }
             }
           }
         }
@@ -658,6 +777,20 @@ export class FlowService {
     trigger,
     customFlowActions,
   }: MatchFlowActions): Promise<FlowAction[]> {
+    const cacheParams = {
+      entitiesFilter,
+      filters,
+      integrationId,
+      targetFlowTypes,
+      trigger,
+      customFlowActions,
+    };
+
+    const cachedResult = await this.flowCacheService.getMatchFlowActionsCache(cacheParams);
+    if (cachedResult !== null) {
+      return cachedResult;
+    }
+
     const flows = await this.getFlowsByFilter({
       integrationId,
       entitiesFilter,
@@ -673,11 +806,17 @@ export class FlowService {
     });
 
     if (!flows.length && !customFlowActions?.length) {
-      return [];
+      const emptyResult: FlowAction[] = [];
+      await this.flowCacheService.setMatchFlowActionsCache(cacheParams, emptyResult);
+      return emptyResult;
     }
 
     const flowActions: FlowAction[] = customFlowActions || [];
     flows.forEach((flow) => flowActions.push(...(flow.actions ?? [])));
-    return this.flowTransformerService.transformFlowActions(flowActions);
+    const result = this.flowTransformerService.transformFlowActions(flowActions);
+
+    await this.flowCacheService.setMatchFlowActionsCache(cacheParams, result);
+
+    return result;
   }
 }

@@ -170,6 +170,10 @@ export class SchedulesService {
         scheduleIds = [scheduleId];
       }
 
+      if (!scheduleIds?.length) {
+        return actions;
+      }
+
       for (const id of scheduleIds) {
         const [correlation, schedule] = await this.getEntitiesDataFromSchedule(integrationId, scheduleCode, id);
 
@@ -181,10 +185,6 @@ export class SchedulesService {
           integrationId: castObjectId(integrationId),
           entitiesFilter: correlation,
           targetFlowTypes: [FlowSteps.confirmActive],
-          filters: {
-            patientBornDate: schedule.patientBornDate,
-            patientCpf: schedule.patientCpf,
-          },
           trigger,
         });
         actions.push(...result);

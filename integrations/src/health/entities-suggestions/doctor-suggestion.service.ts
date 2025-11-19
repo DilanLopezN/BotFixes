@@ -1,7 +1,7 @@
 import { forwardRef, Inject, Injectable } from '@nestjs/common';
 import { IntegrationDocument } from '../integration/schema/integration.schema';
 import { ListPatientSuggestedData, PatientSuggestedDoctors } from '../integrator/interfaces';
-import { EntityDocument } from '../entities/schema';
+import { EntityDocument, ScheduleType } from '../entities/schema';
 import { FlowSteps } from '../flow/interfaces/flow.interface';
 import { FlowService } from '../flow/service/flow.service';
 import { IntegratorService } from '../integrator/service/integrator.service';
@@ -58,12 +58,16 @@ export class DoctorSuggestionService {
       principal: [],
     };
 
-    if (!data?.code) {
+    const { code: patientCode, filter } = data;
+    const scheduleType = filter?.appointmentType?.params?.referenceScheduleType;
+
+    // Só realiza a lógica de sugestão de médico se for consulta
+    if ((scheduleType && scheduleType !== ScheduleType.Consultation) || !patientCode) {
       return response;
     }
 
     const doctors = await this.integratorService.listSuggestedDoctors(castObjectIdToString(integration._id), {
-      patientCode: data.code,
+      patientCode,
     });
 
     const matchedDoctors = await this.matchFlowEntities(integration, doctors, data);

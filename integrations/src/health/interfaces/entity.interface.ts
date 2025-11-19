@@ -14,6 +14,7 @@ enum EntityType {
   occupationArea = 'occupationArea',
   organizationUnitLocation = 'organizationUnitLocation',
   typeOfService = 'typeOfService',
+  laterality = 'laterality',
   reason = 'reason',
 }
 
@@ -141,6 +142,8 @@ interface IInsurancePlanCategoryEntity extends IEntity {
 
 interface IReasonEntity extends IEntity {}
 
+interface ILateralityEntity extends IEntity {}
+
 type EntityTypes =
   | IProcedureEntity
   | IOrganizationUnitEntity
@@ -153,6 +156,7 @@ type EntityTypes =
   | IOrganizationUnitLocationEntity
   | IOccupationAreaEntity
   | ITypeOfServiceEntity
+  | ILateralityEntity
   | IAppointmentTypeEntity;
 
 export {
@@ -174,6 +178,7 @@ export {
   ITypeOfServiceEntity,
   IOrganizationUnitLocationEntity,
   IReasonEntity,
+  ILateralityEntity,
   IEntity,
   IEntityReference,
   EntityTypes,

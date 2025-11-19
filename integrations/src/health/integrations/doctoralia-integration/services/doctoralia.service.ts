@@ -318,6 +318,10 @@ export class DoctoraliaService implements IIntegratorService {
         entities = response?.return?.results ?? [];
       }
 
+      const isRedeCare = ['650da32f5f6a39da9f321a80', '68b984e75d4c2573a8561e10', '65245197631168b73189504c'].includes(
+        castObjectIdToString(integration._id),
+      );
+
       return (
         entities
           ?.filter((procedure) =>
@@ -334,7 +338,7 @@ export class DoctoraliaService implements IIntegratorService {
             integrationId: castObjectId(integration._id),
             name: resource.activityTitle,
             source: EntitySourceType.erp,
-            activeErp: true,
+            activeErp: !isRedeCare ? true : (Boolean(resource.mopBookability) ?? true),
             version: EntityVersionType.production,
             specialityCode: resource.typologyid,
             specialityType: SpecialityTypes.C,
@@ -768,6 +772,15 @@ export class DoctoraliaService implements IIntegratorService {
             validEntities.push(savedEntity);
           }
         });
+
+        if (
+          savedEntity.source === EntitySourceType.user &&
+          (savedEntity.specialityCode === filters.speciality?.code ||
+            !filters.speciality ||
+            !savedEntity?.specialityCode)
+        ) {
+          validEntities.push(savedEntity);
+        }
       });
 
       await this.integrationCacheUtilsService.setProcessedEntities(

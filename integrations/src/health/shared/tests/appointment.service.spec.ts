@@ -233,5 +233,271 @@ describe('AppointmentService', () => {
       expect(result[2].appointmentDate).toEqual(moment(appointments[3].appointmentDate).utc().toISOString());
       expect(result[3].appointmentDate).toEqual(moment(appointments[10].appointmentDate).utc().toISOString());
     });
+
+    describe('FUNC: getAppointments - firstEachDoctorBalanced', () => {
+      it('should return only ONE slot per doctor (the earliest) when limit forces processing', async () => {
+        // Cenário: 3 médicos, cada um com múltiplos horários
+        // Deve retornar apenas o PRIMEIRO (mais cedo) de cada médico
+        // IMPORTANTE: limit < número de appointments para forçar processamento
+        const multipleSlotDoctors = [
+          // Doctor1 - 3 horários (mais tarde)
+          {
+            ...getSampleAppointment(),
+            appointmentDate: moment.utc('2025-11-20 10:00:00').toISOString(),
+            doctorId: 'doctor1',
+            doctorDefault: { code: 'doctor1', name: 'Doctor 1' },
+          },
+          {
+            ...getSampleAppointment(),
+            appointmentDate: moment.utc('2025-11-20 14:00:00').toISOString(),
+            doctorId: 'doctor1',
+            doctorDefault: { code: 'doctor1', name: 'Doctor 1' },
+          },
+          {
+            ...getSampleAppointment(),
+            appointmentDate: moment.utc('2025-11-20 16:00:00').toISOString(),
+            doctorId: 'doctor1',
+            doctorDefault: { code: 'doctor1', name: 'Doctor 1' },
+          },
+          // Doctor2 - 3 horários (mais cedo)
+          {
+            ...getSampleAppointment(),
+            appointmentDate: moment.utc('2025-11-18 08:00:00').toISOString(),
+            doctorId: 'doctor2',
+            doctorDefault: { code: 'doctor2', name: 'Doctor 2' },
+          },
+          {
+            ...getSampleAppointment(),
+            appointmentDate: moment.utc('2025-11-18 10:00:00').toISOString(),
+            doctorId: 'doctor2',
+            doctorDefault: { code: 'doctor2', name: 'Doctor 2' },
+          },
+          {
+            ...getSampleAppointment(),
+            appointmentDate: moment.utc('2025-11-18 12:00:00').toISOString(),
+            doctorId: 'doctor2',
+            doctorDefault: { code: 'doctor2', name: 'Doctor 2' },
+          },
+          // Doctor3 - 3 horários (meio termo)
+          {
+            ...getSampleAppointment(),
+            appointmentDate: moment.utc('2025-11-19 09:00:00').toISOString(),
+            doctorId: 'doctor3',
+            doctorDefault: { code: 'doctor3', name: 'Doctor 3' },
+          },
+          {
+            ...getSampleAppointment(),
+            appointmentDate: moment.utc('2025-11-19 11:00:00').toISOString(),
+            doctorId: 'doctor3',
+            doctorDefault: { code: 'doctor3', name: 'Doctor 3' },
+          },
+          {
+            ...getSampleAppointment(),
+            appointmentDate: moment.utc('2025-11-19 15:00:00').toISOString(),
+            doctorId: 'doctor3',
+            doctorDefault: { code: 'doctor3', name: 'Doctor 3' },
+          },
+        ];
+
+        const { appointments: result } = await appointmentService.getAppointments(
+          integration,
+          {
+            limit: 5, // limit < 9 appointments para forçar processamento
+            period: { start: '00:00', end: '23:59' },
+            randomize: true,
+            sortMethod: AppointmentSortMethod.firstEachDoctorBalanced,
+            periodOfDay: FlowPeriodOfDay.indifferent,
+          },
+          multipleSlotDoctors,
+        );
+
+        // Deve retornar apenas 3 appointments (1 por médico)
+        expect(result).toHaveLength(3);
+
+        // Cada médico aparece apenas 1 vez
+        const doctorCounts = {};
+        result.forEach((apt: any) => {
+          const doctorCode = apt.doctorDefault?.code || apt.doctorId;
+          doctorCounts[doctorCode] = (doctorCounts[doctorCode] || 0) + 1;
+        });
+        expect(doctorCounts['doctor1']).toBe(1);
+        expect(doctorCounts['doctor2']).toBe(1);
+        expect(doctorCounts['doctor3']).toBe(1);
+
+        // Verifica que são os PRIMEIROS horários de cada médico, em ordem cronológica
+        expect(result[0].appointmentDate).toEqual(moment.utc('2025-11-18 08:00:00').toISOString()); // doctor2
+        expect(result[1].appointmentDate).toEqual(moment.utc('2025-11-19 09:00:00').toISOString()); // doctor3
+        expect(result[2].appointmentDate).toEqual(moment.utc('2025-11-20 10:00:00').toISOString()); // doctor1
+      });
+
+      it('should respect period filter and return earliest slot per doctor', async () => {
+        // Cenário: médicos com horários em períodos diferentes (manhã e tarde)
+        // Filtrando apenas tarde, deve retornar apenas os primeiros horários da tarde de cada médico
+        const periodAppointments = [
+          // Doctor1 - manhã e tarde
+          {
+            ...getSampleAppointment(),
+            appointmentDate: moment.utc('2025-11-20 09:00:00').toISOString(),
+            doctorId: 'doctor1',
+            doctorDefault: { code: 'doctor1', name: 'Doctor 1' },
+          },
+          {
+            ...getSampleAppointment(),
+            appointmentDate: moment.utc('2025-11-20 14:00:00').toISOString(),
+            doctorId: 'doctor1',
+            doctorDefault: { code: 'doctor1', name: 'Doctor 1' },
+          },
+          {
+            ...getSampleAppointment(),
+            appointmentDate: moment.utc('2025-11-20 16:00:00').toISOString(),
+            doctorId: 'doctor1',
+            doctorDefault: { code: 'doctor1', name: 'Doctor 1' },
+          },
+          // Doctor2 - apenas tarde
+          {
+            ...getSampleAppointment(),
+            appointmentDate: moment.utc('2025-11-18 14:00:00').toISOString(),
+            doctorId: 'doctor2',
+            doctorDefault: { code: 'doctor2', name: 'Doctor 2' },
+          },
+          {
+            ...getSampleAppointment(),
+            appointmentDate: moment.utc('2025-11-18 16:00:00').toISOString(),
+            doctorId: 'doctor2',
+            doctorDefault: { code: 'doctor2', name: 'Doctor 2' },
+          },
+          // Doctor3 - apenas tarde
+          {
+            ...getSampleAppointment(),
+            appointmentDate: moment.utc('2025-11-19 15:00:00').toISOString(),
+            doctorId: 'doctor3',
+            doctorDefault: { code: 'doctor3', name: 'Doctor 3' },
+          },
+          {
+            ...getSampleAppointment(),
+            appointmentDate: moment.utc('2025-11-19 17:00:00').toISOString(),
+            doctorId: 'doctor3',
+            doctorDefault: { code: 'doctor3', name: 'Doctor 3' },
+          },
+        ];
+
+        const { appointments: result } = await appointmentService.getAppointments(
+          integration,
+          {
+            limit: 5, // limit < appointments para forçar processamento
+            period: { start: '12:00', end: '23:59' },
+            randomize: true,
+            sortMethod: AppointmentSortMethod.firstEachDoctorBalanced,
+            periodOfDay: FlowPeriodOfDay.afternoon,
+          },
+          periodAppointments,
+        );
+
+        // Deve retornar 3 appointments (1 por médico, apenas tarde)
+        expect(result).toHaveLength(3);
+
+        // Todos os horários devem ser >= 12:00
+        result.forEach((apt) => {
+          const hour = moment(apt.appointmentDate).utc().hours();
+          expect(hour).toBeGreaterThanOrEqual(12);
+        });
+
+        // Verificar que cada médico aparece apenas com seu primeiro horário da tarde
+        const doctorCounts = {};
+        result.forEach((apt: any) => {
+          const doctorCode = apt.doctorDefault?.code || apt.doctorId;
+          doctorCounts[doctorCode] = (doctorCounts[doctorCode] || 0) + 1;
+        });
+        expect(doctorCounts['doctor1']).toBe(1);
+        expect(doctorCounts['doctor2']).toBe(1);
+        expect(doctorCounts['doctor3']).toBe(1);
+      });
+
+      it('should apply limit correctly', async () => {
+        // Cenário: 5 médicos, mas limit = 3
+        const manyDoctors = [];
+        for (let i = 1; i <= 5; i++) {
+          manyDoctors.push({
+            ...getSampleAppointment(),
+            appointmentDate: moment.utc('2025-11-20 08:00:00').add(i, 'days').toISOString(),
+            doctorId: `doctor${i}`,
+            doctorDefault: { code: `doctor${i}`, name: `Doctor ${i}` },
+          });
+        }
+
+        const { appointments: result } = await appointmentService.getAppointments(
+          integration,
+          {
+            limit: 3,
+            period: { start: '00:00', end: '23:59' },
+            randomize: true,
+            sortMethod: AppointmentSortMethod.firstEachDoctorBalanced,
+            periodOfDay: FlowPeriodOfDay.indifferent,
+          },
+          manyDoctors,
+        );
+
+        // Deve retornar apenas 3 (os 3 primeiros cronologicamente)
+        expect(result).toHaveLength(3);
+
+        // Verificar ordem cronológica
+        for (let i = 1; i < result.length; i++) {
+          const prev = moment(result[i - 1].appointmentDate);
+          const curr = moment(result[i].appointmentDate);
+          expect(curr.isSameOrAfter(prev)).toBe(true);
+        }
+      });
+
+      it('should handle single doctor with multiple slots', async () => {
+        // Cenário: apenas 1 médico com vários horários
+        // Deve retornar apenas o PRIMEIRO horário deste médico
+        const singleDoctorMultipleSlots = [
+          {
+            ...getSampleAppointment(),
+            appointmentDate: moment.utc('2025-11-20 08:00:00').toISOString(),
+            doctorId: 'doctor1',
+            doctorDefault: { code: 'doctor1', name: 'Doctor 1' },
+          },
+          {
+            ...getSampleAppointment(),
+            appointmentDate: moment.utc('2025-11-20 10:00:00').toISOString(),
+            doctorId: 'doctor1',
+            doctorDefault: { code: 'doctor1', name: 'Doctor 1' },
+          },
+          {
+            ...getSampleAppointment(),
+            appointmentDate: moment.utc('2025-11-20 14:00:00').toISOString(),
+            doctorId: 'doctor1',
+            doctorDefault: { code: 'doctor1', name: 'Doctor 1' },
+          },
+          {
+            ...getSampleAppointment(),
+            appointmentDate: moment.utc('2025-11-20 16:00:00').toISOString(),
+            doctorId: 'doctor1',
+            doctorDefault: { code: 'doctor1', name: 'Doctor 1' },
+          },
+        ];
+
+        const { appointments: result } = await appointmentService.getAppointments(
+          integration,
+          {
+            limit: 3, // limit < appointments para forçar processamento
+            period: { start: '00:00', end: '23:59' },
+            randomize: true,
+            sortMethod: AppointmentSortMethod.firstEachDoctorBalanced,
+            periodOfDay: FlowPeriodOfDay.indifferent,
+          },
+          singleDoctorMultipleSlots,
+        );
+
+        // Deve retornar apenas 1 appointment (o primeiro do médico)
+        expect(result).toHaveLength(1);
+        expect(result[0].appointmentDate).toEqual(moment.utc('2025-11-20 08:00:00').toISOString());
+
+        const doctors = new Set(result.map((apt: any) => apt.doctorDefault?.code || apt.doctorId));
+        expect(doctors.size).toBe(1);
+        expect(doctors.has('doctor1')).toBe(true);
+      });
+    });
   });
 });

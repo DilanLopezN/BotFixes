@@ -162,7 +162,7 @@ export class InterAppointmentService {
             const { insurance, procedure, speciality } = followUp;
 
             const procedureOrSpecialityEqual =
-              integration.rules.useProcedureAsInterAppointmentValidation && !!filter.procedure?.code
+              integration.rules?.useProcedureAsInterAppointmentValidation && !!filter.procedure?.code
                 ? procedure?.code === filter.procedure?.code
                 : speciality?.code === filter.procedure?.specialityCode || speciality?.code === filter.speciality?.code;
 
@@ -240,7 +240,7 @@ export class InterAppointmentService {
 
         // validação específica para validar procecedimento igual
         let procedureOrSpecialityEqual =
-          integration.rules.useProcedureAsInterAppointmentValidation && !!filter.procedure?.code
+          integration.rules?.useProcedureAsInterAppointmentValidation && !!filter.procedure?.code
             ? procedure?.code === filter.procedure?.code
             : // em alguns cliente não tem procedimento no filtro, então pego os dados do procedimento
               // ou especialidade para validar
@@ -260,7 +260,8 @@ export class InterAppointmentService {
               interAppointmentDays = interAppointmentPeriodFromFollowUpValidation;
             }
 
-            doctorsScheduledMap.set(doctor?.code, interAppointmentDays);
+            const doctorCode = String(doctor?.code ?? '');
+            doctorsScheduledMap.set(doctorCode, interAppointmentDays);
           }
           return (
             isSameInsurance &&
@@ -274,11 +275,13 @@ export class InterAppointmentService {
           const { cbo } = filter.speciality?.data as unknown as { cbo: string };
           procedureOrSpecialityEqual =
             // só usa a regra se tiver um procedimento no filtro
-            integration.rules.useProcedureAsInterAppointmentValidation && !!filter.procedure?.code
+            integration.rules?.useProcedureAsInterAppointmentValidation && !!filter.procedure?.code
               ? procedure?.code === filter.procedure?.code
               : // em alguns cliente não tem procedimento no filtro, então pego os dados do procedimento
                 // ou especialidade para validar
-                speciality?.code === filter.procedure?.specialityCode || speciality?.code === cbo;
+                speciality?.code === filter.procedure?.specialityCode ||
+                speciality?.code === cbo ||
+                speciality?.code === filter.speciality?.code;
         }
 
         return (
@@ -350,7 +353,8 @@ export class InterAppointmentService {
     doctorsScheduledMapped: Map<string, number>,
     filter: CorrelationFilter,
   ): RawAppointment {
-    const interAppointmentDays = doctorsScheduledMapped.get(schedule.doctorId);
+    const doctorId = schedule?.doctorId != null ? String(schedule.doctorId) : '';
+    const interAppointmentDays = doctorsScheduledMapped.get(doctorId);
     // Quando houver médico(s) com interconsulta
     // e o paciente não tiver filtrado por médico
     // verifica se o intervalo entre consultas é maior ou igual ao de interconsulta daquele médico

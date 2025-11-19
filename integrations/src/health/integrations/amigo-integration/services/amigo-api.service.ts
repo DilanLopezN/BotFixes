@@ -4,6 +4,7 @@ import { lastValueFrom } from 'rxjs';
 import * as Sentry from '@sentry/node';
 import * as contextService from 'request-context';
 import { IntegrationDocument } from '../../../integration/schema/integration.schema';
+import { IntegrationEnvironment } from '../../../integration/interfaces/integration.interface';
 import { HTTP_ERROR_THROWER, HttpErrorOrigin } from '../../../../common/exceptions.service';
 import { AuditService } from '../../../audit/services/audit.service';
 import { AuditDataType } from '../../../audit/audit.interface';
@@ -90,7 +91,7 @@ export class AmigoApiService {
       identifier: from,
     });
 
-    if (error?.response?.data && !ignoreException) {
+    if (error?.response?.data && !ignoreException && integration.environment !== IntegrationEnvironment.test) {
       const metadata = contextService.get('req:default-headers');
       Sentry.captureEvent({
         message: `${castObjectIdToString(integration._id)}:${integration.name}:AMIGO-request: ${from}`,

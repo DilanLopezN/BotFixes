@@ -14,11 +14,11 @@ import { DoRemoveAcceptance } from './interfaces/remove-acceptance.interface';
 import { PatientDataService } from '../patient-data/patient-data.service';
 import { IntegratorService } from '../integrator/service/integrator.service';
 import { capitalizeText } from '../../common/helpers/capitalize-text';
-import { getNumberWith9, getNumberWithout9 } from '../../common/helpers/format-phone';
+import { convertPhoneNumber, formatPhone, getNumberWith9, getNumberWithout9 } from '../../common/helpers/format-phone';
 import { DoPreloadData } from './interfaces/do-preload-data.interface';
 import { GetPatientDataFromAcceptance } from './interfaces/get-patient-data-from-acceptance.interface';
 
-export const EXPIRATION_ACCEPT_DAYS = 120;
+export const EXPIRATION_ACCEPT_DAYS = 3_600;
 export const EXPIRATION_RECUSED_DAYS = 30;
 
 @Injectable()
@@ -38,11 +38,12 @@ export class PatientAcceptanceService {
   public async accept(integrationId: string, data: DoAccept): Promise<OkResponse> {
     const integration = await this.integrationService.getOne(integrationId);
     const { phone } = data;
+    const formattedPhone = formatPhone(convertPhoneNumber(phone));
 
     const existsAcceptance = await this.patientAcceptanceRepository
       .createQueryBuilder('pAccept')
       .where('pAccept.integration_id = :integrationId', { integrationId: castObjectIdToString(integration._id) })
-      .andWhere('pAccept.phone = :phone', { phone })
+      .andWhere('pAccept.phone = :phone', { phone: formattedPhone })
       .andWhere('pAccept.expiration > :date', { date: moment().valueOf() })
       .getExists();
 
@@ -54,7 +55,7 @@ export class PatientAcceptanceService {
 
     const entity: Omit<PatientAcceptance, 'id'> = {
       integrationId: castObjectIdToString(integration._id),
-      phone,
+      phone: formattedPhone,
     };
 
     if (data.accept) {
@@ -75,6 +76,7 @@ export class PatientAcceptanceService {
   // os demais ficam ali para histórico
   public async removeAcceptance(integrationId: string, data: DoRemoveAcceptance): Promise<OkResponse> {
     const { phone } = data;
+    const formattedPhone = formatPhone(convertPhoneNumber(phone));
     const integration = await this.integrationService.getOne(integrationId);
 
     const result = await this.patientAcceptanceRepository
@@ -85,7 +87,7 @@ export class PatientAcceptanceService {
       })
       .where('integrationId = :integrationId', { integrationId: castObjectIdToString(integration._id) })
       .andWhere('expiration > :date', { date: moment().valueOf() })
-      .andWhere('phone = :phone', { phone })
+      .andWhere('phone = :phone', { phone: formattedPhone })
       .execute();
 
     return {
@@ -101,17 +103,23 @@ export class PatientAcceptanceService {
     const { phone, bornDate } = data;
     const integration = await this.integrationService.getOne(integrationId);
 
-    const phone1 = getNumberWithout9(phone);
-    const phone2 = getNumberWith9(phone);
+    const validPhoneNumber = formatPhone(convertPhoneNumber(phone));
+
+    // variantes com e sem 9 com DDI
+    const phone1 = getNumberWithout9(validPhoneNumber);
+    const phone2 = getNumberWith9(validPhoneNumber);
+
+    // variantes com e sem 9 sem DDI
+    const phone3 = formatPhone(getNumberWithout9(convertPhoneNumber(phone)), true);
+    const phone4 = formatPhone(getNumberWith9(convertPhoneNumber(phone)), true);
+
+    const phones = [...new Set([phone1, phone2, phone3, phone4])];
 
     await this.accept(integrationId, { accept: true, phone, bornDate });
     const resultAcceptance = await this.patientAcceptanceRepository
       .createQueryBuilder('pAccept')
       .where('pAccept.integrationId = :integrationId', { integrationId: castObjectIdToString(integration._id) })
-      .andWhere('(pAccept.phone = :phone1 OR pAccept.phone = :phone2)', {
-        phone1,
-        phone2,
-      })
+      .andWhere('pAccept.phone IN (:...phones)', { phones })
       .andWhere('pAccept.expiration > :date', { date: moment().valueOf() })
       .getOne();
 
@@ -144,7 +152,9 @@ export class PatientAcceptanceService {
     if (resultAcceptance.acceptedAt && patientResult?.length) {
       for (const patient of patientResult) {
         const { bornDate, name, cpf, erpCode } = patient;
-        this.integratorService.preloadPatientData(integrationId, { code: erpCode, phone }).then();
+        void this.integratorService.preloadPatientData(integrationId, { code: erpCode, phone }).catch((err) => {
+          this.logger.warn('PatientAcceptanceService.getPatientDataFromAcceptance', err);
+        });
 
         response.requestAcceptance = false;
         response.patient.push({
@@ -167,16 +177,22 @@ export class PatientAcceptanceService {
     const { phone, bornDate } = data;
     const integration = await this.integrationService.getOne(integrationId);
 
-    const phone1 = getNumberWithout9(phone);
-    const phone2 = getNumberWith9(phone);
+    const validPhoneNumber = formatPhone(convertPhoneNumber(phone));
+
+    // variantes com e sem 9 com DDI
+    const phone1 = getNumberWithout9(validPhoneNumber);
+    const phone2 = getNumberWith9(validPhoneNumber);
+
+    // variantes com e sem 9 sem DDI
+    const phone3 = formatPhone(getNumberWithout9(convertPhoneNumber(phone)), true);
+    const phone4 = formatPhone(getNumberWith9(convertPhoneNumber(phone)), true);
+
+    const phones = [...new Set([phone1, phone2, phone3, phone4])];
 
     const resultAcceptance = await this.patientAcceptanceRepository
       .createQueryBuilder('pAccept')
       .where('pAccept.integrationId = :integrationId', { integrationId: castObjectIdToString(integration._id) })
-      .andWhere('(pAccept.phone = :phone1 OR pAccept.phone = :phone2)', {
-        phone1,
-        phone2,
-      })
+      .andWhere('pAccept.phone IN (:...phones)', { phones })
       .andWhere('pAccept.expiration > :date', { date: moment().valueOf() })
       .getOne();
 
@@ -193,7 +209,9 @@ export class PatientAcceptanceService {
 
     for (const patient of patientResult) {
       const { bornDate, name, cpf, erpCode } = patient;
-      this.integratorService.preloadPatientData(integrationId, { code: erpCode, phone }).then();
+      void this.integratorService.preloadPatientData(integrationId, { code: erpCode, phone }).catch((err) => {
+        this.logger.warn('PatientAcceptanceService.getPatientDataFromAcceptance', err);
+      });
 
       response.push({
         name: capitalizeText(name),
@@ -216,12 +234,14 @@ export class PatientAcceptanceService {
         bornDate: bornDate ? moment.utc(bornDate).startOf('day').valueOf() : null,
       });
 
-      Promise.all(
+      void Promise.all(
         patientResult.map((patient) => {
           const { erpCode } = patient;
           return this.integratorService.preloadPatientData(integrationId, { phone, code: erpCode });
         }),
-      ).then();
+      ).catch((err) => {
+        this.logger?.warn('PatientAcceptanceService.doPreloadData', err);
+      });
 
       return {
         ok: true,

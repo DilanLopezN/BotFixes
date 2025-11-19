@@ -76,6 +76,9 @@ export class Flow {
   @Prop({ enum: FlowSteps, type: [String] })
   step?: FlowSteps[];
 
+  @Prop({ enum: FlowSteps, type: [String] })
+  opposeStep?: FlowSteps[];
+
   @Prop({ enum: FlowType, type: String })
   type?: FlowType;
 

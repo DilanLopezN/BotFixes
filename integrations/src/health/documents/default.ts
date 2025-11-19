@@ -1,5 +1,3 @@
-export const S3_BUCKET_NAME = 'botdesigner-erp-documents';
-
 export const ALLOWED_MIMED_TYPES = [
   'image/jpeg',
   'image/png',

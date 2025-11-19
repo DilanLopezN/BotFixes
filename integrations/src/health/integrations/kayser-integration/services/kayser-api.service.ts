@@ -4,6 +4,7 @@ import { HttpService } from '@nestjs/axios';
 import * as Sentry from '@sentry/node';
 import * as contextService from 'request-context';
 import { IntegrationDocument } from '../../../integration/schema/integration.schema';
+import { IntegrationEnvironment } from '../../../integration/interfaces/integration.interface';
 import {
   KayserConfirmOrCancelScheduleParamsRequest,
   KayserConfirmOrCancelScheduleResponse,
@@ -66,7 +67,7 @@ export class KayserApiService {
       identifier: from,
     });
 
-    if (error?.response?.data && !ignoreException) {
+    if (error?.response?.data && !ignoreException && integration.environment !== IntegrationEnvironment.test) {
       Sentry.captureEvent({
         message: `${integration._id}:${integration.name}:KAYSER-request: ${from}`,
         ...this.sentryErrorHandlerService.defaultApiIntegrationError(payload, error?.response, metadata),

@@ -11,6 +11,7 @@ import { ReportProcessorAnalytics } from './entities/report-processor-analytics.
 import { ReportProcessorAnalyticsService } from './services/report-processor-analytics.service';
 import { INTEGRATIONS_CONNECTION_NAME } from '../ormconfig';
 import { EntitiesEmbeddingModule } from 'health/entities-embedding/entities-embedding.module';
+import { FlowModule } from '../flow/flow.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { EntitiesEmbeddingModule } from 'health/entities-embedding/entities-embe
     forwardRef(() => IntegratorModule),
     forwardRef(() => EntitiesModule),
     EntitiesEmbeddingModule,
+    FlowModule,
   ],
   controllers: [ReportProcessorController],
   providers: [ReportProcessorService, ReportProcessorAnalyticsService],

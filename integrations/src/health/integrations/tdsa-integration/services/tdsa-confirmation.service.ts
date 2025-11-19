@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as moment from 'moment';
 import { INTERNAL_ERROR_THROWER } from '../../../../common/exceptions.service';
-import { EntityDocument } from '../../../entities/schema';
+import { EntityDocument, ScheduleType } from '../../../entities/schema';
 import { EntitiesService } from '../../../entities/services/entities.service';
 import { FlowAction, FlowActionElement, FlowSteps } from '../../../flow/interfaces/flow.interface';
 import { FlowService } from '../../../flow/service/flow.service';
@@ -32,6 +32,8 @@ import { TdsaHelpersService } from './tdsa-helpers.service';
 import { OkResponse } from '../../../../common/interfaces/ok-response.interface';
 import { TdsaListSchedulesErpParams } from '../interfaces/tdsa-list-schedule-erp-params.interface';
 import { castObjectIdToString } from '../../../../common/helpers/cast-objectid';
+import { GetScheduleByIdData } from '../../../integrator/interfaces/get-schedule-by-id.interface';
+import { Schedules } from '../../../schedules/entities/schedules.entity';
 
 @Injectable()
 export class TdsaConfirmationService {
@@ -153,12 +155,15 @@ export class TdsaConfirmationService {
         const extractedSchedule: ExtractedSchedule = {
           doctorCode: String(tdsaSchedule.IdProfissional),
           insuranceCode: String(tdsaSchedule.IdConvenio),
+          insurancePlanCode: String(tdsaSchedule.IdPlano),
           procedureCode: String(tdsaSchedule.IdProcedimento),
           procedureName: String(tdsaSchedule.NomeProcedimento),
           specialityName: String(tdsaSchedule.NomeEspecialidade),
           organizationUnitCode: String(tdsaSchedule.IdUnidade),
           specialityCode: String(tdsaSchedule.IdEspecialidade),
-          appointmentTypeCode: null,
+          // Tdsa atualmente só agenda consultas, como não sei de onde viria no futuro se é exames
+          // então assim por hora
+          appointmentTypeCode: ScheduleType.Consultation,
           scheduleCode: String(tdsaSchedule.IdAgendamento),
           scheduleDate: tdsaSchedule.Data,
           patient: {
@@ -185,27 +190,35 @@ export class TdsaConfirmationService {
     });
 
     const patientsMap: { [doctorCode: string]: TdsaGetPatient } = {};
+    const patientIdsArray = Array.from(patientIds);
+    const BATCH_SIZE = 10;
 
-    await Promise.all(
-      Array.from(patientIds).map((patientId) =>
-        this.apiService.getPatient(integration, null, patientId).then((response) => {
-          if (response?.Id) {
-            patientsMap[patientId] = response;
-          }
-        }),
-      ),
-    );
+    for (let i = 0; i < patientIdsArray.length; i += BATCH_SIZE) {
+      const batch = patientIdsArray.slice(i, i + BATCH_SIZE);
+
+      await Promise.all(
+        batch.map((patientId) =>
+          this.apiService.getPatient(integration, null, patientId).then((response) => {
+            if (response?.Id) {
+              patientsMap[patientId] = response;
+            }
+          }),
+        ),
+      );
+    }
 
     return extractedSchedules.map((extractedSchedule) => {
       const patient = this.helperService.replacePatient(patientsMap[extractedSchedule.patient.code]);
-      const phones = Array.from(new Set([patient.cellPhone, patient.phone].filter(Boolean)));
+      const phones = Array.from(
+        new Set([patient.cellPhone, patient.phone].filter((phone) => phone && phone.length >= 5)),
+      );
 
       const name = erpParams?.useSocialName && patient?.socialName !== '' ? patient.socialName : patient.name;
 
       return {
         ...extractedSchedule,
         patient: {
-          email: patient.email,
+          emails: [patient.email],
           code: patient.code,
           name,
           phones,
@@ -223,6 +236,7 @@ export class TdsaConfirmationService {
     try {
       const debugLimit = data.erpParams?.debugLimit;
       const debugPhone = data.erpParams?.debugPhoneNumber;
+      const debugEmail = data.erpParams?.debugEmail;
       const debugPatientCode = data.erpParams?.debugPatientCode;
       const debugScheduleCode = data.erpParams?.debugScheduleCode;
 
@@ -315,7 +329,7 @@ export class TdsaConfirmationService {
           data: schedule.data,
         };
 
-        const { patientName, patientCode, patientPhone1, patientPhone2 } = schedule;
+        const { patientName, patientCode, patientPhone1, patientPhone2, patientEmail1, patientEmail2 } = schedule;
         const confirmationSchedule: ConfirmationScheduleDataV2 = {
           contact: {
             phone: [],
@@ -337,6 +351,16 @@ export class TdsaConfirmationService {
             });
         }
 
+        if (debugEmail) {
+          confirmationSchedule.contact.email.push(String(debugEmail).trim());
+        } else {
+          [patientEmail1, patientEmail2]
+            .filter((email) => !!email)
+            .forEach((email) => {
+              confirmationSchedule.contact.email.push(String(email).trim());
+            });
+        }
+
         if (canConfirmActive) {
           // realiza match de flows `confirmActive` com as entidades encontradas do nosso lado
           // pelo código
@@ -344,10 +368,6 @@ export class TdsaConfirmationService {
             integrationId: integration._id,
             entitiesFilter: scheduleCorrelation,
             targetFlowTypes: [FlowSteps.confirmActive],
-            filters: {
-              patientBornDate: schedule.patientBornDate,
-              patientCpf: schedule.patientCpf,
-            },
           });
 
           if (actions?.length) {
@@ -492,6 +512,18 @@ export class TdsaConfirmationService {
     } catch (error) {
       console.error(error);
       throw INTERNAL_ERROR_THROWER('TdsaConfirmationService.validateScheduleData', error);
+    }
+  }
+
+  async getConfirmationScheduleById(integration: IntegrationDocument, data: GetScheduleByIdData): Promise<Schedules> {
+    try {
+      return await this.schedulesService.getScheduleByCodeOrId(
+        castObjectIdToString(integration._id),
+        null,
+        data.scheduleId,
+      );
+    } catch (error) {
+      throw INTERNAL_ERROR_THROWER('TdsaConfirmationService.getConfirmationScheduleById', error);
     }
   }
 }

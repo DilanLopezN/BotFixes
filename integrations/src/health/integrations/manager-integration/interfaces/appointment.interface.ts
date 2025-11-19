@@ -98,6 +98,7 @@ interface ManagerAvailableSchedules {
   handlePaciente: number;
   disponivelWeb: boolean;
   diasSemana?: number[];
+  usarCache: boolean;
 }
 
 interface ManagerAvailableSchedulesResponse {
@@ -127,6 +128,87 @@ interface ManagerAvailableSchedulesResponse {
   }[][];
 }
 
+interface ManagerPatientFollowUpResponse {
+  dataHoraAtendimento: string;
+  prazoMaximoParaRetorno: string;
+  recurso: {
+    handle: number;
+    nome: string;
+    tipo: number;
+    medico: number;
+    crm: number;
+    rqe: number;
+    disponivelWeb: boolean;
+  };
+  unidadeFilial: {
+    handle: number;
+    nome: string;
+  };
+  convenio: {
+    handle: number;
+    nome: string;
+  };
+  especialidade: {
+    handle: number;
+    nome: string;
+  };
+  plano: {
+    handle: number;
+    nome: string;
+  };
+  servico: {
+    handle: number;
+    nome: string;
+  };
+}
+
+interface ManagerFollowUpSchedulesResponse {
+  handle: number;
+  handleServico: number;
+  handleRecursoMedicoResponsavel: number;
+  recursoMedicoResponsavel: string;
+  nome: string;
+  datasDisponiveisExame: {
+    data: string;
+    horarios: {
+      horario: string;
+      recurso: number;
+      aparelho: number;
+      duracao: number;
+      filial: number;
+      filialNome: string;
+      unidadeFilial: number;
+      unidadeFilialNome: string;
+      medicoRespEscala: string;
+      handleMedicoRespEscala: number;
+      handleAtendimento: string;
+    }[];
+  }[];
+}
+
+interface ManagerFollowUpSchedulesRequest {
+  usarCache: boolean;
+  tipoServico: number;
+  disponivelWeb: boolean;
+  recurso: number;
+  dataFinal: string;
+  unidadesFiliais: number[];
+  unidadeFilial: number;
+  convenio: number;
+  plano: number;
+  servico: number;
+  especialidade: number;
+  peso: number;
+  altura: number;
+  idade: number;
+  medicosResponsaveis: string;
+  medicoResponsavel: string;
+  sexo: string;
+  dataInicial: string;
+  duracao: number;
+  intervalo: number;
+}
+
 interface ManagerScheduleValue {
   recurso: number;
   tipoServico: string;
@@ -148,4 +230,7 @@ export {
   ManagerScheduleValue,
   ManagerScheduleValueResponse,
   ManagerCreateScheduleExam,
+  ManagerPatientFollowUpResponse,
+  ManagerFollowUpSchedulesResponse,
+  ManagerFollowUpSchedulesRequest,
 };

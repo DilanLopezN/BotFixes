@@ -60,7 +60,7 @@ export class RulesHandlerService {
     filters: ListAvailableSchedules,
   ): Promise<ListAvailableSchedules> {
     try {
-      const { timeCacheFirstAppointmentAvailableForFutureSearches = 0 } = integration.rules;
+      const { timeCacheFirstAppointmentAvailableForFutureSearches = 0 } = integration.rules ?? {};
 
       if (!timeCacheFirstAppointmentAvailableForFutureSearches) {
         return filters;
@@ -105,7 +105,7 @@ export class RulesHandlerService {
     firstAvailableDate: string,
   ): Promise<void> {
     try {
-      const { timeCacheFirstAppointmentAvailableForFutureSearches = 0 } = integration.rules;
+      const { timeCacheFirstAppointmentAvailableForFutureSearches = 0 } = integration.rules ?? {};
 
       if (!timeCacheFirstAppointmentAvailableForFutureSearches) {
         return;
@@ -148,9 +148,14 @@ export class RulesHandlerService {
         doNotAllowSameDayScheduling = false,
         doNotAllowSameDayAndDoctorScheduling = false,
         doNotAllowSameHourScheduling = false,
+        doNotAllowSameDayForProcedureWithLaterality = false,
         minutesAfterAppointmentCanSchedule = 60,
       } = integration.rules ?? {};
-      const filterSchedules = doNotAllowSameDayScheduling || doNotAllowSameDayAndDoctorScheduling;
+
+      // Pode-se realizar filtragem quando não é sugestão de horários ou quando há regras de bloqueio
+      const filterSchedules =
+        !availableSchedules?.isSuggestionRequest &&
+        (doNotAllowSameDayScheduling || doNotAllowSameDayAndDoctorScheduling);
 
       if (!replacedAppointments?.length) {
         return { replacedAppointments, metadata };
@@ -233,9 +238,20 @@ export class RulesHandlerService {
               patientSchedule?.procedure?.code &&
               groupedSchedules[patientScheduleDate]?.length
             ) {
-              const shouldDeleteDateSchedule =
+              // se for o mesmo procedimento, remove o dia todo
+              let shouldDeleteDateSchedule =
                 patientSchedule?.procedure?.code.toString() ===
                 groupedSchedules[patientScheduleDate]?.[0]?.procedureId?.toString();
+
+              // se a integração for Matrix e regra permitir lateralidade (e tiver lateralidade) - mantem horario
+              if (integration.type === IntegrationType.MATRIX && !doNotAllowSameDayForProcedureWithLaterality) {
+                // não temos lateralidade no agendamento do paciente, então deixamos agendar sem comparar lateralidade
+                // apenas verificamos se tem lateralidade nos horarios ofertados
+                // Debito Tecnico: quando horario do paciente tiver lateralidade, realizar a comparação entre lateralidades
+                const hasLaterality = !!groupedSchedules[patientScheduleDate][0]?.data?.codigoRegiaoColeta;
+
+                if (hasLaterality) shouldDeleteDateSchedule = false;
+              }
 
               if (shouldDeleteDateSchedule) {
                 delete groupedSchedules[patientScheduleDate];

@@ -1,4 +1,5 @@
 import { File } from '../../../common/interfaces/uploaded-file';
+import { DocumentSourceType } from './documents.interface';
 
 export interface UploadDocument {
   integrationId: string;
@@ -8,6 +9,9 @@ export interface UploadDocument {
   appointmentTypeCode: string;
   fileTypeCode: string;
   patientCode: string;
+  externalId?: string;
+  erpUsername?: string;
+  source: DocumentSourceType;
 }
 
 export interface UploadDocumentResponse {

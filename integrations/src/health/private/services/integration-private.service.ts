@@ -24,7 +24,7 @@ export class IntegrationPrivateService {
     return integration;
   }
 
-  async getContainerLogs(integrationId: string, runnerId: number, env: string, logsSize: number): Promise<any> {
+  async getContainerLogs(integrationId: string, runnerId: number, env: string, logSize: number): Promise<any> {
     const integration = await this.getIntegrationAndValidationActive(integrationId);
     const { apiUrl, apiToken } = await this.credentialsHelper.getConfig<IntegrationCredentials>(integration);
 
@@ -32,7 +32,7 @@ export class IntegrationPrivateService {
       `${apiUrl}/runner/${runnerId}/getContainerLogs`,
       {
         env,
-        logsSize,
+        logSize,
       },
       {
         headers: {

@@ -7,7 +7,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { IDocuments } from '../interfaces/documents.interface';
+import { DocumentSourceType, IDocuments } from '../interfaces/documents.interface';
 
 @Index(['integrationId', 'scheduleCode', 's3Key', 'createdAt'])
 @Entity({ name: 'documents' })
@@ -50,6 +50,18 @@ export class Documents implements IDocuments {
 
   @Column({ name: 'appointment_type_code', nullable: false })
   appointmentTypeCode: string;
+
+  @Column({ name: 'source', enum: DocumentSourceType, nullable: true })
+  source: DocumentSourceType;
+
+  @Column({ name: 'external_id', nullable: true })
+  externalId?: string;
+
+  @Column({ name: 'erp_username', nullable: true })
+  erpUsername?: string;
+
+  @Column({ name: 'retry_count', type: 'int', default: 0 })
+  retryCount: number;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamp', nullable: false })
   createdAt: Date;

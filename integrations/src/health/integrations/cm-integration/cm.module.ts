@@ -19,7 +19,7 @@ import { RulesHandlerService } from '../../rules-handler/rules-handler.service';
   imports: [
     // @docs: https://api.nuria.com.br/docs/index.html
     HttpModule.register({
-      timeout: 50_000,
+      timeout: 60_000,
     }),
     EntitiesModule,
     IntegrationModule,

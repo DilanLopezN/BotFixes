@@ -11,6 +11,8 @@ import {
   ANALYTICS_ORM_CONFIG,
   INTEGRATIONS_CONNECTION_NAME,
   INTEGRATIONS_ORM_CONFIG,
+  BOTDESIGNER_FAKE_CONNECTION_NAME,
+  BOTDESIGNER_FAKE_ORM_CONFIG,
 } from './ormconfig';
 import postgresConfig from './postgres.config';
 import { SchedulesModule } from './schedules/schedules.module';
@@ -58,6 +60,21 @@ import { DocumentsModule } from './documents/documents.module';
         extra: {
           min: 3,
           max: 10,
+          connectionTimeoutMillis: 5_000,
+          idleTimeoutMillis: 10_000,
+        },
+      }),
+      inject: [ConfigService],
+    }),
+    TypeOrmModule.forRootAsync({
+      name: BOTDESIGNER_FAKE_CONNECTION_NAME,
+      imports: [ConfigModule],
+      useFactory: (configService: ConfigService) => ({
+        ...BOTDESIGNER_FAKE_ORM_CONFIG,
+        url: configService.get<string>('postgres.url'),
+        extra: {
+          min: 1,
+          max: 5,
           connectionTimeoutMillis: 5_000,
           idleTimeoutMillis: 10_000,
         },

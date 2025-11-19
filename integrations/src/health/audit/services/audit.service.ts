@@ -10,9 +10,9 @@ import { CreateAuditDefault } from '../audit.interface';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { EventsService } from '../../events/events.service';
 import { CacheService } from '../../../core/cache/cache.service';
-import { uniqueId } from 'lodash';
 import { shouldRunCron } from '../../../common/bootstrap-options';
 import { KissbotEventType } from 'kissbot-core';
+import { nanoid } from 'nanoid';
 
 const AUDIT_BULK_INSERT_LIMIT = 30;
 
@@ -33,8 +33,7 @@ export class AuditService {
 
     return {
       conversationId: metadata?.conversationId || null,
-      patientPhone: metadata?.memberId || null,
-      ctxId: metadata?.ctxId || uniqueId(),
+      ctxId: metadata?.ctxId || nanoid(5),
     };
   }
 

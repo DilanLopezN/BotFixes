@@ -44,6 +44,7 @@ import { IntegrationCacheUtilsService } from '../../../integration-cache-utils/i
 import { SchedulingLinksService } from '../../../scheduling/services/scheduling-links.service';
 import { ClinuxListConfirmationErpParams } from '../interfaces/list-confirmation-erp-params.interface';
 import { castObjectIdToString } from '../../../../common/helpers/cast-objectid';
+import { ClinuxApiV2Service } from './clinux-api-v2.service';
 
 @Injectable()
 export class ClinuxConfirmationService {
@@ -51,6 +52,7 @@ export class ClinuxConfirmationService {
 
   constructor(
     private readonly apiService: ClinuxApiService,
+    private readonly apiV2Service: ClinuxApiV2Service,
     private readonly helperService: ClinuxHelpersService,
     private readonly flowService: FlowService,
     private readonly entitiesService: EntitiesService,
@@ -130,19 +132,35 @@ export class ClinuxConfirmationService {
     integration: IntegrationDocument,
     data: ListSchedulesToConfirmV2<ClinuxListConfirmationErpParams>,
   ): Promise<ExtractedSchedule[]> {
-    const dateFormat = 'DD-MM-YYYY';
     const { startDate, endDate, erpParams } = data;
 
-    const requestFilters: ClinuxListSchedulesParamsRequest = {
-      dt_de: moment(startDate).format(dateFormat),
-      dt_ate: moment(endDate).format(dateFormat),
-    };
+    let response: ClinuxSchedule[];
+    if (data.erpParams.useApiV2) {
+      const dateFormat = 'DD/MM/YYYY';
+      const requestFilters: ClinuxListSchedulesParamsRequest = {
+        dt_de: moment(startDate).format(dateFormat),
+        dt_ate: moment(endDate).format(dateFormat),
+      };
+      response = await this.apiV2Service.listSchedules(integration, requestFilters);
+    } else {
+      const dateFormat = 'DD-MM-YYYY';
+      const requestFilters: ClinuxListSchedulesParamsRequest = {
+        dt_de: moment(startDate).format(dateFormat),
+        dt_ate: moment(endDate).format(dateFormat),
+      };
+      response = await this.apiService.listSchedules(integration, requestFilters);
+    }
 
-    let response: ClinuxSchedule[] = await this.apiService.listSchedules(integration, requestFilters);
     if (erpParams?.omitSalaCodeList?.length) {
       response = response.filter((clinuxSchedule) => {
         //Retorna todos que não estão na lista passada pelo erpParams
         return !erpParams?.omitSalaCodeList?.includes?.(clinuxSchedule.cd_sala);
+      });
+    }
+    if (erpParams?.omitAvisoCodeList?.length) {
+      response = response.filter((clinuxSchedule) => {
+        //Retorna todos que não estão na lista passada pelo erpParams
+        return !erpParams?.omitAvisoCodeList?.includes?.(clinuxSchedule.cd_aviso);
       });
     }
     if (erpParams?.filterSalaCodeList?.length) {
@@ -394,10 +412,6 @@ export class ClinuxConfirmationService {
             integrationId: integration._id,
             entitiesFilter: scheduleCorrelation,
             targetFlowTypes: [FlowSteps.confirmActive],
-            filters: {
-              patientBornDate: schedule.patientBornDate,
-              patientCpf: schedule.patientCpf,
-            },
           });
 
           if (actions?.length) {
@@ -509,10 +523,6 @@ export class ClinuxConfirmationService {
             integrationId: integration._id,
             entitiesFilter: correlation,
             targetFlowTypes: [FlowSteps.confirmActive],
-            filters: {
-              patientBornDate: schedule.patientBornDate,
-              patientCpf: schedule.patientCpf,
-            },
             trigger: FlowTriggerType.active_confirmation_confirm,
           });
 

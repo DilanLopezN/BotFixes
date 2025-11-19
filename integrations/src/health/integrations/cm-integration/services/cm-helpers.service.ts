@@ -21,6 +21,7 @@ import { TypeOfService as CmTypeOfService } from '../interfaces';
 import { EntitiesService } from '../../../entities/services/entities.service';
 import { EntityType } from '../../../interfaces/entity.interface';
 import { IntegrationDocument } from '../../../integration/schema/integration.schema';
+import * as moment from 'moment';
 
 interface CompositeProcedureCodeData {
   code: string;
@@ -159,7 +160,7 @@ export class CmHelpersService {
 
     const schedule: RawAppointment = {
       appointmentCode: appointment.codigo,
-      appointmentDate: appointment.horario?.dataHoraAgendamento,
+      appointmentDate: moment(appointment.horario?.dataHoraAgendamento).format('YYYY-MM-DDTHH:mm:ss'),
       duration: appointment.horario?.duracao,
       procedureId: procedureCode,
       doctorId: appointment.horario?.medico?.codigo,
@@ -272,7 +273,7 @@ export class CmHelpersService {
   ): RawAppointment {
     return {
       appointmentCode: String(schedule.codigo),
-      appointmentDate: schedule.dataHoraAgendamento,
+      appointmentDate: moment(schedule.dataHoraAgendamento).format('YYYY-MM-DDTHH:mm:ss'),
       duration: schedule.duracao,
       procedureId: filters.procedure?.code || schedule.idProcedimento,
       doctorId: schedule.idMedico,

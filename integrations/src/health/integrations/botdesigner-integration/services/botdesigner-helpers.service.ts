@@ -1,14 +1,28 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { IIntegration } from '../../../integration/interfaces/integration.interface';
-import { Patient as BotdesignerPatient, PatientSchedule, ScheduleStatus } from 'kissbot-health-core';
+import {
+  AvailableSchedule,
+  Patient as BotdesignerPatient,
+  DoctorEntity,
+  PatientSchedule,
+  ScheduleStatus,
+} from 'kissbot-health-core';
 import { Patient } from '../../../interfaces/patient.interface';
 import { onlyNumbers } from '../../../../common/helpers/format-cpf';
 import { IntegrationDocument } from '../../../integration/schema/integration.schema';
 import { RawAppointment } from '../../../shared/appointment.service';
 import { AppointmentStatus } from '../../../interfaces/appointment.interface';
-import { TypeOfService } from '../../../entities/schema';
+import { EntityDocument, TypeOfService, TypeOfServiceEntityDocument } from '../../../entities/schema';
 import { Types } from 'mongoose';
 import { castObjectIdToString } from '../../../../common/helpers/cast-objectid';
+import { CorrelationFilter } from '../../../interfaces/correlation-filter.interface';
+import { EntitiesService } from '../../../entities/services/entities.service';
+import { IntegrationCacheUtilsService } from '../../../integration-cache-utils/integration-cache-utils.service';
+import { EntityType, IDoctorEntity, SpecialityTypes } from '../../../interfaces/entity.interface';
+import { ListAvailableSchedules } from '../../../integrator/interfaces';
+import { FlowService } from '../../../flow/service/flow.service';
+import { EntitiesFiltersService } from '../../../shared/entities-filters.service';
+import { BotdesignerEntitiesService } from './botdesigner-entities.service';
 
 interface CompositeProcedureCodeData {
   code: string;
@@ -31,6 +45,16 @@ interface CompositeSubPlanCodeData {
 
 @Injectable()
 export class BotdesignerHelpersService {
+  private readonly logger = new Logger(BotdesignerHelpersService.name);
+
+  constructor(
+    private readonly entitiesService: EntitiesService,
+    private readonly integrationCacheUtilsService: IntegrationCacheUtilsService,
+    private readonly flowService: FlowService,
+    private readonly entitiesFiltersService: EntitiesFiltersService,
+    private readonly botdesignerEntitiesService: BotdesignerEntitiesService,
+  ) {}
+
   private getCompositeProcedureIdentifiers(): string[] {
     return ['c', 's', 'st', 'a', 'l'];
   }
@@ -219,6 +243,157 @@ export class BotdesignerHelpersService {
     }
   }
 
+  public async setExternalDoctorsEntityAndCacheIt(integration: IntegrationDocument): Promise<void> {
+    if (!integration?.showExternalEntities?.includes(EntityType.doctor)) {
+      // Se a integração permite entidades externas, não busca entidades internas
+      return;
+    }
+
+    let allExternalEntities = await this.integrationCacheUtilsService.getCacheExternalEntities(
+      integration,
+      EntityType.doctor,
+    );
+
+    if (!allExternalEntities) {
+      allExternalEntities = await this.botdesignerEntitiesService.listDoctors(integration, null);
+
+      if (allExternalEntities.length !== 0) {
+        await this.integrationCacheUtilsService.setCacheExternalEntities(
+          integration,
+          EntityType.doctor,
+          allExternalEntities?.map((entity) => ({ ...entity, virtual: true })),
+        );
+      }
+    }
+  }
+
+  public async getExternalDoctorsEntityAndCacheIt(integration: IntegrationDocument): Promise<IDoctorEntity[]> {
+    if (!integration?.showExternalEntities?.includes(EntityType.doctor)) {
+      // Se a integração permite entidades externas, não busca entidades internas
+      return [];
+    }
+
+    return await this.integrationCacheUtilsService.getCacheExternalEntities(integration, EntityType.doctor);
+  }
+
+  private buildScheduleObject(
+    botdesignerSchedule: AvailableSchedule,
+    filter: CorrelationFilter,
+    doctor: IDoctorEntity,
+  ) {
+    const schedule: RawAppointment = {
+      appointmentTypeId: filter.appointmentType.code,
+      insuranceId: botdesignerSchedule.insuranceCode,
+      appointmentCode: String(botdesignerSchedule.scheduleCode),
+      duration: String(botdesignerSchedule.duration),
+      appointmentDate: botdesignerSchedule.scheduleDate,
+      status: AppointmentStatus.scheduled,
+      doctorId: botdesignerSchedule.doctorCode,
+      organizationUnitId: botdesignerSchedule.organizationUnitCode,
+      specialityId: botdesignerSchedule.specialityCode,
+      typeOfServiceId: botdesignerSchedule.typeOfServiceCode,
+      occupationAreaId: botdesignerSchedule.occupationAreaCode,
+      organizationUnitAdress: botdesignerSchedule.data?.endereco || undefined,
+    };
+
+    try {
+      const defaultData: Partial<EntityDocument> = {
+        canSchedule: true,
+        canReschedule: true,
+        canCancel: true,
+        canConfirmActive: true,
+        canConfirmPassive: true,
+        canView: true,
+      };
+
+      // cria um médico padrão
+      if (botdesignerSchedule?.doctorCode) {
+        schedule.doctorDefault = {
+          code: String(botdesignerSchedule.doctorCode),
+          name: doctor?.name || String('Médico'),
+          friendlyName: doctor?.name || String('Médico'),
+          ...defaultData,
+        } as Partial<DoctorEntity>;
+      }
+
+      return schedule;
+    } catch (err) {
+      this.logger.error('BotdesignerHelpersService.createAvailableScheduleObject', err);
+    }
+  }
+
+  public async createAvailableScheduleObject(
+    integration: IntegrationDocument,
+    botdesignerSchedule: AvailableSchedule,
+    availableSchedules: ListAvailableSchedules,
+    validExternalDoctorsMap: { [key: string]: IDoctorEntity } = {},
+    validInternalDoctorsMap: { [key: string]: IDoctorEntity } = {},
+  ): Promise<RawAppointment> {
+    const { filter } = availableSchedules;
+
+    try {
+      if (filter?.appointmentType?.code === SpecialityTypes.E) {
+        return this.buildScheduleObject(botdesignerSchedule, filter, null);
+      }
+
+      const matchedExternalDoctor = validExternalDoctorsMap?.[botdesignerSchedule.doctorCode];
+      const matchedInternalDoctor = validInternalDoctorsMap?.[botdesignerSchedule.doctorCode];
+
+      const activeExternalDoctorRule = !!integration.showExternalEntities?.find(
+        (externalEntity) => externalEntity === EntityType.doctor,
+      );
+
+      if (!matchedExternalDoctor && !matchedInternalDoctor) {
+        return null;
+      }
+
+      const doctor = matchedInternalDoctor || matchedExternalDoctor;
+      const internalDoctorIsActive = matchedInternalDoctor?.canView && matchedInternalDoctor?.canSchedule;
+
+      // Caso o médico esteja ativo no banco de dados
+      if (!activeExternalDoctorRule && internalDoctorIsActive && matchedInternalDoctor?.activeErp) {
+        return this.buildScheduleObject(botdesignerSchedule, filter, doctor);
+      }
+
+      // Caso o médico esteja inativado no banco de dados
+      if (!activeExternalDoctorRule && (!internalDoctorIsActive || !matchedInternalDoctor?.activeErp)) {
+        return null;
+      }
+
+      // Se a regra de mostrar entidades externas está ativa mas o médico está ativo do nosso lado com a flag canView = false
+      // não vai exibir
+      if (activeExternalDoctorRule && internalDoctorIsActive && matchedInternalDoctor?.activeErp) {
+        return this.buildScheduleObject(botdesignerSchedule, filter, doctor);
+      }
+
+      if (activeExternalDoctorRule && !internalDoctorIsActive && !matchedExternalDoctor?.virtual) {
+        return null;
+      }
+
+      // Se o médico internamente for inativo no erp mas a regra de externos está ativa e o médico retornou como virtual
+      // então builda o horário pois na logica anterior foi verificado se ele era importado como canview=false
+      if (activeExternalDoctorRule && !matchedInternalDoctor?.activeErp && matchedExternalDoctor?.virtual) {
+        return this.buildScheduleObject(botdesignerSchedule, filter, doctor);
+      }
+
+      // Analisa pela propriedade de virtual para saber se é um médico que retornou em tempo de execução da integração
+      // e se activeExternalDoctorRule está ativo pode retornar este médico externo para retornar o horário dele
+      if (activeExternalDoctorRule && !internalDoctorIsActive && matchedExternalDoctor?.virtual) {
+        return null;
+      }
+
+      if (activeExternalDoctorRule && matchedExternalDoctor?.virtual) {
+        return this.buildScheduleObject(botdesignerSchedule, filter, doctor);
+      }
+
+      return null;
+    } catch (error) {
+      console.error(error);
+    }
+
+    return null;
+  }
+
   public async createPatientAppointmentObject(
     integration: IntegrationDocument,
     appointment: PatientSchedule,
@@ -280,5 +455,31 @@ export class BotdesignerHelpersService {
     )
       ? 'N'
       : null;
+  }
+
+  public async processTypeOfServiceForPayload(
+    integration: IntegrationDocument,
+    typeOfService: { code: string },
+  ): Promise<{ typeOfServiceCode: string | null; classificationCode: string | null }> {
+    if (!typeOfService?.code) {
+      return { typeOfServiceCode: null, classificationCode: null };
+    }
+
+    const codeStr = String(typeOfService.code);
+
+    const isNumeric = /^-?\d+$/.test(codeStr);
+    const isValid = (isNumeric && Number(codeStr) > 0) || !isNumeric;
+
+    if (!isValid) {
+      return { typeOfServiceCode: null, classificationCode: null };
+    }
+
+    const entity = await this.entitiesService.getEntityByCode(codeStr, EntityType.typeOfService, integration._id);
+
+    const classificationCode = (entity as TypeOfServiceEntityDocument)?.params?.referenceTypeOfService
+      ? this.typeOfServiceToBotdesignerTypeOfService((entity as any).params.referenceTypeOfService)
+      : null;
+
+    return { typeOfServiceCode: codeStr, classificationCode };
   }
 }

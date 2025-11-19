@@ -15,6 +15,9 @@ import { ClinicModule } from './clinic-integration/clinic.module';
 import { MatrixModule } from './matrix-integration/matrix.module';
 import { AmigoModule } from './amigo-integration/amigo.module';
 import { KayserModule } from './kayser-integration/kayser.module';
+import { BotdesignerFakeModule } from './botdesigner-fake-integration/botdesigner-fake.module';
+import { StenciModule } from './stenci-integration/stenci.module';
+import { ProdoctorIntegrationModule } from './prodoctor-integration/prodoctor-integration.module';
 
 @Module({
   imports: [
@@ -34,6 +37,9 @@ import { KayserModule } from './kayser-integration/kayser.module';
     MatrixModule,
     AmigoModule,
     KayserModule,
+    BotdesignerFakeModule,
+    StenciModule,
+    ProdoctorIntegrationModule,
   ],
 })
 export class IntegrationsModule {}

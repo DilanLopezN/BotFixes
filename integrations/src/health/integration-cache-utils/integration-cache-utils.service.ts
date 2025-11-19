@@ -3,7 +3,7 @@ import { fromPairs, sortBy } from 'lodash';
 import { CacheService } from '../../core/cache/cache.service';
 import { IntegrationDocument } from '../integration/schema/integration.schema';
 import * as crypto from 'crypto';
-import { EntityType, EntityTypes } from '../interfaces/entity.interface';
+import { EntityType, EntityTypes, IDoctorEntity } from '../interfaces/entity.interface';
 import {
   ENTITIES_CACHE_EXPIRATION,
   PATIENT_CACHE_EXPIRATION,
@@ -13,12 +13,15 @@ import {
   PATIENT_SCHEDULE_CONFIRMATION_CACHE_EXPIRATION,
   API_QUEUE_CACHE_EXPIRATION,
   LIST_SCHEDULES_TO_CONFIRM,
+  EXTERNAL_ENTITIES_CACHE_EXPIRATION,
+  PATIENT_SCHEDULES_GENERICS_CACHE_EXPIRATION,
 } from './cache-expirations';
 import { Patient } from '../interfaces/patient.interface';
 import { Appointment, AppointmentValue, MinifiedAppointments } from '../interfaces/appointment.interface';
 import { IntegrationEnvironment } from '../integration/interfaces/integration.interface';
 import * as contextService from 'request-context';
 import { castObjectIdToString } from '../../common/helpers/cast-objectid';
+import { TypeOfService } from '../entities/schema';
 
 export enum SCHEDULED_SENDING_STATUS {
   PROCESSING = 'processing',
@@ -119,6 +122,34 @@ export class IntegrationCacheUtilsService {
     }
   }
 
+  public async setCacheExternalEntities(
+    integration: IntegrationDocument,
+    entityType: EntityType,
+    entities: IDoctorEntity[],
+    customEntitiesCacheExpiration?: number,
+  ): Promise<void> {
+    try {
+      const keyPattern = this.getRedisKey(integration);
+      const key = `${keyPattern}:external-entities:${entityType}`;
+      await this.cacheService.set(entities, key, customEntitiesCacheExpiration ?? EXTERNAL_ENTITIES_CACHE_EXPIRATION);
+    } catch (error) {
+      this.logger.error('IntegrationCacheUtilsService.setCacheExternalEntities', error);
+    }
+  }
+
+  public async getCacheExternalEntities(
+    integration: IntegrationDocument,
+    entityType: EntityType,
+  ): Promise<IDoctorEntity[]> {
+    try {
+      const keyPattern = this.getRedisKey(integration);
+      const key = `${keyPattern}:external-entities:${entityType}`;
+      return await this.cacheService.get(key);
+    } catch (error) {
+      this.logger.error('IntegrationCacheUtilsService.getCacheExternalEntities', error);
+    }
+  }
+
   public async removePatientFromCache(
     integration: IntegrationDocument,
     patientCode?: string,
@@ -162,6 +193,47 @@ export class IntegrationCacheUtilsService {
     }
   }
 
+  public async setPatientSchedulesGenericsCache<T>(
+    integration: IntegrationDocument,
+    patientCode: string,
+    data: T,
+    typeOfService: TypeOfService,
+    expiration?: number,
+  ): Promise<void> {
+    try {
+      const key = `${this.getRedisKey(integration)}:patient:${patientCode}:typeOfService:${typeOfService}:schedules_generics`;
+      return await this.cacheService.set(data, key, expiration ?? PATIENT_SCHEDULES_GENERICS_CACHE_EXPIRATION);
+    } catch (error) {
+      this.logger.error('IntegrationCacheUtilsService.setPatientSchedulesGenericsCache', error);
+    }
+  }
+
+  public async getPatientSchedulesGenericsCache<T>(
+    integration: IntegrationDocument,
+    patientCode: string,
+    typeOfService: TypeOfService,
+  ): Promise<T> {
+    try {
+      const key = `${this.getRedisKey(integration)}:patient:${patientCode}:typeOfService:${typeOfService}:schedules_generics`;
+      return await this.cacheService.get(key);
+    } catch (error) {
+      this.logger.error('IntegrationCacheUtilsService.getPatientSchedulesGenericsCache', error);
+    }
+  }
+
+  public async removePatientSchedulesGenericsCache(
+    integration: IntegrationDocument,
+    patientCode: string,
+    typeOfService: TypeOfService,
+  ): Promise<void> {
+    try {
+      const key = `${this.getRedisKey(integration)}:patient:${patientCode}:typeOfService:${typeOfService}:schedules_generics`;
+      return await this.cacheService.remove(key);
+    } catch (error) {
+      this.logger.error('IntegrationCacheUtilsService.removePatientSchedulesGenericsCache', error);
+    }
+  }
+
   public async removePatientSchedulesCache(integration: IntegrationDocument, patientCode: string): Promise<void> {
     try {
       const key = this.getPatientSchedulesCacheKey(integration, patientCode);
@@ -195,7 +267,7 @@ export class IntegrationCacheUtilsService {
       const key = this.getPatientSchedulesCacheKey(integration, patientCode);
       return await this.cacheService.get(key);
     } catch (error) {
-      this.logger.error('IntegrationCacheUtilsService.setPatientSchedulesCache', error);
+      this.logger.error('IntegrationCacheUtilsService.getPatientSchedulesCache', error);
     }
   }
 
@@ -443,6 +515,7 @@ export class IntegrationCacheUtilsService {
     key1: string,
     key2: string,
     schedule: any,
+    customTtl?: number,
   ): Promise<void> {
     try {
       if (!integration || !key1 || !key2) {
@@ -450,8 +523,9 @@ export class IntegrationCacheUtilsService {
       }
 
       const cacheKey = `LIST_SCHEDULES_TO_CONFIRM_KEY:${integration._id}_${key1}_${key2}`;
+      const ttl = customTtl ?? LIST_SCHEDULES_TO_CONFIRM;
 
-      return await this.cacheService.set(schedule, cacheKey, LIST_SCHEDULES_TO_CONFIRM);
+      return await this.cacheService.set(schedule, cacheKey, ttl);
     } catch (error) {
       this.logger.error('IntegrationCacheUtilsService.setListSchedulesConfirmationCache', error);
     }
@@ -483,6 +557,37 @@ export class IntegrationCacheUtilsService {
       return this.cacheService.remove(cacheKey);
     } catch (error) {
       this.logger.error(`IntegrationCacheUtilsService.${this.removeApiQueueCache.name}`, error);
+    }
+  }
+
+  public async acquireLock(lockKey: string, ttlSeconds: number): Promise<boolean> {
+    try {
+      const redisClient = this.cacheService.getClient();
+      if (!redisClient) {
+        this.logger.error('Cliente Redis não disponível');
+        return false;
+      }
+
+      const lockAcquired = await redisClient.setnx(lockKey, 'locked');
+      if (lockAcquired) {
+        await redisClient.expire(lockKey, ttlSeconds);
+      }
+
+      return Boolean(lockAcquired);
+    } catch (error) {
+      this.logger.error(`Erro ao adquirir lock ${lockKey}: ${error.message}`);
+      return false;
+    }
+  }
+
+  public async releaseLock(lockKey: string): Promise<void> {
+    try {
+      const redisClient = this.cacheService.getClient();
+      if (redisClient) {
+        await redisClient.del(lockKey);
+      }
+    } catch (error) {
+      this.logger.error(`Erro ao liberar lock ${lockKey}: ${error.message}`);
     }
   }
 }

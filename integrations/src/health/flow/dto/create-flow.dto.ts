@@ -103,6 +103,10 @@ export class CreateFlowDto {
   @ApiProperty({ enum: FlowSteps, isArray: true })
   step: FlowSteps[];
 
+  @IsEnum(FlowSteps, { each: true })
+  @ApiProperty({ enum: FlowSteps, isArray: true })
+  opposeStep: FlowSteps[];
+
   @IsEnum(FlowType)
   @ApiProperty({ enum: FlowType })
   type: FlowType;

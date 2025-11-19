@@ -13,9 +13,6 @@ export class Audit {
   @Column({ name: 'conversation_id', length: 24, nullable: true })
   conversationId: string;
 
-  @Column({ name: 'patient_phone', nullable: true })
-  patientPhone: string;
-
   @Column({ name: 'ctx_id' })
   ctxId: string;
 

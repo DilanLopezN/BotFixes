@@ -11,6 +11,7 @@ import {
   SpecialityEntityDocument,
   OrganizationUnitLocationEntityDocument,
   TypeOfServiceEntityDocument,
+  LateralityEntityDocument,
 } from '../entities/schema';
 
 interface CorrelationFilter {
@@ -26,6 +27,7 @@ interface CorrelationFilter {
   occupationArea?: OccupationAreaEntityDocument;
   organizationUnitLocation?: OrganizationUnitLocationEntityDocument;
   typeOfService?: TypeOfServiceEntityDocument;
+  laterality?: LateralityEntityDocument;
 }
 
 type CorrelationFilterByKeyType = string;
@@ -43,6 +45,7 @@ interface CorrelationFilterByKey {
   occupationArea?: CorrelationFilterByKeyType;
   organizationUnitLocation?: CorrelationFilterByKeyType;
   typeOfService?: CorrelationFilterByKeyType;
+  laterality?: CorrelationFilterByKeyType;
 }
 
 interface CorrelationFilterByKeys {
@@ -58,6 +61,7 @@ interface CorrelationFilterByKeys {
   occupationArea?: CorrelationFilterByKeyType[];
   organizationUnitLocation?: CorrelationFilterByKeyType[];
   typeOfService?: CorrelationFilterByKeyType[];
+  laterality?: CorrelationFilterByKeyType[];
 }
 
 export { CorrelationFilter, CorrelationFilterByKey, CorrelationFilterByKeyType, CorrelationFilterByKeys };

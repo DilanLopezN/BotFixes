@@ -10,9 +10,9 @@ export class IntegrationPrivateController {
   @Post('getContainerLogs')
   async getContainerLogs(
     @Param('integrationId') integrationId: string,
-    @Body(new ValidationPipe()) body: { runnerId: number; env: string; logsSize: number },
+    @Body(new ValidationPipe()) body: { runnerId: number; env: string; logSize: number },
   ) {
-    return await this.runnerService.getContainerLogs(integrationId, body.runnerId, body.env, body.logsSize);
+    return await this.runnerService.getContainerLogs(integrationId, body.runnerId, body.env, body.logSize);
   }
 
   @Post('doSql')

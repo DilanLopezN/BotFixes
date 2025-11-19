@@ -330,7 +330,7 @@ export class ClinicEntitiesService {
   public async listProcedures(integration: IntegrationDocument): Promise<IProcedureEntity[]> {
     const entities: IProcedureEntity[] = [];
 
-    if (integration.rules.listConsultationTypesAsProcedure) {
+    if (integration.rules?.listConsultationTypesAsProcedure) {
       try {
         const response = await this.clinicApiService.listConsultationTypes(integration);
         const data = response?.result?.items;
@@ -362,6 +362,12 @@ export class ClinicEntitiesService {
       acc[key] = filters[key].code;
       return acc;
     }, {});
+
+    try {
+      if ([EntityType.doctor, EntityType.speciality].includes(data.targetEntity) && patient.bornDate) {
+        resourceCacheParams['patientAge'] = moment().diff(moment(patient.bornDate), 'years');
+      }
+    } catch (error) {}
 
     // quando for buscar médicos que ja foram atendidos por um paciente, não utiliza do cache
     if (

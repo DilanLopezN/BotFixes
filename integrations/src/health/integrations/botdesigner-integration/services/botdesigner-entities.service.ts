@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { forwardRef, Inject, Injectable } from '@nestjs/common';
 import { EntityFiltersParams } from 'kissbot-health-core';
 import * as moment from 'moment';
 import { INTERNAL_ERROR_THROWER } from '../../../../common/exceptions.service';
@@ -22,6 +22,7 @@ import {
   IInsurancePlanCategoryEntity,
   IInsurancePlanEntity,
   IInsuranceSubPlanEntity,
+  ILateralityEntity,
   IOccupationAreaEntity,
   IOrganizationUnitEntity,
   IOrganizationUnitLocationEntity,
@@ -36,6 +37,7 @@ import { FilterQuery } from 'mongoose';
 @Injectable()
 export class BotdesignerEntitiesService {
   constructor(
+    @Inject(forwardRef(() => BotdesignerHelpersService))
     private readonly botdesignerHelpersService: BotdesignerHelpersService,
     private readonly botdesignerApiService: BotdesignerApiService,
     private readonly entitiesService: EntitiesService,
@@ -51,6 +53,12 @@ export class BotdesignerEntitiesService {
       activeErp: true,
       version: EntityVersionType.production,
     };
+  }
+
+  private shouldUseCachedEntitiesFromErp(integration: IntegrationDocument): boolean {
+    // Se a flag não estiver definida (undefined ou null), usa o cache (default true)
+    // Se a flag estiver explicitamente como false, não usa o cache
+    return integration.rules?.useCachedEntitiesFromErp !== false;
   }
 
   public async listOrganizationUnits(
@@ -388,13 +396,35 @@ export class BotdesignerEntitiesService {
     }
   }
 
+  public async listLateralities(
+    integration: IntegrationDocument,
+    params: EntityFiltersParams,
+  ): Promise<ILateralityEntity[]> {
+    try {
+      const data = await this.botdesignerApiService.listLateralities(integration, { params });
+      const entities = data?.map((resource) => {
+        const entity: ILateralityEntity = {
+          code: String(resource.code),
+          name: resource.name,
+          ...this.getDefaultErpEntityData(integration),
+        };
+
+        return entity;
+      });
+
+      return entities ?? [];
+    } catch (error) {
+      throw INTERNAL_ERROR_THROWER('BotdesignerEntitiesService.listLateralities', error);
+    }
+  }
+
   public async listApiEntities<T>(
     integration: IntegrationDocument,
     targetEntity: EntityType,
     filters: CorrelationFilter,
     cache?: boolean,
     patient?: InitialPatient,
-  ): Promise<[T[], EntityTypes[]]> {
+  ): Promise<T[]> {
     try {
       const allEntities = await this.extractEntity(integration, targetEntity, filters, cache, patient);
       const orderMap = new Map<string, number>();
@@ -407,7 +437,7 @@ export class BotdesignerEntitiesService {
         return entity.code;
       });
 
-      if (cache) {
+      if (cache && this.shouldUseCachedEntitiesFromErp(integration)) {
         const cachedEntities = await this.integrationCacheUtilsService.getProcessedEntities(
           integration,
           targetEntity,
@@ -415,7 +445,7 @@ export class BotdesignerEntitiesService {
         );
 
         if (cachedEntities) {
-          return [cachedEntities as unknown as T[], allEntities];
+          return cachedEntities as unknown as T[];
         }
       }
 
@@ -433,7 +463,7 @@ export class BotdesignerEntitiesService {
         customFilters.insuranceCode = filters.insurance.code;
       }
 
-      const dbEntities = await this.entitiesService.getEntitiesByCodes(
+      const dbEntities = await this.entitiesService.getValidEntitiesbyCode(
         integration._id,
         codes,
         targetEntity,
@@ -447,11 +477,11 @@ export class BotdesignerEntitiesService {
         return entity;
       });
 
-      if (cache && entities?.length) {
+      if (cache && entities?.length && this.shouldUseCachedEntitiesFromErp(integration)) {
         await this.integrationCacheUtilsService.setProcessedEntities(integration, targetEntity, entities, codes);
       }
 
-      return [entities as unknown as T[], allEntities];
+      return entities as unknown as T[];
     } catch (error) {
       throw INTERNAL_ERROR_THROWER('BotdesignerEntitiesService.listValidApiEntities', error);
     }
@@ -536,16 +566,13 @@ export class BotdesignerEntitiesService {
       requestFilters.typeOfServiceCode = [filters.typeOfService.code];
     }
 
-    if (patient?.sex) {
-      requestFilters.patientSex = patient.sex;
-    }
-
-    if (patient?.bornDate) {
-      const patientAge = moment().diff(patient.bornDate, 'years');
-      requestFilters.patientAge = patientAge;
-    }
-
-    return requestFilters;
+    return {
+      ...requestFilters,
+      patientCpf: patient?.cpf || undefined,
+      patientCode: patient?.code || undefined,
+      patientSex: patient?.sex || undefined,
+      patientAge: patient?.bornDate ? moment().diff(patient.bornDate, 'years') : undefined,
+    };
   }
 
   private getValidFiltersToCacheEntities(targetEntity: EntityType, filters: EntityFiltersParams): EntityFiltersParams {
@@ -595,7 +622,7 @@ export class BotdesignerEntitiesService {
     const requestFilters: EntityFiltersParams = this.getResourceFilters(integration, filters, patient);
     const resourceCacheParams = this.getValidFiltersToCacheEntities(entityType, { ...requestFilters });
 
-    if (cache) {
+    if (cache && this.shouldUseCachedEntitiesFromErp(integration)) {
       const resourceCache = await this.integrationCacheUtilsService.getCachedEntitiesFromRequest(
         entityType,
         integration,
@@ -645,6 +672,9 @@ export class BotdesignerEntitiesService {
         case EntityType.organizationUnitLocation:
           return this.listOrganizationUnitLocations(integration, requestFilters);
 
+        case EntityType.laterality:
+          return this.listLateralities(integration, requestFilters);
+
         default:
           return [];
       }
@@ -652,7 +682,7 @@ export class BotdesignerEntitiesService {
 
     const resource: EntityTypes[] = await listResource();
 
-    if (cache && resource?.length) {
+    if (cache && resource?.length && this.shouldUseCachedEntitiesFromErp(integration)) {
       await this.integrationCacheUtilsService.setCachedEntitiesFromRequest(
         entityType,
         integration,
