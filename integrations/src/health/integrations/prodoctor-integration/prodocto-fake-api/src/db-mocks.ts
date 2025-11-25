@@ -1,4 +1,5 @@
 import { Request } from 'express';
+import { additionalRealisticMocks } from './additionnal-mocks';
 
 type MockFn = (req: Request) => any;
 
@@ -1165,4 +1166,6 @@ export const realisticMocks: Record<string, MockFn> = {
       },
     };
   },
+
+  ...additionalRealisticMocks,
 };

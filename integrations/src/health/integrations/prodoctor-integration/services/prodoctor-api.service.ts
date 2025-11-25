@@ -826,7 +826,7 @@ export class ProdoctorApiService {
     this.dispatchAuditEvent(integration, request, funcName, AuditDataType.externalRequest);
 
     try {
-      const apiUrl = await this.getApiUrl(integration, '/api/v1/Agenda/AlterarStatus');
+      const apiUrl = await this.getApiUrl(integration, '/api/v1/Agenda/AlterarEstado');
       const headers = await this.getHeaders(integration);
 
       const response = await lastValueFrom(

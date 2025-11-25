@@ -39,7 +39,9 @@ import { ProdoctorApiService } from './prodoctor-api.service';
 import { ProdoctorHelpersService } from './prodoctor-helpers.service';
 import { ProdoctorEntitiesService } from './prodoctor-entities.service';
 import {
+  AgendamentoAlterarStatusRequest,
   AgendamentoBuscarRequest,
+  AgendamentoDesmarcarRequest,
   AgendamentoInserirRequest,
   HorariosDisponiveisRequest,
 } from '../interfaces/schedule.interface';
@@ -318,25 +320,8 @@ export class ProdoctorService implements IIntegratorService {
       const { appointment, patient, doctor, insurance, organizationUnit, procedure, appointmentType } = createSchedule;
       const appointmentDate = moment.utc(appointment.appointmentDate);
 
-      const request: AgendamentoInserirRequest = {
-        paciente: { codigo: Number(patient.code) },
-        usuario: { codigo: Number(doctor.code) },
-        data: appointmentDate.format(this.dateFormat),
-        hora: appointmentDate.format(this.timeFormat),
-      };
-
-      if (organizationUnit?.code) {
-        request.localProDoctor = { codigo: Number(organizationUnit.code) };
-      }
-
-      if (insurance?.code) {
-        request.convenio = { codigo: Number(insurance.code) };
-      }
-
-      if (appointmentType?.code) {
-        request.tipoAgendamento = this.prodoctorHelpersService.buildTipoAgendamentoRequest(appointmentType.code);
-      }
-
+      // Buscar dados do procedimento se existir
+      let procedimentoMedico: { tabela: { codigo: number }; codigo: string } | undefined;
       if (procedure?.code) {
         const procedureEntity = await this.entitiesService.getEntityByCode(
           procedure.code,
@@ -345,16 +330,38 @@ export class ProdoctorService implements IIntegratorService {
         );
         const procedureData = procedureEntity?.data as any;
         if (procedureData?.tabela) {
-          request.procedimentoMedico = {
+          procedimentoMedico = {
             tabela: { codigo: procedureData.tabela.codigo },
             codigo: procedure.code,
           };
         }
       }
 
-      if (appointment.duration) {
-        request.duracao = Number(appointment.duration);
-      }
+      // Estrutura correta conforme swagger oficial
+      const request: AgendamentoInserirRequest = {
+        agendamento: {
+          paciente: { codigo: Number(patient.code) },
+          usuario: { codigo: Number(doctor.code) },
+          data: appointmentDate.format(this.dateFormat),
+          hora: appointmentDate.format(this.timeFormat),
+          localProDoctor: organizationUnit?.code ? { codigo: Number(organizationUnit.code) } : undefined,
+          convenio: insurance?.code ? { codigo: Number(insurance.code) } : undefined,
+          tipoAgendamento: appointmentType?.code
+            ? this.prodoctorHelpersService.buildTipoAgendamentoRequest(appointmentType.code)
+            : undefined,
+          procedimentoMedico,
+          complemento: appointment.notes || undefined,
+        },
+        agendamentoAlertas: {
+          suprimirAlertaLimiteConsultasPorUsuario: true,
+          suprimirAlertaLimiteConsultasPorConvenio: true,
+          suprimirAlertaBloqueioRetorno: true,
+          suprimirAlertaValidadeCarteirinha: true,
+          suprimirAlertaFeriado: true,
+          suprimirAlertaPacienteInativo: true,
+        },
+        atualizaContatoPaciente: false,
+      };
 
       const response = await this.prodoctorApiService.inserirAgendamento(integration, request);
 
@@ -380,8 +387,12 @@ export class ProdoctorService implements IIntegratorService {
           )
         : undefined;
 
+      // Montar código do agendamento a partir da resposta
+      const agendamentoResponse = response.payload.agendamento;
+      const appointmentCode = this.buildAppointmentCode(agendamentoResponse);
+
       return {
-        appointmentCode: String(response.payload.agendamento.codigo),
+        appointmentCode,
         appointmentDate: appointmentDate.toISOString(),
         status: AppointmentStatus.scheduled,
         doctor: doctorEntity as DoctorEntityDocument,
@@ -393,13 +404,65 @@ export class ProdoctorService implements IIntegratorService {
     }
   }
 
+  private buildAppointmentCode(agendamento: {
+    localProDoctor?: { codigo: number };
+    usuario?: { codigo: number };
+    data: string;
+    hora: string;
+  }): string {
+    // O ProDoctor identifica agendamentos pela combinação: localProDoctor + usuario + data + hora
+    const parts = [
+      agendamento.localProDoctor?.codigo || 0,
+      agendamento.usuario?.codigo || 0,
+      agendamento.data?.replace(/\//g, ''),
+      agendamento.hora?.replace(':', ''),
+    ];
+    return parts.join('-');
+  }
+
   public async cancelSchedule(integration: IntegrationDocument, cancelSchedule: CancelSchedule): Promise<OkResponse> {
     try {
-      const { appointmentCode } = cancelSchedule;
+      const { appointmentCode, patientCode } = cancelSchedule;
 
-      const response = await this.prodoctorApiService.desmarcarAgendamento(integration, {
-        agendamento: { codigo: Number(appointmentCode) },
-      });
+      // Se o appointmentCode foi gerado pelo buildAppointmentCode, decodificar
+      const parts = appointmentCode.split('-');
+
+      let request: AgendamentoDesmarcarRequest;
+
+      if (parts.length === 4) {
+        // Formato: localProDoctor-usuario-data-hora (ex: "1-100-20112025-1400")
+        const [localProdoctorCode, usuarioCode, dataStr, horaStr] = parts;
+        const data = `${dataStr.slice(0, 2)}/${dataStr.slice(2, 4)}/${dataStr.slice(4)}`;
+        const hora = `${horaStr.slice(0, 2)}:${horaStr.slice(2)}`;
+
+        request = {
+          localProDoctor: { codigo: Number(localProdoctorCode) },
+          usuario: { codigo: Number(usuarioCode) },
+          data,
+          hora,
+        };
+      } else {
+        // Fallback: buscar agendamento do paciente para obter os dados
+        const schedules = await this.getPatientSchedules(integration, { patientCode });
+        const schedule = schedules.find((s) => s.appointmentCode === appointmentCode);
+
+        if (!schedule) {
+          throw HTTP_ERROR_THROWER(HttpStatus.NOT_FOUND, 'Agendamento não encontrado', undefined, true);
+        }
+
+        const appointmentDate = moment(schedule.appointmentDate);
+
+        request = {
+          localProDoctor: schedule.organizationUnit?.code
+            ? { codigo: Number(schedule.organizationUnit.code) }
+            : undefined,
+          usuario: { codigo: Number(schedule.doctor?.code || 0) },
+          data: appointmentDate.format(this.dateFormat),
+          hora: appointmentDate.format(this.timeFormat),
+        };
+      }
+
+      const response = await this.prodoctorApiService.desmarcarAgendamento(integration, request);
 
       if (response?.sucesso) {
         return { ok: true };
@@ -407,6 +470,9 @@ export class ProdoctorService implements IIntegratorService {
 
       return { ok: false };
     } catch (error) {
+      if (error?.status === HttpStatus.NOT_FOUND) {
+        throw error;
+      }
       throw INTERNAL_ERROR_THROWER('ProdoctorService.cancelSchedule', error);
     }
   }
@@ -416,14 +482,58 @@ export class ProdoctorService implements IIntegratorService {
     confirmSchedule: ConfirmSchedule,
   ): Promise<OkResponse> {
     try {
-      const { appointmentCode } = confirmSchedule;
+      const { appointmentCode, patientCode } = confirmSchedule;
 
-      const response = await this.prodoctorApiService.alterarStatusAgendamento(integration, {
-        agendamento: { codigo: Number(appointmentCode) },
+      // Decodificar appointmentCode ou buscar dados do agendamento
+      const parts = appointmentCode.split('-');
+
+      let agendamentoID: {
+        localProDoctor?: { codigo: number };
+        usuario: { codigo: number };
+        data: string;
+        hora: string;
+      };
+
+      if (parts.length === 4) {
+        const [localProdoctorCode, usuarioCode, dataStr, horaStr] = parts;
+        const data = `${dataStr.slice(0, 2)}/${dataStr.slice(2, 4)}/${dataStr.slice(4)}`;
+        const hora = `${horaStr.slice(0, 2)}:${horaStr.slice(2)}`;
+
+        agendamentoID = {
+          localProDoctor: { codigo: Number(localProdoctorCode) },
+          usuario: { codigo: Number(usuarioCode) },
+          data,
+          hora,
+        };
+      } else {
+        // Fallback: buscar agendamento
+        const schedules = await this.getPatientSchedules(integration, { patientCode });
+        const schedule = schedules.find((s) => s.appointmentCode === appointmentCode);
+
+        if (!schedule) {
+          throw HTTP_ERROR_THROWER(HttpStatus.NOT_FOUND, 'Agendamento não encontrado', undefined, true);
+        }
+
+        const appointmentDate = moment(schedule.appointmentDate);
+
+        agendamentoID = {
+          localProDoctor: schedule.organizationUnit?.code
+            ? { codigo: Number(schedule.organizationUnit.code) }
+            : undefined,
+          usuario: { codigo: Number(schedule.doctor?.code || 0) },
+          data: appointmentDate.format(this.dateFormat),
+          hora: appointmentDate.format(this.timeFormat),
+        };
+      }
+
+      const request: AgendamentoAlterarStatusRequest = {
+        agendamentoID,
         estadoAgendaConsulta: {
           confirmado: true,
         },
-      });
+      };
+
+      const response = await this.prodoctorApiService.alterarStatusAgendamento(integration, request);
 
       if (response?.sucesso) {
         return { ok: true };
@@ -431,6 +541,9 @@ export class ProdoctorService implements IIntegratorService {
 
       return { ok: false };
     } catch (error) {
+      if (error?.status === HttpStatus.NOT_FOUND) {
+        throw error;
+      }
       throw INTERNAL_ERROR_THROWER('ProdoctorService.confirmSchedule', error);
     }
   }
@@ -453,7 +566,6 @@ export class ProdoctorService implements IIntegratorService {
   }
 
   // ========== AVAILABLE SCHEDULES ==========
-
   public async getAvailableSchedules(
     integration: IntegrationDocument,
     availableSchedules: ListAvailableSchedules,
@@ -484,9 +596,8 @@ export class ProdoctorService implements IIntegratorService {
         request.localProDoctor = { codigo: Number(filter.organizationUnit.code) };
       }
 
-      if (filter.insurance?.code) {
-        request.convenio = { codigo: Number(filter.insurance.code) };
-      }
+      // CORREÇÃO: Removido request.convenio pois não existe no swagger
+      // O endpoint /api/v1/Agenda/Livres não suporta filtro por convênio
 
       if (period?.start && period?.end) {
         request.turnos = this.prodoctorHelpersService.buildTurnosFromPeriod(period.start, period.end);
@@ -494,49 +605,17 @@ export class ProdoctorService implements IIntegratorService {
 
       const response = await this.prodoctorApiService.buscarHorariosLivres(integration, request);
 
-      if (!response?.sucesso || !response?.payload?.horarios) {
-        return { schedules: [], metadata: null };
+      // CORREÇÃO: usar "agendamentos" em vez de "horarios"
+      if (!response?.sucesso || !response?.payload?.agendamentos) {
+        return { schedules: [], metadata };
       }
 
-      // Busca médico
-      const doctorEntity = await this.entitiesService.getEntityByCode(
-        filter.doctor.code,
-        EntityType.doctor,
-        integration._id,
-      );
-
-      if (!doctorEntity) {
-        return { schedules: [], metadata: null };
-      }
-
-      const rawSchedules: RawAppointment[] = [];
-
-      // Processa os horários disponíveis
-      for (const horario of response.payload.horarios) {
-        if (!horario.disponivel) continue;
-
-        rawSchedules.push(
-          this.prodoctorHelpersService.transformAvailableScheduleToRawAppointment(
-            horario,
-            doctorEntity as DoctorEntityDocument,
-            filter,
-          ),
-        );
-      }
-
-      const schedules = await this.appointmentService.transformSchedules(integration, rawSchedules);
-
-      // Aplica flow matching
-      const [matchedSchedules] = await this.flowService.matchEntitiesFlows({
-        integrationId: integration._id,
-        entities: schedules as any,
-        entitiesFilter: filter,
-        targetEntity: FlowSteps.listAppointments,
-        filters: { patientBornDate: patient?.bornDate },
-      });
+      const schedules = response.payload.agendamentos
+        // CORREÇÃO: Todos os horários retornados são livres, não precisa filtrar por "disponivel"
+        .map((horario) => this.prodoctorHelpersService.transformAvailableSchedule(horario, filter));
 
       return {
-        schedules: orderBy(matchedSchedules as unknown as Appointment[], 'appointmentDate', 'asc'),
+        schedules: orderBy(schedules, ['appointmentDate'], ['asc']),
         metadata,
       };
     } catch (error) {

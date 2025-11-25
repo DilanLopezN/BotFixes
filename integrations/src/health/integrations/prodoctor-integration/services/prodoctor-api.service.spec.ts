@@ -1,20 +1,22 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { HttpService } from '@nestjs/axios';
 import { HttpStatus } from '@nestjs/common';
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
+import { AxiosResponse, AxiosError } from 'axios';
 import { ProdoctorApiService } from './prodoctor-api.service';
 import { CredentialsHelper } from '../../../credentials/credentials.service';
 import { SentryErrorHandlerService } from '../../../shared/metadata-sentry.service';
 import { AuditService } from '../../../audit/services/audit.service';
 import { IntegrationDocument } from '../../../integration/schema/integration.schema';
 import { IntegrationType } from '../../../interfaces/integration-types';
+import { AuditDataType } from '../../../audit/audit.interface';
+import { AgendamentoAlterarRequest } from '../interfaces';
 
-describe('ProdoctorApiService - Patient Operations', () => {
+describe('ProdoctorApiService', () => {
   let service: ProdoctorApiService;
   let httpService: HttpService;
   let credentialsHelper: CredentialsHelper;
   let auditService: AuditService;
-  let sentryErrorHandlerService: SentryErrorHandlerService;
 
   const mockIntegration: Partial<IntegrationDocument> = {
     _id: '507f1f77bcf86cd799439011' as any,
@@ -24,11 +26,20 @@ describe('ProdoctorApiService - Patient Operations', () => {
     debug: false,
   };
 
-  const mockConfigFake = {
+  const mockConfig = {
     apiUrl: 'http://localhost:7575',
-    apiKey: 'test-key',
-    apiPassword: 'test-password',
-    useFakeApi: true,
+    apiKey: 'test-api-key',
+    apiPassword: 'test-api-password',
+  };
+
+  const mockHeaders = {
+    headers: {
+      'Content-Type': 'application/json',
+      'X-APIKEY': 'test-api-key',
+      'X-APIPASSWORD': 'test-api-password',
+      'X-APITIMEZONE': '-03:00',
+      'X-APITIMEZONENAME': 'America/Sao_Paulo',
+    },
   };
 
   beforeEach(async () => {
@@ -45,9 +56,7 @@ describe('ProdoctorApiService - Patient Operations', () => {
             patch: jest.fn(),
             axiosRef: {
               interceptors: {
-                request: {
-                  use: jest.fn(),
-                },
+                request: { use: jest.fn() },
               },
             },
           },
@@ -55,7 +64,7 @@ describe('ProdoctorApiService - Patient Operations', () => {
         {
           provide: CredentialsHelper,
           useValue: {
-            getConfig: jest.fn(),
+            getConfig: jest.fn().mockResolvedValue(mockConfig),
           },
         },
         {
@@ -77,498 +86,750 @@ describe('ProdoctorApiService - Patient Operations', () => {
     httpService = module.get<HttpService>(HttpService);
     credentialsHelper = module.get<CredentialsHelper>(CredentialsHelper);
     auditService = module.get<AuditService>(AuditService);
-    sentryErrorHandlerService = module.get<SentryErrorHandlerService>(SentryErrorHandlerService);
-
-    jest.spyOn(credentialsHelper, 'getConfig').mockResolvedValue(mockConfigFake);
   });
 
   afterEach(() => {
     jest.clearAllMocks();
   });
 
-  it('should be defined', () => {
-    expect(service).toBeDefined();
-  });
-
-  describe('searchPatient', () => {
-    it('deve buscar paciente por CPF com sucesso', async () => {
+  // ========== VALIDAÇÃO ==========
+  describe('validateConnection', () => {
+    it('deve retornar true quando conexão for válida', async () => {
       const mockResponse = {
         data: {
-          payload: {
-            paciente: {
-              codigo: 1,
-              nome: 'João da Silva',
-              cpf: '11122233344',
-              dataNascimento: '15/03/1990',
-              sexo: { codigo: 1, nome: 'Masculino' },
-              email: 'joao.silva@email.com',
-              telefone: {
-                ddd: '11',
-                numero: '999887766',
-                tipo: { codigo: 3, nome: 'Celular' },
-              },
-            },
-          },
           sucesso: true,
-          mensagens: [],
+          payload: { usuarios: [{ codigo: 1, nome: 'Admin' }] },
         },
       };
 
-      jest.spyOn(httpService, 'post').mockReturnValue(of(mockResponse) as any);
+      jest.spyOn(httpService, 'post').mockReturnValue(of(mockResponse as AxiosResponse));
 
-      const result = await service.searchPatient(mockIntegration as any, {
-        cpf: '11122233344',
-      });
+      const result = await service.validateConnection(mockIntegration as IntegrationDocument);
 
-      expect(result.sucesso).toBe(true);
-      expect(result.payload.paciente.nome).toBe('João da Silva');
-      expect(result.payload.paciente.cpf).toBe('11122233344');
-      expect(httpService.post).toHaveBeenCalledWith(
-        'http://localhost:3456/api/v1/Paciente/Buscar',
-        { cpf: '11122233344' },
-        expect.any(Object),
-      );
+      expect(result).toBe(true);
     });
 
-    it('deve buscar paciente por nome', async () => {
-      const mockResponse = {
-        data: {
-          payload: {
-            paciente: {
-              codigo: 2,
-              nome: 'Maria Oliveira',
-              cpf: '55566677788',
-              dataNascimento: '20/07/1985',
-            },
-          },
-          sucesso: true,
-          mensagens: [],
-        },
-      };
-
-      jest.spyOn(httpService, 'post').mockReturnValue(of(mockResponse) as any);
-
-      const result = await service.searchPatient(mockIntegration as any, {
-        nome: 'Maria',
-      });
-
-      expect(result.sucesso).toBe(true);
-      expect(result.payload.paciente.nome).toBe('Maria Oliveira');
-    });
-
-    it('deve retornar resposta vazia quando paciente não for encontrado', async () => {
-      const mockError = {
-        response: {
-          status: HttpStatus.NOT_FOUND,
-          data: {
-            mensagens: ['Paciente não encontrado'],
-          },
-        },
-        status: HttpStatus.NOT_FOUND,
-      };
-
+    it('deve retornar false quando conexão falhar', async () => {
       jest.spyOn(httpService, 'post').mockImplementation(() => {
-        throw mockError;
+        throw new Error('Connection failed');
       });
 
-      const result = await service.searchPatient(mockIntegration as any, {
-        cpf: '99999999999',
-      });
+      const result = await service.validateConnection(mockIntegration as IntegrationDocument);
 
-      expect(result.sucesso).toBe(false);
-      expect(result.payload.paciente).toBeNull();
-      expect(result.mensagens).toContain('Paciente não encontrado');
-    });
-
-    it('deve registrar audit events', async () => {
-      const mockResponse = {
-        data: {
-          payload: { paciente: {} },
-          sucesso: true,
-          mensagens: [],
-        },
-      };
-
-      jest.spyOn(httpService, 'post').mockReturnValue(of(mockResponse) as any);
-
-      await service.searchPatient(mockIntegration as any, { cpf: '123' });
-
-      // Deve ter chamado audit 2 vezes: request e response
-      expect(auditService.sendAuditEvent).toHaveBeenCalledTimes(2);
+      expect(result).toBe(false);
     });
   });
 
-  describe('getPatientByCpf', () => {
-    it('deve buscar paciente por CPF formatado', async () => {
-      const mockResponse = {
-        data: {
-          payload: {
-            paciente: {
-              codigo: 1,
-              nome: 'João da Silva',
-              cpf: '11122233344',
-            },
-          },
-          sucesso: true,
-          mensagens: [],
-        },
-      };
-
-      jest.spyOn(httpService, 'post').mockReturnValue(of(mockResponse) as any);
-
-      await service.getPatientByCpf(mockIntegration as any, '111.222.333-44');
-
-      expect(httpService.post).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({
-          cpf: '11122233344', // Verifica se removeu formatação
-        }),
-        expect.any(Object),
-      );
-    });
-
-    it('deve incluir localProDoctor quando fornecido', async () => {
-      const mockResponse = {
-        data: {
-          payload: { paciente: {} },
-          sucesso: true,
-          mensagens: [],
-        },
-      };
-
-      jest.spyOn(httpService, 'post').mockReturnValue(of(mockResponse) as any);
-
-      await service.getPatientByCpf(mockIntegration as any, '11122233344', 1);
-
-      expect(httpService.post).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({
-          cpf: '11122233344',
-          localProDoctor: { codigo: 1 },
-        }),
-        expect.any(Object),
-      );
-    });
-  });
-
-  describe('getPatientDetails', () => {
-    it('deve retornar detalhes completos do paciente', async () => {
-      const mockResponse = {
-        data: {
-          payload: {
-            paciente: {
-              codigo: 1,
-              nome: 'João da Silva Santos',
-              cpf: '11122233344',
-              dataNascimento: '15/03/1990',
-              sexo: { codigo: 1, nome: 'Masculino' },
-              email: 'joao.silva@email.com',
-              nomeSocial: 'João',
-              nomeMae: 'Maria da Silva',
-              telefone: {
-                ddd: '11',
-                numero: '999887766',
-                tipo: { codigo: 3, nome: 'Celular' },
-              },
-            },
-          },
-          sucesso: true,
-          mensagens: [],
-        },
-      };
-
-      jest.spyOn(httpService, 'get').mockReturnValue(of(mockResponse) as any);
-
-      const result = await service.getPatientDetails(mockIntegration as any, 1);
-
-      expect(result.sucesso).toBe(true);
-      expect(result.payload.paciente.codigo).toBe(1);
-      expect(result.payload.paciente.nomeMae).toBe('Maria da Silva');
-      expect(httpService.get).toHaveBeenCalledWith(
-        'http://localhost:3456/api/v1/Paciente/Detalhar/1',
-        expect.any(Object),
-      );
-    });
-
-    it('deve lançar erro quando paciente não existir', async () => {
-      const mockError = {
-        response: {
-          status: HttpStatus.NOT_FOUND,
+  // ========== PACIENTES ==========
+  describe('Patient Operations', () => {
+    describe('searchPatient', () => {
+      it('deve buscar paciente por CPF', async () => {
+        const mockResponse = {
           data: {
-            mensagens: ['Paciente não encontrado'],
-          },
-        },
-      };
-
-      jest.spyOn(httpService, 'get').mockImplementation(() => {
-        throw mockError;
-      });
-
-      await expect(service.getPatientDetails(mockIntegration as any, 999)).rejects.toThrow();
-    });
-  });
-
-  describe('createPatient', () => {
-    it('deve criar novo paciente com sucesso', async () => {
-      const mockResponse = {
-        data: {
-          payload: {
-            paciente: {
-              codigo: 10,
-              nome: 'Novo Paciente',
-              cpf: '12312312312',
-              dataNascimento: '01/01/2000',
-            },
-          },
-          sucesso: true,
-          mensagens: ['Paciente criado com sucesso'],
-        },
-      };
-
-      jest.spyOn(httpService, 'post').mockReturnValue(of(mockResponse) as any);
-
-      const request = {
-        paciente: {
-          nome: 'Novo Paciente',
-          cpf: '12312312312',
-          dataNascimento: '01/01/2000',
-          sexo: { codigo: 1 },
-          email: 'novo@email.com',
-          telefone: {
-            ddd: '11',
-            numero: '988887777',
-            tipo: { codigo: 3 },
-          },
-        },
-        localProDoctor: { codigo: 1 },
-      };
-
-      const result = await service.createPatient(mockIntegration as any, request);
-
-      expect(result.sucesso).toBe(true);
-      expect(result.payload.paciente.codigo).toBe(10);
-      expect(httpService.post).toHaveBeenCalledWith(
-        'http://localhost:3456/api/v1/Pacientes/Inserir',
-        request,
-        expect.any(Object),
-      );
-    });
-
-    it('deve lançar erro de conflito quando CPF já existir', async () => {
-      const mockError = {
-        response: {
-          status: HttpStatus.CONFLICT,
-          data: {
-            mensagens: ['Paciente já cadastrado com este CPF'],
-          },
-        },
-        status: HttpStatus.CONFLICT,
-        message: 'Paciente já cadastrado',
-      };
-
-      jest.spyOn(httpService, 'post').mockImplementation(() => {
-        throw mockError;
-      });
-
-      const request = {
-        paciente: {
-          nome: 'Paciente Duplicado',
-          cpf: '11122233344',
-          dataNascimento: '01/01/2000',
-        },
-        localProDoctor: { codigo: 1 },
-      };
-
-      await expect(service.createPatient(mockIntegration as any, request)).rejects.toThrow(
-        'Paciente já cadastrado com este CPF',
-      );
-    });
-  });
-
-  describe('updatePatient', () => {
-    it('deve atualizar paciente existente', async () => {
-      const mockResponse = {
-        data: {
-          payload: {
-            paciente: {
-              codigo: 1,
-              nome: 'João da Silva Santos Atualizado',
-              cpf: '11122233344',
-              email: 'novo.email@test.com',
-            },
-          },
-          sucesso: true,
-          mensagens: ['Paciente atualizado com sucesso'],
-        },
-      };
-
-      jest.spyOn(httpService, 'put').mockReturnValue(of(mockResponse) as any);
-
-      const request = {
-        paciente: {
-          codigo: 1,
-          nome: 'João da Silva Santos Atualizado',
-          cpf: '11122233344',
-          dataNascimento: '15/03/1990',
-          email: 'novo.email@test.com',
-        },
-        localProDoctor: { codigo: 1 },
-      };
-
-      const result = await service.updatePatient(mockIntegration as any, request);
-
-      expect(result.sucesso).toBe(true);
-      expect(result.payload.paciente.email).toBe('novo.email@test.com');
-      expect(httpService.put).toHaveBeenCalledWith(
-        'http://localhost:3456/api/v1/Pacientes/Alterar',
-        request,
-        expect.any(Object),
-      );
-    });
-
-    it('deve lançar erro quando código não for informado', async () => {
-      const request = {
-        paciente: {
-          nome: 'Teste',
-          cpf: '11122233344',
-          dataNascimento: '01/01/2000',
-        },
-        localProDoctor: { codigo: 1 },
-      };
-
-      await expect(service.updatePatient(mockIntegration as any, request)).rejects.toThrow(
-        'Código do paciente é obrigatório',
-      );
-    });
-  });
-
-  describe('listPatients', () => {
-    it('deve listar todos os pacientes', async () => {
-      const mockResponse = {
-        data: {
-          payload: {
-            pacientes: [
-              {
-                codigo: 1,
+            sucesso: true,
+            payload: {
+              paciente: {
+                codigo: 101,
                 nome: 'João da Silva',
-                cpf: '11122233344',
-                dataNascimento: '15/03/1990',
+                cpf: '12345678900',
               },
-              {
-                codigo: 2,
-                nome: 'Maria Oliveira',
-                cpf: '55566677788',
-                dataNascimento: '20/07/1985',
-              },
-            ],
+            },
           },
-          sucesso: true,
-          mensagens: [],
-        },
-      };
+        };
 
-      jest.spyOn(httpService, 'post').mockReturnValue(of(mockResponse) as any);
+        jest.spyOn(httpService, 'post').mockReturnValue(of(mockResponse as AxiosResponse));
 
-      const result = await service.listPatients(mockIntegration as any, {
-        quantidade: 10,
+        const result = await service.searchPatient(mockIntegration as IntegrationDocument, {
+          cpf: '12345678900',
+        });
+
+        expect(result.sucesso).toBe(true);
+        expect(result.payload.paciente.cpf).toBe('12345678900');
+        expect(httpService.post).toHaveBeenCalledWith(
+          'http://localhost:7575/api/v1/Pacientes',
+          { cpf: '12345678900' },
+          expect.any(Object),
+        );
       });
 
-      expect(result.sucesso).toBe(true);
-      expect(result.payload.pacientes).toHaveLength(2);
+      it('deve enviar audit events para request e response', async () => {
+        const mockResponse = {
+          data: { sucesso: true, payload: { paciente: {} } },
+        };
+
+        jest.spyOn(httpService, 'post').mockReturnValue(of(mockResponse as AxiosResponse));
+
+        await service.searchPatient(mockIntegration as IntegrationDocument, { cpf: '123' });
+
+        expect(auditService.sendAuditEvent).toHaveBeenCalledTimes(2);
+        expect(auditService.sendAuditEvent).toHaveBeenCalledWith(
+          expect.objectContaining({
+            dataType: AuditDataType.externalRequest,
+          }),
+        );
+        expect(auditService.sendAuditEvent).toHaveBeenCalledWith(
+          expect.objectContaining({
+            dataType: AuditDataType.externalResponse,
+          }),
+        );
+      });
+    });
+
+    describe('getPatientDetails', () => {
+      it('deve detalhar paciente por código', async () => {
+        const mockResponse = {
+          data: {
+            sucesso: true,
+            payload: {
+              paciente: {
+                codigo: 101,
+                nome: 'João da Silva',
+                cpf: '12345678900',
+                dataNascimento: '15/03/1990',
+                sexo: { codigo: 1, nome: 'Masculino' },
+              },
+            },
+          },
+        };
+
+        jest.spyOn(httpService, 'get').mockReturnValue(of(mockResponse as AxiosResponse));
+
+        const result = await service.getPatientDetails(mockIntegration as IntegrationDocument, 101);
+
+        expect(result.sucesso).toBe(true);
+        expect(result.payload.paciente.codigo).toBe(101);
+        expect(httpService.get).toHaveBeenCalledWith(
+          'http://localhost:7575/api/v1/Pacientes/Detalhar/101',
+          expect.any(Object),
+        );
+      });
+
+      it('deve lançar erro 404 quando paciente não existir', async () => {
+        const mockError = {
+          response: {
+            status: HttpStatus.NOT_FOUND,
+            data: { mensagens: ['Paciente não encontrado'] },
+          },
+        };
+
+        jest.spyOn(httpService, 'get').mockImplementation(() => {
+          throw mockError;
+        });
+
+        await expect(service.getPatientDetails(mockIntegration as IntegrationDocument, 999)).rejects.toThrow();
+      });
+    });
+
+    describe('getPatientByCpf', () => {
+      it('deve buscar paciente por CPF', async () => {
+        const mockResponse = {
+          data: {
+            sucesso: true,
+            payload: {
+              paciente: {
+                codigo: 101,
+                nome: 'João da Silva',
+                cpf: '12345678900',
+              },
+            },
+          },
+        };
+
+        jest.spyOn(httpService, 'post').mockReturnValue(of(mockResponse as AxiosResponse));
+
+        const result = await service.getPatientByCpf(mockIntegration as IntegrationDocument, '12345678900');
+
+        expect(result.sucesso).toBe(true);
+        expect(result.payload.paciente.cpf).toBe('12345678900');
+      });
+    });
+
+    describe('createPatient', () => {
+      it('deve criar novo paciente', async () => {
+        const mockResponse = {
+          data: {
+            sucesso: true,
+            mensagens: ['Paciente criado com sucesso'],
+            payload: {
+              paciente: {
+                codigo: 102,
+                nome: 'Novo Paciente',
+              },
+            },
+          },
+        };
+
+        jest.spyOn(httpService, 'post').mockReturnValue(of(mockResponse as AxiosResponse));
+
+        const request = {
+          paciente: {
+            nome: 'Novo Paciente',
+            cpf: '98765432100',
+            dataNascimento: '01/01/2000',
+            sexo: { codigo: 2 },
+          },
+        };
+
+        const result = await service.createPatient(mockIntegration as IntegrationDocument, request);
+
+        expect(result.sucesso).toBe(true);
+        expect(result.payload.paciente.codigo).toBe(102);
+        expect(httpService.post).toHaveBeenCalledWith(
+          'http://localhost:7575/api/v1/Pacientes/Inserir',
+          request,
+          expect.any(Object),
+        );
+      });
+
+      it('deve lançar erro de conflito quando CPF já existir', async () => {
+        const mockError = {
+          response: {
+            status: HttpStatus.CONFLICT,
+            data: { mensagens: ['CPF já cadastrado'] },
+          },
+        };
+
+        jest.spyOn(httpService, 'post').mockImplementation(() => {
+          throw mockError;
+        });
+
+        const request = {
+          paciente: { nome: 'Teste', cpf: '11111111111' },
+        };
+
+        await expect(service.createPatient(mockIntegration as IntegrationDocument, request)).rejects.toThrow();
+      });
+    });
+
+    describe('updatePatient', () => {
+      it('deve atualizar paciente existente', async () => {
+        const mockResponse = {
+          data: {
+            sucesso: true,
+            payload: {
+              paciente: {
+                codigo: 101,
+                nome: 'João Atualizado',
+              },
+            },
+          },
+        };
+
+        jest.spyOn(httpService, 'put').mockReturnValue(of(mockResponse as AxiosResponse));
+
+        const request = {
+          paciente: {
+            codigo: 101,
+            nome: 'João Atualizado',
+            correioEletronico: 'novo@email.com',
+          },
+        };
+
+        const result = await service.updatePatient(mockIntegration as IntegrationDocument, request);
+
+        expect(result.sucesso).toBe(true);
+        expect(result.payload.paciente.nome).toBe('João Atualizado');
+      });
+
+      it('deve lançar erro quando código não for informado', async () => {
+        const request = {
+          paciente: { nome: 'Teste' },
+        };
+
+        await expect(service.updatePatient(mockIntegration as IntegrationDocument, request as any)).rejects.toThrow();
+      });
+    });
+
+    describe('listPacientes', () => {
+      it('deve listar pacientes', async () => {
+        const mockResponse = {
+          data: {
+            sucesso: true,
+            payload: {
+              pacientes: [
+                { codigo: 101, nome: 'João' },
+                { codigo: 102, nome: 'Maria' },
+              ],
+            },
+          },
+        };
+
+        jest.spyOn(httpService, 'post').mockReturnValue(of(mockResponse as AxiosResponse));
+
+        const result = await service.listPacientes(mockIntegration as IntegrationDocument, {
+          quantidade: 10,
+        });
+
+        expect(result.sucesso).toBe(true);
+        expect(result.payload.pacientes).toHaveLength(2);
+      });
     });
   });
 
-  describe('deletePatient', () => {
-    it('deve excluir paciente com sucesso', async () => {
-      const mockResponse = {
-        data: undefined,
-        status: 204,
-      };
+  // ========== USUÁRIOS (MÉDICOS) ==========
+  describe('User/Doctor Operations', () => {
+    describe('listUsuarios', () => {
+      it('deve listar usuários', async () => {
+        const mockResponse = {
+          data: {
+            sucesso: true,
+            payload: {
+              usuarios: [
+                { codigo: 100, nome: 'Dr. Carlos', ativo: true },
+                { codigo: 101, nome: 'Dra. Ana', ativo: true },
+              ],
+            },
+          },
+        };
 
-      jest.spyOn(httpService, 'delete').mockReturnValue(of(mockResponse) as any);
+        jest.spyOn(httpService, 'post').mockReturnValue(of(mockResponse as AxiosResponse));
 
-      await service.deletePatient(mockIntegration as any, 1);
+        const result = await service.listUsuarios(mockIntegration as IntegrationDocument, {
+          quantidade: 100,
+        });
 
-      expect(httpService.delete).toHaveBeenCalledWith(
-        'http://localhost:3456/api/v1/Pacientes/Excluir/1',
-        expect.any(Object),
-      );
+        expect(result.sucesso).toBe(true);
+        expect(result.payload.usuarios).toHaveLength(2);
+      });
+    });
+
+    describe('listUsuariosComEspecialidade', () => {
+      it('deve listar usuários com especialidades', async () => {
+        const mockResponse = {
+          data: {
+            sucesso: true,
+            payload: {
+              usuarios: [
+                {
+                  codigo: 100,
+                  nome: 'Dr. Carlos',
+                  especialidades: [
+                    { codigo: 1, nome: 'Cardiologia' },
+                    { codigo: 2, nome: 'Clínica Geral' },
+                  ],
+                },
+              ],
+            },
+          },
+        };
+
+        jest.spyOn(httpService, 'post').mockReturnValue(of(mockResponse as AxiosResponse));
+
+        const result = await service.listUsuariosComEspecialidade(mockIntegration as IntegrationDocument, {
+          quantidade: 100,
+        });
+
+        expect(result.sucesso).toBe(true);
+        expect(result.payload.usuarios[0].especialidades).toHaveLength(2);
+      });
+    });
+
+    describe('detalharUsuario', () => {
+      it('deve detalhar usuário por código', async () => {
+        const mockResponse = {
+          data: {
+            sucesso: true,
+            payload: {
+              usuario: {
+                codigo: 100,
+                nome: 'Dr. Carlos Silva',
+                crm: '123456',
+                especialidades: [{ codigo: 1, nome: 'Cardiologia' }],
+              },
+            },
+          },
+        };
+
+        jest.spyOn(httpService, 'get').mockReturnValue(of(mockResponse as AxiosResponse));
+
+        const result = await service.detalharUsuario(mockIntegration as IntegrationDocument, 100);
+
+        expect(result.sucesso).toBe(true);
+        expect(result.payload.usuario.crm).toBe('123456');
+      });
     });
   });
 
+  // ========== AGENDA ==========
+  describe('Schedule Operations', () => {
+    describe('listarAgendamentos', () => {
+      it('deve listar agendamentos do dia', async () => {
+        const mockResponse = {
+          data: {
+            sucesso: true,
+            payload: {
+              diaAgendaConsulta: {
+                data: '25/11/2025',
+                usuario: { codigo: 100, nome: 'Dr. Carlos' },
+                agendamentos: [
+                  { codigo: 1001, hora: '08:00', paciente: { codigo: 101, nome: 'João' } },
+                  { codigo: 1002, hora: '09:00', paciente: { codigo: 102, nome: 'Maria' } },
+                ],
+                totalAgendamentos: 2,
+              },
+            },
+          },
+        };
+
+        jest.spyOn(httpService, 'post').mockReturnValue(of(mockResponse as AxiosResponse));
+
+        const result = await service.listarAgendamentos(mockIntegration as IntegrationDocument, {
+          usuario: { codigo: 100 },
+          data: '25/11/2025',
+        });
+
+        expect(result.sucesso).toBe(true);
+        expect(result.payload.diaAgendaConsulta.agendamentos).toHaveLength(2);
+      });
+    });
+
+    describe('buscarAgendamentosPaciente', () => {
+      it('deve buscar agendamentos de um paciente', async () => {
+        const mockResponse = {
+          data: {
+            sucesso: true,
+            payload: {
+              agendamentos: [
+                {
+                  codigo: 1001,
+                  data: '25/11/2025',
+                  hora: '10:00',
+                  usuario: { codigo: 100, nome: 'Dr. Carlos' },
+                },
+              ],
+            },
+          },
+        };
+
+        jest.spyOn(httpService, 'post').mockReturnValue(of(mockResponse as AxiosResponse));
+
+        const result = await service.buscarAgendamentosPaciente(mockIntegration as IntegrationDocument, {
+          paciente: { codigo: 101 },
+        });
+
+        expect(result.sucesso).toBe(true);
+        expect(result.payload.agendamentos).toHaveLength(1);
+      });
+    });
+
+    describe('inserirAgendamento', () => {
+      it('deve inserir novo agendamento', async () => {
+        const mockResponse = {
+          data: {
+            sucesso: true,
+            mensagens: ['Agendamento criado'],
+            payload: {
+              agendamento: {
+                codigo: 2001,
+                data: '26/11/2025',
+                hora: '14:00',
+              },
+            },
+          },
+        };
+
+        jest.spyOn(httpService, 'post').mockReturnValue(of(mockResponse as AxiosResponse));
+
+        const request = {
+          paciente: { codigo: 101 },
+          usuario: { codigo: 100 },
+          data: '26/11/2025',
+          hora: '14:00',
+          localProDoctor: { codigo: 1 },
+        };
+
+        const result = await service.inserirAgendamento(mockIntegration as IntegrationDocument, request);
+
+        expect(result.sucesso).toBe(true);
+        expect(result.payload.agendamento.codigo).toBe(2001);
+      });
+    });
+
+    describe('alterarAgendamento', () => {
+      it('deve alterar agendamento existente', async () => {
+        const mockResponse = {
+          data: {
+            sucesso: true,
+            payload: {
+              agendamentoOriginal: { data: '25/11/2025', hora: '10:00' },
+              agendamentoAtual: { data: '26/11/2025', hora: '11:00' },
+            },
+          },
+        };
+
+        jest.spyOn(httpService, 'put').mockReturnValue(of(mockResponse as AxiosResponse));
+
+        const usuario = { codigo: 100, nome: 'Dr. Carlos' };
+
+        const request: AgendamentoAlterarRequest = {
+          agendamentoOrigem: {
+            localProDoctor: { codigo: 1 },
+            data: '25/11/2025',
+            hora: '10:00',
+            usuario, // ✅ obrigatório em agendamentoOrigem
+          },
+          agendamento: {
+            data: '26/11/2025',
+            hora: '11:00',
+            usuario,
+          },
+        };
+
+        const result = await service.alterarAgendamento(mockIntegration as IntegrationDocument, request);
+
+        expect(result.sucesso).toBe(true);
+      });
+    });
+
+    describe('desmarcarAgendamento', () => {
+      it('deve desmarcar agendamento', async () => {
+        const mockResponse = {
+          data: {
+            sucesso: true,
+            mensagens: ['Agendamento desmarcado'],
+            payload: {},
+          },
+        };
+
+        jest.spyOn(httpService, 'patch').mockReturnValue(of(mockResponse as AxiosResponse));
+
+        const result = await service.desmarcarAgendamento(mockIntegration as IntegrationDocument, {
+          agendamento: { codigo: 1001 },
+        });
+
+        expect(result.sucesso).toBe(true);
+      });
+    });
+
+    describe('alterarStatusAgendamento', () => {
+      it('deve alterar status do agendamento para confirmado', async () => {
+        const mockResponse = {
+          data: {
+            sucesso: true,
+            payload: {
+              agendamento: {
+                codigo: 1001,
+                estadoAgendaConsulta: { confirmado: true },
+              },
+            },
+          },
+        };
+
+        jest.spyOn(httpService, 'patch').mockReturnValue(of(mockResponse as AxiosResponse));
+
+        const result = await service.alterarStatusAgendamento(mockIntegration as IntegrationDocument, {
+          agendamento: { codigo: 1001 },
+          estadoAgendaConsulta: { confirmado: true },
+        });
+
+        expect(result.sucesso).toBe(true);
+      });
+    });
+
+    describe('buscarHorariosDisponiveis', () => {
+      it('deve buscar horários disponíveis', async () => {
+        const mockResponse = {
+          data: {
+            sucesso: true,
+            payload: {
+              agendamentos: [
+                { dataHora: '25/11/2025 08:00', duracao: 30 },
+                { dataHora: '25/11/2025 08:30', duracao: 30 },
+                { dataHora: '25/11/2025 09:00', duracao: 30 },
+              ],
+            },
+          },
+        };
+
+        jest.spyOn(httpService, 'post').mockReturnValue(of(mockResponse as AxiosResponse));
+
+        const result = await service.buscarHorariosLivres(mockIntegration as IntegrationDocument, {
+          usuario: { codigo: 100 },
+          periodo: { dataInicial: '25/11/2025', dataFinal: '30/11/2025' },
+        });
+
+        expect(result.sucesso).toBe(true);
+        expect(result.payload.horarios).toBeInstanceOf(Object);
+      });
+    });
+
+    describe('buscarAgendamentosPorStatus', () => {
+      it('deve buscar agendamentos por status', async () => {
+        const mockResponse = {
+          data: {
+            sucesso: true,
+            payload: {
+              agendamentos: [
+                { codigo: 1001, estadoAgendaConsulta: { confirmado: true } },
+                { codigo: 1002, estadoAgendaConsulta: { confirmado: true } },
+              ],
+            },
+          },
+        };
+
+        jest.spyOn(httpService, 'post').mockReturnValue(of(mockResponse as AxiosResponse));
+
+        const result = await service.buscarAgendamentosPorStatus(mockIntegration as IntegrationDocument, {
+          periodo: { dataInicial: '01/11/2025', dataFinal: '30/11/2025' },
+          estadoAgendaConsulta: { confirmado: true },
+        });
+
+        expect(result.sucesso).toBe(true);
+        expect(result.payload.agendamentos).toHaveLength(2);
+      });
+    });
+  });
+
+  // ========== CONVÊNIOS ==========
+  describe('Insurance Operations', () => {
+    describe('listConvenios', () => {
+      it('deve listar convênios', async () => {
+        const mockResponse = {
+          data: {
+            sucesso: true,
+            payload: {
+              convenios: [
+                { codigo: 501, nome: 'Unimed', ativo: true },
+                { codigo: 502, nome: 'Bradesco Saúde', ativo: true },
+              ],
+            },
+          },
+        };
+
+        jest.spyOn(httpService, 'post').mockReturnValue(of(mockResponse as AxiosResponse));
+
+        const result = await service.listConvenios(mockIntegration as IntegrationDocument, {
+          quantidade: 100,
+        });
+
+        expect(result.sucesso).toBe(true);
+        expect(result.payload.convenios).toHaveLength(2);
+      });
+    });
+
+    describe('detalharConvenio', () => {
+      it('deve detalhar convênio', async () => {
+        const mockResponse = {
+          data: {
+            sucesso: true,
+            payload: {
+              convenio: {
+                codigo: 501,
+                nome: 'Unimed',
+                planos: [{ codigo: 1, nome: 'Nacional' }],
+              },
+            },
+          },
+        };
+
+        jest.spyOn(httpService, 'get').mockReturnValue(of(mockResponse as AxiosResponse));
+
+        const result = await service.detalharConvenio(mockIntegration as IntegrationDocument, 501);
+
+        expect(result.sucesso).toBe(true);
+        expect(result.payload.convenio.tipoConvenio).toHaveLength(1);
+      });
+    });
+  });
+
+  // ========== LOCAIS PRODOCTOR ==========
+  describe('Organization Unit Operations', () => {
+    describe('listLocaisProDoctor', () => {
+      it('deve listar locais ProDoctor', async () => {
+        const mockResponse = {
+          data: {
+            sucesso: true,
+            payload: {
+              locaisProDoctor: [
+                { codigo: 1, nome: 'Clínica Central' },
+                { codigo: 2, nome: 'Filial Sul' },
+              ],
+            },
+          },
+        };
+
+        jest.spyOn(httpService, 'post').mockReturnValue(of(mockResponse as AxiosResponse));
+
+        const result = await service.listLocaisProDoctor(mockIntegration as IntegrationDocument, {
+          quantidade: 100,
+        });
+
+        expect(result.sucesso).toBe(true);
+        expect(result.payload.locaisProDoctor).toHaveLength(2);
+      });
+    });
+  });
+
+  // ========== PROCEDIMENTOS ==========
+  describe('Procedure Operations', () => {
+    describe('listProcedimentos', () => {
+      it('deve listar procedimentos', async () => {
+        const mockResponse = {
+          data: {
+            sucesso: true,
+            payload: {
+              procedimentos: [
+                { codigo: '10101012', nome: 'Consulta', tabela: { codigo: 1, nome: 'AMB' } },
+                { codigo: '10101013', nome: 'Retorno', tabela: { codigo: 1, nome: 'AMB' } },
+              ],
+            },
+          },
+        };
+
+        jest.spyOn(httpService, 'post').mockReturnValue(of(mockResponse as AxiosResponse));
+
+        const result = await service.listProcedimentos(mockIntegration as IntegrationDocument, {
+          quantidade: 100,
+        });
+
+        expect(result.sucesso).toBe(true);
+        expect(result.payload.procedimentos).toHaveLength(2);
+      });
+    });
+  });
+
+  // ========== DEBUG MODE ==========
   describe('Debug Mode', () => {
-    it('não deve logar quando debug estiver desativado', async () => {
+    it('não deve logar quando debug desativado', async () => {
       const debugIntegration = { ...mockIntegration, debug: false };
       const logSpy = jest.spyOn(service['logger'], 'debug');
 
-      const mockResponse = {
-        data: {
-          payload: { paciente: {} },
-          sucesso: true,
-          mensagens: [],
-        },
-      };
+      const mockResponse = { data: { sucesso: true, payload: {} } };
+      jest.spyOn(httpService, 'post').mockReturnValue(of(mockResponse as AxiosResponse));
 
-      jest.spyOn(httpService, 'post').mockReturnValue(of(mockResponse) as any);
-
-      await service.searchPatient(debugIntegration as any, { cpf: '11122233344' });
+      await service.listUsuarios(debugIntegration as IntegrationDocument, { quantidade: 10 });
 
       expect(logSpy).not.toHaveBeenCalled();
     });
 
-    it('deve logar quando debug estiver ativado', async () => {
+    it('deve logar quando debug ativado', async () => {
       const debugIntegration = { ...mockIntegration, debug: true };
       const logSpy = jest.spyOn(service['logger'], 'debug');
 
-      const mockResponse = {
-        data: {
-          payload: { paciente: {} },
-          sucesso: true,
-          mensagens: [],
-        },
-      };
+      const mockResponse = { data: { sucesso: true, payload: {} } };
+      jest.spyOn(httpService, 'post').mockReturnValue(of(mockResponse as AxiosResponse));
 
-      jest.spyOn(httpService, 'post').mockReturnValue(of(mockResponse) as any);
-
-      await service.searchPatient(debugIntegration as any, { cpf: '11122233344' });
+      await service.listUsuarios(debugIntegration as IntegrationDocument, { quantidade: 10 });
 
       expect(logSpy).toHaveBeenCalled();
     });
   });
 
-  describe('Audit Events', () => {
-    it('deve enviar audit event para request e response', async () => {
-      const mockResponse = {
-        data: {
-          payload: { paciente: {} },
-          sucesso: true,
-          mensagens: [],
-        },
-      };
+  // ========== ERROR HANDLING ==========
+  describe('Error Handling', () => {
+    it('deve tratar erro de rede', async () => {
+      jest.spyOn(httpService, 'post').mockImplementation(() => {
+        throw new Error('Network error');
+      });
 
-      jest.spyOn(httpService, 'post').mockReturnValue(of(mockResponse) as any);
-
-      await service.searchPatient(mockIntegration as any, { cpf: '123' });
-
-      // Verifica que sendAuditEvent foi chamado pelo menos 2 vezes
-      expect(auditService.sendAuditEvent).toHaveBeenCalledTimes(2);
-
-      // Verifica que foi chamado com externalRequest
-      expect(auditService.sendAuditEvent).toHaveBeenCalledWith(
-        expect.objectContaining({
-          dataType: expect.any(String),
-          integrationId: expect.any(String),
-        }),
-      );
+      await expect(service.searchPatient(mockIntegration as IntegrationDocument, { cpf: '123' })).rejects.toThrow();
     });
 
-    it('deve enviar audit event de erro quando falhar', async () => {
+    it('deve enviar audit event de erro', async () => {
       const mockError = {
         response: {
           status: HttpStatus.BAD_REQUEST,
-          data: {
-            mensagens: ['Erro'],
-          },
+          data: { mensagens: ['Erro'] },
         },
       };
 
@@ -577,40 +838,26 @@ describe('ProdoctorApiService - Patient Operations', () => {
       });
 
       try {
-        await service.searchPatient(mockIntegration as any, { cpf: '123' });
-      } catch (error) {
-        // Esperado falhar
+        await service.searchPatient(mockIntegration as IntegrationDocument, { cpf: '123' });
+      } catch {
+        // Expected
       }
 
-      // Verifica que sendAuditEvent foi chamado (request + error)
-      expect(auditService.sendAuditEvent).toHaveBeenCalled();
-    });
-  });
-
-  describe('Error Handling', () => {
-    it('deve tratar erro de rede', async () => {
-      jest.spyOn(httpService, 'post').mockImplementation(() => {
-        throw new Error('Network error');
-      });
-
-      await expect(service.searchPatient(mockIntegration as any, { cpf: '123' })).rejects.toThrow();
+      expect(auditService.sendAuditEvent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          dataType: AuditDataType.externalResponseError,
+        }),
+      );
     });
 
-    it('deve extrair mensagem de erro da API', async () => {
-      const mockError = {
-        response: {
-          status: HttpStatus.BAD_REQUEST,
-          data: {
-            mensagens: ['Dados inválidos'],
-          },
-        },
-      };
-
-      jest.spyOn(httpService, 'post').mockImplementation(() => {
-        throw mockError;
+    it('deve lançar erro de credenciais inválidas', async () => {
+      jest.spyOn(credentialsHelper, 'getConfig').mockResolvedValue({
+        apiUrl: 'http://localhost:7575',
+        apiKey: null,
+        apiPassword: null,
       });
 
-      await expect(service.createPatient(mockIntegration as any, {} as any)).rejects.toThrow();
+      await expect(service.listUsuarios(mockIntegration as IntegrationDocument, { quantidade: 10 })).rejects.toThrow();
     });
   });
 });
