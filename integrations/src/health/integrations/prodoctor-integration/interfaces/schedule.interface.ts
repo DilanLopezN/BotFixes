@@ -411,6 +411,15 @@ interface PDResponseAlterarStatusAgendamentoViewModel {
   mensagens: string[];
 }
 
+/**
+ * Turnos para busca
+ */
+interface TurnosRequest {
+  manha?: boolean;
+  tarde?: boolean;
+  noite?: boolean;
+}
+
 // ========== EXPORTS ==========
 
 export {
@@ -426,6 +435,7 @@ export {
   AgendamentoPorStatusRequest,
   HorariosDisponiveisRequest,
   TipoAgendamentoRequest,
+  TurnosRequest,
   // ViewModels
   EstadoAgendaConsultaViewModel,
   TipoAgendamentoViewModel,

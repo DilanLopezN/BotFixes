@@ -439,4 +439,134 @@ export class ProdoctorEntitiesService {
       throw INTERNAL_ERROR_THROWER('ProdoctorEntitiesService.getValidEntitiesByFilter', error);
     }
   }
+
+  /**
+   * Lista entidades válidas da API
+   */
+  public async listValidApiEntities(params: ListValidEntities): Promise<EntityDocument[]> {
+    const { integration, targetEntity, filters, cache, patient, fromImport } = params;
+
+    try {
+      switch (targetEntity) {
+        case EntityType.doctor:
+          return await this.getValidApiDoctors(integration, filters, cache, patient?.bornDate);
+
+        case EntityType.speciality:
+          return await this.getValidApiSpecialities(integration, filters, cache);
+
+        case EntityType.procedure:
+          return await this.getValidApiProcedures(integration, filters, cache);
+
+        case EntityType.insurance:
+          return await this.getValidApiInsurances(integration, cache);
+
+        case EntityType.insurancePlan:
+          return await this.getValidApiInsurancePlans(integration, filters, cache);
+
+        case EntityType.organizationUnit:
+          return await this.getValidApiOrganizationUnits(integration, cache);
+
+        case EntityType.appointmentType:
+          return await this.getValidApiAppointmentTypes(integration, cache);
+
+        default:
+          return await this.entitiesService.getValidEntities(targetEntity, integration._id);
+      }
+    } catch (error) {
+      throw INTERNAL_ERROR_THROWER('ProdoctorEntitiesService.listValidApiEntities', error);
+    }
+  }
+
+  private async getValidApiDoctors(
+    integration: IntegrationDocument,
+    filters: CorrelationFilter,
+    cache?: boolean,
+    patientBornDate?: string,
+  ): Promise<EntityDocument[]> {
+    try {
+      const entities = await this.extractEntity(integration, EntityType.doctor, filters, cache, patientBornDate);
+      const codes = entities?.map((doctor) => doctor.code);
+      return await this.entitiesService.getValidEntitiesbyCode(integration._id, codes, EntityType.doctor);
+    } catch (error) {
+      throw INTERNAL_ERROR_THROWER('ProdoctorEntitiesService.getValidApiDoctors', error);
+    }
+  }
+
+  private async getValidApiSpecialities(
+    integration: IntegrationDocument,
+    filters: CorrelationFilter,
+    cache?: boolean,
+  ): Promise<EntityDocument[]> {
+    try {
+      const entities = await this.extractEntity(integration, EntityType.speciality, filters, cache);
+      const codes = entities?.map((speciality) => speciality.code);
+      return await this.entitiesService.getValidEntitiesbyCode(integration._id, codes, EntityType.speciality);
+    } catch (error) {
+      throw INTERNAL_ERROR_THROWER('ProdoctorEntitiesService.getValidApiSpecialities', error);
+    }
+  }
+
+  private async getValidApiProcedures(
+    integration: IntegrationDocument,
+    filters: CorrelationFilter,
+    cache?: boolean,
+  ): Promise<EntityDocument[]> {
+    try {
+      const entities = await this.extractEntity(integration, EntityType.procedure, filters, cache);
+      const codes = entities?.map((procedure) => procedure.code);
+      return await this.entitiesService.getValidEntitiesbyCode(integration._id, codes, EntityType.procedure);
+    } catch (error) {
+      throw INTERNAL_ERROR_THROWER('ProdoctorEntitiesService.getValidApiProcedures', error);
+    }
+  }
+
+  private async getValidApiInsurances(integration: IntegrationDocument, cache?: boolean): Promise<EntityDocument[]> {
+    try {
+      const entities = await this.extractEntity(integration, EntityType.insurance, {}, cache);
+      const codes = entities?.map((insurance) => insurance.code);
+      return await this.entitiesService.getValidEntitiesbyCode(integration._id, codes, EntityType.insurance);
+    } catch (error) {
+      throw INTERNAL_ERROR_THROWER('ProdoctorEntitiesService.getValidApiInsurances', error);
+    }
+  }
+
+  private async getValidApiInsurancePlans(
+    integration: IntegrationDocument,
+    filters: CorrelationFilter,
+    cache?: boolean,
+  ): Promise<EntityDocument[]> {
+    try {
+      const entities = await this.extractEntity(integration, EntityType.insurancePlan, filters, cache);
+      const codes = entities?.map((plan) => plan.code);
+      return await this.entitiesService.getValidEntitiesbyCode(integration._id, codes, EntityType.insurancePlan);
+    } catch (error) {
+      throw INTERNAL_ERROR_THROWER('ProdoctorEntitiesService.getValidApiInsurancePlans', error);
+    }
+  }
+
+  private async getValidApiOrganizationUnits(
+    integration: IntegrationDocument,
+    cache?: boolean,
+  ): Promise<EntityDocument[]> {
+    try {
+      const entities = await this.extractEntity(integration, EntityType.organizationUnit, {}, cache);
+      const codes = entities?.map((unit) => unit.code);
+      return await this.entitiesService.getValidEntitiesbyCode(integration._id, codes, EntityType.organizationUnit);
+    } catch (error) {
+      throw INTERNAL_ERROR_THROWER('ProdoctorEntitiesService.getValidApiOrganizationUnits', error);
+    }
+  }
+
+  private async getValidApiAppointmentTypes(
+    integration: IntegrationDocument,
+    cache?: boolean,
+  ): Promise<EntityDocument[]> {
+    try {
+      const entities = await this.extractEntity(integration, EntityType.appointmentType, {}, cache);
+      const codes = entities?.map((type) => type.code);
+      return await this.entitiesService.getValidEntitiesbyCode(integration._id, codes, EntityType.appointmentType);
+    } catch (error) {
+      throw INTERNAL_ERROR_THROWER('ProdoctorEntitiesService.getValidApiAppointmentTypes', error);
+    }
+  }
 }

@@ -5,27 +5,16 @@ import { RawAppointment } from '../../../shared/appointment.service';
 import { AppointmentStatus } from '../../../interfaces/appointment.interface';
 import { EntityDocument } from '../../../entities/schema';
 import { CorrelationFilter } from '../../../interfaces/correlation-filter.interface';
-import { PacienteCRUDRequest, PacienteRequest, PacienteViewModel } from '../interfaces/patient.interface';
+
 import {
-  AgendamentoInserirRequest,
   AgendamentoConsultaViewModel,
   HorarioDisponivelViewModel,
-} from '../interfaces/schedule.interface';
+  TipoAgendamentoRequest,
+  TurnosRequest,
+  EstadoAgendaConsultaViewModel,
+} from '../interfaces';
 import { formatPhone, convertPhoneNumber } from '../../../../common/helpers/format-phone';
-import { CodigoBaseRequest } from '../interfaces/base.interface';
-
-/**
- * Estado do agendamento que indica cancelamento
- */
-interface EstadoAgendaConsulta {
-  faltou?: boolean;
-  desmarcado?: boolean;
-  cancelado?: boolean;
-  atendido?: boolean;
-  compareceu?: boolean;
-  confirmado?: boolean;
-  confirmadoMSG?: boolean;
-}
+import { PacienteViewModel, PacienteCRUDRequest, PacienteRequest } from '../interfaces';
 
 @Injectable()
 export class ProdoctorHelpersService {
@@ -48,7 +37,7 @@ export class ProdoctorHelpersService {
       phone: phone,
       cellPhone: cellPhone,
       bornDate: this.parseDate(paciente.dataNascimento),
-      sex: this.mapSex(paciente.sexo.codigo),
+      sex: this.mapSex(paciente.sexo?.codigo),
     };
   }
 
@@ -74,17 +63,8 @@ export class ProdoctorHelpersService {
     const telefones = [paciente.telefone1, paciente.telefone2, paciente.telefone3, paciente.telefone4];
 
     for (const tel of telefones) {
-      if (tel?.numero) {
-        const fullNumber = (tel.ddd || '') + tel.numero;
-        if (tel.numero.length >= 8 && tel.numero.startsWith('9')) {
-          return formatPhone(fullNumber, true);
-        }
-      }
-    }
-
-    for (const tel of telefones) {
-      if (tel?.numero) {
-        return formatPhone((tel.ddd || '') + tel.numero, true);
+      if (tel?.numero && tel?.tipo?.codigo === 3) {
+        return formatPhone(tel.ddd + tel.numero, true);
       }
     }
 
@@ -92,110 +72,49 @@ export class ProdoctorHelpersService {
   }
 
   /**
-   * Mapeia código de sexo para letra
+   * Converte data do formato ProDoctor para ISO
    */
-  mapSex(sexo: number): string {
-    switch (sexo) {
-      case 1:
-        return 'M';
-      case 2:
-        return 'F';
-      default:
-        return 'I';
-    }
-  }
+  private parseDate(dateString?: string): string | undefined {
+    if (!dateString) return undefined;
 
-  /**
-   * Mapeia letra de sexo para CodigoBaseRequest
-   */
-  mapSexToCode(sex: string): CodigoBaseRequest {
-    switch (sex?.toUpperCase()) {
-      case 'M':
-        return { codigo: 1 };
-      case 'F':
-        return { codigo: 2 };
-      default:
-        return { codigo: 0 };
-    }
-  }
-
-  /**
-   * Converte data do formato ProDoctor (DD/MM/YYYY) para ISO (YYYY-MM-DD)
-   */
-  parseDate(date: string): string {
-    if (!date) return '';
-
-    const parsed = moment(date, this.dateFormat, true);
+    const parsed = moment(dateString, this.dateFormat, true);
     if (parsed.isValid()) {
-      return parsed.format('YYYY-MM-DD');
+      return parsed.toISOString();
     }
 
-    const parsedOther = moment(date);
-    if (parsedOther.isValid()) {
-      return parsedOther.format('YYYY-MM-DD');
-    }
-
-    return '';
+    return undefined;
   }
 
   /**
-   * Converte data ISO para formato ProDoctor (DD/MM/YYYY)
+   * Mapeia código de sexo para string
    */
-  formatDate(date: string | Date): string {
-    if (!date) return '';
-
-    const parsed = moment(date);
-    if (parsed.isValid()) {
-      return parsed.format(this.dateFormat);
-    }
-
-    return '';
+  private mapSex(codigo?: number): 'M' | 'F' | undefined {
+    if (codigo === 1) return 'M';
+    if (codigo === 2) return 'F';
+    return undefined;
   }
 
   /**
-   * Converte data/hora ISO para formato ProDoctor (DD/MM/YYYY HH:mm)
+   * Mapeia sexo string para código
    */
-  formatDateTime(date: string | Date): string {
-    if (!date) return '';
-
-    const parsed = moment(date);
-    if (parsed.isValid()) {
-      return parsed.format(this.dateTimeFormat);
-    }
-
-    return '';
+  private mapSexToCode(sex?: string): { codigo: number } | undefined {
+    if (sex === 'M') return { codigo: 1 };
+    if (sex === 'F') return { codigo: 2 };
+    return undefined;
   }
 
   /**
-   * Extrai apenas a data de um datetime
+   * Formata data para formato ProDoctor
    */
-  extractDate(date: string | Date): string {
-    if (!date) return '';
-    const parsed = moment(date);
-    return parsed.isValid() ? parsed.format(this.dateFormat) : '';
-  }
-
-  /**
-   * Extrai apenas a hora de um datetime
-   */
-  extractTime(date: string | Date): string {
-    if (!date) return '';
-    const parsed = moment(date);
-    return parsed.isValid() ? parsed.format('HH:mm') : '';
-  }
-
-  /**
-   * Verifica se o status indica cancelamento
-   */
-  isCancelledStatus(estado: EstadoAgendaConsulta): boolean {
-    return !!(estado?.faltou || estado?.desmarcado || estado?.cancelado);
+  private formatDate(isoDate: string | Date): string {
+    return moment(isoDate).format(this.dateFormat);
   }
 
   /**
    * Transforma agendamento do ProDoctor para RawAppointment
    */
   transformScheduleToRawAppointment(agendamento: AgendamentoConsultaViewModel): RawAppointment {
-    const appointmentDate = moment(agendamento.data, this.dateTimeFormat);
+    const appointmentDate = moment(`${agendamento.data} ${agendamento.hora}`, this.dateTimeFormat);
 
     return {
       appointmentCode: String(agendamento.codigo),
@@ -253,7 +172,7 @@ export class ProdoctorHelpersService {
   /**
    * Mapeia status do agendamento
    */
-  private mapAppointmentStatus(estado: EstadoAgendaConsulta): AppointmentStatus {
+  private mapAppointmentStatus(estado?: EstadoAgendaConsultaViewModel): AppointmentStatus {
     if (!estado) return AppointmentStatus.scheduled;
 
     if (estado.faltou || estado.desmarcado) {
@@ -378,85 +297,60 @@ export class ProdoctorHelpersService {
   }
 
   /**
-   * Constrói request para criar agendamento
+   * Constrói TipoAgendamentoRequest baseado no código
    */
-  buildCreateScheduleRequest(
-    patientCode: string,
-    scheduleDate: string,
-    filter: CorrelationFilter,
-    duration?: number,
-  ): AgendamentoInserirRequest {
-    const parsedDate = moment(scheduleDate);
+  buildTipoAgendamentoRequest(code: string): TipoAgendamentoRequest {
+    const tipoAgendamento: TipoAgendamentoRequest = {};
 
-    const request: AgendamentoInserirRequest = {
-      paciente: { codigo: Number(patientCode) },
-      usuario: { codigo: Number(filter.doctor?.code) },
-      data: parsedDate.format(this.dateFormat),
-      hora: parsedDate.format('HH:mm'),
-      tipoAgendamento: this.buildTipoAgendamento(filter.appointmentType?.code),
-      duracao: duration || 30,
-    };
-
-    if (filter.insurance?.code) {
-      request.convenio = { codigo: Number(filter.insurance.code) };
-    }
-
-    if (filter.organizationUnit?.code) {
-      request.localProDoctor = { codigo: Number(filter.organizationUnit.code) };
-    }
-
-    if (filter.procedure?.code) {
-      request.procedimentoMedico = {
-        tabela: { codigo: 1 },
-        codigo: filter.procedure.code,
-      };
-    }
-
-    return request;
-  }
-
-  /**
-   * Constrói objeto de tipo de agendamento
-   */
-  buildTipoAgendamento(appointmentTypeCode?: string): any {
-    const tipo: any = {
-      consulta: false,
-      retorno: false,
-      exame: false,
-      cirurgia: false,
-      teleconsulta: false,
-      compromisso: false,
-    };
-
-    switch (appointmentTypeCode?.toLowerCase()) {
+    switch (code) {
+      case 'consulta':
+        tipoAgendamento.consulta = true;
+        break;
       case 'retorno':
-        tipo.retorno = true;
+        tipoAgendamento.retorno = true;
         break;
       case 'exame':
-        tipo.exame = true;
+        tipoAgendamento.exame = true;
         break;
       case 'cirurgia':
-        tipo.cirurgia = true;
+        tipoAgendamento.cirurgia = true;
         break;
       case 'teleconsulta':
-        tipo.teleconsulta = true;
+        tipoAgendamento.teleconsulta = true;
         break;
       case 'compromisso':
-        tipo.compromisso = true;
+        tipoAgendamento.compromisso = true;
         break;
-      case 'consulta':
       default:
-        tipo.consulta = true;
-        break;
+        tipoAgendamento.consulta = true;
     }
 
-    return tipo;
+    return tipoAgendamento;
   }
 
   /**
-   * Remove parâmetros vazios de um objeto
+   * Constrói TurnosRequest baseado no período
    */
-  filterBlankParams(obj: Record<string, any>): Record<string, any> {
-    return Object.fromEntries(Object.entries(obj).filter(([_, v]) => v != null && v !== '' && v !== undefined));
+  buildTurnosFromPeriod(start: string, end: string): TurnosRequest {
+    const turnos: TurnosRequest = {};
+    const startHour = parseInt(start.split(':')[0], 10);
+    const endHour = parseInt(end.split(':')[0], 10);
+
+    // Manhã: 06:00 - 12:00
+    if (startHour < 12 && endHour > 6) {
+      turnos.manha = true;
+    }
+
+    // Tarde: 12:00 - 18:00
+    if (startHour < 18 && endHour > 12) {
+      turnos.tarde = true;
+    }
+
+    // Noite: 18:00 - 23:59
+    if (endHour >= 18 || startHour >= 18) {
+      turnos.noite = true;
+    }
+
+    return turnos;
   }
 }
