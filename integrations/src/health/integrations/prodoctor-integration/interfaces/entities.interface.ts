@@ -8,6 +8,7 @@ interface ProdoctorInsuranceData {
   cnpj?: string;
   telefone?: string;
   localProDoctorCodigo?: number;
+  tipoConvenio?: number;
 }
 
 /**
@@ -27,16 +28,18 @@ interface ProdoctorInsurancePlanData {
  * Dados específicos de médico/usuário no ProDoctor
  */
 interface ProdoctorDoctorData {
-  cpf: string;
+  cpf?: string;
   crm?: string;
   conselho?: string;
   numeroConselho?: string;
-  ativo: boolean;
+  ativo?: boolean;
   especialidades?: Array<{
     codigo: number;
     nome: string;
   }>;
   locaisProDoctor?: number[];
+  cns?: string;
+  cnes?: string;
 }
 
 /**
@@ -48,8 +51,9 @@ interface ProdoctorProcedureData {
     nome: string;
   };
   codigo: string;
-  descricao: string;
+  descricao?: string;
   valor?: number;
+  honorario?: number;
   duracaoMinutos?: number;
   tipo?: string;
   exigeAutorizacao?: boolean;
@@ -64,6 +68,7 @@ interface ProdoctorOrganizationUnitData {
   nome: string;
   cnpj?: string;
   telefone?: string;
+  estadoRegistro?: number;
   endereco?: {
     logradouro?: string;
     numero?: string;
@@ -92,6 +97,7 @@ interface ProdoctorProcedureTableData {
   nome: string;
   descricao?: string;
   versao?: string;
+  tipoTabela?: number;
 }
 
 // ========== EXPORTS ==========

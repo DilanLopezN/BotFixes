@@ -1,4 +1,4 @@
-interface ProdoctorConfig {
+export interface ProdoctorCredentialsResponse {
   apiUrl: string;
   apiKey: string;
   apiPassword: string;

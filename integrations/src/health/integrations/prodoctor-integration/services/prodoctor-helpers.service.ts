@@ -1,335 +1,462 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as moment from 'moment';
-import { formatPhone, formatPhoneWithDDI, convertPhoneNumber } from '../../../../common/helpers/format-phone';
 import { Patient } from '../../../interfaces/patient.interface';
-import { onlyNumbers } from 'common/helpers/format-cpf';
-import { AppointmentStatus } from 'health/interfaces/appointment.interface';
+import { RawAppointment } from '../../../shared/appointment.service';
+import { AppointmentStatus } from '../../../interfaces/appointment.interface';
+import { EntityDocument } from '../../../entities/schema';
+import { CorrelationFilter } from '../../../interfaces/correlation-filter.interface';
+import { PacienteCRUDRequest, PacienteRequest, PacienteViewModel } from '../interfaces/patient.interface';
+import {
+  AgendamentoInserirRequest,
+  AgendamentoConsultaViewModel,
+  HorarioDisponivelViewModel,
+} from '../interfaces/schedule.interface';
+import { formatPhone, convertPhoneNumber } from '../../../../common/helpers/format-phone';
+import { CodigoBaseRequest } from '../interfaces/base.interface';
 
 /**
- * Service para helpers e conversões da integração ProDoctor
+ * Estado do agendamento que indica cancelamento
  */
+interface EstadoAgendaConsulta {
+  faltou?: boolean;
+  desmarcado?: boolean;
+  cancelado?: boolean;
+  atendido?: boolean;
+  compareceu?: boolean;
+  confirmado?: boolean;
+  confirmadoMSG?: boolean;
+}
+
 @Injectable()
 export class ProdoctorHelpersService {
   private readonly logger = new Logger(ProdoctorHelpersService.name);
+  private readonly dateFormat = 'DD/MM/YYYY';
+  private readonly dateTimeFormat = 'DD/MM/YYYY HH:mm';
 
   /**
-   * Converte data do formato ProDoctor (DD/MM/YYYY HH:mm) para ISO
-   * @param date Data no formato DD/MM/YYYY HH:mm ou DD/MM/YYYY
-   * @returns Data em formato ISO
+   * Transforma paciente do ProDoctor para formato padrão
    */
-  public convertDate(date: string): string {
-    if (!date) {
-      return '';
-    }
-
-    try {
-      // Formato com hora: "10/11/2025 14:30"
-      if (date.includes(' ')) {
-        return moment(date, 'DD/MM/YYYY HH:mm').toISOString();
-      }
-
-      // Formato sem hora: "10/11/2025"
-      return moment(date, 'DD/MM/YYYY').toISOString();
-    } catch (error) {
-      this.logger.error(`Erro ao converter data: ${date}`, error);
-      return '';
-    }
-  }
-
-  /**
-   * Converte data ISO para formato ProDoctor (DD/MM/YYYY)
-   * @param date Data em formato ISO
-   * @returns Data no formato DD/MM/YYYY
-   */
-  public convertDateToProDoctor(date: string | Date): string {
-    if (!date) {
-      return '';
-    }
-
-    try {
-      return moment(date).format('DD/MM/YYYY');
-    } catch (error) {
-      this.logger.error(`Erro ao converter data para ProDoctor: ${date}`, error);
-      return '';
-    }
-  }
-
-  /**
-   * Converte data/hora ISO para formato ProDoctor (DD/MM/YYYY HH:mm)
-   * @param date Data em formato ISO
-   * @returns Data no formato DD/MM/YYYY HH:mm
-   */
-  public convertDateTimeToProDoctor(date: string | Date): string {
-    if (!date) {
-      return '';
-    }
-
-    try {
-      return moment(date).format('DD/MM/YYYY HH:mm');
-    } catch (error) {
-      this.logger.error(`Erro ao converter data/hora para ProDoctor: ${date}`, error);
-      return '';
-    }
-  }
-
-  /**
-   * Formata telefone para o padrão brasileiro com DDI
-   * @param telefone Telefone do ProDoctor (ex: "(11) 99999-9999")
-   * @returns Telefone formatado com DDI (ex: "5511999999999")
-   */
-  public formatPhoneFromProDoctor(telefone: string): string {
-    if (!telefone) {
-      return '';
-    }
-
-    try {
-      // Remove tudo que não é número
-      const numbersOnly = onlyNumbers(telefone);
-
-      // Se já tem DDI (13 dígitos), retorna
-      if (numbersOnly.length === 13) {
-        return numbersOnly;
-      }
-
-      // Se tem 11 dígitos (DDD + número), adiciona DDI
-      if (numbersOnly.length === 11) {
-        return `55${numbersOnly}`;
-      }
-
-      // Se tem 10 dígitos, adiciona DDI (pode ser fixo)
-      if (numbersOnly.length === 10) {
-        return `55${numbersOnly}`;
-      }
-
-      return numbersOnly;
-    } catch (error) {
-      this.logger.error(`Erro ao formatar telefone: ${telefone}`, error);
-      return '';
-    }
-  }
-
-  /**
-   * Formata telefone do formato interno para ProDoctor
-   * @param phone Telefone no formato interno (5511999999999)
-   * @returns Telefone no formato ProDoctor (11) 99999-9999
-   */
-  public formatPhoneToProDoctor(phone: string): string {
-    if (!phone) {
-      return '';
-    }
-
-    try {
-      const numbersOnly = onlyNumbers(phone);
-
-      // Remove DDI se tiver
-      let phoneWithoutDDI = numbersOnly;
-      if (numbersOnly.startsWith('55') && numbersOnly.length >= 12) {
-        phoneWithoutDDI = numbersOnly.substring(2);
-      }
-
-      // Formata: (11) 99999-9999 ou (11) 9999-9999
-      if (phoneWithoutDDI.length === 11) {
-        return `(${phoneWithoutDDI.substring(0, 2)}) ${phoneWithoutDDI.substring(2, 7)}-${phoneWithoutDDI.substring(7)}`;
-      } else if (phoneWithoutDDI.length === 10) {
-        return `(${phoneWithoutDDI.substring(0, 2)}) ${phoneWithoutDDI.substring(2, 6)}-${phoneWithoutDDI.substring(6)}`;
-      }
-
-      return phoneWithoutDDI;
-    } catch (error) {
-      this.logger.error(`Erro ao formatar telefone para ProDoctor: ${phone}`, error);
-      return phone;
-    }
-  }
-
-  /**
-   * Formata CPF adicionando pontos e traço
-   * @param cpf CPF sem formatação
-   * @returns CPF formatado (XXX.XXX.XXX-XX)
-   */
-  public formatCPF(cpf: string): string {
-    if (!cpf) {
-      return '';
-    }
-
-    const numbersOnly = onlyNumbers(cpf);
-
-    if (numbersOnly.length !== 11) {
-      return cpf;
-    }
-
-    return `${numbersOnly.substring(0, 3)}.${numbersOnly.substring(3, 6)}.${numbersOnly.substring(6, 9)}-${numbersOnly.substring(9)}`;
-  }
-
-  /**
-   * Converte sexo do ProDoctor para o formato interno
-   * @param sexo 'M' ou 'F' do ProDoctor
-   * @returns 'Masculino' ou 'Feminino'
-   */
-  public convertSexFromProDoctor(sexo: string): string {
-    if (!sexo) {
-      return '';
-    }
-
-    switch (sexo.toUpperCase()) {
-      case 'M':
-      case 'MASCULINO':
-        return 'Masculino';
-      case 'F':
-      case 'FEMININO':
-        return 'Feminino';
-      default:
-        return sexo;
-    }
-  }
-
-  /**
-   * Converte sexo do formato interno para ProDoctor
-   * @param sex 'Masculino' ou 'Feminino'
-   * @returns 'M' ou 'F'
-   */
-  public convertSexToProDoctor(sex: string): string {
-    if (!sex) {
-      return '';
-    }
-
-    switch (sex.toLowerCase()) {
-      case 'masculino':
-      case 'm':
-        return 'M';
-      case 'feminino':
-      case 'f':
-        return 'F';
-      default:
-        return sex;
-    }
-  }
-
-  /**
-   * Converte status de agendamento do ProDoctor para o formato interno
-   * @param status Status do ProDoctor
-   * @returns Status no formato interno
-   */
-  public convertScheduleStatus(status: string): AppointmentStatus {
-    if (!status) {
-      return AppointmentStatus.scheduled;
-    }
-
-    switch (status.toLowerCase()) {
-      case 'confirmado':
-        return AppointmentStatus.confirmed;
-      case 'agendado':
-      case 'marcado':
-        return AppointmentStatus.scheduled;
-      case 'cancelado':
-      case 'desmarcado':
-        return AppointmentStatus.canceled;
-      case 'realizado':
-      case 'atendido':
-        return AppointmentStatus.finished;
-
-      default:
-        return AppointmentStatus.scheduled;
-    }
-  }
-
-  /**
-   * Valida se um CPF tem o formato correto (11 dígitos)
-   * @param cpf CPF a ser validado
-   * @returns true se válido
-   */
-  public validateCPF(cpf: string): boolean {
-    if (!cpf) {
-      return false;
-    }
-
-    const numbersOnly = onlyNumbers(cpf);
-    return numbersOnly.length === 11;
-  }
-
-  /**
-   * Valida se uma data está no formato correto do ProDoctor
-   * @param date Data no formato DD/MM/YYYY
-   * @returns true se válido
-   */
-  public validateProDoctorDate(date: string): boolean {
-    if (!date) {
-      return false;
-    }
-
-    return moment(date, 'DD/MM/YYYY', true).isValid();
-  }
-
-  /**
-   * Extrai código do convênio de um objeto composto
-   * Útil para casos onde o código vem dentro de objeto { codigo: X }
-   */
-  public extractCode(obj: any): number | string | null {
-    if (!obj) {
-      return null;
-    }
-
-    if (typeof obj === 'number' || typeof obj === 'string') {
-      return obj;
-    }
-
-    if (obj.codigo !== undefined) {
-      return obj.codigo;
-    }
-
-    if (obj.code !== undefined) {
-      return obj.code;
-    }
-
-    return null;
-  }
-
-  /**
-   * Cria um período de busca para a API ProDoctor
-   * @param fromDay Dias a partir de hoje
-   * @param untilDay Dias até
-   * @returns Objeto com dataInicio e dataFim
-   */
-  public createPeriod(fromDay: number, untilDay: number): { dataInicio: string; dataFim: string } {
-    const dataInicio = moment().add(fromDay, 'days').format('DD/MM/YYYY');
-    const dataFim = moment().add(untilDay, 'days').format('DD/MM/YYYY');
+  transformPatient(paciente: PacienteViewModel): Patient {
+    const phone = this.extractPhone(paciente);
+    const cellPhone = this.extractCellPhone(paciente);
 
     return {
-      dataInicio,
-      dataFim,
+      code: String(paciente.codigo),
+      name: paciente.nome?.trim() || paciente.nomeCivil?.trim(),
+      cpf: paciente.cpf?.replace(/\D/g, ''),
+      email: paciente.correioEletronico,
+      phone: phone,
+      cellPhone: cellPhone,
+      bornDate: this.parseDate(paciente.dataNascimento),
+      sex: this.mapSex(paciente.sexo.codigo),
     };
   }
 
   /**
-   * Normaliza nome removendo acentos e caracteres especiais
-   * @param name Nome a ser normalizado
-   * @returns Nome normalizado
+   * Extrai telefone fixo
    */
-  public normalizeName(name: string): string {
-    if (!name) {
-      return '';
+  private extractPhone(paciente: PacienteViewModel): string {
+    const telefones = [paciente.telefone1, paciente.telefone2, paciente.telefone3, paciente.telefone4];
+
+    for (const tel of telefones) {
+      if (tel?.numero && tel?.tipo?.codigo !== 3) {
+        return formatPhone(tel.ddd + tel.numero, true);
+      }
     }
 
-    return name
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .toUpperCase()
-      .trim();
+    return '';
   }
 
   /**
-   * Verifica se dois nomes são similares (ignora acentos e case)
-   * @param name1 Primeiro nome
-   * @param name2 Segundo nome
-   * @returns true se similares
+   * Extrai celular
    */
-  public areNamesSimilar(name1: string, name2: string): boolean {
-    if (!name1 || !name2) {
-      return false;
+  private extractCellPhone(paciente: PacienteViewModel): string {
+    const telefones = [paciente.telefone1, paciente.telefone2, paciente.telefone3, paciente.telefone4];
+
+    for (const tel of telefones) {
+      if (tel?.numero) {
+        const fullNumber = (tel.ddd || '') + tel.numero;
+        if (tel.numero.length >= 8 && tel.numero.startsWith('9')) {
+          return formatPhone(fullNumber, true);
+        }
+      }
     }
 
-    const normalized1 = this.normalizeName(name1);
-    const normalized2 = this.normalizeName(name2);
+    for (const tel of telefones) {
+      if (tel?.numero) {
+        return formatPhone((tel.ddd || '') + tel.numero, true);
+      }
+    }
 
-    return normalized1 === normalized2;
+    return '';
+  }
+
+  /**
+   * Mapeia código de sexo para letra
+   */
+  mapSex(sexo: number): string {
+    switch (sexo) {
+      case 1:
+        return 'M';
+      case 2:
+        return 'F';
+      default:
+        return 'I';
+    }
+  }
+
+  /**
+   * Mapeia letra de sexo para CodigoBaseRequest
+   */
+  mapSexToCode(sex: string): CodigoBaseRequest {
+    switch (sex?.toUpperCase()) {
+      case 'M':
+        return { codigo: 1 };
+      case 'F':
+        return { codigo: 2 };
+      default:
+        return { codigo: 0 };
+    }
+  }
+
+  /**
+   * Converte data do formato ProDoctor (DD/MM/YYYY) para ISO (YYYY-MM-DD)
+   */
+  parseDate(date: string): string {
+    if (!date) return '';
+
+    const parsed = moment(date, this.dateFormat, true);
+    if (parsed.isValid()) {
+      return parsed.format('YYYY-MM-DD');
+    }
+
+    const parsedOther = moment(date);
+    if (parsedOther.isValid()) {
+      return parsedOther.format('YYYY-MM-DD');
+    }
+
+    return '';
+  }
+
+  /**
+   * Converte data ISO para formato ProDoctor (DD/MM/YYYY)
+   */
+  formatDate(date: string | Date): string {
+    if (!date) return '';
+
+    const parsed = moment(date);
+    if (parsed.isValid()) {
+      return parsed.format(this.dateFormat);
+    }
+
+    return '';
+  }
+
+  /**
+   * Converte data/hora ISO para formato ProDoctor (DD/MM/YYYY HH:mm)
+   */
+  formatDateTime(date: string | Date): string {
+    if (!date) return '';
+
+    const parsed = moment(date);
+    if (parsed.isValid()) {
+      return parsed.format(this.dateTimeFormat);
+    }
+
+    return '';
+  }
+
+  /**
+   * Extrai apenas a data de um datetime
+   */
+  extractDate(date: string | Date): string {
+    if (!date) return '';
+    const parsed = moment(date);
+    return parsed.isValid() ? parsed.format(this.dateFormat) : '';
+  }
+
+  /**
+   * Extrai apenas a hora de um datetime
+   */
+  extractTime(date: string | Date): string {
+    if (!date) return '';
+    const parsed = moment(date);
+    return parsed.isValid() ? parsed.format('HH:mm') : '';
+  }
+
+  /**
+   * Verifica se o status indica cancelamento
+   */
+  isCancelledStatus(estado: EstadoAgendaConsulta): boolean {
+    return !!(estado?.faltou || estado?.desmarcado || estado?.cancelado);
+  }
+
+  /**
+   * Transforma agendamento do ProDoctor para RawAppointment
+   */
+  transformScheduleToRawAppointment(agendamento: AgendamentoConsultaViewModel): RawAppointment {
+    const appointmentDate = moment(agendamento.data, this.dateTimeFormat);
+
+    return {
+      appointmentCode: String(agendamento.codigo),
+      appointmentDate: appointmentDate.toISOString(),
+      status: this.mapAppointmentStatus(agendamento.estadoAgendaConsulta),
+      doctorId: agendamento.usuario?.codigo?.toString(),
+      doctorDefault: agendamento.usuario
+        ? {
+            name: agendamento.usuario.nome,
+            friendlyName: agendamento.usuario.nome,
+            code: String(agendamento.usuario.codigo),
+          }
+        : undefined,
+      insuranceId: agendamento.convenio?.codigo?.toString(),
+      insuranceDefault: agendamento.convenio
+        ? {
+            name: agendamento.convenio.nome,
+            friendlyName: agendamento.convenio.nome,
+            code: String(agendamento.convenio.codigo),
+          }
+        : undefined,
+      organizationUnitId: agendamento.localProDoctor?.codigo?.toString(),
+      organizationUnitDefault: agendamento.localProDoctor
+        ? {
+            name: agendamento.localProDoctor.nome,
+            friendlyName: agendamento.localProDoctor.nome,
+            code: String(agendamento.localProDoctor.codigo),
+          }
+        : undefined,
+      procedureId: agendamento.procedimentoMedico?.codigo,
+      procedureDefault: agendamento.procedimentoMedico
+        ? {
+            name: agendamento.procedimentoMedico.nome,
+            friendlyName: agendamento.procedimentoMedico.nome,
+            code: agendamento.procedimentoMedico.codigo,
+          }
+        : undefined,
+      specialityId: agendamento.usuario?.especialidade?.codigo?.toString(),
+      specialityDefault: agendamento.usuario?.especialidade
+        ? {
+            name: agendamento.usuario.especialidade.nome,
+            friendlyName: agendamento.usuario.especialidade.nome,
+            code: String(agendamento.usuario.especialidade.codigo),
+          }
+        : undefined,
+      appointmentTypeId: this.mapAppointmentTypeCode(agendamento.tipoAgendamento),
+      duration: String(agendamento.duracao || 0),
+      data: {
+        observation: agendamento.complemento,
+        tipoAgendamento: agendamento.tipoAgendamento,
+      },
+    };
+  }
+
+  /**
+   * Mapeia status do agendamento
+   */
+  private mapAppointmentStatus(estado: EstadoAgendaConsulta): AppointmentStatus {
+    if (!estado) return AppointmentStatus.scheduled;
+
+    if (estado.faltou || estado.desmarcado) {
+      return AppointmentStatus.canceled;
+    }
+    if (estado.atendido) {
+      return AppointmentStatus.finished;
+    }
+    if (estado.compareceu || estado.confirmado || estado.confirmadoMSG) {
+      return AppointmentStatus.confirmed;
+    }
+
+    return AppointmentStatus.scheduled;
+  }
+
+  /**
+   * Mapeia código do tipo de agendamento
+   */
+  private mapAppointmentTypeCode(tipo: any): string {
+    if (!tipo) return 'consulta';
+
+    if (tipo.consulta) return 'consulta';
+    if (tipo.retorno) return 'retorno';
+    if (tipo.exame) return 'exame';
+    if (tipo.cirurgia) return 'cirurgia';
+    if (tipo.teleconsulta) return 'teleconsulta';
+    if (tipo.compromisso) return 'compromisso';
+
+    return 'consulta';
+  }
+
+  /**
+   * Transforma horário disponível para RawAppointment
+   */
+  transformAvailableScheduleToRawAppointment(
+    horario: HorarioDisponivelViewModel,
+    doctor: EntityDocument,
+    filter: CorrelationFilter,
+  ): RawAppointment {
+    const appointmentDate = moment(horario.dataHora, this.dateTimeFormat);
+
+    return {
+      appointmentCode: null,
+      appointmentDate: appointmentDate.toISOString(),
+      status: AppointmentStatus.scheduled,
+      doctorId: doctor.code,
+      doctorDefault: {
+        name: doctor.name,
+        friendlyName: doctor.friendlyName || doctor.name,
+        code: doctor.code,
+      },
+      insuranceId: filter.insurance?.code,
+      insuranceDefault: filter.insurance
+        ? {
+            name: filter.insurance.name,
+            friendlyName: filter.insurance.friendlyName || filter.insurance.name,
+            code: filter.insurance.code,
+          }
+        : undefined,
+      organizationUnitId: filter.organizationUnit?.code,
+      organizationUnitDefault: filter.organizationUnit
+        ? {
+            name: filter.organizationUnit.name,
+            friendlyName: filter.organizationUnit.friendlyName || filter.organizationUnit.name,
+            code: filter.organizationUnit.code,
+          }
+        : undefined,
+      procedureId: filter.procedure?.code,
+      procedureDefault: filter.procedure
+        ? {
+            name: filter.procedure.name,
+            friendlyName: filter.procedure.friendlyName || filter.procedure.name,
+            code: filter.procedure.code,
+          }
+        : undefined,
+      specialityId: filter.speciality?.code,
+      specialityDefault: filter.speciality
+        ? {
+            name: filter.speciality.name,
+            friendlyName: filter.speciality.friendlyName || filter.speciality.name,
+            code: filter.speciality.code,
+          }
+        : undefined,
+      appointmentTypeId: filter.appointmentType?.code || 'consulta',
+      duration: String(horario.duracao || 0),
+    };
+  }
+
+  /**
+   * Constrói request para criar paciente
+   */
+  buildCreatePatientRequest(patient: Partial<Patient>): PacienteCRUDRequest {
+    const paciente: PacienteRequest = {
+      nome: patient.name,
+      cpf: patient.cpf?.replace(/\D/g, ''),
+      dataNascimento: patient.bornDate ? this.formatDate(patient.bornDate) : undefined,
+      correioEletronico: patient.email,
+      sexo: this.mapSexToCode(patient.sex),
+    };
+
+    if (patient.cellPhone || patient.phone) {
+      const phoneNumber = convertPhoneNumber(patient.cellPhone || patient.phone);
+      if (phoneNumber) {
+        paciente.telefone1 = {
+          ddd: phoneNumber.substring(0, 2),
+          numero: phoneNumber.substring(2),
+          tipo: { codigo: 3 },
+        };
+      }
+    }
+
+    return { paciente };
+  }
+
+  /**
+   * Constrói request para atualizar paciente
+   */
+  buildUpdatePatientRequest(patientCode: string, patient: Partial<Patient>): PacienteCRUDRequest {
+    const request = this.buildCreatePatientRequest(patient);
+    request.paciente.codigo = Number(patientCode);
+    return request;
+  }
+
+  /**
+   * Constrói request para criar agendamento
+   */
+  buildCreateScheduleRequest(
+    patientCode: string,
+    scheduleDate: string,
+    filter: CorrelationFilter,
+    duration?: number,
+  ): AgendamentoInserirRequest {
+    const parsedDate = moment(scheduleDate);
+
+    const request: AgendamentoInserirRequest = {
+      paciente: { codigo: Number(patientCode) },
+      usuario: { codigo: Number(filter.doctor?.code) },
+      data: parsedDate.format(this.dateFormat),
+      hora: parsedDate.format('HH:mm'),
+      tipoAgendamento: this.buildTipoAgendamento(filter.appointmentType?.code),
+      duracao: duration || 30,
+    };
+
+    if (filter.insurance?.code) {
+      request.convenio = { codigo: Number(filter.insurance.code) };
+    }
+
+    if (filter.organizationUnit?.code) {
+      request.localProDoctor = { codigo: Number(filter.organizationUnit.code) };
+    }
+
+    if (filter.procedure?.code) {
+      request.procedimentoMedico = {
+        tabela: { codigo: 1 },
+        codigo: filter.procedure.code,
+      };
+    }
+
+    return request;
+  }
+
+  /**
+   * Constrói objeto de tipo de agendamento
+   */
+  buildTipoAgendamento(appointmentTypeCode?: string): any {
+    const tipo: any = {
+      consulta: false,
+      retorno: false,
+      exame: false,
+      cirurgia: false,
+      teleconsulta: false,
+      compromisso: false,
+    };
+
+    switch (appointmentTypeCode?.toLowerCase()) {
+      case 'retorno':
+        tipo.retorno = true;
+        break;
+      case 'exame':
+        tipo.exame = true;
+        break;
+      case 'cirurgia':
+        tipo.cirurgia = true;
+        break;
+      case 'teleconsulta':
+        tipo.teleconsulta = true;
+        break;
+      case 'compromisso':
+        tipo.compromisso = true;
+        break;
+      case 'consulta':
+      default:
+        tipo.consulta = true;
+        break;
+    }
+
+    return tipo;
+  }
+
+  /**
+   * Remove parâmetros vazios de um objeto
+   */
+  filterBlankParams(obj: Record<string, any>): Record<string, any> {
+    return Object.fromEntries(Object.entries(obj).filter(([_, v]) => v != null && v !== '' && v !== undefined));
   }
 }

@@ -28,39 +28,109 @@ interface AgendamentoDetalharRequest {
 }
 
 /**
+ * Tipo de agendamento
+ */
+interface TipoAgendamentoRequest {
+  consulta?: boolean;
+  retorno?: boolean;
+  exame?: boolean;
+  cirurgia?: boolean;
+  compromisso?: boolean;
+  teleconsulta?: boolean;
+}
+
+/**
  * Request para inserir agendamento
  */
 interface AgendamentoInserirRequest {
   paciente: CodigoBaseRequest;
   usuario: CodigoBaseRequest;
-  dataHora: string; // DD/MM/YYYY HH:mm
-  procedimento: {
-    tabela: CodigoBaseRequest;
-    codigo: string;
-  };
+  data: string; // DD/MM/YYYY
+  hora: string; // HH:mm
+  tipoAgendamento?: TipoAgendamentoRequest;
   convenio?: CodigoBaseRequest;
   plano?: CodigoBaseRequest;
   localProDoctor?: CodigoBaseRequest;
-  observacao?: string;
+  procedimentoMedico?: {
+    tabela: CodigoBaseRequest;
+    codigo: string;
+  };
+  complemento?: string;
   duracao?: number; // minutos
+  naoEnviarMsgConfirmacao?: boolean;
+  encaixe?: boolean;
+  atualizaContatoPaciente?: boolean;
+  telefone?: {
+    ddd?: string;
+    numero?: string;
+    tipo?: CodigoBaseRequest;
+  };
+  email?: string;
 }
 
 /**
  * Request para alterar agendamento
  */
 interface AgendamentoAlterarRequest {
-  codigo: number;
-  dataHora?: string; // DD/MM/YYYY HH:mm
-  observacao?: string;
-  status?: string;
+  agendamento: {
+    localProDoctor?: CodigoBaseRequest;
+    usuario: CodigoBaseRequest;
+    data: string;
+    hora: string;
+    paciente?: CodigoBaseRequest;
+    tipoAgendamento?: TipoAgendamentoRequest;
+    convenio?: CodigoBaseRequest;
+    procedimentoMedico?: {
+      tabela: CodigoBaseRequest;
+      codigo: string;
+    };
+    complemento?: string;
+  };
+  agendamentoOrigem: {
+    localProDoctor?: CodigoBaseRequest;
+    usuario: CodigoBaseRequest;
+    data: string;
+    hora: string;
+  };
+  agendamentoAlertas?: {
+    suprimirAlertaAlteracao?: boolean;
+  };
 }
 
 /**
- * Request para cancelar agendamento
+ * Request para desmarcar agendamento
  */
-interface AgendamentoCancelarRequest {
-  codigo: number;
+interface AgendamentoDesmarcarRequest {
+  agendamento: CodigoBaseRequest;
   motivo?: string;
+}
+
+/**
+ * Request para excluir agendamento
+ */
+interface AgendamentoApagarRequest {
+  localProDoctor?: CodigoBaseRequest;
+  usuario: CodigoBaseRequest;
+  data: string;
+  hora: string;
+}
+
+/**
+ * Request para alterar status do agendamento
+ */
+interface AgendamentoAlterarStatusRequest {
+  agendamento: CodigoBaseRequest;
+  estadoAgendaConsulta: {
+    confirmado?: boolean;
+    compareceu?: boolean;
+    atrasado?: boolean;
+    atendimento?: boolean;
+    atendido?: boolean;
+    faltou?: boolean;
+    horaCompareceu?: string;
+    horaAtendimento?: string;
+    horaAtendido?: string;
+  };
 }
 
 /**
@@ -68,39 +138,95 @@ interface AgendamentoCancelarRequest {
  */
 interface HorariosDisponiveisRequest {
   usuario: CodigoBaseRequest;
-  procedimento: {
+  periodo: PeriodoRequest;
+  procedimento?: {
     tabela: CodigoBaseRequest;
     codigo: string;
   };
-  periodo: PeriodoRequest;
   localProDoctor?: CodigoBaseRequest;
   convenio?: CodigoBaseRequest;
   plano?: CodigoBaseRequest;
+  turnos?: {
+    manha?: boolean;
+    tarde?: boolean;
+    noite?: boolean;
+  };
+  tipoAgendamento?: TipoAgendamentoRequest;
 }
 
 /**
- * Agendamento básico (listagem)
+ * Request para buscar por status
+ */
+interface AgendamentoPorStatusRequest {
+  periodo: PeriodoRequest;
+  usuarios?: CodigoBaseRequest[];
+  locaisProDoctor?: CodigoBaseRequest[];
+  estadoAgendaConsulta?: {
+    confirmado?: boolean;
+    enviadoMSG?: boolean;
+    confirmadoMSG?: boolean;
+    compareceu?: boolean;
+    atendimento?: boolean;
+    atrasado?: boolean;
+    atendido?: boolean;
+    faltou?: boolean;
+    operador?: number; // 0: E, 1: OU
+  };
+  tipoAgendamento?: TipoAgendamentoRequest & { operador?: number };
+}
+
+// ========== VIEW MODELS ==========
+
+/**
+ * Estado do agendamento
+ */
+interface EstadoAgendaConsultaViewModel {
+  confirmado?: boolean;
+  enviadoMSG?: boolean;
+  confirmadoMSG?: boolean;
+  compareceu?: boolean;
+  atrasado?: boolean;
+  atendimento?: boolean;
+  atendido?: boolean;
+  faltou?: boolean;
+  desmarcado?: boolean;
+  horaCompareceu?: string;
+  horaAtendimento?: string;
+  horaAtendido?: string;
+}
+
+/**
+ * Tipo de agendamento ViewModel
+ */
+interface TipoAgendamentoViewModel {
+  consulta?: boolean;
+  retorno?: boolean;
+  exame?: boolean;
+  cirurgia?: boolean;
+  compromisso?: boolean;
+  teleconsulta?: boolean;
+}
+
+/**
+ * Agendamento básico para listagem
  */
 interface AgendamentoBasicoViewModel {
   codigo: number;
-  dataHora: string;
-  paciente: {
+  data: string;
+  hora: string;
+  duracao?: number;
+  paciente?: {
     codigo: number;
     nome: string;
   };
-  usuario: {
+  usuario?: {
     codigo: number;
     nome: string;
-  };
-  procedimento: {
-    tabela: {
+    especialidade?: {
       codigo: number;
       nome: string;
     };
-    codigo: string;
-    descricao: string;
   };
-  status: string;
   convenio?: {
     codigo: number;
     nome: string;
@@ -109,24 +235,56 @@ interface AgendamentoBasicoViewModel {
     codigo: number;
     nome: string;
   };
-  duracao?: number;
+  procedimentoMedico?: {
+    codigo: string;
+    nome: string;
+    tabela?: {
+      codigo: number;
+      nome: string;
+    };
+  };
+  tipoAgendamento?: TipoAgendamentoViewModel;
+  estadoAgendaConsulta?: EstadoAgendaConsultaViewModel;
+  complemento?: string;
+  encaixe?: boolean;
+}
+
+/**
+ * Agendamento completo para consulta
+ */
+interface AgendamentoConsultaViewModel extends AgendamentoBasicoViewModel {
+  telefone?: {
+    ddd?: string;
+    numero?: string;
+    tipo?: {
+      codigo?: number;
+      descricao?: string;
+    };
+  };
+  email?: string;
+  plano?: string;
+  dataInsercao?: string;
+  dataAlteracao?: string;
+  orientacaoUsuario?: string;
+  orientacaoConvenio?: string;
+  orientacaoProcedimento?: string;
 }
 
 /**
  * Agendamento detalhado
  */
-interface AgendamentoDetalhadoViewModel extends AgendamentoBasicoViewModel {
-  observacao?: string;
-  plano?: {
-    codigo: number;
-    nome: string;
+interface AgendamentoDetalhadoViewModel extends AgendamentoConsultaViewModel {
+  pacienteCompleto?: {
+    codigo?: number;
+    nome?: string;
+    dataNascimento?: string;
+    cpf?: string;
+    telefone1?: any;
+    telefone2?: any;
+    telefone3?: any;
+    telefone4?: any;
+    correioEletronico?: string;
   };
-  dataConfirmacao?: string;
-  dataCancelamento?: string;
-  motivoCancelamento?: string;
-  valorProcedimento?: number;
-  telefone?: string;
-  email?: string;
 }
 
 /**
@@ -138,7 +296,11 @@ interface DiaAgendaConsultaViewModel {
     codigo: number;
     nome: string;
   };
-  agendamentos: AgendamentoBasicoViewModel[];
+  localProDoctor?: {
+    codigo: number;
+    nome: string;
+  };
+  agendamentos: AgendamentoConsultaViewModel[];
   totalAgendamentos: number;
 }
 
@@ -149,7 +311,10 @@ interface HorarioDisponivelViewModel {
   dataHora: string; // DD/MM/YYYY HH:mm
   disponivel: boolean;
   motivoIndisponibilidade?: string;
+  duracao?: number;
 }
+
+// ========== RESPONSES ==========
 
 /**
  * Response de horários disponíveis
@@ -174,11 +339,11 @@ interface PDResponseDiaAgendaConsultaViewModel {
 }
 
 /**
- * Response de lista de agendamentos
+ * Response de busca de agendamentos do paciente
  */
 interface PDResponseAgendamentosViewModel {
   payload: {
-    agendamentos: AgendamentoBasicoViewModel[];
+    agendamentos: AgendamentoConsultaViewModel[];
   };
   sucesso: boolean;
   mensagens: string[];
@@ -221,6 +386,31 @@ interface PDResponseAgendamentoOperacaoViewModel {
   mensagens: string[];
 }
 
+/**
+ * Response de busca por status
+ */
+interface PDResponseAgendaBuscarPorStatusViewModel {
+  payload: {
+    agendamentos: AgendamentoConsultaViewModel[];
+  };
+  sucesso: boolean;
+  mensagens: string[];
+}
+
+/**
+ * Response de alteração de status
+ */
+interface PDResponseAlterarStatusAgendamentoViewModel {
+  payload: {
+    agendamento: {
+      codigo: number;
+      estadoAgendaConsulta: EstadoAgendaConsultaViewModel;
+    };
+  };
+  sucesso: boolean;
+  mensagens: string[];
+}
+
 // ========== EXPORTS ==========
 
 export {
@@ -230,10 +420,17 @@ export {
   AgendamentoDetalharRequest,
   AgendamentoInserirRequest,
   AgendamentoAlterarRequest,
-  AgendamentoCancelarRequest,
+  AgendamentoDesmarcarRequest,
+  AgendamentoApagarRequest,
+  AgendamentoAlterarStatusRequest,
+  AgendamentoPorStatusRequest,
   HorariosDisponiveisRequest,
+  TipoAgendamentoRequest,
   // ViewModels
+  EstadoAgendaConsultaViewModel,
+  TipoAgendamentoViewModel,
   AgendamentoBasicoViewModel,
+  AgendamentoConsultaViewModel,
   AgendamentoDetalhadoViewModel,
   DiaAgendaConsultaViewModel,
   HorarioDisponivelViewModel,
@@ -244,4 +441,6 @@ export {
   PDResponseAgendamentoDetalhadoViewModel,
   PDResponseAgendamentoInseridoViewModel,
   PDResponseAgendamentoOperacaoViewModel,
+  PDResponseAgendaBuscarPorStatusViewModel,
+  PDResponseAlterarStatusAgendamentoViewModel,
 };
