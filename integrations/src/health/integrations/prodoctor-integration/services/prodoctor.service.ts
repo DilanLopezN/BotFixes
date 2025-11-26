@@ -641,7 +641,6 @@ export class ProdoctorService implements IIntegratorService {
     entityType: EntityType,
     filter?: CorrelationFilter,
     cache: boolean = false,
-    fromImport?: boolean,
   ): Promise<EntityTypes[]> {
     return await this.prodoctorEntitiesService.extractEntity(integration, entityType, filter, cache);
   }
