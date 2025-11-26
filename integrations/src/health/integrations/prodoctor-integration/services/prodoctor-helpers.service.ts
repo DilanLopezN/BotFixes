@@ -212,7 +212,7 @@ export class ProdoctorHelpersService {
     doctor: EntityDocument,
     filter: CorrelationFilter,
   ): RawAppointment {
-    const appointmentDate = moment(horario.dataHora, this.dateTimeFormat);
+    const appointmentDate = moment(horario.data, this.dateTimeFormat);
 
     return {
       appointmentCode: null,

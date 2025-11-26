@@ -582,6 +582,18 @@ export class ProdoctorService implements IIntegratorService {
         return { schedules: [], metadata: null };
       }
 
+      // ✅ CORREÇÃO 1: Buscar entidade do médico antes de processar horários
+      const doctorEntity = await this.entitiesService.getEntityByCode(
+        filter.doctor.code,
+        EntityType.doctor,
+        integration._id,
+      );
+
+      if (!doctorEntity) {
+        this.logger.warn(`Doctor entity not found: ${filter.doctor.code}`);
+        return { schedules: [], metadata };
+      }
+
       const request: HorariosDisponiveisRequest = {
         usuario: { codigo: Number(filter.doctor.code) },
         periodo: {
@@ -596,8 +608,7 @@ export class ProdoctorService implements IIntegratorService {
         request.localProDoctor = { codigo: Number(filter.organizationUnit.code) };
       }
 
-      // CORREÇÃO: Removido request.convenio pois não existe no swagger
-      // O endpoint /api/v1/Agenda/Livres não suporta filtro por convênio
+      // O endpoint /api/v1/Agenda/Livres não suporta filtro por convênio no swagger
 
       if (period?.start && period?.end) {
         request.turnos = this.prodoctorHelpersService.buildTurnosFromPeriod(period.start, period.end);
@@ -605,14 +616,15 @@ export class ProdoctorService implements IIntegratorService {
 
       const response = await this.prodoctorApiService.buscarHorariosLivres(integration, request);
 
-      // CORREÇÃO: usar "agendamentos" em vez de "horarios"
       if (!response?.sucesso || !response?.payload?.agendamentos) {
         return { schedules: [], metadata };
       }
 
-      const schedules = response.payload.agendamentos
-        // CORREÇÃO: Todos os horários retornados são livres, não precisa filtrar por "disponivel"
-        .map((horario) => this.prodoctorHelpersService.transformAvailableSchedule(horario, filter));
+      const rawSchedules: RawAppointment[] = response.payload.agendamentos.map((horario) =>
+        this.prodoctorHelpersService.transformAvailableScheduleToRawAppointment(horario, doctorEntity, filter),
+      );
+
+      const schedules = await this.appointmentService.transformSchedules(integration, rawSchedules);
 
       return {
         schedules: orderBy(schedules, ['appointmentDate'], ['asc']),
@@ -622,7 +634,6 @@ export class ProdoctorService implements IIntegratorService {
       throw INTERNAL_ERROR_THROWER('ProdoctorService.getAvailableSchedules', error);
     }
   }
-
   // ========== ENTITY METHODS ==========
 
   public async extractSingleEntity(

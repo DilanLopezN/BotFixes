@@ -387,8 +387,11 @@ describe('ProdoctorService', () => {
         mensagens: [],
         payload: {
           agendamento: {
-            codigo: 2001,
-            dataHora: '25/11/2025 14:00',
+            data: '25/11/2025',
+            hora: '14:00',
+            localProDoctor: { codigo: 1, nome: 'Clínica Central' },
+            usuario: { codigo: 100, nome: 'Dr. Carlos' },
+            paciente: { codigo: 101, nome: 'João da Silva' },
           },
         },
       });
@@ -491,7 +494,13 @@ describe('ProdoctorService', () => {
         sucesso: true,
         mensagens: [],
         payload: {
-          agendamento: { codigo: 2002, dataHora: '26/11/2025 10:00' },
+          agendamento: {
+            data: '25/11/2025',
+            hora: '14:00',
+            localProDoctor: { codigo: 1, nome: 'Clínica Central' },
+            usuario: { codigo: 100, nome: 'Dr. Carlos' },
+            paciente: { codigo: 101, nome: 'João da Silva' },
+          },
         },
       });
 
@@ -536,15 +545,24 @@ describe('ProdoctorService', () => {
         sucesso: true,
         mensagens: [],
         payload: {
-          horarios: [
-            { dataHora: '25/11/2025 08:00', disponivel: true, duracao: 30 },
-            { dataHora: '25/11/2025 08:30', disponivel: true, duracao: 30 },
-            { dataHora: '25/11/2025 09:00', disponivel: false, duracao: 30 },
+          agendamentos: [
+            // ✅ CORRETO
+            { dataHora: '25/11/2025 08:00' },
+            { dataHora: '25/11/2025 08:30' },
           ],
         },
       };
 
-      jest.spyOn(prodoctorApiService, 'buscarHorariosLivres').mockResolvedValue(mockHorariosResponse);
+      jest.spyOn(prodoctorApiService, 'buscarHorariosLivres').mockResolvedValue({
+        sucesso: true,
+        mensagens: [],
+        payload: {
+          agendamentos: [
+            { data: '25/11/2025', hora: '08:00' },
+            { data: '25/11/2025', hora: '08:30' },
+          ],
+        },
+      });
       jest.spyOn(entitiesService, 'getEntityByCode').mockResolvedValue({
         code: '100',
         name: 'Dr. Carlos',

@@ -10,7 +10,7 @@ import { AuditService } from '../../../audit/services/audit.service';
 import { IntegrationDocument } from '../../../integration/schema/integration.schema';
 import { IntegrationType } from '../../../interfaces/integration-types';
 import { AuditDataType } from '../../../audit/audit.interface';
-import { AgendamentoAlterarRequest } from '../interfaces';
+import { AgendamentoAlterarRequest, AgendamentoInserirRequest } from '../interfaces';
 
 describe('ProdoctorApiService', () => {
   let service: ProdoctorApiService;
@@ -530,18 +530,20 @@ describe('ProdoctorApiService', () => {
 
         jest.spyOn(httpService, 'post').mockReturnValue(of(mockResponse as AxiosResponse));
 
-        const request = {
-          paciente: { codigo: 101 },
-          usuario: { codigo: 100 },
-          data: '26/11/2025',
-          hora: '14:00',
-          localProDoctor: { codigo: 1 },
+        const request: AgendamentoInserirRequest = {
+          agendamento: {
+            paciente: { codigo: 101 },
+            usuario: { codigo: 100 },
+            data: '26/11/2025',
+            hora: '14:00',
+            localProDoctor: { codigo: 1 },
+          },
         };
 
         const result = await service.inserirAgendamento(mockIntegration as IntegrationDocument, request);
 
         expect(result.sucesso).toBe(true);
-        expect(result.payload.agendamento.codigo).toBe(2001);
+        expect(result.payload.agendamento.data).toBe('26/11/2025');
       });
     });
 
@@ -566,12 +568,13 @@ describe('ProdoctorApiService', () => {
             localProDoctor: { codigo: 1 },
             data: '25/11/2025',
             hora: '10:00',
-            usuario, // ✅ obrigatório em agendamentoOrigem
+            usuario,
           },
           agendamento: {
             data: '26/11/2025',
             hora: '11:00',
             usuario,
+            paciente: { codigo: 101 },
           },
         };
 
@@ -594,7 +597,10 @@ describe('ProdoctorApiService', () => {
         jest.spyOn(httpService, 'patch').mockReturnValue(of(mockResponse as AxiosResponse));
 
         const result = await service.desmarcarAgendamento(mockIntegration as IntegrationDocument, {
-          agendamento: { codigo: 1001 },
+          localProDoctor: { codigo: 1 },
+          usuario: { codigo: 100 },
+          data: '25/11/2025',
+          hora: '10:00',
         });
 
         expect(result.sucesso).toBe(true);
@@ -618,7 +624,12 @@ describe('ProdoctorApiService', () => {
         jest.spyOn(httpService, 'patch').mockReturnValue(of(mockResponse as AxiosResponse));
 
         const result = await service.alterarStatusAgendamento(mockIntegration as IntegrationDocument, {
-          agendamento: { codigo: 1001 },
+          agendamentoID: {
+            localProDoctor: { codigo: 1 },
+            usuario: { codigo: 100 },
+            data: '25/11/2025',
+            hora: '10:00',
+          },
           estadoAgendaConsulta: { confirmado: true },
         });
 
@@ -633,9 +644,9 @@ describe('ProdoctorApiService', () => {
             sucesso: true,
             payload: {
               agendamentos: [
-                { dataHora: '25/11/2025 08:00', duracao: 30 },
-                { dataHora: '25/11/2025 08:30', duracao: 30 },
-                { dataHora: '25/11/2025 09:00', duracao: 30 },
+                { data: '25/11/2025', hora: '08:00', duracao: 30 },
+                { data: '25/11/2025', hora: '08:30', duracao: 30 },
+                { data: '25/11/2025', hora: '09:00', duracao: 30 },
               ],
             },
           },
@@ -649,7 +660,8 @@ describe('ProdoctorApiService', () => {
         });
 
         expect(result.sucesso).toBe(true);
-        expect(result.payload.horarios).toBeInstanceOf(Object);
+        expect(result.payload.agendamentos).toBeDefined();
+        expect(result.payload.agendamentos).toHaveLength(3);
       });
     });
 
@@ -671,7 +683,33 @@ describe('ProdoctorApiService', () => {
 
         const result = await service.buscarAgendamentosPorStatus(mockIntegration as IntegrationDocument, {
           periodo: { dataInicial: '01/11/2025', dataFinal: '30/11/2025' },
-          estadoAgendaConsulta: { confirmado: true },
+          status: { confirmado: true },
+        });
+
+        expect(result.sucesso).toBe(true);
+        expect(result.payload.agendamentos).toHaveLength(2);
+      });
+    });
+
+    describe('buscarAgendamentosPorStatus', () => {
+      it('deve buscar agendamentos por status', async () => {
+        const mockResponse = {
+          data: {
+            sucesso: true,
+            payload: {
+              agendamentos: [
+                { codigo: 1001, estadoAgendaConsulta: { confirmado: true } },
+                { codigo: 1002, estadoAgendaConsulta: { confirmado: true } },
+              ],
+            },
+          },
+        };
+
+        jest.spyOn(httpService, 'post').mockReturnValue(of(mockResponse as AxiosResponse));
+
+        const result = await service.buscarAgendamentosPorStatus(mockIntegration as IntegrationDocument, {
+          periodo: { dataInicial: '01/11/2025', dataFinal: '30/11/2025' },
+          status: { confirmado: true },
         });
 
         expect(result.sucesso).toBe(true);
@@ -716,7 +754,8 @@ describe('ProdoctorApiService', () => {
               convenio: {
                 codigo: 501,
                 nome: 'Unimed',
-                planos: [{ codigo: 1, nome: 'Nacional' }],
+                ativo: true,
+                tipoConvenio: 1, // 0: Convênio do médico, 1: Convênio da clínica, 2: Particular
               },
             },
           },
@@ -727,7 +766,10 @@ describe('ProdoctorApiService', () => {
         const result = await service.detalharConvenio(mockIntegration as IntegrationDocument, 501);
 
         expect(result.sucesso).toBe(true);
-        expect(result.payload.convenio.tipoConvenio).toHaveLength(1);
+        expect(result.payload.convenio.codigo).toBe(501);
+        expect(result.payload.convenio.nome).toBe('Unimed');
+        expect(result.payload.convenio.ativo).toBe(true);
+        expect(result.payload.convenio.tipoConvenio).toBe(1);
       });
     });
   });
