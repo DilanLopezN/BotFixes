@@ -117,17 +117,17 @@ export class FeegowApiService {
   }
 
   private async getHeaders(integration: IntegrationDocument) {
-    // const { apiToken } = await this.credentialsHelper.getConfig<FeegowCredentialsResponse>(integration);
+    const { apiToken } = await this.credentialsHelper.getConfig<FeegowCredentialsResponse>(integration);
 
-    // if (!apiToken) {
-    //   throw HTTP_ERROR_THROWER(HttpStatus.INTERNAL_SERVER_ERROR, {
-    //     message: 'Invalid api token',
-    //   });
-    // }
+    if (!apiToken) {
+      throw HTTP_ERROR_THROWER(HttpStatus.INTERNAL_SERVER_ERROR, {
+        message: 'Invalid api token',
+      });
+    }
 
     return {
       headers: {
-        'x-access-token': `eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJmZWVnb3ciLCJhdWQiOiJwdWJsaWNhcGkiLCJpYXQiOjE3NTM3OTg5MTEsImxpY2Vuc2VJRCI6MTEzMDd9.bmKWdErVlpeVlu27Xt3st1NkzZlecWr0nsf0H8Ew7EY`,
+        'x-access-token': `${apiToken}`,
       },
     };
   }

@@ -159,6 +159,7 @@ import { StenciService } from '../../integrations/stenci-integration/services/st
 import { PatientSchedulesToUploadFile } from '../interfaces/patient-schedules-to-upload-file.interface';
 import { ValidateDoctorData } from '../interfaces/validate-doctor.interface';
 import { ScheduleSuggestionParams } from '../../entities-suggestions/interfaces/schedule-suggestion.interface';
+import { ProdoctorService } from '../../integrations/prodoctor-integration/services/prodoctor.service';
 
 @Injectable()
 export class IntegratorService {
@@ -306,6 +307,11 @@ export class IntegratorService {
       case IntegrationType.STENCI:
         return {
           service: this.moduleRef.get<StenciService>(StenciService, { strict: false }),
+          integration,
+        };
+      case IntegrationType.PRODOCTOR:
+        return {
+          service: this.moduleRef.get<ProdoctorService>(ProdoctorService, { strict: false }),
           integration,
         };
 
@@ -592,6 +598,12 @@ export class IntegratorService {
       return schedule;
     });
 
+    this.logger.debug('========== INTEGRATOR getAvailableSchedules ==========');
+    this.logger.debug('validSchedules from service:', validSchedules?.length);
+    this.logger.debug('schedules after matchAppointmentsFlows:', schedules?.length);
+    this.logger.debug('executedFlows:', JSON.stringify(executedFlows));
+    this.logger.debug('processedSchedules:', processedSchedules?.length);
+    this.logger.debug('First processedSchedule:', JSON.stringify(processedSchedules?.[0]));
     const response = {
       schedules: processedSchedules,
       metadata: {

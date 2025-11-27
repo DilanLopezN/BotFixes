@@ -279,7 +279,7 @@ const mockAppointments = [
 /**
  * Dados mock para horários disponíveis
  */
-const generateAvailableSlots = (date: string) => {
+const generateAvailableSlots = (date: string, usuario: any, localProDoctor: any) => {
   const slots = [];
   const hours = [
     '08:00',
@@ -299,11 +299,23 @@ const generateAvailableSlots = (date: string) => {
     '17:00',
   ];
 
-  for (const hour of hours) {
+  const diaSemanaMap: Record<string, string> = {
+    '0': 'domingo',
+    '1': 'segunda-feira',
+    '2': 'terça-feira',
+    '3': 'quarta-feira',
+    '4': 'quinta-feira',
+    '5': 'sexta-feira',
+    '6': 'sábado',
+  };
+
+  for (const hora of hours) {
     slots.push({
-      dataHora: `${date} ${hour}`,
-      duracao: 30,
-      disponivel: true,
+      localProDoctor: localProDoctor || { codigo: 1, nome: 'Clínica Central' },
+      usuario: usuario || { codigo: 100, nome: 'Dr. João da Silva', especialidade: { codigo: 1, nome: 'Cardiologia' } },
+      data: date,
+      hora: hora,
+      diaSemana: 'segunda-feira', // simplificado
     });
   }
 
@@ -415,7 +427,7 @@ export const additionalRealisticMocks: Record<string, MockFn> = {
   /*                              PROCEDIMENTOS                                 */
   /* -------------------------------------------------------------------------- */
 
-  'POST /api/v1/ProcedimentosMedicos': (req) => {
+  'POST /api/v1/Procedimentos': (req) => {
     const { quantidade, convenios, tabelas } = (req.body || {}) as any;
 
     let procedures = [...mockProcedures];
@@ -434,7 +446,7 @@ export const additionalRealisticMocks: Record<string, MockFn> = {
     };
   },
 
-  'GET /api/v1/ProcedimentosMedicos/Detalhar/{codigo}': (req) => {
+  'GET /api/v1/Procedimentos/Detalhar/{codigo}': (req) => {
     const { codigo } = req.params;
     const procedure = mockProcedures.find((p) => p.codigo === codigo);
 
@@ -478,34 +490,29 @@ export const additionalRealisticMocks: Record<string, MockFn> = {
   /* -------------------------------------------------------------------------- */
 
   'POST /api/v1/Agenda/Livres': (req) => {
-    const { usuario, periodo, localProDoctor, convenio, turnos } = (req.body || {}) as any;
+    const { usuario, periodo, localProDoctor, turnos } = (req.body || {}) as any;
 
-    const dataInicial = periodo?.dataInicial || '25/11/2025';
-    const dataFinal = periodo?.dataFinal || '30/11/2025';
+    const dates = ['27/11/2025', '28/11/2025', '29/11/2025', '30/11/2025', '01/12/2025'];
 
-    // Gerar slots para 5 dias
-    const slots = [];
-    const dates = ['25/11/2025', '26/11/2025', '27/11/2025', '28/11/2025', '29/11/2025'];
-
+    let slots: any[] = [];
     for (const date of dates) {
-      slots.push(...generateAvailableSlots(date));
+      slots.push(...generateAvailableSlots(date, usuario, localProDoctor));
     }
 
     // Filtrar por turno se especificado
-    let filteredSlots = slots;
     if (turnos?.manha) {
-      filteredSlots = slots.filter((s) => {
-        const hour = parseInt(s.dataHora.split(' ')[1].split(':')[0]);
+      slots = slots.filter((s) => {
+        const hour = parseInt(s.hora.split(':')[0]);
         return hour < 12;
       });
     } else if (turnos?.tarde) {
-      filteredSlots = slots.filter((s) => {
-        const hour = parseInt(s.dataHora.split(' ')[1].split(':')[0]);
+      slots = slots.filter((s) => {
+        const hour = parseInt(s.hora.split(':')[0]);
         return hour >= 12 && hour < 18;
       });
     } else if (turnos?.noite) {
-      filteredSlots = slots.filter((s) => {
-        const hour = parseInt(s.dataHora.split(' ')[1].split(':')[0]);
+      slots = slots.filter((s) => {
+        const hour = parseInt(s.hora.split(':')[0]);
         return hour >= 18;
       });
     }
@@ -514,11 +521,10 @@ export const additionalRealisticMocks: Record<string, MockFn> = {
       sucesso: true,
       mensagem: null,
       payload: {
-        agendamentos: filteredSlots,
+        agendamentos: slots,
       },
     };
   },
-
   /* -------------------------------------------------------------------------- */
   /*                    BUSCAR AGENDAMENTOS POR STATUS                          */
   /* -------------------------------------------------------------------------- */
@@ -618,18 +624,26 @@ export const additionalRealisticMocks: Record<string, MockFn> = {
   /* -------------------------------------------------------------------------- */
   /*                        PACIENTES - OPERAÇÕES EXTRAS                        */
   /* -------------------------------------------------------------------------- */
-
   'POST /api/v1/Pacientes': (req) => {
-    const { quantidade, nome, cpf } = (req.body || {}) as any;
+    const { quantidade, termo, campo } = (req.body || {}) as any;
 
     let pacientes = [...mockPatients];
 
-    if (nome) {
-      pacientes = pacientes.filter((p) => p.nome.toLowerCase().includes(nome.toLowerCase()));
-    }
-
-    if (cpf) {
-      pacientes = pacientes.filter((p) => p.cpf === cpf.replace(/\D/g, ''));
+    if (termo) {
+      switch (campo) {
+        case 1: // CPF
+          pacientes = pacientes.filter((p) => p.cpf === termo.replace(/\D/g, ''));
+          break;
+        case 2: // Telefone
+          pacientes = pacientes.filter(
+            (p) => p.telefone1?.numero?.includes(termo) || p.telefone2?.numero?.includes(termo),
+          );
+          break;
+        case 0: // Nome (default)
+        default:
+          pacientes = pacientes.filter((p) => p.nome.toLowerCase().includes(termo.toLowerCase()));
+          break;
+      }
     }
 
     return {

@@ -350,11 +350,7 @@ describe('ProdoctorHelpersService', () => {
 
   describe('transformAvailableScheduleToRawAppointment', () => {
     it('deve transformar horário disponível', () => {
-      const horario = {
-        dataHora: '25/11/2025 14:00',
-        duracao: 30,
-      };
-
+      const horario = { data: '25/11/2025', hora: '14:00', duracao: 30 };
       const doctor = {
         code: '100',
         name: 'Dr. Carlos',

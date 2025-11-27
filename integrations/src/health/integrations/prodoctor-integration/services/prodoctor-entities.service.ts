@@ -24,10 +24,9 @@ import {
 } from '../../../interfaces/entity.interface';
 import { IntegrationType } from '../../../interfaces/integration-types';
 import { ProdoctorApiService } from './prodoctor-api.service';
-
+import { IntegrationCacheUtilsService } from 'health/integration-cache-utils/integration-cache-utils.service';
 import { EntityFiltersParams } from 'kissbot-health-core';
-import moment from 'moment';
-import { IntegrationCacheUtilsService } from '../../../../health/integration-cache-utils/integration-cache-utils.service';
+import * as moment from 'moment';
 
 interface ListValidEntities {
   integration: IntegrationDocument;
@@ -151,6 +150,8 @@ export class ProdoctorEntitiesService {
           return resourceCache;
         }
       }
+
+      let entities: EntityTypes[] = [];
 
       const getResource = () => {
         switch (entityType) {

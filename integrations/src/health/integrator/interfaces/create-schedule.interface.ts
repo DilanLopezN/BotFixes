@@ -4,6 +4,7 @@ interface Schedule {
   duration: string;
   appointmentDate: string;
   code: string;
+  notes?: string;
   data?: any;
 }
 

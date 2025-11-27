@@ -140,14 +140,16 @@ export class ProdoctorApiService {
   }
 
   private async getApiUrl(integration: IntegrationDocument, endpoint: string): Promise<string> {
-    const { apiUrl } = await this.credentialsHelper.getConfig<ProdoctorCredentialsResponse>(integration);
-    const baseUrl = apiUrl || 'https://api.prodoctor.net';
+    // const { apiUrl } = await this.credentialsHelper.getConfig<ProdoctorCredentialsResponse>(integration);
+
+    const baseUrl = 'http://172.17.0.1:7575'; //apiUrl || 'https://api.prodoctor.net';
     return `${baseUrl}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
   }
 
   private async getHeaders(integration: IntegrationDocument): Promise<{ headers: Record<string, string> }> {
-    const { apiKey, apiPassword } = await this.credentialsHelper.getConfig<ProdoctorCredentialsResponse>(integration);
-
+    // const { apiKey, apiPassword } = await this.credentialsHelper.getConfig<ProdoctorCredentialsResponse>(integration);
+    const apiKey = 'test';
+    const apiPassword = 'test';
     if (!apiKey || !apiPassword) {
       throw HTTP_ERROR_THROWER(HttpStatus.UNAUTHORIZED, 'Invalid ProDoctor credentials');
     }
@@ -478,10 +480,13 @@ export class ProdoctorApiService {
     cpf: string,
   ): Promise<PDResponsePacienteSearchViewModel> {
     const request: PacienteBuscarRequest = {
-      cpf: cpf.replace(/\D/g, ''),
+      //@ts-ignore
+      termo: cpf.replace(/\D/g, ''),
+      campo: 1,
     };
 
-    return await this.searchPatient(integration, request);
+    const res = await this.searchPatient(integration, request);
+    return res;
   }
 
   public async getPatientDetails(

@@ -79,12 +79,11 @@ export class ProdoctorHelpersService {
 
     const parsed = moment(dateString, this.dateFormat, true);
     if (parsed.isValid()) {
-      return parsed.toISOString();
+      return parsed.format('YYYY-MM-DD'); // Alterado de toISOString()
     }
 
     return undefined;
   }
-
   /**
    * Mapeia código de sexo para string
    */
@@ -212,11 +211,14 @@ export class ProdoctorHelpersService {
     doctor: EntityDocument,
     filter: CorrelationFilter,
   ): RawAppointment {
-    const appointmentDate = moment(horario.data, this.dateTimeFormat);
+    // ✅ CORREÇÃO 1: Concatenar data + hora corretamente
+    const appointmentDate = moment(`${horario.data} ${horario.hora}`, this.dateTimeFormat);
+    const appointmentDateISO = appointmentDate.toISOString();
 
     return {
-      appointmentCode: null,
-      appointmentDate: appointmentDate.toISOString(),
+      // ✅ CORREÇÃO 2: appointmentCode NÃO pode ser null (padrão Feegow usa a data)
+      appointmentCode: appointmentDateISO,
+      appointmentDate: appointmentDateISO,
       status: AppointmentStatus.scheduled,
       doctorId: doctor.code,
       doctorDefault: {
@@ -248,6 +250,7 @@ export class ProdoctorHelpersService {
             code: filter.procedure.code,
           }
         : undefined,
+      // ✅ CORREÇÃO 3: Adicionar specialityId
       specialityId: filter.speciality?.code,
       specialityDefault: filter.speciality
         ? {
@@ -256,11 +259,11 @@ export class ProdoctorHelpersService {
             code: filter.speciality.code,
           }
         : undefined,
-      appointmentTypeId: filter.appointmentType?.code || 'consulta',
-      duration: String(horario.duracao || 0),
+      // ✅ CORREÇÃO 4: Usar código da entidade, não string literal
+      appointmentTypeId: filter.appointmentType?.code,
+      duration: '0',
     };
   }
-
   /**
    * Constrói request para criar paciente
    */

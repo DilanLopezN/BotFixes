@@ -27,6 +27,7 @@ import { UpdatePatient } from '../../../integrator/interfaces/update-patient.int
 import { InitialPatient } from '../../../integrator/interfaces/patient.interface';
 import {
   Appointment,
+  AppointmentSortMethod,
   AppointmentStatus,
   AppointmentValue,
   MinifiedAppointments,
@@ -45,6 +46,7 @@ import {
   AgendamentoInserirRequest,
   HorariosDisponiveisRequest,
 } from '../interfaces/schedule.interface';
+import { EntitiesFiltersService } from '../../../../health/shared/entities-filters.service';
 
 @Injectable()
 export class ProdoctorService implements IIntegratorService {
@@ -60,6 +62,8 @@ export class ProdoctorService implements IIntegratorService {
     private readonly appointmentService: AppointmentService,
     private readonly flowService: FlowService,
     private readonly integrationCacheUtilsService: IntegrationCacheUtilsService,
+
+    private readonly entitiesFiltersService: EntitiesFiltersService,
   ) {}
 
   // ========== PATIENT METHODS ==========
@@ -116,11 +120,12 @@ export class ProdoctorService implements IIntegratorService {
     try {
       const response = await this.prodoctorApiService.getPatientByCpf(integration, cpf);
 
-      if (!response?.sucesso || !response?.payload?.paciente?.codigo) {
+      //@ts-ignore
+      if (!response?.sucesso || !response?.payload?.pacientes?.length) {
         throw HTTP_ERROR_THROWER(HttpStatus.NOT_FOUND, 'User not found', undefined, true);
       }
-
-      return this.prodoctorHelpersService.transformPatient(response.payload.paciente);
+      //@ts-ignore
+      return this.prodoctorHelpersService.transformPatient(response.payload.pacientes[0]);
     } catch (error) {
       if (error?.status === HttpStatus.NOT_FOUND) {
         throw error;
@@ -571,66 +576,128 @@ export class ProdoctorService implements IIntegratorService {
     availableSchedules: ListAvailableSchedules,
   ): Promise<ListAvailableSchedulesResponse> {
     try {
-      const { filter, fromDay = 0, untilDay = 30, period, patient } = availableSchedules;
+      const {
+        filter,
+        fromDay = 0,
+        untilDay = 30,
+        period,
+        patient,
+        limit,
+        periodOfDay,
+        randomize,
+        sortMethod = AppointmentSortMethod.default,
+      } = availableSchedules;
+
+      this.logger.debug('========== getAvailableSchedules START ==========');
+      this.logger.debug(
+        'Input params:',
+        JSON.stringify({ filter, fromDay, untilDay, period, limit, periodOfDay, randomize, sortMethod }),
+      );
 
       const metadata: AvailableSchedulesMetadata = {
         interAppointmentPeriod: 0,
       };
 
-      // Precisa de um médico para buscar horários
-      if (!filter.doctor?.code) {
-        return { schedules: [], metadata: null };
+      // ✅ CORREÇÃO: Se não tem doctor, buscar médicos válidos (padrão Feegow/Clinic)
+      let validDoctors: EntityDocument[] = [];
+
+      if (filter.doctor?.code) {
+        const doctorEntity = await this.entitiesService.getEntityByCode(
+          filter.doctor.code,
+          EntityType.doctor,
+          integration._id,
+        );
+        if (doctorEntity) {
+          validDoctors.push(doctorEntity);
+        }
+      } else {
+        // Buscar médicos válidos quando não especificado
+        this.logger.debug('No doctor specified, fetching valid doctors...');
+
+        const doctors = await this.entitiesService.getValidEntities(EntityType.doctor, integration._id);
+
+        const [matchedDoctors] = await this.flowService.matchEntitiesFlows({
+          integrationId: integration._id,
+          entities: doctors,
+          targetEntity: FlowSteps.doctor,
+          filters: {
+            patientBornDate: patient?.bornDate,
+            patientSex: patient?.sex,
+            patientCpf: patient?.cpf,
+          },
+          entitiesFilter: filter,
+        });
+
+        validDoctors = this.entitiesFiltersService.filterEntitiesByParams(integration, matchedDoctors, {
+          bornDate: patient?.bornDate,
+        });
+
+        this.logger.debug(`Found ${validDoctors.length} valid doctors`);
       }
 
-      // ✅ CORREÇÃO 1: Buscar entidade do médico antes de processar horários
-      const doctorEntity = await this.entitiesService.getEntityByCode(
-        filter.doctor.code,
-        EntityType.doctor,
-        integration._id,
-      );
-
-      if (!doctorEntity) {
-        this.logger.warn(`Doctor entity not found: ${filter.doctor.code}`);
+      if (!validDoctors.length) {
+        this.logger.warn('No valid doctors found, returning empty');
         return { schedules: [], metadata };
       }
 
-      const request: HorariosDisponiveisRequest = {
-        usuario: { codigo: Number(filter.doctor.code) },
-        periodo: {
-          dataInicial: moment().add(fromDay, 'days').format(this.dateFormat),
-          dataFinal: moment()
-            .add(fromDay + untilDay, 'days')
-            .format(this.dateFormat),
-        },
-      };
+      // Buscar horários para cada médico válido
+      const allRawSchedules: RawAppointment[] = [];
 
-      if (filter.organizationUnit?.code) {
-        request.localProDoctor = { codigo: Number(filter.organizationUnit.code) };
+      for (const doctorEntity of validDoctors) {
+        const request: HorariosDisponiveisRequest = {
+          usuario: { codigo: Number(doctorEntity.code) },
+          periodo: {
+            dataInicial: moment().add(fromDay, 'days').format(this.dateFormat),
+            dataFinal: moment()
+              .add(fromDay + untilDay, 'days')
+              .format(this.dateFormat),
+          },
+        };
+
+        if (filter.organizationUnit?.code) {
+          request.localProDoctor = { codigo: Number(filter.organizationUnit.code) };
+        }
+
+        if (period?.start && period?.end) {
+          request.turnos = this.prodoctorHelpersService.buildTurnosFromPeriod(period.start, period.end);
+        }
+
+        this.logger.debug(`Fetching schedules for doctor ${doctorEntity.code}...`);
+
+        const response = await this.prodoctorApiService.buscarHorariosLivres(integration, request);
+
+        if (response?.sucesso && response?.payload?.agendamentos?.length) {
+          const rawSchedules = response.payload.agendamentos.map((horario) =>
+            this.prodoctorHelpersService.transformAvailableScheduleToRawAppointment(horario, doctorEntity, filter),
+          );
+          allRawSchedules.push(...rawSchedules);
+        }
       }
 
-      // O endpoint /api/v1/Agenda/Livres não suporta filtro por convênio no swagger
+      this.logger.debug(`Total raw schedules: ${allRawSchedules.length}`);
 
-      if (period?.start && period?.end) {
-        request.turnos = this.prodoctorHelpersService.buildTurnosFromPeriod(period.start, period.end);
-      }
-
-      const response = await this.prodoctorApiService.buscarHorariosLivres(integration, request);
-
-      if (!response?.sucesso || !response?.payload?.agendamentos) {
+      if (!allRawSchedules.length) {
         return { schedules: [], metadata };
       }
 
-      const rawSchedules: RawAppointment[] = response.payload.agendamentos.map((horario) =>
-        this.prodoctorHelpersService.transformAvailableScheduleToRawAppointment(horario, doctorEntity, filter),
-      );
+      const { appointments: processedAppointments, metadata: partialMetadata } =
+        await this.appointmentService.getAppointments(
+          integration,
+          { limit, period, randomize, sortMethod, periodOfDay },
+          allRawSchedules,
+        );
 
-      const schedules = await this.appointmentService.transformSchedules(integration, rawSchedules);
+      const schedules = await this.appointmentService.transformSchedules(integration, processedAppointments);
+
+      this.logger.debug(`Final schedules: ${schedules.length}`);
+      this.logger.debug('========== getAvailableSchedules END ==========');
 
       return {
         schedules: orderBy(schedules, ['appointmentDate'], ['asc']),
-        metadata,
+        metadata: { ...metadata, ...partialMetadata },
       };
     } catch (error) {
+      this.logger.error('getAvailableSchedules ERROR:', error);
       throw INTERNAL_ERROR_THROWER('ProdoctorService.getAvailableSchedules', error);
     }
   }
