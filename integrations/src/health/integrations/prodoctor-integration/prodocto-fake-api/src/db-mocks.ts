@@ -4,9 +4,38 @@ import { additionalRealisticMocks } from './additionnal-mocks';
 type MockFn = (req: Request) => any;
 
 /**
+ * In-memory storage para agendamentos criados
+ * Permite simular confirmação e outras operações
+ */
+export const inMemoryAppointments: Map<string, any> = new Map();
+
+/**
+ * Gerador de código único para agendamentos
+ */
+let appointmentCodeCounter = 10000;
+export const generateAppointmentCode = (): number => ++appointmentCodeCounter;
+
+/**
+ * Gera uma chave única para identificar um agendamento
+ */
+export const generateAppointmentKey = (
+  localProDoctorCodigo: number,
+  usuarioCodigo: number,
+  data: string,
+  hora: string,
+): string => {
+  return `${localProDoctorCodigo}-${usuarioCodigo}-${data.replace(/\//g, '')}-${hora.replace(':', '')}`;
+};
+
+/**
  * Mocks realistas para a API ProDoctor aberta.
  * Chave: `${METHOD} ${swaggerRoute}`
  * Exemplo: "POST /api/v1/Pacientes"
+ *
+ * IMPORTANTE: A estrutura de resposta segue o padrão da API oficial ProDoctor:
+ * - sucesso: boolean
+ * - mensagens: string[]
+ * - payload: { ... } (contém os dados específicos de cada endpoint)
  */
 export const realisticMocks: Record<string, MockFn> = {
   /* -------------------------------------------------------------------------- */
@@ -15,236 +44,291 @@ export const realisticMocks: Record<string, MockFn> = {
 
   // Listar agendamentos do dia para um usuário
   'POST /api/v1/Agenda/Listar': (req) => {
-    const { usuario, data } = (req.body || {}) as any;
+    const { usuario, data, localProDoctor } = (req.body || {}) as any;
+
+    // Buscar agendamentos in-memory que correspondem aos critérios
+    const agendamentosInMemory: any[] = [];
+    inMemoryAppointments.forEach((appointment) => {
+      if (
+        (!usuario?.codigo || appointment.usuario?.codigo === usuario.codigo) &&
+        (!data || appointment.data === data) &&
+        (!localProDoctor?.codigo || appointment.localProDoctor?.codigo === localProDoctor.codigo)
+      ) {
+        agendamentosInMemory.push({
+          hora: appointment.hora,
+          estadoAgendaConsulta: appointment.estadoAgendaConsulta || {
+            codigo: 1,
+            descricao: 'Agendado',
+          },
+          paciente: appointment.paciente,
+          convenio: appointment.convenio,
+          procedimentoMedico: appointment.procedimentoMedico,
+          complemento: appointment.complemento,
+          tipoAgendamento: appointment.tipoAgendamento,
+        });
+      }
+    });
+
+    // Dados mock fixos + in-memory
+    const consultasMock = [
+      {
+        hora: '08:00',
+        estadoAgendaConsulta: {
+          codigo: 1,
+          descricao: 'Agendado',
+        },
+        paciente: {
+          codigo: 101,
+          nome: 'Maria de Souza',
+          nascimento: '1991-08-10',
+          telefone: '(11) 99999-0001',
+        },
+        convenio: {
+          codigo: 501,
+          nome: 'Unimed',
+        },
+        procedimentoMedico: {
+          tabela: { codigo: 1, nome: 'AMB' },
+          codigo: '10101012',
+          descricao: 'Consulta médica',
+        },
+        complemento: 'Paciente novo',
+      },
+      {
+        hora: '09:00',
+        estadoAgendaConsulta: {
+          codigo: 2,
+          descricao: 'Retorno',
+        },
+        paciente: {
+          codigo: 102,
+          nome: 'Carlos Pereira',
+          nascimento: '1985-04-22',
+          telefone: '(11) 99999-0002',
+        },
+        convenio: {
+          codigo: 502,
+          nome: 'Bradesco Saúde',
+        },
+        procedimentoMedico: {
+          tabela: { codigo: 1, nome: 'AMB' },
+          codigo: '10101013',
+          descricao: 'Retorno',
+        },
+        complemento: 'Retorno de exame',
+      },
+    ];
 
     return {
       sucesso: true,
-      mensagem: null,
-      dados: {
-        data: data ?? '20/11/2025',
-        usuario: {
-          codigo: usuario?.codigo ?? 100,
-          nome: 'Dr. João da Silva',
-        },
-        localProDoctor: {
-          codigo: 1,
-          nome: 'Clínica Central',
-        },
-        consultas: [
-          {
-            hora: '08:00',
-            estadoAgendaConsulta: {
-              codigo: 1,
-              descricao: 'Agendado',
-            },
-            paciente: {
-              codigo: 101,
-              nome: 'Maria de Souza',
-              nascimento: '1991-08-10',
-              telefone: '(11) 99999-0001',
-            },
-            convenio: {
-              codigo: 501,
-              nome: 'Unimed',
-            },
-            procedimentoMedico: {
-              tabela: { codigo: 1, nome: 'AMB' },
-              codigo: '10101012',
-              descricao: 'Consulta médica',
-            },
-            complemento: 'Paciente novo',
+      mensagens: [],
+      payload: {
+        diaAgendaConsulta: {
+          data: data ?? '20/11/2025',
+          usuario: {
+            codigo: usuario?.codigo ?? 100,
+            nome: 'Dr. João da Silva',
           },
-          {
-            hora: '09:00',
-            estadoAgendaConsulta: {
-              codigo: 2,
-              descricao: 'Retorno',
-            },
-            paciente: {
-              codigo: 102,
-              nome: 'Carlos Pereira',
-              nascimento: '1985-04-22',
-              telefone: '(11) 99999-0002',
-            },
-            convenio: {
-              codigo: 502,
-              nome: 'Bradesco Saúde',
-            },
-            procedimentoMedico: {
-              tabela: { codigo: 1, nome: 'AMB' },
-              codigo: '10101013',
-              descricao: 'Retorno',
-            },
-            complemento: 'Retorno de exame',
+          localProDoctor: localProDoctor || {
+            codigo: 1,
+            nome: 'Clínica Central',
           },
-        ],
+          agendamentos: [...consultasMock, ...agendamentosInMemory],
+          totalAgendamentos: consultasMock.length + agendamentosInMemory.length,
+        },
       },
     };
   },
 
   // Buscar agendamentos de um paciente
   'POST /api/v1/Agenda/Buscar': (req) => {
-    const { paciente } = (req.body || {}) as any;
+    const { paciente, periodo } = (req.body || {}) as any;
 
-    return {
-      sucesso: true,
-      mensagem: null,
-      dados: {
-        paciente: {
-          codigo: paciente?.codigo ?? 101,
-          nome: paciente?.nome ?? 'Paciente Mock',
-          nascimento: '1990-01-01',
+    // Buscar agendamentos in-memory para o paciente
+    const agendamentosInMemory: any[] = [];
+    inMemoryAppointments.forEach((appointment, key) => {
+      if (appointment.paciente?.codigo === paciente?.codigo) {
+        agendamentosInMemory.push({
+          codigo: appointment.codigo,
+          data: appointment.data,
+          hora: appointment.hora,
+          localProDoctor: appointment.localProDoctor,
+          usuario: appointment.usuario,
+          estadoAgendaConsulta: appointment.estadoAgendaConsulta || {
+            codigo: 1,
+            descricao: 'Agendado',
+          },
+          convenio: appointment.convenio,
+          procedimentoMedico: appointment.procedimentoMedico,
+          tipoAgendamento: appointment.tipoAgendamento,
+          complemento: appointment.complemento,
+        });
+      }
+    });
+
+    // Dados mock fixos
+    const agendamentosMock = [
+      {
+        codigo: 2001,
+        data: '20/11/2025',
+        hora: '08:00',
+        localProDoctor: {
+          codigo: 1,
+          nome: 'Clínica Central',
         },
-        agendamentos: [
-          {
-            data: '20/11/2025',
-            hora: '08:00',
-            localProDoctor: {
-              codigo: 1,
-              nome: 'Clínica Central',
-            },
-            usuario: {
-              codigo: 100,
-              nome: 'Dr. João da Silva',
-            },
-            estadoAgendaConsulta: {
-              codigo: 1,
-              descricao: 'Agendado',
-            },
-            convenio: {
-              codigo: 501,
-              nome: 'Unimed',
-            },
-            procedimentoMedico: {
-              tabela: { codigo: 1, nome: 'AMB' },
-              codigo: '10101012',
-              descricao: 'Consulta médica',
-            },
-          },
-          {
-            data: '10/11/2025',
-            hora: '15:30',
-            localProDoctor: {
-              codigo: 1,
-              nome: 'Clínica Central',
-            },
-            usuario: {
-              codigo: 100,
-              nome: 'Dr. João da Silva',
-            },
-            estadoAgendaConsulta: {
-              codigo: 3,
-              descricao: 'Atendido',
-            },
-            convenio: {
-              codigo: 501,
-              nome: 'Unimed',
-            },
-            procedimentoMedico: {
-              tabela: { codigo: 1, nome: 'AMB' },
-              codigo: '10101014',
-              descricao: 'Retorno',
-            },
-          },
-        ],
-      },
-    };
-  },
-
-  // Buscar horários livres
-  'POST /api/v1/Agenda/Livres': (req) => {
-    const { dataInicio, dataFim, usuario } = (req.body || {}) as any;
-
-    return {
-      sucesso: true,
-      mensagem: null,
-      dados: {
         usuario: {
-          codigo: usuario?.codigo ?? 100,
+          codigo: 100,
           nome: 'Dr. João da Silva',
         },
-        periodo: {
-          inicio: dataInicio ?? '20/11/2025',
-          fim: dataFim ?? '20/11/2025',
+        estadoAgendaConsulta: {
+          codigo: 1,
+          descricao: 'Agendado',
         },
-        horariosLivres: [
-          {
-            data: '20/11/2025',
-            horaInicial: '10:00',
-            horaFinal: '10:30',
-          },
-          {
-            data: '20/11/2025',
-            horaInicial: '11:00',
-            horaFinal: '11:30',
-          },
-          {
-            data: '20/11/2025',
-            horaInicial: '16:00',
-            horaFinal: '16:30',
-          },
-        ],
+        convenio: {
+          codigo: 501,
+          nome: 'Unimed',
+        },
+        procedimentoMedico: {
+          tabela: { codigo: 1, nome: 'AMB' },
+          codigo: '10101012',
+          descricao: 'Consulta médica',
+        },
+      },
+      {
+        codigo: 2002,
+        data: '10/11/2025',
+        hora: '15:30',
+        localProDoctor: {
+          codigo: 1,
+          nome: 'Clínica Central',
+        },
+        usuario: {
+          codigo: 100,
+          nome: 'Dr. João da Silva',
+        },
+        estadoAgendaConsulta: {
+          codigo: 3,
+          descricao: 'Atendido',
+          atendido: true,
+        },
+        convenio: {
+          codigo: 501,
+          nome: 'Unimed',
+        },
+        procedimentoMedico: {
+          tabela: { codigo: 1, nome: 'AMB' },
+          codigo: '10101014',
+          descricao: 'Retorno',
+        },
+      },
+    ];
+
+    return {
+      sucesso: true,
+      mensagens: [],
+      payload: {
+        agendamentos: [...agendamentosMock, ...agendamentosInMemory],
       },
     };
   },
 
-  // Inserir agendamento
+  // =========================================================================
+  // INSERIR AGENDAMENTO - ROTA PRINCIPAL QUE ESTAVA COM PROBLEMA
+  // =========================================================================
   'POST /api/v1/Agenda/Inserir': (req) => {
     const body: any = req.body || {};
     const agendamento = body.agendamento || {};
     const paciente = agendamento.paciente || {};
 
+    // Gera código único para o agendamento
+    const codigo = generateAppointmentCode();
+
+    // Monta o objeto do agendamento
+    const localProDoctor = agendamento.localProDoctor || {
+      codigo: 1,
+      nome: 'Clínica Central',
+    };
+    const usuario = agendamento.usuario || {
+      codigo: 100,
+      nome: 'Dr. João da Silva',
+    };
+    const data = agendamento.data ?? '20/11/2025';
+    const hora = agendamento.hora ?? '14:00';
+
+    // Cria objeto completo do agendamento para armazenar in-memory
+    const agendamentoCriado = {
+      codigo,
+      localProDoctor,
+      usuario,
+      data,
+      hora,
+      paciente: {
+        codigo: paciente.codigo ?? 9999,
+        nome: paciente.nome ?? 'Novo Paciente',
+        nascimento: paciente.nascimento ?? '1995-01-01',
+      },
+      convenio: agendamento.convenio,
+      procedimentoMedico: agendamento.procedimentoMedico,
+      tipoAgendamento: agendamento.tipoAgendamento,
+      complemento: agendamento.complemento ?? 'Agendamento gerado pela API mock',
+      teleconsulta: agendamento.teleconsulta ?? null,
+      estadoAgendaConsulta: {
+        codigo: 1,
+        descricao: 'Agendado',
+        agendado: true,
+      },
+      criadoEm: new Date().toISOString(),
+    };
+
+    // Armazena in-memory para posterior consulta/confirmação
+    const key = generateAppointmentKey(localProDoctor.codigo, usuario.codigo, data, hora);
+    inMemoryAppointments.set(key, agendamentoCriado);
+
+    // Log para debug
+    console.log(`[FAKE-API] Agendamento criado com código ${codigo}, key: ${key}`);
+    console.log(`[FAKE-API] Total de agendamentos in-memory: ${inMemoryAppointments.size}`);
+
+    // Retorna no formato correto esperado pelo service
+    // Conforme swagger: PDResponseAgendamentoAgendaInsertViewModel
     return {
       sucesso: true,
-      mensagem: null,
-      dados: {
-        localProDoctor: agendamento.localProDoctor || {
-          codigo: 1,
-          nome: 'Clínica Central',
+      mensagens: ['Agendamento inserido com sucesso'],
+      payload: {
+        agendamento: {
+          codigo, // Adiciona o código gerado
+          localProDoctor,
+          usuario,
+          data,
+          hora,
+          paciente: agendamentoCriado.paciente,
+          complemento: agendamentoCriado.complemento,
+          teleconsulta: agendamentoCriado.teleconsulta,
         },
-        usuario: agendamento.usuario || {
-          codigo: 100,
-          nome: 'Dr. João da Silva',
-        },
-        data: agendamento.data ?? '20/11/2025',
-        hora: agendamento.hora ?? '14:00',
-        paciente: {
-          codigo: paciente.codigo ?? 9999,
-          nome: paciente.nome ?? 'Novo Paciente',
-          nascimento: paciente.nascimento ?? '1995-01-01',
-        },
-        complemento: agendamento.complemento ?? 'Agendamento gerado pela API mock',
-        teleconsulta: agendamento.teleconsulta ?? null,
       },
     };
   },
 
   // Desmarcar agendamento
   'PATCH /api/v1/Agenda/Desmarcar': (req) => {
-    const { data, hora, usuario, localProDoctor } = (req.body || {}) as any;
+    const { data, hora, usuario, localProDoctor, agendamentoID } = (req.body || {}) as any;
+
+    // Se veio agendamentoID, usa esses dados
+    const dataFinal = agendamentoID?.data ?? data ?? '20/11/2025';
+    const horaFinal = agendamentoID?.hora ?? hora ?? '10:00';
+    const usuarioFinal = agendamentoID?.usuario ?? usuario ?? { codigo: 100 };
+    const localFinal = agendamentoID?.localProDoctor ?? localProDoctor ?? { codigo: 1 };
+
+    // Remove do in-memory se existir
+    const key = generateAppointmentKey(localFinal.codigo, usuarioFinal.codigo, dataFinal, horaFinal);
+    const removed = inMemoryAppointments.delete(key);
+
+    console.log(`[FAKE-API] Agendamento desmarcado, key: ${key}, encontrado: ${removed}`);
 
     return {
       sucesso: true,
-      mensagem: 'Agendamento desmarcado com sucesso (mock).',
-      dados: {
-        localProDoctor: localProDoctor || {
-          codigo: 1,
-          nome: 'Clínica Central',
-        },
-        usuario: usuario || {
-          codigo: 100,
-          nome: 'Dr. João da Silva',
-        },
-        data: data ?? '20/11/2025',
-        hora: hora ?? '10:00',
-        estadoAnterior: {
-          codigo: 1,
-          descricao: 'Agendado',
-        },
-        estadoAtual: {
-          codigo: 4,
-          descricao: 'Cancelado',
-        },
+      mensagens: ['Agendamento desmarcado com sucesso (mock).'],
+      payload: {
+        sucesso: true,
       },
     };
   },
@@ -253,21 +337,52 @@ export const realisticMocks: Record<string, MockFn> = {
   'PUT /api/v1/Agenda/Alterar': (req) => {
     const { agendamentoOrigem, agendamento } = (req.body || {}) as any;
 
+    // Remove o agendamento original do in-memory
+    if (agendamentoOrigem) {
+      const keyOrigem = generateAppointmentKey(
+        agendamentoOrigem.localProDoctor?.codigo ?? 1,
+        agendamentoOrigem.usuario?.codigo ?? 100,
+        agendamentoOrigem.data ?? '20/11/2025',
+        agendamentoOrigem.hora ?? '09:00',
+      );
+      inMemoryAppointments.delete(keyOrigem);
+    }
+
+    // Adiciona o novo agendamento
+    if (agendamento) {
+      const codigo = generateAppointmentCode();
+      const keyNovo = generateAppointmentKey(
+        agendamento.localProDoctor?.codigo ?? 1,
+        agendamento.usuario?.codigo ?? 100,
+        agendamento.data ?? '20/11/2025',
+        agendamento.hora ?? '10:00',
+      );
+
+      const agendamentoAtualizado = {
+        codigo,
+        ...agendamento,
+        estadoAgendaConsulta: {
+          codigo: 1,
+          descricao: 'Agendado',
+          agendado: true,
+        },
+      };
+
+      inMemoryAppointments.set(keyNovo, agendamentoAtualizado);
+    }
+
     return {
       sucesso: true,
-      mensagem: 'Agendamento alterado com sucesso (mock).',
-      dados: {
-        agendamentoOriginal: agendamentoOrigem || {
-          localProDoctor: { codigo: 1, nome: 'Clínica Central' },
-          usuario: { codigo: 100, nome: 'Dr. João da Silva' },
-          data: '20/11/2025',
-          hora: '09:00',
-        },
-        agendamentoAtual: agendamento || {
-          localProDoctor: { codigo: 1, nome: 'Clínica Central' },
-          usuario: { codigo: 100, nome: 'Dr. João da Silva' },
-          data: '20/11/2025',
-          hora: '10:00',
+      mensagens: ['Agendamento alterado com sucesso (mock).'],
+      payload: {
+        agendamento: {
+          codigo: generateAppointmentCode(),
+          localProDoctor: agendamento?.localProDoctor || { codigo: 1, nome: 'Clínica Central' },
+          usuario: agendamento?.usuario || { codigo: 100, nome: 'Dr. João da Silva' },
+          data: agendamento?.data ?? '20/11/2025',
+          hora: agendamento?.hora ?? '10:00',
+          paciente: agendamento?.paciente,
+          complemento: agendamento?.complemento,
         },
       },
     };
@@ -276,62 +391,93 @@ export const realisticMocks: Record<string, MockFn> = {
   // Excluir agendamento
   'DELETE /api/v1/Agenda/Excluir': (req) => {
     const body: any = req.body || {};
+
+    if (body.localProDoctor && body.usuario && body.data && body.hora) {
+      const key = generateAppointmentKey(body.localProDoctor.codigo, body.usuario.codigo, body.data, body.hora);
+      inMemoryAppointments.delete(key);
+    }
+
     return {
       sucesso: true,
-      mensagem: 'Agendamento excluído com sucesso (mock).',
-      dados: {
-        requisicao: body,
+      mensagens: ['Agendamento excluído com sucesso (mock).'],
+      payload: {
+        sucesso: true,
       },
     };
   },
 
   // Detalhar agendamento
   'POST /api/v1/Agenda/Detalhar': (req) => {
-    const { data, hora, localProDoctor, usuario } = (req.body || {}) as any;
+    const { data, hora, localProDoctor, usuario, codigo } = (req.body || {}) as any;
 
+    // Primeiro tenta buscar in-memory
+    if (localProDoctor?.codigo && usuario?.codigo && data && hora) {
+      const key = generateAppointmentKey(localProDoctor.codigo, usuario.codigo, data, hora);
+      const agendamento = inMemoryAppointments.get(key);
+
+      if (agendamento) {
+        return {
+          sucesso: true,
+          mensagens: [],
+          payload: {
+            agendamento: {
+              ...agendamento,
+              telefones: [{ tipo: 'Celular', numero: '(11) 99999-0001' }],
+              email: 'paciente@example.com',
+            },
+          },
+        };
+      }
+    }
+
+    // Se não encontrou in-memory, retorna dados mock
     return {
       sucesso: true,
-      mensagem: null,
-      dados: {
-        localProDoctor: localProDoctor || {
-          codigo: 1,
-          nome: 'Clínica Central',
-        },
-        usuario: usuario || {
-          codigo: 100,
-          nome: 'Dr. João da Silva',
-        },
-        data: data ?? '20/11/2025',
-        hora: hora ?? '08:00',
-        paciente: {
-          codigo: 101,
-          nome: 'Maria de Souza',
-          nascimento: '1991-08-10',
-          sexo: 'F',
-          cpf: '12345678900',
-        },
-        convenio: {
-          codigo: 501,
-          nome: 'Unimed',
-          plano: 'Nacional',
-          carteirinha: 'ABC123456',
-        },
-        procedimentoMedico: {
-          tabela: { codigo: 1, nome: 'AMB' },
-          codigo: '10101012',
-          descricao: 'Consulta médica',
-          valor: 250.0,
-        },
-        telefones: [
-          { tipo: 'Celular', numero: '(11) 99999-0001' },
-          { tipo: 'Residencial', numero: '(11) 4002-8922' },
-        ],
-        email: 'maria.souza@example.com',
-        orientacaoUsuario: 'Chegar com 15 minutos de antecedência.',
-        orientacaoConvenio: 'Trazer carteirinha e documento com foto.',
-        estadoAgendaConsulta: {
-          codigo: 1,
-          descricao: 'Agendado',
+      mensagens: [],
+      payload: {
+        agendamento: {
+          codigo: codigo ?? 2001,
+          localProDoctor: localProDoctor || {
+            codigo: 1,
+            nome: 'Clínica Central',
+          },
+          usuario: usuario || {
+            codigo: 100,
+            nome: 'Dr. João da Silva',
+          },
+          data: data ?? '20/11/2025',
+          hora: hora ?? '08:00',
+          paciente: {
+            codigo: 101,
+            nome: 'Maria de Souza',
+            nascimento: '1991-08-10',
+            sexo: 'F',
+            cpf: '12345678900',
+          },
+          convenio: {
+            codigo: 501,
+            nome: 'Unimed',
+            plano: 'Nacional',
+            carteirinha: 'ABC123456',
+          },
+          procedimentoMedico: {
+            tabela: { codigo: 1, nome: 'AMB' },
+            codigo: '10101012',
+            descricao: 'Consulta médica',
+            valor: 250.0,
+          },
+          telefones: [
+            { tipo: 'Celular', numero: '(11) 99999-0001' },
+            { tipo: 'Residencial', numero: '(11) 4002-8922' },
+          ],
+          email: 'maria.souza@example.com',
+          orientacaoUsuario: 'Chegar com 15 minutos de antecedência.',
+          orientacaoConvenio: 'Trazer carteirinha e documento com foto.',
+          estadoAgendaConsulta: {
+            codigo: 1,
+            descricao: 'Agendado',
+            agendado: true,
+          },
         },
       },
     };
@@ -340,88 +486,170 @@ export const realisticMocks: Record<string, MockFn> = {
   // Buscar por status/tipo
   'POST /api/v1/Agenda/BuscarPorStatusTipo': (req) => {
     const body: any = req.body || {};
-    const { status, tipo } = body;
+    const { estadoAgendaConsulta, tipoAgendamento } = body;
+
+    // Buscar agendamentos in-memory filtrados por status
+    const agendamentosInMemory: any[] = [];
+    inMemoryAppointments.forEach((appointment) => {
+      let match = true;
+
+      if (estadoAgendaConsulta?.confirmado && !appointment.estadoAgendaConsulta?.confirmado) {
+        match = false;
+      }
+      if (estadoAgendaConsulta?.agendado && !appointment.estadoAgendaConsulta?.agendado) {
+        match = false;
+      }
+
+      if (match) {
+        agendamentosInMemory.push({
+          codigo: appointment.codigo,
+          data: appointment.data,
+          hora: appointment.hora,
+          localProDoctor: appointment.localProDoctor,
+          usuario: appointment.usuario,
+          paciente: appointment.paciente,
+          estadoAgendaConsulta: appointment.estadoAgendaConsulta,
+        });
+      }
+    });
+
+    // Dados mock fixos
+    const agendamentosMock = [
+      {
+        codigo: 3001,
+        data: '20/11/2025',
+        hora: '09:30',
+        localProDoctor: {
+          codigo: 1,
+          nome: 'Clínica Central',
+        },
+        usuario: {
+          codigo: 100,
+          nome: 'Dr. João da Silva',
+        },
+        paciente: {
+          codigo: 101,
+          nome: 'Maria de Souza',
+        },
+        estadoAgendaConsulta: {
+          codigo: 1,
+          descricao: 'Agendado',
+          agendado: true,
+        },
+      },
+      {
+        codigo: 3002,
+        data: '20/11/2025',
+        hora: '11:00',
+        localProDoctor: {
+          codigo: 2,
+          nome: 'Clínica Unidade 2',
+        },
+        usuario: {
+          codigo: 101,
+          nome: 'Dra. Ana Paula',
+        },
+        paciente: {
+          codigo: 102,
+          nome: 'Carlos Pereira',
+        },
+        estadoAgendaConsulta: {
+          codigo: 2,
+          descricao: 'Confirmado',
+          confirmado: true,
+        },
+      },
+    ];
 
     return {
       sucesso: true,
-      mensagem: null,
-      dados: {
-        filtro: {
-          status: status ?? 'Agendado',
-          tipo: tipo ?? 'Consulta',
-        },
-        agendamentos: [
-          {
-            data: '20/11/2025',
-            hora: '09:30',
-            localProDoctor: {
-              codigo: 1,
-              nome: 'Clínica Central',
-            },
-            usuario: {
-              codigo: 100,
-              nome: 'Dr. João da Silva',
-            },
-            paciente: {
-              codigo: 101,
-              nome: 'Maria de Souza',
-            },
-            estadoAgendaConsulta: {
-              codigo: 1,
-              descricao: 'Agendado',
-            },
-          },
-          {
-            data: '20/11/2025',
-            hora: '11:00',
-            localProDoctor: {
-              codigo: 2,
-              nome: 'Clínica Unidade 2',
-            },
-            usuario: {
-              codigo: 101,
-              nome: 'Dra. Ana Paula',
-            },
-            paciente: {
-              codigo: 102,
-              nome: 'Carlos Pereira',
-            },
-            estadoAgendaConsulta: {
-              codigo: 1,
-              descricao: 'Agendado',
-            },
-          },
-        ],
+      mensagens: [],
+      payload: {
+        agendamentos: [...agendamentosMock, ...agendamentosInMemory],
       },
     };
   },
 
-  // Alterar status de agendamento
+  // =========================================================================
+  // ALTERAR STATUS - USADO PARA CONFIRMAR AGENDAMENTO
+  // =========================================================================
   'PATCH /api/v1/Agenda/AlterarStatus': (req) => {
     const { estadoAgendaConsulta, agendamentoID } = (req.body || {}) as any;
 
+    // Tenta encontrar o agendamento in-memory e atualizar o status
+    if (
+      agendamentoID?.localProDoctor?.codigo &&
+      agendamentoID?.usuario?.codigo &&
+      agendamentoID?.data &&
+      agendamentoID?.hora
+    ) {
+      const key = generateAppointmentKey(
+        agendamentoID.localProDoctor.codigo,
+        agendamentoID.usuario.codigo,
+        agendamentoID.data,
+        agendamentoID.hora,
+      );
+
+      const agendamento = inMemoryAppointments.get(key);
+      if (agendamento) {
+        // Atualiza o status do agendamento
+        agendamento.estadoAgendaConsulta = {
+          ...agendamento.estadoAgendaConsulta,
+          ...estadoAgendaConsulta,
+          descricao: estadoAgendaConsulta?.confirmado
+            ? 'Confirmado'
+            : estadoAgendaConsulta?.atendido
+              ? 'Atendido'
+              : estadoAgendaConsulta?.faltou
+                ? 'Faltou'
+                : estadoAgendaConsulta?.desmarcado
+                  ? 'Desmarcado'
+                  : 'Agendado',
+        };
+
+        inMemoryAppointments.set(key, agendamento);
+
+        console.log(
+          `[FAKE-API] Status do agendamento atualizado, key: ${key}, novo status:`,
+          agendamento.estadoAgendaConsulta,
+        );
+
+        return {
+          sucesso: true,
+          mensagens: ['Status alterado com sucesso (mock).'],
+          payload: {
+            agendamento: {
+              codigo: agendamento.codigo,
+              estadoAgendaConsulta: agendamento.estadoAgendaConsulta,
+            },
+          },
+        };
+      }
+    }
+
+    // Se não encontrou in-memory, retorna resposta mock padrão
     return {
       sucesso: true,
-      mensagem: 'Status do agendamento alterado com sucesso (mock).',
-      dados: {
-        agendamento: agendamentoID || {
-          localProDoctor: { codigo: 1, nome: 'Clínica Central' },
-          usuario: { codigo: 100, nome: 'Dr. João da Silva' },
-          data: '20/11/2025',
-          hora: '08:00',
+      mensagens: ['Status alterado com sucesso (mock).'],
+      payload: {
+        agendamento: {
+          codigo: agendamentoID?.codigo ?? 2001,
+          estadoAgendaConsulta: estadoAgendaConsulta || {
+            codigo: 2,
+            descricao: 'Confirmado',
+            confirmado: true,
+          },
         },
-        estadoAnterior: {
-          codigo: 1,
-          descricao: 'Agendado',
-        },
-        estadoAtual:
-          estadoAgendaConsulta ||
-          ({
-            codigo: 3,
-            descricao: 'Atendido',
-          } as any),
       },
     };
+  },
+
+  // =========================================================================
+  // ALTERAR ESTADO (endpoint alternativo)
+  // =========================================================================
+  'PATCH /api/v1/Agenda/AlterarEstado': (req) => {
+    // Redireciona para AlterarStatus
+    return realisticMocks['PATCH /api/v1/Agenda/AlterarStatus'](req);
   },
 
   /* -------------------------------------------------------------------------- */
@@ -434,8 +662,8 @@ export const realisticMocks: Record<string, MockFn> = {
 
     return {
       sucesso: true,
-      mensagem: null,
-      dados: {
+      mensagens: [],
+      payload: {
         paciente: {
           codigo: Number(codigo),
           nome: 'Paciente Mock',
@@ -465,200 +693,282 @@ export const realisticMocks: Record<string, MockFn> = {
               numeroConselho: '123456-SP',
             },
             tipo: 'Evolução',
-            resumo: 'Melhora parcial do quadro, paciente sem febre...',
+            resumo: 'Melhora do quadro após tratamento...',
           },
         ],
       },
     };
   },
 
-  // Detalhar anamnese/evolução
-  'GET /api/v1/AnamneseEvolucao/Detalhar/{codigo}': (req) => {
+  /* -------------------------------------------------------------------------- */
+  /*                                 PACIENTES                                  */
+  /* -------------------------------------------------------------------------- */
+
+  // Buscar paciente
+  'POST /api/v1/Paciente/Buscar': (req) => {
+    const { cpf, nome, codigo } = (req.body || {}) as any;
+
+    // Dados mock de pacientes
+    const pacientesMock = [
+      {
+        codigo: 101,
+        nome: 'Maria de Souza',
+        cpf: '12345678900',
+        dataNascimento: '10/08/1991',
+        sexo: { codigo: 2, nome: 'Feminino' },
+        email: 'maria.souza@example.com',
+        telefone: { ddd: '11', numero: '999990001', tipo: { codigo: 3, nome: 'Celular' } },
+      },
+      {
+        codigo: 102,
+        nome: 'Carlos Pereira',
+        cpf: '98765432100',
+        dataNascimento: '22/04/1985',
+        sexo: { codigo: 1, nome: 'Masculino' },
+        email: 'carlos.pereira@example.com',
+        telefone: { ddd: '11', numero: '999990002', tipo: { codigo: 3, nome: 'Celular' } },
+      },
+    ];
+
+    let pacienteEncontrado = null;
+
+    if (cpf) {
+      pacienteEncontrado = pacientesMock.find((p) => p.cpf === cpf.replace(/\D/g, ''));
+    } else if (codigo) {
+      pacienteEncontrado = pacientesMock.find((p) => p.codigo === codigo);
+    } else if (nome) {
+      pacienteEncontrado = pacientesMock.find((p) => p.nome.toLowerCase().includes(nome.toLowerCase()));
+    }
+
+    if (!pacienteEncontrado) {
+      return {
+        sucesso: false,
+        mensagens: ['Paciente não encontrado'],
+        payload: { paciente: null },
+      };
+    }
+
+    return {
+      sucesso: true,
+      mensagens: [],
+      payload: { paciente: pacienteEncontrado },
+    };
+  },
+
+  // Detalhar paciente
+  'GET /api/v1/Paciente/Detalhar/{codigo}': (req) => {
     const { codigo } = req.params;
 
     return {
       sucesso: true,
-      mensagem: null,
-      dados: {
-        codigo: Number(codigo),
-        tipo: 'Evolução',
-        data: '15/11/2025',
-        hora: '09:30',
+      mensagens: [],
+      payload: {
         paciente: {
-          codigo: 101,
-          nome: 'Maria de Souza',
-        },
-        profissional: {
-          codigo: 200,
-          nome: 'Dra. Ana Paula',
-          conselho: 'CRM',
-          numeroConselho: '123456-SP',
-        },
-        texto: 'Paciente apresenta melhora significativa, sem febre, com dor reduzida...',
-        anexos: [
-          {
-            codigo: 1,
-            nomeArquivo: 'exame-sangue.pdf',
-            tipo: 'PDF',
+          codigo: Number(codigo),
+          nome: Number(codigo) === 102 ? 'Carlos Pereira' : 'Maria de Souza',
+          nascimento: '1991-08-10',
+          sexo: 'F',
+          cpf: '12345678900',
+          rg: '12.345.678-9',
+          email: 'paciente@example.com',
+          telefones: [
+            { tipo: 'Celular', numero: '(11) 99999-0001' },
+            { tipo: 'Recado', numero: '(11) 4002-8922' },
+          ],
+          endereco: {
+            logradouro: 'Rua das Flores',
+            numero: '123',
+            complemento: 'Apto 12',
+            bairro: 'Centro',
+            cidade: 'São Paulo',
+            uf: 'SP',
+            cep: '01001-000',
           },
-        ],
+          estadoCivil: {
+            codigo: 2,
+            descricao: 'Casado(a)',
+          },
+          convenios: [
+            {
+              codigo: 501,
+              nome: 'Unimed',
+              carteira: 'ABC12345',
+              plano: 'Nacional',
+              validadeCarteira: '2026-12-31',
+            },
+          ],
+          ativo: true,
+        },
+      },
+    };
+  },
+
+  // Inserir paciente
+  'POST /api/v1/Pacientes/Inserir': (req) => {
+    const body: any = req.body || {};
+    const { paciente } = body;
+
+    return {
+      sucesso: true,
+      mensagens: ['Paciente inserido com sucesso (mock).'],
+      payload: {
+        paciente: {
+          codigo: 9999,
+          nome: paciente?.nome ?? 'Novo Paciente',
+          cpf: paciente?.cpf ?? '00000000000',
+          email: paciente?.email ?? 'novo.paciente@example.com',
+          dataNascimento: paciente?.dataNascimento ?? '01/01/2000',
+          sexo: paciente?.sexo,
+          ativo: true,
+        },
+      },
+    };
+  },
+
+  // Alterar paciente
+  'PUT /api/v1/Pacientes/Alterar': (req) => {
+    const body: any = req.body || {};
+    const { paciente } = body;
+
+    return {
+      sucesso: true,
+      mensagens: ['Paciente alterado com sucesso (mock).'],
+      payload: {
+        paciente: {
+          codigo: paciente?.codigo ?? 101,
+          nome: paciente?.nome ?? 'Paciente Alterado',
+          cpf: paciente?.cpf ?? '12345678900',
+          email: paciente?.email ?? 'paciente.alterado@example.com',
+          ativo: paciente?.ativo ?? true,
+        },
       },
     };
   },
 
   /* -------------------------------------------------------------------------- */
-  /*                                  CONVÊNIOS                                 */
+  /*                                 USUÁRIOS                                   */
   /* -------------------------------------------------------------------------- */
 
-  // Buscar convênios
-  'POST /api/v1/Convenios': (req) => {
-    const body: any = req.body || {};
-    const nome = body?.nome ?? 'Unimed';
+  'POST /api/v1/Usuario/Listar': (req) => {
+    const { quantidade } = (req.body || {}) as any;
 
     return {
       sucesso: true,
-      mensagem: null,
-      dados: {
+      mensagens: [],
+      payload: {
+        total: 3,
+        itens: [
+          { codigo: 100, nome: 'Dr. João da Silva', ativo: true },
+          { codigo: 101, nome: 'Dra. Ana Paula', ativo: true },
+          { codigo: 102, nome: 'Dr. Pedro Santos', ativo: true },
+        ].slice(0, quantidade || 10),
+      },
+    };
+  },
+
+  /* -------------------------------------------------------------------------- */
+  /*                              LOCAL PRODOCTOR                               */
+  /* -------------------------------------------------------------------------- */
+
+  'POST /api/v1/LocalProDoctor/Listar': (req) => {
+    const { quantidade } = (req.body || {}) as any;
+
+    return {
+      sucesso: true,
+      mensagens: [],
+      payload: {
         total: 2,
         itens: [
-          {
-            codigo: 501,
-            nome,
-            registroAns: '123456',
-            cnpj: '12.345.678/0001-99',
-            telefone: '(11) 4002-8922',
-            ativo: true,
-          },
-          {
-            codigo: 502,
-            nome: 'Bradesco Saúde',
-            registroAns: '987654',
-            cnpj: '98.765.432/0001-99',
-            telefone: '(11) 4090-1234',
-            ativo: true,
-          },
-        ],
+          { codigo: 1, nome: 'Clínica Central', ativo: true },
+          { codigo: 2, nome: 'Clínica Unidade 2', ativo: true },
+        ].slice(0, quantidade || 10),
       },
     };
   },
 
-  // Detalhar convênio
-  'GET /api/v1/Convenios/Detalhar/{codigo}': (req) => {
-    const { codigo } = req.params;
-    const codigoNum = Number(codigo) || 501;
+  /* -------------------------------------------------------------------------- */
+  /*                                 CONVÊNIOS                                  */
+  /* -------------------------------------------------------------------------- */
+
+  'POST /api/v1/Convenio/Listar': (req) => {
+    const { quantidade } = (req.body || {}) as any;
 
     return {
       sucesso: true,
-      mensagem: null,
-      dados: {
-        codigo: codigoNum,
-        nome: codigoNum === 501 ? 'Unimed' : 'Bradesco Saúde',
-        registroAns: '123456',
-        cnpj: '12.345.678/0001-99',
-        telefone: '(11) 4002-8922',
-        site: 'https://www.conveniomock.com.br',
-        planos: [
-          { codigo: 1, nome: 'Enfermaria' },
-          { codigo: 2, nome: 'Apartamento' },
-        ],
-        endereco: {
-          logradouro: 'Av. Paulista',
-          numero: '1000',
-          bairro: 'Bela Vista',
-          cidade: 'São Paulo',
-          uf: 'SP',
-          cep: '01310-100',
-        },
-        ativo: true,
+      mensagens: [],
+      payload: {
+        total: 3,
+        itens: [
+          { codigo: 501, nome: 'Unimed', ativo: true },
+          { codigo: 502, nome: 'Bradesco Saúde', ativo: true },
+          { codigo: 503, nome: 'SulAmérica', ativo: true },
+        ].slice(0, quantidade || 10),
       },
     };
   },
 
   /* -------------------------------------------------------------------------- */
-  /*                                  DOMÍNIOS                                  */
+  /*                              PROCEDIMENTOS                                 */
   /* -------------------------------------------------------------------------- */
 
-  'GET /api/v1/Dominios/TiposTelefone': () => ({
-    sucesso: true,
-    mensagem: null,
-    dados: [
-      { codigo: 1, descricao: 'Residencial' },
-      { codigo: 2, descricao: 'Comercial' },
-      { codigo: 3, descricao: 'Celular' },
-      { codigo: 4, descricao: 'Recado' },
-    ],
-  }),
+  'POST /api/v1/Procedimentos': (req) => {
+    const { descricao, tabela, quantidade } = (req.body || {}) as any;
 
-  'GET /api/v1/Dominios/Cores': () => ({
-    sucesso: true,
-    mensagem: null,
-    dados: [
-      { codigo: 1, nome: 'Azul', codigoHex: '#2196F3' },
-      { codigo: 2, nome: 'Verde', codigoHex: '#4CAF50' },
-      { codigo: 3, nome: 'Vermelho', codigoHex: '#F44336' },
-      { codigo: 4, nome: 'Amarelo', codigoHex: '#FFEB3B' },
-    ],
-  }),
+    return {
+      sucesso: true,
+      mensagens: [],
+      payload: {
+        total: 3,
+        itens: [
+          {
+            tabela: { codigo: 22, nome: 'TUSS' },
+            codigo: '40801020',
+            descricao: 'Hemograma completo',
+            valor: 35.0,
+          },
+          {
+            tabela: { codigo: 1, nome: 'AMB' },
+            codigo: '10101012',
+            descricao: 'Consulta médica',
+            valor: 250.0,
+          },
+          {
+            tabela: { codigo: 1, nome: 'AMB' },
+            codigo: '10101013',
+            descricao: 'Retorno de consulta',
+            valor: 150.0,
+          },
+        ].slice(0, quantidade || 10),
+      },
+    };
+  },
 
-  'GET /api/v1/Dominios/Sexos': () => ({
-    sucesso: true,
-    mensagem: null,
-    dados: [
-      { codigo: 1, descricao: 'Masculino', sigla: 'M' },
-      { codigo: 2, descricao: 'Feminino', sigla: 'F' },
-      { codigo: 3, descricao: 'Outro', sigla: 'O' },
-    ],
-  }),
-
-  'GET /api/v1/Dominios/EstadosCivis': () => ({
-    sucesso: true,
-    mensagem: null,
-    dados: [
-      { codigo: 1, descricao: 'Solteiro(a)' },
-      { codigo: 2, descricao: 'Casado(a)' },
-      { codigo: 3, descricao: 'Divorciado(a)' },
-      { codigo: 4, descricao: 'Viúvo(a)' },
-      { codigo: 5, descricao: 'União estável' },
-    ],
-  }),
-
-  'GET /api/v1/Dominios/Escolaridades': () => ({
-    sucesso: true,
-    mensagem: null,
-    dados: [
-      { codigo: 1, descricao: 'Fundamental incompleto' },
-      { codigo: 2, descricao: 'Fundamental completo' },
-      { codigo: 3, descricao: 'Médio incompleto' },
-      { codigo: 4, descricao: 'Médio completo' },
-      { codigo: 5, descricao: 'Superior incompleto' },
-      { codigo: 6, descricao: 'Superior completo' },
-      { codigo: 7, descricao: 'Pós-graduação' },
-    ],
-  }),
-
-  'GET /api/v1/Dominios/ResponsaveisLegais': () => ({
-    sucesso: true,
-    mensagem: null,
-    dados: [
-      { codigo: 1, descricao: 'Pai' },
-      { codigo: 2, descricao: 'Mãe' },
-      { codigo: 3, descricao: 'Responsável legal' },
-      { codigo: 4, descricao: 'Tutor(a)' },
-    ],
-  }),
+  'POST /api/v1/TabelasProcedimentos': (req) => {
+    return {
+      sucesso: true,
+      mensagens: [],
+      payload: {
+        total: 2,
+        itens: [
+          { codigo: 1, nome: 'AMB' },
+          { codigo: 22, nome: 'TUSS' },
+        ],
+      },
+    };
+  },
 
   /* -------------------------------------------------------------------------- */
-  /*                           IMAGENS E DOCUMENTOS                             */
+  /*                       IMAGENS E DOCUMENTOS                                 */
   /* -------------------------------------------------------------------------- */
 
-  // Inserir imagem/documento
   'POST /api/v1/ImagensDocumentos/Inserir': (req) => {
-    const { pacienteCodigo, nomeArquivo, tipo } = (req.body || {}) as any;
+    const body: any = req.body || {};
+    const { pacienteCodigo, nomeArquivo, tipo } = body;
 
     return {
       sucesso: true,
-      mensagem: 'Imagem/Documento inserido com sucesso (mock).',
-      dados: {
+      mensagens: ['Imagem/Documento inserido com sucesso (mock).'],
+      payload: {
         codigo: 9001,
         pacienteCodigo: pacienteCodigo ?? 101,
         nomeArquivo: nomeArquivo ?? 'documento.pdf',
@@ -673,40 +983,13 @@ export const realisticMocks: Record<string, MockFn> = {
     };
   },
 
-  // Alterar imagem/documento
-  'PUT /api/v1/ImagensDocumentos/Alterar': (req) => {
-    const { codigo, nomeArquivo } = (req.body || {}) as any;
-
-    return {
-      sucesso: true,
-      mensagem: 'Imagem/Documento alterado com sucesso (mock).',
-      dados: {
-        codigo: codigo ?? 9001,
-        nomeArquivo: nomeArquivo ?? 'documento-atualizado.pdf',
-        dataAlteracao: '21/11/2025',
-      },
-    };
-  },
-
-  // Excluir imagem/documento
-  'DELETE /api/v1/ImagensDocumentos/Excluir/{codigo}': (req) => {
-    const { codigo } = req.params;
-
-    return {
-      sucesso: true,
-      mensagem: `Imagem/Documento ${codigo} excluído com sucesso (mock).`,
-      dados: null,
-    };
-  },
-
-  // Listar imagens/documentos de um paciente
   'GET /api/v1/ImagensDocumentos/{codigo}': (req) => {
     const { codigo } = req.params;
 
     return {
       sucesso: true,
-      mensagem: null,
-      dados: {
+      mensagens: [],
+      payload: {
         pacienteCodigo: Number(codigo),
         itens: [
           {
@@ -725,447 +1008,210 @@ export const realisticMocks: Record<string, MockFn> = {
       },
     };
   },
-
-  // Detalhar imagem/documento
-  'GET /api/v1/ImagensDocumentos/Detalhar/{codigo}': (req) => {
-    const { codigo } = req.params;
-
-    return {
-      sucesso: true,
-      mensagem: null,
-      dados: {
-        codigo: Number(codigo),
-        pacienteCodigo: 101,
-        nomeArquivo: Number(codigo) === 9001 ? 'rx-torax.png' : 'exame-lab.pdf',
-        tipo: Number(codigo) === 9001 ? 'Imagem' : 'PDF',
-        dataUpload: '10/11/2025',
-        tamanhoBytes: 345678,
-        conteudoBase64: 'iVBORw0KGgoAAAANSUhEUgAA...', // mock
-      },
-    };
-  },
-
-  /* -------------------------------------------------------------------------- */
-  /*                                 IMPRESSOS                                  */
-  /* -------------------------------------------------------------------------- */
-
-  // Listar impressos de um paciente
-  'GET /api/v1/Impressos/{codigo}': (req) => {
-    const { codigo } = req.params;
-
-    return {
-      sucesso: true,
-      mensagem: null,
-      dados: {
-        pacienteCodigo: Number(codigo),
-        impressos: [
-          {
-            codigo: 7001,
-            tipo: 'Receita',
-            descricao: 'Receita de medicamentos',
-            data: '10/11/2025',
-          },
-          {
-            codigo: 7002,
-            tipo: 'Solicitação de exame',
-            descricao: 'Solicitação de hemograma completo',
-            data: '12/11/2025',
-          },
-        ],
-      },
-    };
-  },
-
-  // Detalhar impresso
-  'GET /api/v1/Impressos/Detalhar/{codigo}': (req) => {
-    const { codigo } = req.params;
-
-    return {
-      sucesso: true,
-      mensagem: null,
-      dados: {
-        codigo: Number(codigo),
-        paciente: {
-          codigo: 101,
-          nome: 'Maria de Souza',
-        },
-        tipo: 'Receita',
-        data: '10/11/2025',
-        conteudo: 'Tomar 1 comprimido de paracetamol 750mg de 8/8h por 3 dias.',
-        profissional: {
-          codigo: 200,
-          nome: 'Dra. Ana Paula',
-          conselho: 'CRM',
-          numeroConselho: '123456-SP',
-        },
-      },
-    };
-  },
-
-  /* -------------------------------------------------------------------------- */
-  /*                              LOCAIS PRODOCTOR                              */
-  /* -------------------------------------------------------------------------- */
-
   'POST /api/v1/LocaisProDoctor': (req) => {
     const body: any = req.body || {};
-    const nome = body?.nome ?? '';
+    const termo = body?.termo ?? '';
+    const campo = body?.campo ?? 0; // 0=Nome, 1=CPF/CNPJ
+    const pagina = body?.pagina ?? 1;
+    const quantidade = body?.quantidade ?? 5000;
+    const somenteAtivos = body?.somenteAtivos ?? true;
 
-    return {
-      sucesso: true,
-      mensagem: null,
-      dados: {
-        total: 2,
-        itens: [
-          {
-            codigo: 1,
-            nome: nome || 'Clínica Central',
-            cnpj: '12.345.678/0001-99',
-            telefone: '(11) 4002-8922',
-            endereco: {
-              logradouro: 'Av. Paulista',
-              numero: '1000',
-              bairro: 'Bela Vista',
-              cidade: 'São Paulo',
-              uf: 'SP',
-              cep: '01310-100',
-            },
-          },
-          {
-            codigo: 2,
-            nome: 'Clínica Unidade 2',
-            cnpj: '98.765.432/0001-99',
-            telefone: '(11) 4090-1234',
-            endereco: {
-              logradouro: 'Rua das Flores',
-              numero: '123',
-              bairro: 'Centro',
-              cidade: 'São Paulo',
-              uf: 'SP',
-              cep: '01001-000',
-            },
-          },
-        ],
+    const locais = [
+      {
+        codigo: 1,
+        nome: 'Clínica Central',
+        cnpj: '12345678000199',
+        telefone: { ddd: '11', numero: '40028922', tipo: { codigo: 2, nome: 'Comercial' } },
+        endereco: {
+          logradouro: 'Av. Paulista',
+          numero: '1000',
+          complemento: 'Sala 101',
+          bairro: 'Bela Vista',
+          cidade: { codigo: 1, nome: 'São Paulo' },
+          estado: { codigo: 35, nome: 'São Paulo', sigla: 'SP' },
+          cep: '01310100',
+        },
+        ativo: true,
       },
-    };
-  },
-
-  /* -------------------------------------------------------------------------- */
-  /*                                  PACIENTES                                 */
-  /* -------------------------------------------------------------------------- */
-
-  // Buscar pacientes
-  'POST /api/v1/Pacientes': (req) => {
-    const body: any = req.body || {};
-    const nomeFiltro = body?.nome ?? '';
-
-    return {
-      sucesso: true,
-      mensagem: null,
-      dados: {
-        total: 2,
-        itens: [
-          {
-            codigo: 101,
-            nome: nomeFiltro || 'Maria de Souza',
-            nascimento: '1991-08-10',
-            sexo: 'F',
-            cpf: '12345678900',
-            telefonePrincipal: '(11) 99999-0001',
-            email: 'maria.souza@example.com',
-            cidade: 'São Paulo',
-            uf: 'SP',
-            ativo: true,
-          },
-          {
-            codigo: 102,
-            nome: 'Carlos Pereira',
-            nascimento: '1985-04-22',
-            sexo: 'M',
-            cpf: '98765432100',
-            telefonePrincipal: '(11) 99999-0002',
-            email: 'carlos.pereira@example.com',
-            cidade: 'São Paulo',
-            uf: 'SP',
-            ativo: true,
-          },
-        ],
-      },
-    };
-  },
-
-  // Detalhar paciente
-  'GET /api/v1/Pacientes/Detalhar/{codigo}': (req) => {
-    const { codigo } = req.params;
-    const codigoNum = Number(codigo) || 101;
-
-    return {
-      sucesso: true,
-      mensagem: null,
-      dados: {
-        codigo: codigoNum,
-        nome: codigoNum === 102 ? 'Carlos Pereira' : 'Maria de Souza',
-        nascimento: '1991-08-10',
-        sexo: 'F',
-        cpf: '12345678900',
-        rg: '12.345.678-9',
-        email: 'paciente@example.com',
-        telefones: [
-          { tipo: 'Celular', numero: '(11) 99999-0001' },
-          { tipo: 'Recado', numero: '(11) 4002-8922' },
-        ],
+      {
+        codigo: 2,
+        nome: 'Clínica Unidade 2',
+        cnpj: '98765432000188',
+        telefone: { ddd: '11', numero: '40901234', tipo: { codigo: 2, nome: 'Comercial' } },
         endereco: {
           logradouro: 'Rua das Flores',
           numero: '123',
-          complemento: 'Apto 12',
+          complemento: null,
           bairro: 'Centro',
-          cidade: 'São Paulo',
-          uf: 'SP',
-          cep: '01001-000',
+          cidade: { codigo: 1, nome: 'São Paulo' },
+          estado: { codigo: 35, nome: 'São Paulo', sigla: 'SP' },
+          cep: '01001000',
         },
-        estadoCivil: {
-          codigo: 2,
-          descricao: 'Casado(a)',
-        },
-        escolaridade: {
-          codigo: 6,
-          descricao: 'Superior completo',
-        },
-        responsavelLegal: null,
-        convenios: [
-          {
-            codigo: 501,
-            nome: 'Unimed',
-            carteira: 'ABC12345',
-            plano: 'Nacional',
-            validadeCarteira: '2026-12-31',
-          },
-        ],
-        observacoes: 'Paciente com histórico de hipertensão.',
         ativo: true,
       },
-    };
-  },
+      {
+        codigo: 3,
+        nome: 'Clínica Zona Sul',
+        cnpj: '11222333000177',
+        telefone: { ddd: '11', numero: '55551234', tipo: { codigo: 2, nome: 'Comercial' } },
+        endereco: {
+          logradouro: 'Av. Santo Amaro',
+          numero: '500',
+          complemento: 'Térreo',
+          bairro: 'Santo Amaro',
+          cidade: { codigo: 1, nome: 'São Paulo' },
+          estado: { codigo: 35, nome: 'São Paulo', sigla: 'SP' },
+          cep: '04506000',
+        },
+        ativo: false,
+      },
+    ];
 
-  // Inserir paciente
-  'POST /api/v1/Pacientes/Inserir': (req) => {
-    const body: any = req.body || {};
-    const { nome, cpf, email } = body;
+    let resultado = somenteAtivos ? locais.filter((l) => l.ativo) : [...locais];
+
+    if (termo) {
+      const termoLimpo = termo.replace(/\D/g, '');
+      const termoLower = termo.toLowerCase();
+
+      resultado = resultado.filter((l) => {
+        switch (campo) {
+          case 0: // Nome
+            return l.nome.toLowerCase().includes(termoLower);
+          case 1: // CPF/CNPJ
+            return l.cnpj.includes(termoLimpo);
+          default:
+            return true;
+        }
+      });
+    }
+
+    const inicio = (pagina - 1) * quantidade;
+    const locaisPaginados = resultado.slice(inicio, inicio + quantidade);
 
     return {
       sucesso: true,
-      mensagem: 'Paciente inserido com sucesso (mock).',
-      dados: {
-        codigo: 9999,
-        nome: nome ?? 'Novo Paciente',
-        cpf: cpf ?? '00000000000',
-        email: email ?? 'novo.paciente@example.com',
-        nascimento: body?.nascimento ?? '2000-01-01',
-        sexo: body?.sexo ?? 'F',
-        ativo: true,
+      mensagens: [],
+      payload: {
+        locaisProDoctor: locaisPaginados,
       },
     };
   },
 
-  // Alterar paciente
-  'PUT /api/v1/Pacientes/Alterar': (req) => {
-    const body: any = req.body || {};
-
-    return {
-      sucesso: true,
-      mensagem: 'Paciente alterado com sucesso (mock).',
-      dados: {
-        codigo: body?.codigo ?? 101,
-        nome: body?.nome ?? 'Paciente Alterado',
-        cpf: body?.cpf ?? '12345678900',
-        email: body?.email ?? 'paciente.alterado@example.com',
-        ativo: body?.ativo ?? true,
-      },
-    };
-  },
-
-  // Excluir paciente
-  'DELETE /api/v1/Pacientes/Excluir/{codigo}': (req) => {
+  // Detalhar local ProDoctor
+  'GET /api/v1/LocaisProDoctor/Detalhar/{codigo}': (req) => {
     const { codigo } = req.params;
+    const codigoNum = Number(codigo);
 
-    return {
-      sucesso: true,
-      mensagem: `Paciente ${codigo} excluído com sucesso (mock).`,
-      dados: null,
-    };
-  },
-
-  // Aniversariantes
-  'POST /api/v1/Pacientes/Aniversariantes': (req) => {
-    const body: any = req.body || {};
-    const { dataInicial, dataFinal } = body;
-
-    return {
-      sucesso: true,
-      mensagem: null,
-      dados: {
-        periodo: {
-          dataInicial: dataInicial ?? '20/11',
-          dataFinal: dataFinal ?? '26/11',
+    const locais: Record<number, any> = {
+      1: {
+        codigo: 1,
+        nome: 'Clínica Central',
+        cnpj: '12345678000199',
+        inscricaoEstadual: '123456789',
+        inscricaoMunicipal: '987654321',
+        telefone: { ddd: '11', numero: '40028922', tipo: { codigo: 2, nome: 'Comercial' } },
+        telefone2: { ddd: '11', numero: '40028923', tipo: { codigo: 2, nome: 'Comercial' } },
+        email: 'contato@clinicacentral.com.br',
+        site: 'www.clinicacentral.com.br',
+        endereco: {
+          logradouro: 'Av. Paulista',
+          numero: '1000',
+          complemento: 'Sala 101',
+          bairro: 'Bela Vista',
+          cidade: { codigo: 1, nome: 'São Paulo' },
+          estado: { codigo: 35, nome: 'São Paulo', sigla: 'SP' },
+          cep: '01310100',
         },
-        aniversariantes: [
-          {
-            codigo: 101,
-            nome: 'Maria de Souza',
-            dataNascimento: '1991-11-22',
-            telefone: '(11) 99999-0001',
-          },
-          {
-            codigo: 103,
-            nome: 'João Henrique',
-            dataNascimento: '1988-11-23',
-            telefone: '(11) 99999-0003',
-          },
-        ],
-      },
-    };
-  },
-
-  /* -------------------------------------------------------------------------- */
-  /*                               PROCEDIMENTOS                                */
-  /* -------------------------------------------------------------------------- */
-
-  // Buscar procedimentos
-  'POST /api/v1/Procedimentos': (req) => {
-    const body: any = req.body || {};
-    const descricao = body?.descricao ?? 'Consulta';
-
-    return {
-      sucesso: true,
-      mensagem: null,
-      dados: {
-        total: 2,
-        itens: [
-          {
-            tabela: { codigo: 1, nome: 'AMB' },
-            codigo: '10101012',
-            descricao,
-            valor: 250.0,
-            duracaoMinutos: 30,
-          },
-          {
-            tabela: { codigo: 1, nome: 'AMB' },
-            codigo: '10101013',
-            descricao: 'Retorno',
-            valor: 150.0,
-            duracaoMinutos: 20,
-          },
-        ],
-      },
-    };
-  },
-
-  // Detalhar procedimento
-  'GET /api/v1/Procedimentos/Detalhar/{tabela}/{codigo}': (req) => {
-    const { tabela, codigo } = req.params;
-
-    return {
-      sucesso: true,
-      mensagem: null,
-      dados: {
-        tabela: {
-          codigo: Number(tabela),
-          nome: Number(tabela) === 1 ? 'AMB' : 'Outra Tabela',
-        },
-        codigo,
-        descricao: 'Consulta médica',
-        valor: 250.0,
-        duracaoMinutos: 30,
-        tipo: 'Consulta',
-        exigeAutorizacao: false,
-      },
-    };
-  },
-
-  /* -------------------------------------------------------------------------- */
-  /*                          TABELAS DE PROCEDIMENTOS                          */
-  /* -------------------------------------------------------------------------- */
-
-  'POST /api/v1/TabelasProcedimentos': () => ({
-    sucesso: true,
-    mensagem: null,
-    dados: {
-      total: 2,
-      itens: [
-        {
-          codigo: 1,
-          nome: 'AMB',
-          descricao: 'Tabela AMB padrão',
-          versao: '2025',
-        },
-        {
-          codigo: 2,
-          nome: 'CBHPM',
-          descricao: 'Tabela CBHPM',
-          versao: '2024',
-        },
-      ],
-    },
-  }),
-
-  /* -------------------------------------------------------------------------- */
-  /*                                  USUÁRIOS                                  */
-  /* -------------------------------------------------------------------------- */
-
-  // Buscar usuários
-  'POST /api/v1/Usuarios': (req) => {
-    const body: any = req.body || {};
-    const nome = body?.nome ?? '';
-
-    return {
-      sucesso: true,
-      mensagem: null,
-      dados: {
-        total: 2,
-        itens: [
-          {
-            codigo: 100,
-            nome: nome || 'Dr. João da Silva',
-            login: 'joao.silva',
-            email: 'joao.silva@clinica.com',
-            ativo: true,
-            perfil: 'Médico',
-          },
-          {
-            codigo: 101,
-            nome: 'Dra. Ana Paula',
-            login: 'ana.paula',
-            email: 'ana.paula@clinica.com',
-            ativo: true,
-            perfil: 'Médica',
-          },
-        ],
-      },
-    };
-  },
-
-  // Detalhar usuário
-  'GET /api/v1/Usuarios/Detalhar/{codigo}': (req) => {
-    const { codigo } = req.params;
-    const codigoNum = Number(codigo) || 100;
-
-    return {
-      sucesso: true,
-      mensagem: null,
-      dados: {
-        codigo: codigoNum,
-        nome: codigoNum === 101 ? 'Dra. Ana Paula' : 'Dr. João da Silva',
-        login: codigoNum === 101 ? 'ana.paula' : 'joao.silva',
-        email: codigoNum === 101 ? 'ana.paula@clinica.com' : 'joao.silva@clinica.com',
+        horarioFuncionamento: 'Segunda a Sexta, 08:00 às 18:00',
         ativo: true,
-        perfil: 'Médico',
-        crm: codigoNum === 101 ? '654321-SP' : '123456-SP',
-        especialidades: [
-          { codigo: 10, descricao: 'Clínico Geral' },
-          { codigo: 11, descricao: 'Cardiologia' },
-        ],
+      },
+      2: {
+        codigo: 2,
+        nome: 'Clínica Unidade 2',
+        cnpj: '98765432000188',
+        inscricaoEstadual: '234567890',
+        inscricaoMunicipal: '876543210',
+        telefone: { ddd: '11', numero: '40901234', tipo: { codigo: 2, nome: 'Comercial' } },
+        email: 'contato@clinicaunidade2.com.br',
+        endereco: {
+          logradouro: 'Rua das Flores',
+          numero: '123',
+          complemento: null,
+          bairro: 'Centro',
+          cidade: { codigo: 1, nome: 'São Paulo' },
+          estado: { codigo: 35, nome: 'São Paulo', sigla: 'SP' },
+          cep: '01001000',
+        },
+        horarioFuncionamento: 'Segunda a Sábado, 07:00 às 20:00',
+        ativo: true,
+      },
+    };
+
+    const local = locais[codigoNum];
+
+    if (!local) {
+      return {
+        sucesso: false,
+        mensagens: ['Local ProDoctor não encontrado'],
+        payload: null,
+      };
+    }
+
+    return {
+      sucesso: true,
+      mensagens: [],
+      payload: {
+        localProDoctor: local,
       },
     };
   },
 
+  // Adiciona os mocks adicionais
   ...additionalRealisticMocks,
+};
+
+/**
+ * Funções utilitárias para testes e debugging
+ */
+export const mockUtils = {
+  /**
+   * Lista todos os agendamentos in-memory
+   */
+  listAllAppointments: () => {
+    const appointments: any[] = [];
+    inMemoryAppointments.forEach((value, key) => {
+      appointments.push({ key, ...value });
+    });
+    return appointments;
+  },
+
+  /**
+   * Limpa todos os agendamentos in-memory
+   */
+  clearAllAppointments: () => {
+    inMemoryAppointments.clear();
+    appointmentCodeCounter = 10000;
+  },
+
+  /**
+   * Busca um agendamento por key
+   */
+  getAppointmentByKey: (key: string) => {
+    return inMemoryAppointments.get(key);
+  },
+
+  /**
+   * Adiciona um agendamento manualmente
+   */
+  addAppointment: (appointment: any) => {
+    const key = generateAppointmentKey(
+      appointment.localProDoctor?.codigo ?? 1,
+      appointment.usuario?.codigo ?? 100,
+      appointment.data,
+      appointment.hora,
+    );
+    appointment.codigo = appointment.codigo ?? generateAppointmentCode();
+    inMemoryAppointments.set(key, appointment);
+    return key;
+  },
 };

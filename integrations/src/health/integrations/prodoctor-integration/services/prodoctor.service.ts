@@ -120,9 +120,10 @@ export class ProdoctorService implements IIntegratorService {
     try {
       const response = await this.prodoctorApiService.getPatientByCpf(integration, cpf);
 
+      //@ts-ignore
       console.log('RESPONSE', response);
       //@ts-ignore
-      if (!response?.sucesso || !response?.payload?.pacientes.length) {
+      if (!response?.payload?.pacientes.length) {
         throw HTTP_ERROR_THROWER(HttpStatus.NOT_FOUND, 'User not found', undefined, true);
       }
 
@@ -758,6 +759,7 @@ export class ProdoctorService implements IIntegratorService {
     try {
       // Faz uma requisição simples para verificar status
       const response = await this.prodoctorApiService.listLocaisProDoctor(integration, { quantidade: 1 });
+      console.log('RESPONSE', response);
       return { ok: response?.sucesso === true };
     } catch (error) {
       return { ok: false };

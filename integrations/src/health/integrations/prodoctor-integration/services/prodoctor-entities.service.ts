@@ -289,6 +289,7 @@ export class ProdoctorEntitiesService {
 
       const response = await this.prodoctorApiService.listUsuariosComEspecialidade(integration, request);
 
+      console.log('RESPONSE EXTRACT ESPECIALITS', response);
       if (!response?.sucesso || !response?.payload?.usuarios) {
         return [];
       }
@@ -296,23 +297,31 @@ export class ProdoctorEntitiesService {
       const defaultData = this.getDefaultErpEntityData(integration);
       const specialitiesMap = new Map<number, ISpecialityEntity>();
 
+      console.log('RESPONSE PAYLOAD', response.payload.usuarios);
+
       for (const usuario of response.payload.usuarios) {
-        if (usuario.especialidades?.length) {
-          for (const especialidade of usuario.especialidades) {
-            if (!specialitiesMap.has(especialidade.codigo)) {
-              specialitiesMap.set(especialidade.codigo, {
-                ...defaultData,
-                code: String(especialidade.codigo),
-                name: especialidade.nome,
-                canSchedule: true,
-                specialityType: SpecialityTypes.C,
-              });
-            }
+        console.log('USUARIO', usuario);
+
+        if (usuario.especialidade) {
+          const especialidade = usuario.especialidade;
+
+          if (!specialitiesMap.has(especialidade.codigo)) {
+            specialitiesMap.set(especialidade.codigo, {
+              ...defaultData,
+              code: String(especialidade.codigo),
+              name: especialidade.nome,
+              canSchedule: true,
+              specialityType: SpecialityTypes.C,
+              canView: true,
+            });
           }
         }
       }
 
-      return Array.from(specialitiesMap.values());
+      const especialitys = Array.from(specialitiesMap.values());
+
+      console.log('ESP MAPEADAS', especialitys);
+      return especialitys;
     } catch (error) {
       this.logger.error('ProdoctorEntitiesService.listSpecialities', error);
       return [];
