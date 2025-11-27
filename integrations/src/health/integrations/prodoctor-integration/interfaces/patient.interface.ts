@@ -113,7 +113,9 @@ interface PacienteRequest {
  * Request para busca de paciente por CPF
  */
 interface PacienteBuscarRequest {
-  cpf: string;
+  cpf?: string;
+  termo?: string;
+  campo?: number;
   localProDoctor?: CodigoBaseRequest;
 }
 

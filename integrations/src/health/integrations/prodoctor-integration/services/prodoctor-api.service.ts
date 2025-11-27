@@ -480,7 +480,6 @@ export class ProdoctorApiService {
     cpf: string,
   ): Promise<PDResponsePacienteSearchViewModel> {
     const request: PacienteBuscarRequest = {
-      //@ts-ignore
       termo: cpf.replace(/\D/g, ''),
       campo: 1,
     };

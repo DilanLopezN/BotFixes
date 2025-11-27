@@ -143,10 +143,12 @@ describe('ProdoctorApiService', () => {
           cpf: '12345678900',
         });
 
+        console.log('RESULLT FROM TST', result);
+
         expect(result.sucesso).toBe(true);
         expect(result.payload.paciente.cpf).toBe('12345678900');
         expect(httpService.post).toHaveBeenCalledWith(
-          'http://localhost:7575/api/v1/Pacientes',
+          'http://172.17.0.1:7575/api/v1/Pacientes',
           { cpf: '12345678900' },
           expect.any(Object),
         );
@@ -199,7 +201,7 @@ describe('ProdoctorApiService', () => {
         expect(result.sucesso).toBe(true);
         expect(result.payload.paciente.codigo).toBe(101);
         expect(httpService.get).toHaveBeenCalledWith(
-          'http://localhost:7575/api/v1/Pacientes/Detalhar/101',
+          'http://172.17.0.1:7575/api/v1/Pacientes/Detalhar/101',
           expect.any(Object),
         );
       });
@@ -240,7 +242,7 @@ describe('ProdoctorApiService', () => {
         const result = await service.getPatientByCpf(mockIntegration as IntegrationDocument, '12345678900');
 
         expect(result.sucesso).toBe(true);
-        expect(result.payload.paciente.cpf).toBe('12345678900');
+        expect(result.payload?.paciente.cpf).toBe('12345678900');
       });
     });
 
@@ -275,7 +277,7 @@ describe('ProdoctorApiService', () => {
         expect(result.sucesso).toBe(true);
         expect(result.payload.paciente.codigo).toBe(102);
         expect(httpService.post).toHaveBeenCalledWith(
-          'http://localhost:7575/api/v1/Pacientes/Inserir',
+          'http://172.17.0.1:7575/api/v1/Pacientes/Inserir',
           request,
           expect.any(Object),
         );
@@ -420,7 +422,7 @@ describe('ProdoctorApiService', () => {
         });
 
         expect(result.sucesso).toBe(true);
-        expect(result.payload.usuarios[0].especialidades).toHaveLength(2);
+        expect(result.payload.usuarios[0]?.especialidades).toHaveLength(2);
       });
     });
 

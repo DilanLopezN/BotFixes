@@ -12,6 +12,7 @@ import { IntegrationDocument } from '../../../integration/schema/integration.sch
 import { IntegrationType } from '../../../interfaces/integration-types';
 import { AppointmentStatus } from '../../../interfaces/appointment.interface';
 import { EntityType, EntitySourceType, EntityVersionType } from '../../../interfaces/entity.interface';
+import { EntitiesFiltersService } from '../../../shared/entities-filters.service';
 
 describe('ProdoctorService', () => {
   let service: ProdoctorService;
@@ -22,6 +23,7 @@ describe('ProdoctorService', () => {
   let appointmentService: AppointmentService;
   let flowService: FlowService;
   let integrationCacheUtilsService: IntegrationCacheUtilsService;
+  let entitiesFiltersService: EntitiesFiltersService;
 
   const mockIntegration: Partial<IntegrationDocument> = {
     _id: '507f1f77bcf86cd799439011' as any,
@@ -100,6 +102,7 @@ describe('ProdoctorService', () => {
           useValue: {
             getEntityByCode: jest.fn(),
             getValidEntitiesbyCode: jest.fn(),
+            getValidEntities: jest.fn(),
           },
         },
         {
@@ -107,6 +110,7 @@ describe('ProdoctorService', () => {
           useValue: {
             transformSchedules: jest.fn(),
             minifySchedules: jest.fn(),
+            getAppointments: jest.fn(),
           },
         },
         {
@@ -114,6 +118,7 @@ describe('ProdoctorService', () => {
           useValue: {
             getFlowByIntegration: jest.fn(),
             updateFlowSteps: jest.fn(),
+            matchEntitiesFlows: jest.fn(),
           },
         },
         {
@@ -123,6 +128,13 @@ describe('ProdoctorService', () => {
             setPatientCache: jest.fn(),
             getPatientSchedulesCache: jest.fn(),
             setPatientSchedulesCache: jest.fn(),
+          },
+        },
+        {
+          provide: EntitiesFiltersService,
+          useValue: {
+            filterEntitiesByReferences: jest.fn().mockImplementation((integration, entities) => entities),
+            filterEntitiesByParams: jest.fn().mockImplementation((integration, entities) => entities),
           },
         },
       ],
@@ -136,6 +148,7 @@ describe('ProdoctorService', () => {
     appointmentService = module.get<AppointmentService>(AppointmentService);
     flowService = module.get<FlowService>(FlowService);
     integrationCacheUtilsService = module.get<IntegrationCacheUtilsService>(IntegrationCacheUtilsService);
+    entitiesFiltersService = module.get<EntitiesFiltersService>(EntitiesFiltersService);
   });
 
   describe('getPatient', () => {
@@ -336,7 +349,6 @@ describe('ProdoctorService', () => {
     });
 
     it('deve retornar array vazio quando não houver agendamentos', async () => {
-      // FIX: API pode retornar null ou sucesso false
       jest.spyOn(prodoctorApiService, 'buscarAgendamentosPaciente').mockResolvedValue({
         sucesso: true,
         mensagens: [],
@@ -364,14 +376,12 @@ describe('ProdoctorService', () => {
     };
 
     it('deve criar agendamento com sucesso', async () => {
-      // FIX: Response da API ProDoctor conforme swagger
       jest.spyOn(prodoctorHelpersService, 'buildTipoAgendamentoRequest').mockReturnValue({});
       jest.spyOn(prodoctorApiService, 'inserirAgendamento').mockResolvedValue({
         sucesso: true,
         mensagens: [],
         payload: {
           agendamento: {
-            // AgendamentoAgendaInsertViewModel não tem campo 'codigo'
             data: '25/11/2025',
             hora: '14:00',
             localProDoctor: { codigo: 1, nome: 'Clínica Central' },
@@ -387,7 +397,6 @@ describe('ProdoctorService', () => {
 
       const result = await service.createSchedule(mockIntegration as IntegrationDocument, createScheduleData as any);
 
-      // FIX: O appointmentCode é gerado pelo buildAppointmentCode quando não há codigo
       expect(result.appointmentCode).toBe('1-100-25112025-1400');
       expect(result.status).toBe(AppointmentStatus.scheduled);
     });
@@ -408,7 +417,6 @@ describe('ProdoctorService', () => {
 
   describe('cancelSchedule', () => {
     it('deve cancelar agendamento com sucesso', async () => {
-      // FIX: Response da API ProDoctor
       jest.spyOn(prodoctorApiService, 'desmarcarAgendamento').mockResolvedValue({
         sucesso: true,
         mensagens: ['Agendamento cancelado com sucesso'],
@@ -424,7 +432,6 @@ describe('ProdoctorService', () => {
     });
 
     it('deve retornar ok false quando cancelamento falhar', async () => {
-      // FIX: Response da API ProDoctor
       jest.spyOn(prodoctorApiService, 'desmarcarAgendamento').mockResolvedValue({
         sucesso: false,
         mensagens: ['Erro ao cancelar agendamento'],
@@ -442,7 +449,6 @@ describe('ProdoctorService', () => {
 
   describe('confirmSchedule', () => {
     it('deve confirmar agendamento com sucesso', async () => {
-      // FIX: Response da API ProDoctor conforme interface PDResponseAlterarStatusAgendamentoViewModel
       jest.spyOn(prodoctorApiService, 'alterarStatusAgendamento').mockResolvedValue({
         sucesso: true,
         mensagens: ['Agendamento confirmado com sucesso'],
@@ -479,7 +485,6 @@ describe('ProdoctorService', () => {
         patient: { code: '101' },
       };
 
-      // FIX: Mock das duas operações
       jest.spyOn(prodoctorApiService, 'desmarcarAgendamento').mockResolvedValue({
         sucesso: true,
         mensagens: [],
@@ -530,7 +535,6 @@ describe('ProdoctorService', () => {
         },
       };
 
-      // FIX: Usar método correto do cache
       jest.spyOn(integrationCacheUtilsService, 'getPatientSchedulesCache').mockResolvedValue({
         minifiedSchedules: mockMinifiedSchedules,
         schedules: [],
@@ -555,7 +559,7 @@ describe('ProdoctorService', () => {
         untilDay: 7,
       };
 
-      // FIX 1: Mock CRÍTICO - getEntityByCode é chamado pelo service
+      // Mock: getEntityByCode retorna o médico
       jest.spyOn(entitiesService, 'getEntityByCode').mockResolvedValue({
         _id: 'mock-entity-id' as any,
         code: '100',
@@ -566,11 +570,14 @@ describe('ProdoctorService', () => {
         version: EntityVersionType.production,
       } as any);
 
-      // FIX 2: buildTurnosFromPeriod retorna objeto TurnosRequest
+      // Mock: buildTurnosFromPeriod
       jest.spyOn(prodoctorHelpersService, 'buildTurnosFromPeriod').mockReturnValue({
-        turno1: { horaInicial: '08:00', horaFinal: '12:00' },
+        manha: true,
+        tarde: true,
+        noite: false,
       } as any);
 
+      // Mock: buscarHorariosLivres
       jest.spyOn(prodoctorApiService, 'buscarHorariosLivres').mockResolvedValue({
         sucesso: true,
         mensagens: [],
@@ -582,11 +589,22 @@ describe('ProdoctorService', () => {
         },
       });
 
+      // Mock: transformAvailableScheduleToRawAppointment
       jest.spyOn(prodoctorHelpersService, 'transformAvailableScheduleToRawAppointment').mockReturnValue({
         appointmentDate: '2025-11-25T08:00:00.000Z',
         duration: 30,
       } as any);
 
+      // Mock: getAppointments
+      jest.spyOn(appointmentService, 'getAppointments').mockResolvedValue({
+        appointments: [
+          { appointmentDate: '2025-11-25T08:00:00.000Z', duration: 30 },
+          { appointmentDate: '2025-11-25T09:00:00.000Z', duration: 30 },
+        ],
+        metadata: {},
+      } as any);
+
+      // Mock: transformSchedules
       jest.spyOn(appointmentService, 'transformSchedules').mockResolvedValue([
         { appointmentDate: '2025-11-25T08:00:00.000Z', duration: 30 },
         { appointmentDate: '2025-11-25T09:00:00.000Z', duration: 30 },
@@ -597,31 +615,34 @@ describe('ProdoctorService', () => {
         availableSchedulesRequest as any,
       );
 
-      // FIX 3: Propriedade correta é 'schedules' não 'schedulesList'
       expect(result.schedules).toHaveLength(2);
       expect(entitiesService.getEntityByCode).toHaveBeenCalledWith('100', EntityType.doctor, mockIntegration._id);
     });
 
     it('deve retornar vazio quando não houver médico', async () => {
-      // FIX: Limpar mocks anteriores
       jest.clearAllMocks();
 
       const availableSchedulesRequest = {
-        filter: {}, // Sem doctor
+        filter: {},
         fromDay: 0,
         untilDay: 7,
       };
+
+      // Mock: getValidEntities retorna array vazio (nenhum médico)
+      jest.spyOn(entitiesService, 'getValidEntities').mockResolvedValue([]);
+
+      // Mock: matchEntitiesFlows retorna tupla [[], {}]
+      jest.spyOn(flowService, 'matchEntitiesFlows').mockResolvedValue([[], {}] as any);
 
       const result = await service.getAvailableSchedules(
         mockIntegration as IntegrationDocument,
         availableSchedulesRequest as any,
       );
 
-      // FIX: Propriedade correta é 'schedules' não 'schedulesList'
-      expect(result.schedules).toEqual([]);
-      expect(result.metadata).toBeNull();
+      console.log('RES', result);
 
-      // Verificar que não chamou a API
+      expect(result.schedules).toEqual([]);
+      expect(result.metadata).toBeDefined();
       expect(prodoctorApiService.buscarHorariosLivres).not.toHaveBeenCalled();
     });
   });

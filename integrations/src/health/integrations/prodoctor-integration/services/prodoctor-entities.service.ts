@@ -4,8 +4,6 @@ import { INTERNAL_ERROR_THROWER } from '../../../../common/exceptions.service';
 import { castObjectId } from '../../../../common/helpers/cast-objectid';
 import { EntityDocument, ScheduleType } from '../../../entities/schema';
 import { EntitiesService } from '../../../entities/services/entities.service';
-import { getExpirationByEntity } from '../../../integration-cache-utils/cache-expirations';
-
 import { IntegrationDocument } from '../../../integration/schema/integration.schema';
 import { InitialPatient } from '../../../integrator/interfaces';
 import { CorrelationFilter } from '../../../interfaces/correlation-filter.interface';
@@ -22,10 +20,8 @@ import {
   ISpecialityEntity,
   SpecialityTypes,
 } from '../../../interfaces/entity.interface';
-import { IntegrationType } from '../../../interfaces/integration-types';
 import { ProdoctorApiService } from './prodoctor-api.service';
-import { IntegrationCacheUtilsService } from 'health/integration-cache-utils/integration-cache-utils.service';
-import { EntityFiltersParams } from 'kissbot-health-core';
+import { IntegrationCacheUtilsService } from '../../../../health/integration-cache-utils/integration-cache-utils.service';
 import * as moment from 'moment';
 
 interface ListValidEntities {
@@ -150,8 +146,6 @@ export class ProdoctorEntitiesService {
           return resourceCache;
         }
       }
-
-      let entities: EntityTypes[] = [];
 
       const getResource = () => {
         switch (entityType) {

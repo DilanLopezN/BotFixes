@@ -120,10 +120,12 @@ export class ProdoctorService implements IIntegratorService {
     try {
       const response = await this.prodoctorApiService.getPatientByCpf(integration, cpf);
 
+      console.log('RESPONSE', response);
       //@ts-ignore
-      if (!response?.sucesso || !response?.payload?.pacientes?.length) {
+      if (!response?.sucesso || !response?.payload?.pacientes.length) {
         throw HTTP_ERROR_THROWER(HttpStatus.NOT_FOUND, 'User not found', undefined, true);
       }
+
       //@ts-ignore
       return this.prodoctorHelpersService.transformPatient(response.payload.pacientes[0]);
     } catch (error) {
@@ -588,17 +590,10 @@ export class ProdoctorService implements IIntegratorService {
         sortMethod = AppointmentSortMethod.default,
       } = availableSchedules;
 
-      this.logger.debug('========== getAvailableSchedules START ==========');
-      this.logger.debug(
-        'Input params:',
-        JSON.stringify({ filter, fromDay, untilDay, period, limit, periodOfDay, randomize, sortMethod }),
-      );
-
       const metadata: AvailableSchedulesMetadata = {
         interAppointmentPeriod: 0,
       };
 
-      // ✅ CORREÇÃO: Se não tem doctor, buscar médicos válidos (padrão Feegow/Clinic)
       let validDoctors: EntityDocument[] = [];
 
       if (filter.doctor?.code) {
@@ -611,9 +606,6 @@ export class ProdoctorService implements IIntegratorService {
           validDoctors.push(doctorEntity);
         }
       } else {
-        // Buscar médicos válidos quando não especificado
-        this.logger.debug('No doctor specified, fetching valid doctors...');
-
         const doctors = await this.entitiesService.getValidEntities(EntityType.doctor, integration._id);
 
         const [matchedDoctors] = await this.flowService.matchEntitiesFlows({
@@ -631,12 +623,9 @@ export class ProdoctorService implements IIntegratorService {
         validDoctors = this.entitiesFiltersService.filterEntitiesByParams(integration, matchedDoctors, {
           bornDate: patient?.bornDate,
         });
-
-        this.logger.debug(`Found ${validDoctors.length} valid doctors`);
       }
 
       if (!validDoctors.length) {
-        this.logger.warn('No valid doctors found, returning empty');
         return { schedules: [], metadata };
       }
 
@@ -662,8 +651,6 @@ export class ProdoctorService implements IIntegratorService {
           request.turnos = this.prodoctorHelpersService.buildTurnosFromPeriod(period.start, period.end);
         }
 
-        this.logger.debug(`Fetching schedules for doctor ${doctorEntity.code}...`);
-
         const response = await this.prodoctorApiService.buscarHorariosLivres(integration, request);
 
         if (response?.sucesso && response?.payload?.agendamentos?.length) {
@@ -673,8 +660,6 @@ export class ProdoctorService implements IIntegratorService {
           allRawSchedules.push(...rawSchedules);
         }
       }
-
-      this.logger.debug(`Total raw schedules: ${allRawSchedules.length}`);
 
       if (!allRawSchedules.length) {
         return { schedules: [], metadata };
@@ -688,9 +673,6 @@ export class ProdoctorService implements IIntegratorService {
         );
 
       const schedules = await this.appointmentService.transformSchedules(integration, processedAppointments);
-
-      this.logger.debug(`Final schedules: ${schedules.length}`);
-      this.logger.debug('========== getAvailableSchedules END ==========');
 
       return {
         schedules: orderBy(schedules, ['appointmentDate'], ['asc']),

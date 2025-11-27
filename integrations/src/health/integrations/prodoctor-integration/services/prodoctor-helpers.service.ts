@@ -211,12 +211,10 @@ export class ProdoctorHelpersService {
     doctor: EntityDocument,
     filter: CorrelationFilter,
   ): RawAppointment {
-    // ✅ CORREÇÃO 1: Concatenar data + hora corretamente
     const appointmentDate = moment(`${horario.data} ${horario.hora}`, this.dateTimeFormat);
     const appointmentDateISO = appointmentDate.toISOString();
 
     return {
-      // ✅ CORREÇÃO 2: appointmentCode NÃO pode ser null (padrão Feegow usa a data)
       appointmentCode: appointmentDateISO,
       appointmentDate: appointmentDateISO,
       status: AppointmentStatus.scheduled,
@@ -250,7 +248,7 @@ export class ProdoctorHelpersService {
             code: filter.procedure.code,
           }
         : undefined,
-      // ✅ CORREÇÃO 3: Adicionar specialityId
+
       specialityId: filter.speciality?.code,
       specialityDefault: filter.speciality
         ? {
@@ -259,7 +257,7 @@ export class ProdoctorHelpersService {
             code: filter.speciality.code,
           }
         : undefined,
-      // ✅ CORREÇÃO 4: Usar código da entidade, não string literal
+
       appointmentTypeId: filter.appointmentType?.code,
       duration: '0',
     };
