@@ -1,31 +1,48 @@
-// ========== INTERFACES DE AGENDAMENTO ==========
-// Alinhado com swagger oficial da API ProDoctor
+// ========== SCHEDULE INTERFACES ==========
+// Aligned with ProDoctor official API swagger
 
-import { CodigoBaseRequest, PeriodoRequest } from './base.interface';
-import { TelefoneRequest } from './patient.interface';
+import { CodeRequest, PeriodRequest } from './base.interface';
+import { PhoneRequest } from './patient.interface';
 
-// ========== REQUESTS BASE ==========
+// ========== ENUMS ==========
 
 /**
- * Request para paciente no agendamento
+ * Appointment type enum
  */
-interface PacienteAgendamentoRequest {
+export enum AppointmentTypeEnum {
+  CONSULTATION = 'consulta',
+  RETURN = 'retorno',
+  EXAM = 'exame',
+  SURGERY = 'cirurgia',
+  COMMITMENT = 'compromisso',
+  TELECONSULTATION = 'teleconsulta',
+}
+
+// ========== BASE REQUESTS ==========
+
+/**
+ * Patient in appointment request
+ * Aligned with PacienteAgendamentoRequest from swagger
+ */
+export interface AppointmentPatientRequest {
   codigo?: number;
   nome?: string;
 }
 
 /**
- * Request para procedimento médico no agendamento
+ * Medical procedure in appointment request
+ * Aligned with ProcedimentoMedicoAgendamentoRequest from swagger
  */
-interface ProcedimentoMedicoAgendamentoRequest {
-  tabela?: CodigoBaseRequest;
+export interface AppointmentProcedureRequest {
+  tabela?: CodeRequest;
   codigo?: string;
 }
 
 /**
- * Request para estado do agendamento
+ * Appointment state request
+ * Aligned with EstadoAgendaConsultaRequest from swagger
  */
-interface EstadoAgendaConsultaRequest {
+export interface AppointmentStateRequest {
   confirmado?: boolean;
   compareceu?: boolean;
   atrasado?: boolean;
@@ -35,9 +52,10 @@ interface EstadoAgendaConsultaRequest {
 }
 
 /**
- * Tipo de agendamento
+ * Appointment type request
+ * Aligned with TipoAgendamentoRequest from swagger
  */
-interface TipoAgendamentoRequest {
+export interface AppointmentTypeRequest {
   consulta?: boolean;
   retorno?: boolean;
   exame?: boolean;
@@ -46,80 +64,11 @@ interface TipoAgendamentoRequest {
   teleconsulta?: boolean;
 }
 
-// ========== REQUESTS DE AGENDAMENTO ==========
-
 /**
- * Request para listar agendamentos por usuário
- * Endpoint: POST /api/v1/Agenda/Listar
+ * Surgery data for appointment
+ * Aligned with AgendamentoCirurgiaRequest from swagger
  */
-interface AgendamentoListarPorUsuarioRequest {
-  usuario: CodigoBaseRequest;
-  data: string; // DD/MM/YYYY
-  localProDoctor?: CodigoBaseRequest;
-}
-
-/**
- * Request para buscar agendamentos de um paciente
- * Endpoint: POST /api/v1/Agenda/Buscar
- */
-interface AgendamentoBuscarRequest {
-  quantidade?: number; // 1-5000
-  periodo?: PeriodoRequest;
-  paciente: PacienteAgendamentoRequest;
-  localProDoctor?: CodigoBaseRequest;
-}
-
-/**
- * Request para detalhar agendamento
- */
-interface AgendamentoDetalharRequest {
-  codigo: number;
-}
-
-/**
- * Dados de identificação de um agendamento (AgendamentoIDRequest)
- * Usado para identificar um agendamento específico
- */
-interface AgendamentoIDRequest {
-  localProDoctor?: CodigoBaseRequest;
-  usuario: CodigoBaseRequest;
-  data: string; // DD/MM/YYYY
-  hora: string; // HH:mm
-}
-
-/**
- * Dados detalhados de um agendamento (AgendamentoDetalhadoRequest)
- * Usado dentro de AgendamentoInserirRequest e AgendamentoAlterarRequest
- */
-interface AgendamentoDetalhadoRequest {
-  localProDoctor?: CodigoBaseRequest;
-  usuario: CodigoBaseRequest;
-  data: string; // DD/MM/YYYY
-  hora: string; // HH:mm
-  naoEnviarMsgConfirmacao?: boolean;
-  complemento?: string;
-  encaixe?: boolean;
-  tabela?: CodigoBaseRequest;
-  estadoAgendaConsulta?: EstadoAgendaConsultaRequest;
-  paciente: PacienteAgendamentoRequest;
-  tipoAgendamento?: TipoAgendamentoRequest;
-  convenio?: CodigoBaseRequest;
-  telefone?: TelefoneRequest;
-  telefone2?: TelefoneRequest;
-  telefone3?: TelefoneRequest;
-  telefone4?: TelefoneRequest;
-  email?: string;
-  procedimentoMedico?: ProcedimentoMedicoAgendamentoRequest;
-  agendamentoCirurgia?: AgendamentoCirurgiaRequest;
-  orientacaoUsuario?: string;
-  orientacaoConvenio?: string;
-  orientacaoProcedimento?: string;
-}
-
-/**
- * Dados de cirurgia para o agendamento
- */
-interface AgendamentoCirurgiaRequest {
+export interface AppointmentSurgeryRequest {
   situacao?: {
     codigo?: number;
   };
@@ -130,7 +79,7 @@ interface AgendamentoCirurgiaRequest {
     codigo?: number;
   };
   acomodacaoCirurgia?: {
-    acomodacao?: CodigoBaseRequest;
+    acomodacao?: CodeRequest;
     marcou?: string;
     data?: string;
     hora?: string;
@@ -139,9 +88,10 @@ interface AgendamentoCirurgiaRequest {
 }
 
 /**
- * Alertas do agendamento
+ * Appointment alerts request
+ * Aligned with AgendamentoAlertasRequest from swagger
  */
-interface AgendamentoAlertasRequest {
+export interface AppointmentAlertsRequest {
   suprimirAlertaLimiteConsultasPorUsuario?: boolean;
   suprimirAlertaLimiteConsultasPorConvenio?: boolean;
   suprimirAlertaBloqueioRetorno?: boolean;
@@ -153,141 +103,21 @@ interface AgendamentoAlertasRequest {
 }
 
 /**
- * Request para inserir agendamento
- * Endpoint: POST /api/v1/Agenda/Inserir
- * IMPORTANTE: Os dados do agendamento ficam dentro da propriedade "agendamento"
+ * Shifts request for available schedules
+ * Aligned with TurnosRequest from swagger
  */
-interface AgendamentoInserirRequest {
-  agendamento: AgendamentoDetalhadoRequest;
-  agendamentoAlertas?: AgendamentoAlertasRequest;
-  atualizaContatoPaciente?: boolean;
+export interface ShiftsRequest {
+  madrugada?: boolean; // 00:00 - 06:00
+  manha?: boolean; // 06:00 - 12:00
+  tarde?: boolean; // 12:00 - 18:00
+  noite?: boolean; // 18:00 - 00:00
 }
 
 /**
- * Request para alterar agendamento
- * Endpoint: PUT /api/v1/Agenda/Alterar
+ * Days of week request
+ * Aligned with DiasNaSemanaRequest from swagger
  */
-interface AgendamentoAlterarRequest {
-  agendamento: AgendamentoDetalhadoRequest;
-  agendamentoAlertas?: AgendamentoAlertasRequest;
-  agendamentoOrigem: AgendamentoIDRequest;
-  atualizaContatoPaciente?: boolean;
-}
-
-/**
- * Request para desmarcar agendamento
- * Endpoint: PATCH /api/v1/Agenda/Desmarcar
- * IMPORTANTE: Usa AgendamentoIDRequest para identificar o agendamento
- */
-interface AgendamentoDesmarcarRequest {
-  localProDoctor?: CodigoBaseRequest;
-  usuario: CodigoBaseRequest;
-  data: string; // DD/MM/YYYY
-  hora: string; // HH:mm
-}
-
-/**
- * Request para excluir agendamento
- * Endpoint: DELETE /api/v1/Agenda/Excluir
- */
-interface AgendamentoApagarRequest {
-  localProDoctor?: CodigoBaseRequest;
-  usuario: CodigoBaseRequest;
-  data: string; // DD/MM/YYYY
-  hora: string; // HH:mm
-  agendamentoAlertas?: AgendamentoAlertasRequest;
-}
-
-/**
- * Request para alterar estado do agendamento
- * Endpoint: PATCH /api/v1/Agenda/AlterarEstado
- */
-interface AlterarEstadoAgendaConsultaRequest {
-  confirmado?: boolean;
-  compareceu?: boolean;
-  atrasado?: boolean;
-  atendimento?: boolean;
-  atendido?: boolean;
-  faltou?: boolean;
-  horaCompareceu?: string;
-  horaAtendimento?: string;
-  horaAtendido?: string;
-}
-
-interface AgendamentoAlterarStatusRequest {
-  estadoAgendaConsulta: AlterarEstadoAgendaConsultaRequest;
-  agendamentoID: AgendamentoIDRequest;
-}
-
-/**
- * Request para buscar por status
- * Endpoint: POST /api/v1/Agenda/BuscarPorStatus
- */
-interface AgendamentoPorStatusRequest {
-  pagina?: number;
-  quantidade?: number; // 1-5000
-  periodo: PeriodoRequest;
-  status?: EstadoAgendaConsultaBuscaRequest;
-  tipo?: TipoAgendamentoBuscaRequest;
-  usuarios?: CodigoBaseRequest[];
-  locaisProDoctor?: CodigoBaseRequest[];
-  trocaVersao?: TrocaVersaoRequest;
-}
-
-interface EstadoAgendaConsultaBuscaRequest {
-  confirmado?: boolean;
-  enviadoMSG?: boolean;
-  confirmadoMSG?: boolean;
-  compareceu?: boolean;
-  atendimento?: boolean;
-  atrasado?: boolean;
-  atendido?: boolean;
-  faltou?: boolean;
-  desmarcado?: boolean;
-  operador?: number; // 0: E, 1: OU
-}
-
-interface TipoAgendamentoBuscaRequest {
-  consulta?: boolean;
-  retorno?: boolean;
-  exame?: boolean;
-  cirurgia?: boolean;
-  compromisso?: boolean;
-  teleconsulta?: boolean;
-  operador?: number; // 0: E, 1: OU
-}
-
-interface TrocaVersaoRequest {
-  versao?: number;
-}
-
-/**
- * Request para buscar horários disponíveis
- * Endpoint: POST /api/v1/Agenda/Livres
- */
-interface HorariosDisponiveisRequest {
-  quantidade?: number; // 1-5000
-  periodo: PeriodoRequest;
-  usuario?: CodigoBaseRequest;
-  especialidade?: CodigoBaseRequest;
-  turnos?: TurnosRequest;
-  diasNaSemana?: DiasNaSemanaRequest;
-  localProDoctor?: CodigoBaseRequest;
-}
-
-/**
- * Turnos para busca
- */
-interface TurnosRequest {
-  manha?: boolean;
-  tarde?: boolean;
-  noite?: boolean;
-}
-
-/**
- * Dias da semana para busca
- */
-interface DiasNaSemanaRequest {
+export interface WeekDaysRequest {
   domingo?: boolean;
   segunda?: boolean;
   terca?: boolean;
@@ -297,30 +127,204 @@ interface DiasNaSemanaRequest {
   sabado?: boolean;
 }
 
+/**
+ * Appointment identification request
+ * Used to identify a specific appointment
+ * Aligned with AgendamentoIDRequest from swagger
+ */
+export interface AppointmentIdentificationRequest {
+  localProDoctor?: CodeRequest;
+  usuario: CodeRequest;
+  data: string; // DD/MM/YYYY
+  hora: string; // HH:mm
+}
+
+/**
+ * Detailed appointment data request
+ * Used inside insert and update requests
+ * Aligned with AgendamentoDetalhadoRequest from swagger
+ */
+export interface AppointmentDetailedRequest {
+  localProDoctor?: CodeRequest;
+  usuario: CodeRequest;
+  data: string; // DD/MM/YYYY
+  hora: string; // HH:mm
+  naoEnviarMsgConfirmacao?: boolean;
+  complemento?: string;
+  encaixe?: boolean;
+  tabela?: CodeRequest;
+  estadoAgendaConsulta?: AppointmentStateRequest;
+  paciente: AppointmentPatientRequest;
+  tipoAgendamento?: AppointmentTypeRequest;
+  convenio?: CodeRequest;
+  telefone?: PhoneRequest;
+  telefone2?: PhoneRequest;
+  telefone3?: PhoneRequest;
+  telefone4?: PhoneRequest;
+  email?: string;
+  procedimentoMedico?: AppointmentProcedureRequest;
+  agendamentoCirurgia?: AppointmentSurgeryRequest;
+  orientacaoUsuario?: string;
+  orientacaoConvenio?: string;
+  orientacaoProcedimento?: string;
+}
+
+// ========== MAIN REQUESTS ==========
+
+/**
+ * List appointments by user request
+ * Endpoint: POST /api/v1/Agenda/Listar
+ * Aligned with AgendamentoListarPorUsuarioRequest from swagger
+ */
+export interface ListAppointmentsByUserRequest {
+  usuario: CodeRequest;
+  data: string; // DD/MM/YYYY
+  localProDoctor?: CodeRequest;
+}
+
+/**
+ * Search patient appointments request
+ * Endpoint: POST /api/v1/Agenda/Buscar
+ * Aligned with AgendamentoPacienteRequest from swagger
+ */
+export interface SearchPatientAppointmentsRequest {
+  quantidade?: number; // 1-5000, default 5000
+  periodo?: PeriodRequest;
+  paciente: AppointmentPatientRequest;
+  localProDoctor?: CodeRequest;
+}
+
+/**
+ * Get appointment details request
+ * Endpoint: GET /api/v1/Agenda/Detalhar/{codigo}
+ */
+export interface GetAppointmentDetailsRequest {
+  codigo: number;
+}
+
+/**
+ * Insert appointment request
+ * Endpoint: POST /api/v1/Agenda/Inserir
+ * Aligned with AgendamentoInserirRequest from swagger
+ */
+export interface InsertAppointmentRequest {
+  agendamento: AppointmentDetailedRequest;
+  agendamentoAlertas?: AppointmentAlertsRequest;
+  atualizaContatoPaciente?: boolean;
+}
+
+/**
+ * Update appointment request
+ * Endpoint: PUT /api/v1/Agenda/Alterar
+ * Aligned with AgendamentoAlterarRequest from swagger
+ */
+export interface UpdateAppointmentRequest {
+  agendamento: AppointmentDetailedRequest;
+  agendamentoAlertas?: AppointmentAlertsRequest;
+  agendamentoOrigem: AppointmentIdentificationRequest;
+  atualizaContatoPaciente?: boolean;
+}
+
+/**
+ * Cancel appointment request
+ * Endpoint: PATCH /api/v1/Agenda/Desmarcar
+ * Uses AppointmentIdentificationRequest structure
+ * Aligned with AgendamentoIDRequest from swagger
+ */
+export interface CancelAppointmentRequest {
+  localProDoctor?: CodeRequest;
+  usuario: CodeRequest;
+  data: string; // DD/MM/YYYY
+  hora: string; // HH:mm
+}
+
+/**
+ * Delete appointment request
+ * Endpoint: DELETE /api/v1/Agenda/Excluir
+ * Aligned with AgendamentoApagarRequest from swagger
+ */
+export interface DeleteAppointmentRequest {
+  localProDoctor?: CodeRequest;
+  usuario: CodeRequest;
+  data: string; // DD/MM/YYYY
+  hora: string; // HH:mm
+  agendamentoAlertas?: AppointmentAlertsRequest;
+}
+
+/**
+ * Update appointment state request
+ * Endpoint: PATCH /api/v1/Agenda/AlterarEstado
+ * Aligned with AgendamentoAlterarStatusRequest from swagger
+ */
+export interface UpdateAppointmentStateRequest {
+  agendamento: AppointmentIdentificationRequest;
+  alterarEstadoAgendaConsulta: {
+    confirmado?: boolean;
+    compareceu?: boolean;
+    atrasado?: boolean;
+    atendimento?: boolean;
+    atendido?: boolean;
+    faltou?: boolean;
+    horaCompareceu?: string;
+    horaAtendimento?: string;
+    horaAtendido?: string;
+  };
+}
+
+/**
+ * Search appointments by status request
+ * Endpoint: POST /api/v1/Agenda/BuscarPorStatus
+ * Aligned with AgendamentoPorStatusRequest from swagger
+ */
+export interface SearchAppointmentsByStatusRequest {
+  pagina?: number; // 1-2147483647
+  quantidade?: number; // 1-5000, default 5000
+  periodo?: PeriodRequest;
+  localProDoctor?: CodeRequest;
+  estadoAgendaConsulta?: AppointmentStateRequest;
+  tipoAgendamento?: AppointmentTypeRequest;
+  trocaVersao?: {
+    versaoInicial?: number;
+    versaoFinal?: number;
+  };
+}
+
+/**
+ * Available schedule times request
+ * Endpoint: POST /api/v1/Agenda/HorariosDisponiveis
+ * Aligned with HorariosDisponiveisRequest from swagger
+ */
+export interface AvailableTimesRequest {
+  usuario: CodeRequest;
+  periodo: PeriodRequest;
+  localProDoctor?: CodeRequest;
+  turnos?: ShiftsRequest;
+  diasNaSemana?: WeekDaysRequest;
+}
+
 // ========== VIEW MODELS ==========
 
 /**
- * Estado do agendamento
+ * Appointment state view model
+ * Aligned with EstadoAgendaConsultaViewModel from swagger
  */
-interface EstadoAgendaConsultaViewModel {
+export interface AppointmentStateViewModel {
   confirmado?: boolean;
-  enviadoMSG?: boolean;
-  confirmadoMSG?: boolean;
   compareceu?: boolean;
   atrasado?: boolean;
   atendimento?: boolean;
   atendido?: boolean;
   faltou?: boolean;
-  desmarcado?: boolean;
   horaCompareceu?: string;
   horaAtendimento?: string;
   horaAtendido?: string;
 }
 
 /**
- * Tipo de agendamento ViewModel
+ * Appointment type view model
+ * Aligned with TipoAgendamentoViewModel from swagger
  */
-interface TipoAgendamentoViewModel {
+export interface AppointmentTypeViewModel {
   consulta?: boolean;
   retorno?: boolean;
   exame?: boolean;
@@ -330,51 +334,41 @@ interface TipoAgendamentoViewModel {
 }
 
 /**
- * Agendamento básico para listagem
+ * Basic appointment view model
+ * Aligned with AgendamentoBasicoViewModel from swagger
  */
-interface AgendamentoBasicoViewModel {
-  codigo: number;
-  data: string;
-  hora: string;
+export interface AppointmentBasicViewModel {
+  codigo?: number;
+  data?: string;
+  hora?: string;
   duracao?: number;
   paciente?: {
-    codigo: number;
-    nome: string;
+    codigo?: number;
+    nome?: string;
   };
   usuario?: {
-    codigo: number;
-    nome: string;
-    especialidade?: {
-      codigo: number;
-      nome: string;
-    };
+    codigo?: number;
+    nome?: string;
   };
   convenio?: {
-    codigo: number;
-    nome: string;
+    codigo?: number;
+    nome?: string;
   };
   localProDoctor?: {
-    codigo: number;
-    nome: string;
+    codigo?: number;
+    nome?: string;
   };
-  procedimentoMedico?: {
-    codigo: string;
-    nome: string;
-    tabela?: {
-      codigo: number;
-      nome: string;
-    };
-  };
-  tipoAgendamento?: TipoAgendamentoViewModel;
-  estadoAgendaConsulta?: EstadoAgendaConsultaViewModel;
-  complemento?: string;
-  encaixe?: boolean;
+  tipoAgendamento?: AppointmentTypeViewModel;
+  estadoAgendaConsulta?: AppointmentStateViewModel;
 }
 
 /**
- * Agendamento completo para consulta
+ * Consultation appointment view model
+ * Aligned with AgendamentoConsultaViewModel from swagger
  */
-interface AgendamentoConsultaViewModel extends AgendamentoBasicoViewModel {
+export interface ConsultationAppointmentViewModel extends AppointmentBasicViewModel {
+  encaixe?: boolean;
+  complemento?: string;
   telefone?: {
     ddd?: string;
     numero?: string;
@@ -384,234 +378,300 @@ interface AgendamentoConsultaViewModel extends AgendamentoBasicoViewModel {
     };
   };
   email?: string;
-  plano?: string;
-  dataInsercao?: string;
-  dataAlteracao?: string;
+  procedimentoMedico?: {
+    codigo?: string;
+    nome?: string;
+    tabela?: {
+      codigo?: number;
+      nome?: string;
+    };
+  };
+  especialidade?: {
+    codigo?: number;
+    nome?: string;
+  };
+  versao?: number;
+}
+
+/**
+ * Detailed appointment view model
+ * Aligned with AgendamentoDetalhadoViewModel from swagger
+ */
+export interface DetailedAppointmentViewModel extends ConsultationAppointmentViewModel {
+  agendamentoCirurgia?: {
+    situacao?: {
+      codigo?: number;
+      nome?: string;
+    };
+    responsavel?: string;
+    local?: string;
+    tipoCirurgia?: string;
+    centroCirurgico?: {
+      codigo?: number;
+      nome?: string;
+    };
+    auxiliares?: string;
+  };
   orientacaoUsuario?: string;
   orientacaoConvenio?: string;
   orientacaoProcedimento?: string;
 }
 
 /**
- * Agendamento detalhado
+ * Day schedule view model
+ * Aligned with DiaAgendaConsultaViewModel from swagger
  */
-interface AgendamentoDetalhadoViewModel extends AgendamentoConsultaViewModel {
-  pacienteCompleto?: {
+export interface DayScheduleViewModel {
+  data?: string;
+  agendamentos?: ConsultationAppointmentViewModel[];
+}
+
+/**
+ * Available time slot view model
+ * Aligned with HorarioDisponivelViewModel from swagger
+ */
+export interface AvailableTimeViewModel {
+  data?: string;
+  hora?: string;
+  duracao?: number;
+  usuario?: {
     codigo?: number;
     nome?: string;
-    dataNascimento?: string;
-    cpf?: string;
-    telefone1?: any;
-    telefone2?: any;
-    telefone3?: any;
-    telefone4?: any;
-    correioEletronico?: string;
+  };
+  localProDoctor?: {
+    codigo?: number;
+    nome?: string;
   };
 }
 
 /**
- * Dia da agenda com agendamentos
+ * Inserted appointment view model
+ * Aligned with AgendamentoAgendaInsertViewModel from swagger
  */
-interface DiaAgendaConsultaViewModel {
-  data: string; // DD/MM/YYYY
-  usuario: {
-    codigo: number;
-    nome: string;
-  };
-  localProDoctor?: {
-    codigo: number;
-    nome: string;
-  };
-  agendamentos: AgendamentoConsultaViewModel[];
-  totalAgendamentos: number;
-}
-
-/**
- * Horário disponível
- */
-interface HorarioDisponivelViewModel {
-  data: string; // DD/MM/YYYY
-  hora: string; // HH:mm
-  localProDoctor?: {
-    codigo: number;
-    nome: string;
-  };
-  usuario?: {
-    codigo: number;
-    nome: string;
-  };
+export interface InsertedAppointmentViewModel {
+  codigo?: number;
+  data?: string;
+  hora?: string;
   duracao?: number;
-}
-
-/**
- * Agendamento inserido response
- */
-interface AgendamentoAgendaInsertViewModel {
-  localProDoctor?: {
-    codigo: number;
-    nome: string;
+  paciente?: {
+    codigo?: number;
+    nome?: string;
   };
   usuario?: {
-    codigo: number;
-    nome: string;
+    codigo?: number;
+    nome?: string;
   };
-  data: string;
-  hora: string;
-  paciente?: {
-    codigo: number;
-    nome: string;
-  };
-  complemento?: string;
-  teleconsulta?: {
-    id?: string;
+  localProDoctor?: {
+    codigo?: number;
+    nome?: string;
   };
 }
 
-// ========== RESPONSES ==========
+// ========== API RESPONSES ==========
 
 /**
- * Response de horários disponíveis
- * Endpoint: POST /api/v1/Agenda/Livres
+ * Day schedule list response
+ * Aligned with PDResponseDiaAgendaConsultaViewModel from swagger
  */
-interface ProdoctorResponseAvailabelTimesViewModel {
+export interface DayScheduleResponse {
   payload: {
-    agendamentos: HorarioDisponivelViewModel[];
+    agenda: DayScheduleViewModel;
   };
   sucesso: boolean;
   mensagens: string[];
 }
 
 /**
- * Response de agendamentos (dia da agenda)
- * Endpoint: POST /api/v1/Agenda/Listar
+ * Appointments list response
+ * Aligned with PDResponseAgendamentosViewModel from swagger
  */
-interface PDResponseDiaAgendaConsultaViewModel {
+export interface AppointmentsListResponse {
   payload: {
-    diaAgendaConsulta: DiaAgendaConsultaViewModel;
+    agendamentos: ConsultationAppointmentViewModel[];
   };
   sucesso: boolean;
   mensagens: string[];
 }
 
 /**
- * Response de busca de agendamentos do paciente
- * Endpoint: POST /api/v1/Agenda/Buscar
+ * Appointment details response
+ * Aligned with PDResponseAgendamentoDetalhadoViewModel from swagger
  */
-interface PDResponseAgendamentosViewModel {
+export interface AppointmentDetailsResponse {
   payload: {
-    agendamentos: AgendamentoConsultaViewModel[];
+    agendamento: DetailedAppointmentViewModel;
   };
   sucesso: boolean;
   mensagens: string[];
 }
 
 /**
- * Response de agendamento detalhado
- * Endpoint: POST /api/v1/Agenda/Detalhar
+ * Inserted appointment response
+ * Aligned with PDResponseAgendamentoAgendaInsertViewModel from swagger
  */
-interface PDResponseAgendamentoDetalhadoViewModel {
+export interface InsertedAppointmentResponse {
   payload: {
-    agendamento: AgendamentoDetalhadoViewModel;
+    agendamento: InsertedAppointmentViewModel;
   };
   sucesso: boolean;
   mensagens: string[];
 }
 
 /**
- * Response de inserção de agendamento
- * Endpoint: POST /api/v1/Agenda/Inserir
+ * Appointment operation response (cancel, delete)
+ * Aligned with PDResponseAgendamentoOperacaoViewModel from swagger
  */
-interface PDResponseAgendamentoInseridoViewModel {
+export interface AppointmentOperationResponse {
+  sucesso: boolean;
+  mensagens: string[];
+}
+
+/**
+ * Search appointments by status response
+ * Aligned with PDResponseAgendaBuscarPorStatusViewModel from swagger
+ */
+export interface AppointmentsByStatusResponse {
   payload: {
-    agendamento: AgendamentoAgendaInsertViewModel;
+    agendamentos: ConsultationAppointmentViewModel[];
+    paginaAtual?: number;
+    totalPaginas?: number;
+    totalRegistros?: number;
   };
   sucesso: boolean;
   mensagens: string[];
 }
 
 /**
- * Response de alteração/cancelamento
+ * Update appointment state response
+ * Aligned with PDResponseAlterarStatusAgendamentoViewModel from swagger
  */
-interface PDResponseAgendamentoOperacaoViewModel {
+export interface UpdateAppointmentStateResponse {
   payload: {
-    sucesso: boolean;
+    agendamento: AppointmentBasicViewModel;
   };
   sucesso: boolean;
   mensagens: string[];
 }
 
 /**
- * Response de busca por status
- * Endpoint: POST /api/v1/Agenda/BuscarPorStatus
+ * Available times response
+ * Aligned with PDResponseHorariosDisponiveisViewModel from swagger
  */
-interface PDResponseAgendaBuscarPorStatusViewModel {
+export interface AvailableTimesResponse {
   payload: {
-    agendamentos: AgendamentoConsultaViewModel[];
+    agendamentos: AvailableTimeViewModel[];
   };
   sucesso: boolean;
   mensagens: string[];
 }
 
-/**
- * Response de alteração de status
- * Endpoint: PATCH /api/v1/Agenda/AlterarEstado
- */
-interface PDResponseAlterarStatusAgendamentoViewModel {
-  payload: {
-    agendamento: {
-      codigo: number;
-      estadoAgendaConsulta: EstadoAgendaConsultaViewModel;
-    };
-  };
-  sucesso: boolean;
-  mensagens: string[];
-}
+// ========== LEGACY EXPORTS (for backward compatibility) ==========
+// TODO: Remove these after migration is complete
 
-// ========== EXPORTS ==========
+/** @deprecated Use AppointmentPatientRequest instead */
+export type PacienteAgendamentoRequest = AppointmentPatientRequest;
 
-export {
-  // Base Requests
-  PacienteAgendamentoRequest,
-  ProcedimentoMedicoAgendamentoRequest,
-  EstadoAgendaConsultaRequest,
-  TipoAgendamentoRequest,
-  AgendamentoIDRequest,
-  AgendamentoDetalhadoRequest,
-  AgendamentoCirurgiaRequest,
-  AgendamentoAlertasRequest,
-  AlterarEstadoAgendaConsultaRequest,
-  EstadoAgendaConsultaBuscaRequest,
-  TipoAgendamentoBuscaRequest,
-  TrocaVersaoRequest,
-  TurnosRequest,
-  DiasNaSemanaRequest,
-  // Main Requests
-  AgendamentoListarPorUsuarioRequest,
-  AgendamentoBuscarRequest,
-  AgendamentoDetalharRequest,
-  AgendamentoInserirRequest,
-  AgendamentoAlterarRequest,
-  AgendamentoDesmarcarRequest,
-  AgendamentoApagarRequest,
-  AgendamentoAlterarStatusRequest,
-  AgendamentoPorStatusRequest,
-  HorariosDisponiveisRequest,
-  // ViewModels
-  EstadoAgendaConsultaViewModel,
-  TipoAgendamentoViewModel,
-  AgendamentoBasicoViewModel,
-  AgendamentoConsultaViewModel,
-  AgendamentoDetalhadoViewModel,
-  DiaAgendaConsultaViewModel,
-  HorarioDisponivelViewModel,
-  AgendamentoAgendaInsertViewModel,
-  // Responses
-  ProdoctorResponseAvailabelTimesViewModel,
-  PDResponseDiaAgendaConsultaViewModel,
-  PDResponseAgendamentosViewModel,
-  PDResponseAgendamentoDetalhadoViewModel,
-  PDResponseAgendamentoInseridoViewModel,
-  PDResponseAgendamentoOperacaoViewModel,
-  PDResponseAgendaBuscarPorStatusViewModel,
-  PDResponseAlterarStatusAgendamentoViewModel,
-};
+/** @deprecated Use AppointmentProcedureRequest instead */
+export type ProcedimentoMedicoAgendamentoRequest = AppointmentProcedureRequest;
+
+/** @deprecated Use AppointmentStateRequest instead */
+export type EstadoAgendaConsultaRequest = AppointmentStateRequest;
+
+/** @deprecated Use AppointmentTypeRequest instead */
+export type TipoAgendamentoRequest = AppointmentTypeRequest;
+
+/** @deprecated Use AppointmentSurgeryRequest instead */
+export type AgendamentoCirurgiaRequest = AppointmentSurgeryRequest;
+
+/** @deprecated Use AppointmentAlertsRequest instead */
+export type AgendamentoAlertasRequest = AppointmentAlertsRequest;
+
+/** @deprecated Use ShiftsRequest instead */
+export type TurnosRequest = ShiftsRequest;
+
+/** @deprecated Use WeekDaysRequest instead */
+export type DiasNaSemanaRequest = WeekDaysRequest;
+
+/** @deprecated Use AppointmentIdentificationRequest instead */
+export type AgendamentoIDRequest = AppointmentIdentificationRequest;
+
+/** @deprecated Use AppointmentDetailedRequest instead */
+export type AgendamentoDetalhadoRequest = AppointmentDetailedRequest;
+
+/** @deprecated Use ListAppointmentsByUserRequest instead */
+export type AgendamentoListarPorUsuarioRequest = ListAppointmentsByUserRequest;
+
+/** @deprecated Use SearchPatientAppointmentsRequest instead */
+export type AgendamentoBuscarRequest = SearchPatientAppointmentsRequest;
+
+/** @deprecated Use GetAppointmentDetailsRequest instead */
+export type AgendamentoDetalharRequest = GetAppointmentDetailsRequest;
+
+/** @deprecated Use InsertAppointmentRequest instead */
+export type AgendamentoInserirRequest = InsertAppointmentRequest;
+
+/** @deprecated Use UpdateAppointmentRequest instead */
+export type AgendamentoAlterarRequest = UpdateAppointmentRequest;
+
+/** @deprecated Use CancelAppointmentRequest instead */
+export type AgendamentoDesmarcarRequest = CancelAppointmentRequest;
+
+/** @deprecated Use DeleteAppointmentRequest instead */
+export type AgendamentoApagarRequest = DeleteAppointmentRequest;
+
+/** @deprecated Use UpdateAppointmentStateRequest instead */
+export type AgendamentoAlterarStatusRequest = UpdateAppointmentStateRequest;
+
+/** @deprecated Use SearchAppointmentsByStatusRequest instead */
+export type AgendamentoPorStatusRequest = SearchAppointmentsByStatusRequest;
+
+/** @deprecated Use AvailableTimesRequest instead */
+export type HorariosDisponiveisRequest = AvailableTimesRequest;
+
+/** @deprecated Use AppointmentStateViewModel instead */
+export type EstadoAgendaConsultaViewModel = AppointmentStateViewModel;
+
+/** @deprecated Use AppointmentTypeViewModel instead */
+export type TipoAgendamentoViewModel = AppointmentTypeViewModel;
+
+/** @deprecated Use AppointmentBasicViewModel instead */
+export type AgendamentoBasicoViewModel = AppointmentBasicViewModel;
+
+/** @deprecated Use ConsultationAppointmentViewModel instead */
+export type AgendamentoConsultaViewModel = ConsultationAppointmentViewModel;
+
+/** @deprecated Use DetailedAppointmentViewModel instead */
+export type AgendamentoDetalhadoViewModel = DetailedAppointmentViewModel;
+
+/** @deprecated Use DayScheduleViewModel instead */
+export type DiaAgendaConsultaViewModel = DayScheduleViewModel;
+
+/** @deprecated Use AvailableTimeViewModel instead */
+export type HorarioDisponivelViewModel = AvailableTimeViewModel;
+
+/** @deprecated Use InsertedAppointmentViewModel instead */
+export type AgendamentoAgendaInsertViewModel = InsertedAppointmentViewModel;
+
+/** @deprecated Use DayScheduleResponse instead */
+export type PDResponseDiaAgendaConsultaViewModel = DayScheduleResponse;
+
+/** @deprecated Use AppointmentsListResponse instead */
+export type PDResponseAgendamentosViewModel = AppointmentsListResponse;
+
+/** @deprecated Use AppointmentDetailsResponse instead */
+export type PDResponseAgendamentoDetalhadoViewModel = AppointmentDetailsResponse;
+
+/** @deprecated Use InsertedAppointmentResponse instead */
+export type PDResponseAgendamentoInseridoViewModel = InsertedAppointmentResponse;
+
+/** @deprecated Use AppointmentOperationResponse instead */
+export type PDResponseAgendamentoOperacaoViewModel = AppointmentOperationResponse;
+
+/** @deprecated Use AppointmentsByStatusResponse instead */
+export type PDResponseAgendaBuscarPorStatusViewModel = AppointmentsByStatusResponse;
+
+/** @deprecated Use UpdateAppointmentStateResponse instead */
+export type PDResponseAlterarStatusAgendamentoViewModel = UpdateAppointmentStateResponse;
+
+/** @deprecated Use AvailableTimesResponse instead */
+export type ProdoctorResponseAvailabelTimesViewModel = AvailableTimesResponse;

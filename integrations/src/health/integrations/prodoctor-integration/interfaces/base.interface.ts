@@ -1,70 +1,127 @@
-// ========== TIPOS BASE ==========
+// ========== BASE INTERFACES ==========
+// Aligned with ProDoctor official API swagger
+
+// ========== BASE TYPES ==========
 
 /**
- * Resposta padrão da API ProDoctor
+ * Standard ProDoctor API response wrapper
+ * Aligned with PDResponse from swagger
  */
-interface PDResponse<T> {
+export interface ApiResponse<T> {
   payload: T;
   sucesso: boolean;
   mensagens: string[];
 }
 
 /**
- * Resposta de erro da API ProDoctor
+ * ProDoctor API error response
+ * Aligned with PDErrorResponseViewModel from swagger
  */
-interface PDErrorResponseViewModel {
+export interface ApiErrorResponse {
   mensagens: string[];
   sucesso: boolean;
 }
 
 /**
- * Request base com código
+ * Base code request
+ * Aligned with CodigoBaseRequest from swagger
  */
-interface CodigoBaseRequest {
+export interface CodeRequest {
   codigo: number;
 }
 
 /**
- * Período de busca (datas no formato DD/MM/YYYY)
+ * Search period request
+ * Dates in DD/MM/YYYY format
+ * Aligned with PeriodoRequest from swagger
  */
-interface PeriodoRequest {
+export interface PeriodRequest {
   dataInicial: string; // DD/MM/YYYY
   dataFinal: string; // DD/MM/YYYY
 }
 
-// ========== LOCAL PRODOCTOR (UNIDADE) ==========
+// ========== ENUMS ==========
 
-interface LocalProdoctorBasicoViewModel {
+/**
+ * Registration state enum
+ * Aligned with EstadoRegistro from swagger
+ */
+export enum RegistrationState {
+  ACTIVE = 0,
+  INACTIVE = 1,
+}
+
+/**
+ * Location search field enum
+ * Aligned with CampoBuscaLocalProDoctor from swagger
+ */
+export enum LocationSearchField {
+  NAME = 0,
+  CPF_CNPJ = 1,
+}
+
+/**
+ * Procedure search field enum
+ * Aligned with CampoBuscaProcedimento from swagger
+ */
+export enum ProcedureSearchField {
+  NAME = 0,
+  CODE = 1,
+}
+
+// ========== PRODOCTOR LOCATION (ORGANIZATION UNIT) ==========
+
+/**
+ * Basic location view model
+ * Aligned with LocalProdoctorBasicoViewModel from swagger
+ */
+export interface LocationBasicViewModel {
   codigo: number;
   nome: string;
   cnpjCpf?: string;
-  estadoRegistro?: number;
+  estadoRegistro?: RegistrationState;
 }
 
-interface ProdoctorResponseLocationsBasicViewModel {
+/**
+ * Location list response
+ * Aligned with PDResponseLocalProdoctorBasicoViewModel from swagger
+ */
+export interface LocationListResponse {
   payload: {
-    locaisProDoctor: LocalProdoctorBasicoViewModel[];
+    locaisProDoctor: LocationBasicViewModel[];
   };
   sucesso: boolean;
   mensagens: string[];
 }
 
-interface LocationsProdoctorListRequest {
+/**
+ * Location search request
+ * Aligned with BasicLocalProDoctorSearch from swagger
+ */
+export interface LocationSearchRequest {
   termo?: string;
-  campo?: number; // 0: Nome, 1: CPF/CNPJ
+  campo?: LocationSearchField;
   pagina?: number;
   somenteAtivos?: boolean;
-  quantidade?: number; // 1-5000, padrão 5000
+  quantidade?: number; // 1-5000, default 5000
 }
 
-// ========== USUÁRIO (MÉDICO/PROFISSIONAL) ==========
+// ========== USER (DOCTOR/PROFESSIONAL) ==========
 
-interface EspecialidadeViewModel {
+/**
+ * Speciality view model
+ * Aligned with EspecialidadeViewModel from swagger
+ */
+export interface SpecialityViewModel {
   codigo: number;
   nome: string;
 }
 
-interface DadosConselhoViewModel {
+/**
+ * Professional council data view model
+ * Aligned with DadosConselhoViewModel from swagger
+ */
+export interface ProfessionalCouncilViewModel {
   conselhoProfissional?: {
     codigo?: number;
     nome?: string;
@@ -78,7 +135,20 @@ interface DadosConselhoViewModel {
   };
 }
 
-interface BasicUsuarioViewModel {
+/**
+ * Orientation view model
+ * Aligned with OrientacaoViewModel from swagger
+ */
+export interface OrientationViewModel {
+  html?: string;
+  texto?: string;
+}
+
+/**
+ * Basic user view model
+ * Aligned with BasicUsuarioViewModel from swagger
+ */
+export interface UserBasicViewModel {
   codigo: number;
   nome: string;
   cpf?: string;
@@ -86,19 +156,28 @@ interface BasicUsuarioViewModel {
   cns?: string;
   cnes?: string;
   titulo?: string;
-  estadoRegistro?: number;
+  estadoRegistro?: RegistrationState;
   ativo?: boolean;
 }
 
-interface BasicUsuarioComEspecialidadeViewModel extends BasicUsuarioViewModel {
-  especialidade?: EspecialidadeViewModel;
-  especialidades?: EspecialidadeViewModel[];
-  especialidadeAlternativa?: EspecialidadeViewModel;
-  dadosConselho?: DadosConselhoViewModel;
-  dadosConselhoAlternativo?: DadosConselhoViewModel;
+/**
+ * User with speciality view model
+ * Aligned with BasicUsuarioComEspecialidadeViewModel from swagger
+ */
+export interface UserWithSpecialityViewModel extends UserBasicViewModel {
+  especialidade?: SpecialityViewModel;
+  especialidades?: SpecialityViewModel[];
+  especialidadeAlternativa?: SpecialityViewModel;
+  dadosConselho?: ProfessionalCouncilViewModel;
+  dadosConselhoAlternativo?: ProfessionalCouncilViewModel;
+  orientacao?: OrientationViewModel;
 }
 
-interface UsuarioViewModel extends BasicUsuarioComEspecialidadeViewModel {
+/**
+ * Full user view model
+ * Aligned with UsuarioViewModel from swagger
+ */
+export interface UserViewModel extends UserWithSpecialityViewModel {
   foto?: string;
   email?: string;
   tipo?: number;
@@ -106,55 +185,83 @@ interface UsuarioViewModel extends BasicUsuarioComEspecialidadeViewModel {
   endereco?: any;
 }
 
-interface ProdoctorResponseBasicUserViewModel {
+/**
+ * User list response (basic)
+ * Aligned with PDResponseBasicUsuarioViewModel from swagger
+ */
+export interface UserBasicListResponse {
   payload: {
-    usuarios: BasicUsuarioViewModel[];
+    usuarios: UserBasicViewModel[];
   };
   sucesso: boolean;
   mensagens: string[];
 }
 
-interface ProdoctorResponseUserWithSpecialityViewModel {
+/**
+ * User list response (with speciality)
+ * Aligned with PDResponseBasicUsuarioComEspecialidadeViewModel from swagger
+ */
+export interface UserWithSpecialityListResponse {
   payload: {
-    usuarios: BasicUsuarioComEspecialidadeViewModel[];
+    usuarios: UserWithSpecialityViewModel[];
   };
   sucesso: boolean;
   mensagens: string[];
 }
 
-interface ProdoctorResponseMedicalUserViewModel {
+/**
+ * User details response
+ * Aligned with PDResponseUsuarioViewModel from swagger
+ */
+export interface UserDetailsResponse {
   payload: {
-    usuario: UsuarioViewModel;
+    usuario: UserViewModel;
   };
   sucesso: boolean;
   mensagens: string[];
 }
 
-interface UserListRequest {
+/**
+ * User search request
+ * Aligned with BasicUsuarioSearch from swagger
+ */
+export interface UserSearchRequest {
   termo?: string;
   pagina?: number;
   somenteAtivos?: boolean;
-  quantidade?: number; // 1-5000, padrão 5000
-  locaisProDoctor?: CodigoBaseRequest[];
+  quantidade?: number; // 1-5000, default 5000
+  locaisProDoctor?: CodeRequest[];
 }
 
-// ========== CONVÊNIO ==========
+// ========== INSURANCE ==========
 
-interface TabelaProcedimentoBasicViewModel {
+/**
+ * Basic procedure table view model
+ * Aligned with TabelaProcedimentoBasicViewModel from swagger
+ */
+export interface ProcedureTableBasicViewModel {
   codigo: number;
   nome: string;
 }
 
-interface ConvenioBasicViewModel {
+/**
+ * Basic insurance view model
+ * Aligned with ConvenioBasicViewModel from swagger
+ */
+export interface InsuranceBasicViewModel {
   codigo: number;
   nome: string;
-  estadoRegistro?: number;
-  tipoConvenio?: number; // 0: Convênio do médico, 1: Convênio da clínica, 2: Particular
-  tabela?: TabelaProcedimentoBasicViewModel;
+  estadoRegistro?: RegistrationState;
+  tipoConvenio?: number; // 0: Doctor's, 1: Clinic's, 2: Private
+  tabela?: ProcedureTableBasicViewModel;
   ativo?: boolean;
 }
 
-interface ConvenioViewModel extends ConvenioBasicViewModel {
+/**
+ * Full insurance view model
+ * Aligned with ConvenioViewModel from swagger
+ */
+export interface InsuranceViewModel extends InsuranceBasicViewModel {
   procedimentoObrigatorio?: boolean;
   numeroContrato?: string;
   empresa?: any;
@@ -170,36 +277,51 @@ interface ConvenioViewModel extends ConvenioBasicViewModel {
   logotipo?: string;
 }
 
-interface ProdoctorResponseInsurancesBasicViewModel {
+/**
+ * Insurance list response
+ * Aligned with PDResponseConvenioBasicViewModel from swagger
+ */
+export interface InsuranceListResponse {
   payload: {
-    convenios: ConvenioBasicViewModel[];
+    convenios: InsuranceBasicViewModel[];
   };
   sucesso: boolean;
   mensagens: string[];
 }
 
-interface PDResponseConvenioViewModel {
+/**
+ * Insurance details response
+ * Aligned with PDResponseConvenioViewModel from swagger
+ */
+export interface InsuranceDetailsResponse {
   payload: {
-    convenio: ConvenioViewModel;
+    convenio: InsuranceViewModel;
   };
   sucesso: boolean;
   mensagens: string[];
 }
 
-interface InsurancesListRequest {
+/**
+ * Insurance search request
+ * Aligned with BasicConvenioSearch from swagger
+ */
+export interface InsuranceSearchRequest {
   termo?: string;
   pagina?: number;
   somenteAtivos?: boolean;
-  quantidade?: number; // 1-5000, padrão 5000
-  locaisProDoctor?: CodigoBaseRequest[];
+  quantidade?: number; // 1-5000, default 5000
 }
 
-// ========== PROCEDIMENTOS ==========
+// ========== PROCEDURES ==========
 
-interface ProcedimentoBasicMedicoViewModel {
+/**
+ * Basic medical procedure view model
+ * Aligned with ProcedimentoBasicMedicoViewModel from swagger
+ */
+export interface ProcedureBasicViewModel {
   codigo: string;
   nome: string;
-  tabela?: TabelaProcedimentoBasicViewModel;
+  tabela?: ProcedureTableBasicViewModel;
   inc?: number;
   m2Filme?: number;
   custoOperacional?: number;
@@ -208,109 +330,198 @@ interface ProcedimentoBasicMedicoViewModel {
   honorario?: number;
   numeroAuxiliares?: number;
   porteAnestesico?: any;
-  orientacao?: any;
+  orientacao?: OrientationViewModel;
   recebeAssociacao?: boolean;
   procedimentoAssociavel?: boolean;
 }
 
-interface ProcedimentoMedicoViewModel extends ProcedimentoBasicMedicoViewModel {
+/**
+ * Full medical procedure view model
+ * Aligned with ProcedimentoMedicoViewModel from swagger
+ */
+export interface ProcedureViewModel extends ProcedureBasicViewModel {
   descricao?: string;
   duracao?: number;
   valor?: number;
-  estadoRegistro?: number;
+  estadoRegistro?: RegistrationState;
   tipoProcedimento?: number;
   grupoProcedimento?: any;
 }
 
-interface ProdoctorResponseProceduresBasicMedicalViewModel {
+/**
+ * Procedure list response
+ * Aligned with PDResponseProcedimentoBasicMedicoViewModel from swagger
+ */
+export interface ProcedureListResponse {
   payload: {
-    procedimentos: ProcedimentoBasicMedicoViewModel[];
+    procedimentos: ProcedureBasicViewModel[];
   };
   sucesso: boolean;
   mensagens: string[];
 }
 
-interface ProdoctorResponseProcedureMedicalViewModel {
+/**
+ * Procedure details response
+ * Aligned with PDResponseProcedimentoMedicoViewModel from swagger
+ */
+export interface ProcedureDetailsResponse {
   payload: {
-    procedimentoMedico: ProcedimentoMedicoViewModel;
+    procedimentoMedico: ProcedureViewModel;
   };
   sucesso: boolean;
   mensagens: string[];
 }
 
-interface ProceduresListRequest {
+/**
+ * Procedure search request
+ * Aligned with BasicProcedimentoSearch from swagger
+ */
+export interface ProcedureSearchRequest {
   termo?: string;
-  campo?: number; // 0: Nome, 1: Código
+  campo?: ProcedureSearchField;
   pagina?: number;
   somenteAtivos?: boolean;
-  quantidade?: number; // 1-5000
-  tabela?: CodigoBaseRequest;
-  convenio?: CodigoBaseRequest;
+  quantidade?: number; // 1-5000, default 5000
+  tabela?: CodeRequest;
+  convenio?: CodeRequest;
 }
 
-// ========== TABELAS DE PROCEDIMENTOS ==========
+// ========== PROCEDURE TABLES ==========
 
-interface TabelaProcedimentoViewModel {
+/**
+ * Procedure table type enum
+ * Aligned with TipoTabela from swagger
+ */
+export enum ProcedureTableType {
+  AMB = 0,
+  CBHPM = 1,
+}
+
+/**
+ * Full procedure table view model
+ * Aligned with TabelaProcedimentoViewModel from swagger
+ */
+export interface ProcedureTableViewModel {
   codigo: number;
   nome: string;
   descricao?: string;
-  estadoRegistro?: number;
-  tipoTabela?: number; // 0: AMB, 1: CBHPM
+  estadoRegistro?: RegistrationState;
+  tipoTabela?: ProcedureTableType;
   versao?: string;
 }
 
-interface PDResponseTabelaProcedimentoViewModel {
+/**
+ * Procedure table list response
+ * Aligned with PDResponseTabelaProcedimentoViewModel from swagger
+ */
+export interface ProcedureTableListResponse {
   payload: {
-    tabelasProcedimentos: TabelaProcedimentoViewModel[];
+    tabelasProcedimentos: ProcedureTableViewModel[];
   };
   sucesso: boolean;
   mensagens: string[];
 }
 
-interface TabelaProceduresListRequest {
+/**
+ * Procedure table search request
+ * Aligned with BasicTabelasProcedimentosSearch from swagger
+ */
+export interface ProcedureTableSearchRequest {
   termo?: string;
   pagina?: number;
   somenteAtivos?: boolean;
-  quantidade?: number;
+  quantidade?: number; // 1-5000, default 5000
 }
 
-// ========== EXPORTS ==========
+// ========== LEGACY EXPORTS (for backward compatibility) ==========
+// TODO: Remove these after migration is complete
 
-export {
-  // Base
-  PDResponse,
-  PDErrorResponseViewModel,
-  CodigoBaseRequest,
-  PeriodoRequest,
-  // Local ProDoctor (Unidade)
-  LocalProdoctorBasicoViewModel,
-  ProdoctorResponseLocationsBasicViewModel,
-  LocationsProdoctorListRequest,
-  // Usuário (Médico)
-  EspecialidadeViewModel,
-  DadosConselhoViewModel,
-  BasicUsuarioViewModel,
-  BasicUsuarioComEspecialidadeViewModel,
-  UsuarioViewModel,
-  ProdoctorResponseBasicUserViewModel,
-  ProdoctorResponseUserWithSpecialityViewModel,
-  ProdoctorResponseMedicalUserViewModel,
-  UserListRequest,
-  // Convênio
-  TabelaProcedimentoBasicViewModel,
-  ConvenioBasicViewModel,
-  ConvenioViewModel,
-  ProdoctorResponseInsurancesBasicViewModel,
-  PDResponseConvenioViewModel,
-  InsurancesListRequest,
-  // Procedimentos
-  ProcedimentoBasicMedicoViewModel,
-  ProcedimentoMedicoViewModel,
-  ProdoctorResponseProceduresBasicMedicalViewModel,
-  ProdoctorResponseProcedureMedicalViewModel,
-  ProceduresListRequest,
-  // Tabelas de Procedimentos
-  TabelaProcedimentoViewModel,
-  PDResponseTabelaProcedimentoViewModel,
-  TabelaProceduresListRequest,
-};
+/** @deprecated Use ApiResponse instead */
+export type PDResponse<T> = ApiResponse<T>;
+
+/** @deprecated Use ApiErrorResponse instead */
+export type PDErrorResponseViewModel = ApiErrorResponse;
+
+/** @deprecated Use CodeRequest instead */
+export type CodigoBaseRequest = CodeRequest;
+
+/** @deprecated Use PeriodRequest instead */
+export type PeriodoRequest = PeriodRequest;
+
+/** @deprecated Use LocationBasicViewModel instead */
+export type LocalProdoctorBasicoViewModel = LocationBasicViewModel;
+
+/** @deprecated Use LocationListResponse instead */
+export type ProdoctorResponseLocationsBasicViewModel = LocationListResponse;
+
+/** @deprecated Use LocationSearchRequest instead */
+export type LocationsProdoctorListRequest = LocationSearchRequest;
+
+/** @deprecated Use SpecialityViewModel instead */
+export type EspecialidadeViewModel = SpecialityViewModel;
+
+/** @deprecated Use ProfessionalCouncilViewModel instead */
+export type DadosConselhoViewModel = ProfessionalCouncilViewModel;
+
+/** @deprecated Use UserBasicViewModel instead */
+export type BasicUsuarioViewModel = UserBasicViewModel;
+
+/** @deprecated Use UserWithSpecialityViewModel instead */
+export type BasicUsuarioComEspecialidadeViewModel = UserWithSpecialityViewModel;
+
+/** @deprecated Use UserViewModel instead */
+export type UsuarioViewModel = UserViewModel;
+
+/** @deprecated Use UserBasicListResponse instead */
+export type ProdoctorResponseBasicUserViewModel = UserBasicListResponse;
+
+/** @deprecated Use UserWithSpecialityListResponse instead */
+export type ProdoctorResponseUserWithSpecialityViewModel = UserWithSpecialityListResponse;
+
+/** @deprecated Use UserDetailsResponse instead */
+export type ProdoctorResponseMedicalUserViewModel = UserDetailsResponse;
+
+/** @deprecated Use UserSearchRequest instead */
+export type UserListRequest = UserSearchRequest;
+
+/** @deprecated Use ProcedureTableBasicViewModel instead */
+export type TabelaProcedimentoBasicViewModel = ProcedureTableBasicViewModel;
+
+/** @deprecated Use InsuranceBasicViewModel instead */
+export type ConvenioBasicViewModel = InsuranceBasicViewModel;
+
+/** @deprecated Use InsuranceViewModel instead */
+export type ConvenioViewModel = InsuranceViewModel;
+
+/** @deprecated Use InsuranceListResponse instead */
+export type ProdoctorResponseInsurancesBasicViewModel = InsuranceListResponse;
+
+/** @deprecated Use InsuranceDetailsResponse instead */
+export type PDResponseConvenioViewModel = InsuranceDetailsResponse;
+
+/** @deprecated Use InsuranceSearchRequest instead */
+export type InsurancesListRequest = InsuranceSearchRequest;
+
+/** @deprecated Use ProcedureBasicViewModel instead */
+export type ProcedimentoBasicMedicoViewModel = ProcedureBasicViewModel;
+
+/** @deprecated Use ProcedureViewModel instead */
+export type ProcedimentoMedicoViewModel = ProcedureViewModel;
+
+/** @deprecated Use ProcedureListResponse instead */
+export type ProdoctorResponseProceduresBasicMedicalViewModel = ProcedureListResponse;
+
+/** @deprecated Use ProcedureDetailsResponse instead */
+export type ProdoctorResponseProcedureMedicalViewModel = ProcedureDetailsResponse;
+
+/** @deprecated Use ProcedureSearchRequest instead */
+export type ProceduresListRequest = ProcedureSearchRequest;
+
+/** @deprecated Use ProcedureTableViewModel instead */
+export type TabelaProcedimentoViewModel = ProcedureTableViewModel;
+
+/** @deprecated Use ProcedureTableListResponse instead */
+export type PDResponseTabelaProcedimentoViewModel = ProcedureTableListResponse;
+
+/** @deprecated Use ProcedureTableSearchRequest instead */
+export type TabelaProceduresListRequest = ProcedureTableSearchRequest;

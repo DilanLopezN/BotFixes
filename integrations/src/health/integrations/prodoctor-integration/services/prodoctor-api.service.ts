@@ -8,7 +8,6 @@ import { lastValueFrom } from 'rxjs';
 import { SentryErrorHandlerService } from '../../../shared/metadata-sentry.service';
 import * as contextService from 'request-context';
 import { AuditDataType } from '../../../audit/audit.interface';
-import { formatException } from '../../../../common/helpers/format-exception-audit';
 import { requestsExternalCounter } from '../../../../common/prom-metrics';
 import { IntegrationType } from '../../../interfaces/integration-types';
 import { AuditService } from '../../../audit/services/audit.service';
@@ -16,50 +15,51 @@ import { CredentialsHelper } from '../../../credentials/credentials.service';
 import { ProdoctorCredentialsResponse } from '../interfaces/credentials.interface';
 import { castObjectIdToString } from '../../../../common/helpers/cast-objectid';
 
+// ========== BASE INTERFACES ==========
 import {
-  ProdoctorResponseBasicUserViewModel,
-  ProdoctorResponseUserWithSpecialityViewModel,
-  ProdoctorResponseMedicalUserViewModel,
-  ProdoctorResponseLocationsBasicViewModel,
-  ProdoctorResponseInsurancesBasicViewModel,
-  PDResponseConvenioViewModel,
-  ProdoctorResponseProceduresBasicMedicalViewModel,
-  ProdoctorResponseProcedureMedicalViewModel,
-  PDResponseTabelaProcedimentoViewModel,
-  UserListRequest,
-  LocationsProdoctorListRequest,
-  InsurancesListRequest,
-  ProceduresListRequest,
-  TabelaProceduresListRequest,
+  UserSearchRequest,
+  UserBasicListResponse,
+  UserWithSpecialityListResponse,
+  UserDetailsResponse,
+  LocationSearchRequest,
+  LocationListResponse,
+  InsuranceSearchRequest,
+  InsuranceListResponse,
+  InsuranceDetailsResponse,
+  ProcedureSearchRequest,
+  ProcedureListResponse,
+  ProcedureDetailsResponse,
+  ProcedureTableSearchRequest,
+  ProcedureTableListResponse,
 } from '../interfaces/base.interface';
 
+// ========== PATIENT INTERFACES ==========
 import {
-  PacienteCRUDRequest,
-  PDResponsePacienteBasicViewModel,
-  PDResponsePacienteViewModel,
-  ProdoctorGetPatientResponse,
-  listPatientsRequest,
-  ProdoctorResponsePatientsListViewModel,
-  ProdoctorGetPatientRequest,
+  PatientSearchRequest,
+  PatientCrudRequest,
+  PatientListResponse,
+  PatientBasicResponse,
+  PatientDetailsResponse,
 } from '../interfaces/patient.interface';
 
+// ========== SCHEDULE INTERFACES ==========
 import {
-  AgendamentoListarPorUsuarioRequest,
-  AgendamentoBuscarRequest,
-  AgendamentoInserirRequest,
-  AgendamentoAlterarRequest,
-  AgendamentoDesmarcarRequest,
-  AgendamentoAlterarStatusRequest,
-  AgendamentoPorStatusRequest,
-  HorariosDisponiveisRequest,
-  PDResponseDiaAgendaConsultaViewModel,
-  PDResponseAgendamentosViewModel,
-  PDResponseAgendamentoDetalhadoViewModel,
-  PDResponseAgendamentoInseridoViewModel,
-  PDResponseAgendamentoOperacaoViewModel,
-  PDResponseAgendaBuscarPorStatusViewModel,
-  PDResponseAlterarStatusAgendamentoViewModel,
-  ProdoctorResponseAvailabelTimesViewModel,
+  ListAppointmentsByUserRequest,
+  SearchPatientAppointmentsRequest,
+  InsertAppointmentRequest,
+  UpdateAppointmentRequest,
+  CancelAppointmentRequest,
+  UpdateAppointmentStateRequest,
+  SearchAppointmentsByStatusRequest,
+  AvailableTimesRequest,
+  DayScheduleResponse,
+  AppointmentsListResponse,
+  AppointmentDetailsResponse,
+  InsertedAppointmentResponse,
+  AppointmentOperationResponse,
+  AppointmentsByStatusResponse,
+  UpdateAppointmentStateResponse,
+  AvailableTimesResponse,
 } from '../interfaces/schedule.interface';
 
 @Injectable()
@@ -85,17 +85,39 @@ export class ProdoctorApiService {
     );
   }
 
-  // ========== MÉTODOS PRIVADOS DE INFRAESTRUTURA ==========
+  // ========== PRIVATE HELPERS ==========
 
-  private debugRequest(integration: IntegrationDocument, payload: any, methodName?: string) {
+  private debugRequest(integration: IntegrationDocument, payload: any): void {
     if (!integration.debug) {
       return;
     }
+    this.logger.debug(`${integration._id}:${integration.name}:PRODOCTOR-debug`, payload);
+  }
 
-    this.logger.debug(
-      `${integration._id}:${integration.name}:${IntegrationType.PRODOCTOR}-debug:${methodName}`,
-      payload,
-    );
+  private handleResponseError(
+    integration: IntegrationDocument,
+    error: any,
+    payload: any,
+    from: string,
+    ignoreException = false,
+  ): void {
+    const metadata = contextService.get('req:default-headers');
+
+    this.auditService.sendAuditEvent({
+      dataType: AuditDataType.externalResponse,
+      integrationId: castObjectIdToString(integration._id),
+      data: {
+        data: error?.response,
+      },
+      identifier: from,
+    });
+
+    if (error?.response?.data && !ignoreException && integration.environment !== IntegrationEnvironment.test) {
+      Sentry.captureEvent({
+        message: `${integration._id}:${integration.name}:PRODOCTOR-request: ${from}`,
+        ...this.sentryErrorHandlerService.defaultApiIntegrationError(payload, error?.response, metadata),
+      });
+    }
   }
 
   private dispatchAuditEvent(
@@ -114,46 +136,21 @@ export class ProdoctorApiService {
     });
   }
 
-  private handleResponseError(
-    integration: IntegrationDocument,
-    error: any,
-    payload: any,
-    from: string,
-    ignoreException = false,
-  ): void {
-    this.auditService.sendAuditEvent({
-      dataType: AuditDataType.externalResponseError,
-      integrationId: castObjectIdToString(integration._id),
-      data: {
-        data: formatException(error),
-      },
-      identifier: from,
-    });
-
-    if (error?.response?.data && !ignoreException && integration.environment !== IntegrationEnvironment.test) {
-      const metadata = contextService.get('req:default-headers');
-      Sentry.captureEvent({
-        message: `${integration._id}:${integration.name}:${IntegrationType.PRODOCTOR}-request: ${from}`,
-        ...this.sentryErrorHandlerService.defaultApiIntegrationError(payload, error.response, metadata),
-      });
-    }
-  }
-
   private async getApiUrl(integration: IntegrationDocument, endpoint: string): Promise<string> {
-    // const { apiUrl } = await this.credentialsHelper.getConfig<ProdoctorCredentialsResponse>(integration);
-    const baseUrl = 'http://172.17.0.1:7575';
+    const baseUrl =
+      integration.environment === IntegrationEnvironment.production
+        ? integration.apiUrl || 'https://api.prodoctor.com.br'
+        : 'http://localhost:3001';
+
     return `${baseUrl}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
   }
 
   private async getHeaders(integration: IntegrationDocument): Promise<{ headers: Record<string, string> }> {
-    // const { apiKey, apiPassword } = await this.credentialsHelper.getConfig<ProdoctorCredentialsResponse>(integration);
+    const { apiKey, apiPassword } = await this.credentialsHelper.getConfig<ProdoctorCredentialsResponse>(integration);
 
-    // if (!apiKey || !apiPassword) {
-    //   throw HTTP_ERROR_THROWER(HttpStatus.UNAUTHORIZED, 'Invalid ProDoctor credentials');
-    // }
-
-    const apiKey = 'teste';
-    const apiPassword = 'teste';
+    if (!apiKey || !apiPassword) {
+      throw HTTP_ERROR_THROWER(HttpStatus.UNAUTHORIZED, 'Invalid ProDoctor credentials');
+    }
 
     return {
       headers: {
@@ -166,15 +163,15 @@ export class ProdoctorApiService {
     };
   }
 
-  // ========== VALIDAÇÃO ==========
+  // ========== CONNECTION VALIDATION ==========
 
   public async validateConnection(integration: IntegrationDocument): Promise<boolean> {
     try {
-      const request: UserListRequest = {
+      const request: UserSearchRequest = {
         quantidade: 1,
       };
 
-      const response = await this.getMedicalUsers(integration, request);
+      const response = await this.listUsers(integration, request);
       return response?.sucesso === true;
     } catch (error) {
       this.logger.error(`ProdoctorApiService.validateConnection error: ${error.message}`);
@@ -182,28 +179,51 @@ export class ProdoctorApiService {
     }
   }
 
-  // ========== USUÁRIOS (MÉDICOS) ==========
+  // ========== USERS (DOCTORS) ==========
 
-  public async getMedicalUsers(
+  public async listUsers(integration: IntegrationDocument, request: UserSearchRequest): Promise<UserBasicListResponse> {
+    const methodName = 'listUsers';
+    this.debugRequest(integration, request);
+    this.dispatchAuditEvent(integration, request, methodName, AuditDataType.externalRequest);
+
+    try {
+      const apiUrl = await this.getApiUrl(integration, '/api/v1/Usuarios');
+      const headers = await this.getHeaders(integration);
+
+      const response = await lastValueFrom(this.httpService.post<UserBasicListResponse>(apiUrl, request, headers));
+
+      this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
+      return response?.data;
+    } catch (error) {
+      this.handleResponseError(integration, error, request, methodName);
+      throw HTTP_ERROR_THROWER(
+        error?.response?.status || HttpStatus.BAD_REQUEST,
+        error.response?.data || error,
+        HttpErrorOrigin.INTEGRATION_ERROR,
+      );
+    }
+  }
+
+  public async listUsersWithSpeciality(
     integration: IntegrationDocument,
-    request: UserListRequest,
-  ): Promise<ProdoctorResponseBasicUserViewModel> {
-    const funcName = this.getMedicalUsers.name;
-    this.debugRequest(integration, request, funcName);
-    this.dispatchAuditEvent(integration, request, funcName, AuditDataType.externalRequest);
+    request: UserSearchRequest,
+  ): Promise<UserWithSpecialityListResponse> {
+    const methodName = 'listUsersWithSpeciality';
+    this.debugRequest(integration, request);
+    this.dispatchAuditEvent(integration, request, methodName, AuditDataType.externalRequest);
 
     try {
       const apiUrl = await this.getApiUrl(integration, '/api/v1/Usuarios');
       const headers = await this.getHeaders(integration);
 
       const response = await lastValueFrom(
-        this.httpService.post<ProdoctorResponseBasicUserViewModel>(apiUrl, request, headers),
+        this.httpService.post<UserWithSpecialityListResponse>(apiUrl, request, headers),
       );
 
-      this.dispatchAuditEvent(integration, response?.data, funcName, AuditDataType.externalResponse);
+      this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;
     } catch (error) {
-      this.handleResponseError(integration, error, request, funcName);
+      this.handleResponseError(integration, error, request, methodName);
       throw HTTP_ERROR_THROWER(
         error?.response?.status || HttpStatus.BAD_REQUEST,
         error.response?.data || error,
@@ -212,26 +232,21 @@ export class ProdoctorApiService {
     }
   }
 
-  public async getMedicalUsersWithSpeciality(
-    integration: IntegrationDocument,
-    request: UserListRequest,
-  ): Promise<ProdoctorResponseUserWithSpecialityViewModel> {
-    const funcName = this.getMedicalUsersWithSpeciality.name;
-    this.debugRequest(integration, request, funcName);
-    this.dispatchAuditEvent(integration, request, funcName, AuditDataType.externalRequest);
+  public async getUserDetails(integration: IntegrationDocument, userCode: number): Promise<UserDetailsResponse> {
+    const methodName = 'getUserDetails';
+    this.debugRequest(integration, { userCode });
+    this.dispatchAuditEvent(integration, { userCode }, methodName, AuditDataType.externalRequest);
 
     try {
-      const apiUrl = await this.getApiUrl(integration, '/api/v1/Usuarios');
+      const apiUrl = await this.getApiUrl(integration, `/api/v1/Usuarios/Detalhar/${userCode}`);
       const headers = await this.getHeaders(integration);
 
-      const response = await lastValueFrom(
-        this.httpService.post<ProdoctorResponseUserWithSpecialityViewModel>(apiUrl, request, headers),
-      );
+      const response = await lastValueFrom(this.httpService.get<UserDetailsResponse>(apiUrl, headers));
 
-      this.dispatchAuditEvent(integration, response?.data, funcName, AuditDataType.externalResponse);
+      this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;
     } catch (error) {
-      this.handleResponseError(integration, error, request, funcName);
+      this.handleResponseError(integration, error, { userCode }, methodName);
       throw HTTP_ERROR_THROWER(
         error?.response?.status || HttpStatus.BAD_REQUEST,
         error.response?.data || error,
@@ -240,56 +255,26 @@ export class ProdoctorApiService {
     }
   }
 
-  public async getDetailsMedicalUser(
+  // ========== LOCATIONS (ORGANIZATION UNITS) ==========
+
+  public async listLocations(
     integration: IntegrationDocument,
-    codigo: number,
-  ): Promise<ProdoctorResponseMedicalUserViewModel> {
-    const funcName = this.getDetailsMedicalUser.name;
-    this.debugRequest(integration, { codigo }, funcName);
-    this.dispatchAuditEvent(integration, { codigo }, funcName, AuditDataType.externalRequest);
-
-    try {
-      const apiUrl = await this.getApiUrl(integration, `/api/v1/Usuarios/Detalhar/${codigo}`);
-      const headers = await this.getHeaders(integration);
-
-      const response = await lastValueFrom(
-        this.httpService.get<ProdoctorResponseMedicalUserViewModel>(apiUrl, headers),
-      );
-
-      this.dispatchAuditEvent(integration, response?.data, funcName, AuditDataType.externalResponse);
-      return response?.data;
-    } catch (error) {
-      this.handleResponseError(integration, error, { codigo }, funcName);
-      throw HTTP_ERROR_THROWER(
-        error?.response?.status || HttpStatus.BAD_REQUEST,
-        error.response?.data || error,
-        HttpErrorOrigin.INTEGRATION_ERROR,
-      );
-    }
-  }
-
-  // ========== LOCAIS PRODOCTOR (UNIDADES) ==========
-
-  public async getProdoctorLocations(
-    integration: IntegrationDocument,
-    request: LocationsProdoctorListRequest,
-  ): Promise<ProdoctorResponseLocationsBasicViewModel> {
-    const funcName = this.getProdoctorLocations.name;
-    this.debugRequest(integration, request, funcName);
-    this.dispatchAuditEvent(integration, request, funcName, AuditDataType.externalRequest);
+    request: LocationSearchRequest,
+  ): Promise<LocationListResponse> {
+    const methodName = 'listLocations';
+    this.debugRequest(integration, request);
+    this.dispatchAuditEvent(integration, request, methodName, AuditDataType.externalRequest);
 
     try {
       const apiUrl = await this.getApiUrl(integration, '/api/v1/LocaisProDoctor');
       const headers = await this.getHeaders(integration);
 
-      const response = await lastValueFrom(
-        this.httpService.post<ProdoctorResponseLocationsBasicViewModel>(apiUrl, request, headers),
-      );
+      const response = await lastValueFrom(this.httpService.post<LocationListResponse>(apiUrl, request, headers));
 
-      this.dispatchAuditEvent(integration, response?.data, funcName, AuditDataType.externalResponse);
+      this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;
     } catch (error) {
-      this.handleResponseError(integration, error, request, funcName);
+      this.handleResponseError(integration, error, request, methodName);
       throw HTTP_ERROR_THROWER(
         error?.response?.status || HttpStatus.BAD_REQUEST,
         error.response?.data || error,
@@ -298,28 +283,26 @@ export class ProdoctorApiService {
     }
   }
 
-  // ========== CONVÊNIOS ==========
+  // ========== INSURANCES ==========
 
-  public async getInsurances(
+  public async listInsurances(
     integration: IntegrationDocument,
-    request: InsurancesListRequest,
-  ): Promise<ProdoctorResponseInsurancesBasicViewModel> {
-    const funcName = this.getInsurances.name;
-    this.debugRequest(integration, request, funcName);
-    this.dispatchAuditEvent(integration, request, funcName, AuditDataType.externalRequest);
+    request: InsuranceSearchRequest,
+  ): Promise<InsuranceListResponse> {
+    const methodName = 'listInsurances';
+    this.debugRequest(integration, request);
+    this.dispatchAuditEvent(integration, request, methodName, AuditDataType.externalRequest);
 
     try {
       const apiUrl = await this.getApiUrl(integration, '/api/v1/Convenios');
       const headers = await this.getHeaders(integration);
 
-      const response = await lastValueFrom(
-        this.httpService.post<ProdoctorResponseInsurancesBasicViewModel>(apiUrl, request, headers),
-      );
+      const response = await lastValueFrom(this.httpService.post<InsuranceListResponse>(apiUrl, request, headers));
 
-      this.dispatchAuditEvent(integration, response?.data, funcName, AuditDataType.externalResponse);
+      this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;
     } catch (error) {
-      this.handleResponseError(integration, error, request, funcName);
+      this.handleResponseError(integration, error, request, methodName);
       throw HTTP_ERROR_THROWER(
         error?.response?.status || HttpStatus.BAD_REQUEST,
         error.response?.data || error,
@@ -328,24 +311,24 @@ export class ProdoctorApiService {
     }
   }
 
-  public async getDetailInsurances(
+  public async getInsuranceDetails(
     integration: IntegrationDocument,
-    codigo: number,
-  ): Promise<PDResponseConvenioViewModel> {
-    const funcName = this.getDetailInsurances.name;
-    this.debugRequest(integration, { codigo }, funcName);
-    this.dispatchAuditEvent(integration, { codigo }, funcName, AuditDataType.externalRequest);
+    insuranceCode: number,
+  ): Promise<InsuranceDetailsResponse> {
+    const methodName = 'getInsuranceDetails';
+    this.debugRequest(integration, { insuranceCode });
+    this.dispatchAuditEvent(integration, { insuranceCode }, methodName, AuditDataType.externalRequest);
 
     try {
-      const apiUrl = await this.getApiUrl(integration, `/api/v1/Convenios/Detalhar/${codigo}`);
+      const apiUrl = await this.getApiUrl(integration, `/api/v1/Convenios/Detalhar/${insuranceCode}`);
       const headers = await this.getHeaders(integration);
 
-      const response = await lastValueFrom(this.httpService.get<PDResponseConvenioViewModel>(apiUrl, headers));
+      const response = await lastValueFrom(this.httpService.get<InsuranceDetailsResponse>(apiUrl, headers));
 
-      this.dispatchAuditEvent(integration, response?.data, funcName, AuditDataType.externalResponse);
+      this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;
     } catch (error) {
-      this.handleResponseError(integration, error, { codigo }, funcName);
+      this.handleResponseError(integration, error, { insuranceCode }, methodName);
       throw HTTP_ERROR_THROWER(
         error?.response?.status || HttpStatus.BAD_REQUEST,
         error.response?.data || error,
@@ -354,28 +337,26 @@ export class ProdoctorApiService {
     }
   }
 
-  // ========== PROCEDIMENTOS ==========
+  // ========== PROCEDURES ==========
 
-  public async getProcedures(
+  public async listProcedures(
     integration: IntegrationDocument,
-    request: ProceduresListRequest,
-  ): Promise<ProdoctorResponseProceduresBasicMedicalViewModel> {
-    const funcName = this.getProcedures.name;
-    this.debugRequest(integration, request, funcName);
-    this.dispatchAuditEvent(integration, request, funcName, AuditDataType.externalRequest);
+    request: ProcedureSearchRequest,
+  ): Promise<ProcedureListResponse> {
+    const methodName = 'listProcedures';
+    this.debugRequest(integration, request);
+    this.dispatchAuditEvent(integration, request, methodName, AuditDataType.externalRequest);
 
     try {
       const apiUrl = await this.getApiUrl(integration, '/api/v1/Procedimentos');
       const headers = await this.getHeaders(integration);
 
-      const response = await lastValueFrom(
-        this.httpService.post<ProdoctorResponseProceduresBasicMedicalViewModel>(apiUrl, request, headers),
-      );
+      const response = await lastValueFrom(this.httpService.post<ProcedureListResponse>(apiUrl, request, headers));
 
-      this.dispatchAuditEvent(integration, response?.data, funcName, AuditDataType.externalResponse);
+      this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;
     } catch (error) {
-      this.handleResponseError(integration, error, request, funcName);
+      this.handleResponseError(integration, error, request, methodName);
       throw HTTP_ERROR_THROWER(
         error?.response?.status || HttpStatus.BAD_REQUEST,
         error.response?.data || error,
@@ -384,28 +365,26 @@ export class ProdoctorApiService {
     }
   }
 
-  public async getProceduresDetails(
+  public async getProcedureDetails(
     integration: IntegrationDocument,
-    tabela: number,
-    codigo: string,
-  ): Promise<ProdoctorResponseProcedureMedicalViewModel> {
-    const funcName = this.getProceduresDetails.name;
-    const params = { tabela, codigo };
-    this.debugRequest(integration, params, funcName);
-    this.dispatchAuditEvent(integration, params, funcName, AuditDataType.externalRequest);
+    tableCode: number,
+    procedureCode: string,
+  ): Promise<ProcedureDetailsResponse> {
+    const methodName = 'getProcedureDetails';
+    const params = { tableCode, procedureCode };
+    this.debugRequest(integration, params);
+    this.dispatchAuditEvent(integration, params, methodName, AuditDataType.externalRequest);
 
     try {
-      const apiUrl = await this.getApiUrl(integration, `/api/v1/Procedimentos/Detalhar/${tabela}/${codigo}`);
+      const apiUrl = await this.getApiUrl(integration, `/api/v1/Procedimentos/Detalhar/${tableCode}/${procedureCode}`);
       const headers = await this.getHeaders(integration);
 
-      const response = await lastValueFrom(
-        this.httpService.get<ProdoctorResponseProcedureMedicalViewModel>(apiUrl, headers),
-      );
+      const response = await lastValueFrom(this.httpService.get<ProcedureDetailsResponse>(apiUrl, headers));
 
-      this.dispatchAuditEvent(integration, response?.data, funcName, AuditDataType.externalResponse);
+      this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;
     } catch (error) {
-      this.handleResponseError(integration, error, params, funcName);
+      this.handleResponseError(integration, error, params, methodName);
       throw HTTP_ERROR_THROWER(
         error?.response?.status || HttpStatus.BAD_REQUEST,
         error.response?.data || error,
@@ -414,25 +393,49 @@ export class ProdoctorApiService {
     }
   }
 
-  // ========== PACIENTES ==========
-
-  public async getPatient(
+  public async listProcedureTables(
     integration: IntegrationDocument,
-    request: ProdoctorGetPatientRequest,
-  ): Promise<ProdoctorResponsePatientsListViewModel> {
-    const funcName = this.getPatient.name;
-    this.debugRequest(integration, request, funcName);
-    this.dispatchAuditEvent(integration, request, funcName, AuditDataType.externalRequest);
+    request: ProcedureTableSearchRequest,
+  ): Promise<ProcedureTableListResponse> {
+    const methodName = 'listProcedureTables';
+    this.debugRequest(integration, request);
+    this.dispatchAuditEvent(integration, request, methodName, AuditDataType.externalRequest);
+
+    try {
+      const apiUrl = await this.getApiUrl(integration, '/api/v1/TabelasProcedimentos');
+      const headers = await this.getHeaders(integration);
+
+      const response = await lastValueFrom(this.httpService.post<ProcedureTableListResponse>(apiUrl, request, headers));
+
+      this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
+      return response?.data;
+    } catch (error) {
+      this.handleResponseError(integration, error, request, methodName);
+      throw HTTP_ERROR_THROWER(
+        error?.response?.status || HttpStatus.BAD_REQUEST,
+        error.response?.data || error,
+        HttpErrorOrigin.INTEGRATION_ERROR,
+      );
+    }
+  }
+
+  // ========== PATIENTS ==========
+
+  public async searchPatients(
+    integration: IntegrationDocument,
+    request: PatientSearchRequest,
+  ): Promise<PatientListResponse> {
+    const methodName = 'searchPatients';
+    this.debugRequest(integration, request);
+    this.dispatchAuditEvent(integration, request, methodName, AuditDataType.externalRequest);
 
     try {
       const apiUrl = await this.getApiUrl(integration, '/api/v1/Pacientes');
       const headers = await this.getHeaders(integration);
 
-      const response = await lastValueFrom(
-        this.httpService.post<ProdoctorResponsePatientsListViewModel>(apiUrl, request, headers),
-      );
+      const response = await lastValueFrom(this.httpService.post<PatientListResponse>(apiUrl, request, headers));
 
-      this.dispatchAuditEvent(integration, response?.data, funcName, AuditDataType.externalResponse);
+      this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;
     } catch (error) {
       if (error?.response?.status === HttpStatus.NOT_FOUND) {
@@ -442,7 +445,7 @@ export class ProdoctorApiService {
           mensagens: ['Paciente não encontrado'],
         };
       }
-      this.handleResponseError(integration, error, request, funcName);
+      this.handleResponseError(integration, error, request, methodName);
       throw HTTP_ERROR_THROWER(
         error?.response?.status || HttpStatus.BAD_REQUEST,
         error.response?.data || error,
@@ -454,21 +457,21 @@ export class ProdoctorApiService {
   public async getPatientDetails(
     integration: IntegrationDocument,
     patientCode: number,
-  ): Promise<PDResponsePacienteViewModel> {
-    const funcName = this.getPatientDetails.name;
-    this.debugRequest(integration, { patientCode }, funcName);
-    this.dispatchAuditEvent(integration, { patientCode }, funcName, AuditDataType.externalRequest);
+  ): Promise<PatientDetailsResponse> {
+    const methodName = 'getPatientDetails';
+    this.debugRequest(integration, { patientCode });
+    this.dispatchAuditEvent(integration, { patientCode }, methodName, AuditDataType.externalRequest);
 
     try {
       const apiUrl = await this.getApiUrl(integration, `/api/v1/Pacientes/Detalhar/${patientCode}`);
       const headers = await this.getHeaders(integration);
 
-      const response = await lastValueFrom(this.httpService.get<PDResponsePacienteViewModel>(apiUrl, headers));
+      const response = await lastValueFrom(this.httpService.get<PatientDetailsResponse>(apiUrl, headers));
 
-      this.dispatchAuditEvent(integration, response?.data, funcName, AuditDataType.externalResponse);
+      this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;
     } catch (error) {
-      this.handleResponseError(integration, error, { patientCode }, funcName);
+      this.handleResponseError(integration, error, { patientCode }, methodName);
       throw HTTP_ERROR_THROWER(
         error?.response?.status || HttpStatus.BAD_REQUEST,
         error.response?.data || error,
@@ -479,24 +482,22 @@ export class ProdoctorApiService {
 
   public async createPatient(
     integration: IntegrationDocument,
-    request: PacienteCRUDRequest,
-  ): Promise<PDResponsePacienteBasicViewModel> {
-    const funcName = this.createPatient.name;
-    this.debugRequest(integration, request, funcName);
-    this.dispatchAuditEvent(integration, request, funcName, AuditDataType.externalRequest);
+    request: PatientCrudRequest,
+  ): Promise<PatientBasicResponse> {
+    const methodName = 'createPatient';
+    this.debugRequest(integration, request);
+    this.dispatchAuditEvent(integration, request, methodName, AuditDataType.externalRequest);
 
     try {
       const apiUrl = await this.getApiUrl(integration, '/api/v1/Pacientes/Inserir');
       const headers = await this.getHeaders(integration);
 
-      const response = await lastValueFrom(
-        this.httpService.post<PDResponsePacienteBasicViewModel>(apiUrl, request, headers),
-      );
+      const response = await lastValueFrom(this.httpService.post<PatientBasicResponse>(apiUrl, request, headers));
 
-      this.dispatchAuditEvent(integration, response?.data, funcName, AuditDataType.externalResponse);
+      this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;
     } catch (error) {
-      this.handleResponseError(integration, error, request, funcName);
+      this.handleResponseError(integration, error, request, methodName);
 
       if (
         error?.response?.status === HttpStatus.CONFLICT ||
@@ -505,7 +506,7 @@ export class ProdoctorApiService {
         throw HTTP_ERROR_THROWER(
           HttpStatus.CONFLICT,
           {
-            message: 'Paciente já cadastrado com este CPF',
+            message: 'Patient already registered with this CPF',
             cpf: request.paciente?.cpf,
           },
           HttpErrorOrigin.INTEGRATION_ERROR,
@@ -522,17 +523,17 @@ export class ProdoctorApiService {
 
   public async updatePatient(
     integration: IntegrationDocument,
-    request: PacienteCRUDRequest,
-  ): Promise<PDResponsePacienteBasicViewModel> {
-    const funcName = this.updatePatient.name;
-    this.debugRequest(integration, request, funcName);
-    this.dispatchAuditEvent(integration, request, funcName, AuditDataType.externalRequest);
+    request: PatientCrudRequest,
+  ): Promise<PatientBasicResponse> {
+    const methodName = 'updatePatient';
+    this.debugRequest(integration, request);
+    this.dispatchAuditEvent(integration, request, methodName, AuditDataType.externalRequest);
 
     if (!request.paciente?.codigo) {
       throw HTTP_ERROR_THROWER(
         HttpStatus.BAD_REQUEST,
         {
-          message: 'Código do paciente é obrigatório para atualização',
+          message: 'Patient code is required for update',
         },
         HttpErrorOrigin.INTEGRATION_ERROR,
       );
@@ -542,14 +543,12 @@ export class ProdoctorApiService {
       const apiUrl = await this.getApiUrl(integration, '/api/v1/Pacientes/Alterar');
       const headers = await this.getHeaders(integration);
 
-      const response = await lastValueFrom(
-        this.httpService.put<PDResponsePacienteBasicViewModel>(apiUrl, request, headers),
-      );
+      const response = await lastValueFrom(this.httpService.put<PatientBasicResponse>(apiUrl, request, headers));
 
-      this.dispatchAuditEvent(integration, response?.data, funcName, AuditDataType.externalResponse);
+      this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;
     } catch (error) {
-      this.handleResponseError(integration, error, request, funcName);
+      this.handleResponseError(integration, error, request, methodName);
       throw HTTP_ERROR_THROWER(
         error?.response?.status || HttpStatus.BAD_REQUEST,
         error.response?.data || error,
@@ -558,56 +557,26 @@ export class ProdoctorApiService {
     }
   }
 
-  public async listPatients(
+  // ========== APPOINTMENTS ==========
+
+  public async listAppointmentsByUser(
     integration: IntegrationDocument,
-    request: listPatientsRequest,
-  ): Promise<ProdoctorResponsePatientsListViewModel> {
-    const funcName = this.listPatients.name;
-    this.debugRequest(integration, request, funcName);
-    this.dispatchAuditEvent(integration, request, funcName, AuditDataType.externalRequest);
-
-    try {
-      const apiUrl = await this.getApiUrl(integration, '/api/v1/Pacientes');
-      const headers = await this.getHeaders(integration);
-
-      const response = await lastValueFrom(
-        this.httpService.post<ProdoctorResponsePatientsListViewModel>(apiUrl, request, headers),
-      );
-
-      this.dispatchAuditEvent(integration, response?.data, funcName, AuditDataType.externalResponse);
-      return response?.data;
-    } catch (error) {
-      this.handleResponseError(integration, error, request, funcName);
-      throw HTTP_ERROR_THROWER(
-        error?.response?.status || HttpStatus.BAD_REQUEST,
-        error.response?.data || error,
-        HttpErrorOrigin.INTEGRATION_ERROR,
-      );
-    }
-  }
-
-  // ========== AGENDAMENTOS ==========
-
-  public async listarAgendamentos(
-    integration: IntegrationDocument,
-    request: AgendamentoListarPorUsuarioRequest,
-  ): Promise<PDResponseDiaAgendaConsultaViewModel> {
-    const funcName = this.listarAgendamentos.name;
-    this.debugRequest(integration, request, funcName);
-    this.dispatchAuditEvent(integration, request, funcName, AuditDataType.externalRequest);
+    request: ListAppointmentsByUserRequest,
+  ): Promise<DayScheduleResponse> {
+    const methodName = 'listAppointmentsByUser';
+    this.debugRequest(integration, request);
+    this.dispatchAuditEvent(integration, request, methodName, AuditDataType.externalRequest);
 
     try {
       const apiUrl = await this.getApiUrl(integration, '/api/v1/Agenda/Listar');
       const headers = await this.getHeaders(integration);
 
-      const response = await lastValueFrom(
-        this.httpService.post<PDResponseDiaAgendaConsultaViewModel>(apiUrl, request, headers),
-      );
+      const response = await lastValueFrom(this.httpService.post<DayScheduleResponse>(apiUrl, request, headers));
 
-      this.dispatchAuditEvent(integration, response?.data, funcName, AuditDataType.externalResponse);
+      this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;
     } catch (error) {
-      this.handleResponseError(integration, error, request, funcName);
+      this.handleResponseError(integration, error, request, methodName);
       throw HTTP_ERROR_THROWER(
         error?.response?.status || HttpStatus.BAD_REQUEST,
         error.response?.data || error,
@@ -616,26 +585,24 @@ export class ProdoctorApiService {
     }
   }
 
-  public async buscarAgendamentosPaciente(
+  public async searchPatientAppointments(
     integration: IntegrationDocument,
-    request: AgendamentoBuscarRequest,
-  ): Promise<PDResponseAgendamentosViewModel> {
-    const funcName = this.buscarAgendamentosPaciente.name;
-    this.debugRequest(integration, request, funcName);
-    this.dispatchAuditEvent(integration, request, funcName, AuditDataType.externalRequest);
+    request: SearchPatientAppointmentsRequest,
+  ): Promise<AppointmentsListResponse> {
+    const methodName = 'searchPatientAppointments';
+    this.debugRequest(integration, request);
+    this.dispatchAuditEvent(integration, request, methodName, AuditDataType.externalRequest);
 
     try {
       const apiUrl = await this.getApiUrl(integration, '/api/v1/Agenda/Buscar');
       const headers = await this.getHeaders(integration);
 
-      const response = await lastValueFrom(
-        this.httpService.post<PDResponseAgendamentosViewModel>(apiUrl, request, headers),
-      );
+      const response = await lastValueFrom(this.httpService.post<AppointmentsListResponse>(apiUrl, request, headers));
 
-      this.dispatchAuditEvent(integration, response?.data, funcName, AuditDataType.externalResponse);
+      this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;
     } catch (error) {
-      this.handleResponseError(integration, error, request, funcName);
+      this.handleResponseError(integration, error, request, methodName);
       throw HTTP_ERROR_THROWER(
         error?.response?.status || HttpStatus.BAD_REQUEST,
         error.response?.data || error,
@@ -644,26 +611,24 @@ export class ProdoctorApiService {
     }
   }
 
-  public async getAvailableScheduleTimes(
+  public async getAppointmentDetails(
     integration: IntegrationDocument,
-    request: HorariosDisponiveisRequest,
-  ): Promise<ProdoctorResponseAvailabelTimesViewModel> {
-    const funcName = this.getAvailableScheduleTimes.name;
-    this.debugRequest(integration, request, funcName);
-    this.dispatchAuditEvent(integration, request, funcName, AuditDataType.externalRequest);
+    appointmentCode: number,
+  ): Promise<AppointmentDetailsResponse> {
+    const methodName = 'getAppointmentDetails';
+    this.debugRequest(integration, { appointmentCode });
+    this.dispatchAuditEvent(integration, { appointmentCode }, methodName, AuditDataType.externalRequest);
 
     try {
-      const apiUrl = await this.getApiUrl(integration, '/api/v1/Agenda/Livres');
+      const apiUrl = await this.getApiUrl(integration, `/api/v1/Agenda/Detalhar/${appointmentCode}`);
       const headers = await this.getHeaders(integration);
 
-      const response = await lastValueFrom(
-        this.httpService.post<ProdoctorResponseAvailabelTimesViewModel>(apiUrl, request, headers),
-      );
+      const response = await lastValueFrom(this.httpService.get<AppointmentDetailsResponse>(apiUrl, headers));
 
-      this.dispatchAuditEvent(integration, response?.data, funcName, AuditDataType.externalResponse);
+      this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;
     } catch (error) {
-      this.handleResponseError(integration, error, request, funcName);
+      this.handleResponseError(integration, error, { appointmentCode }, methodName);
       throw HTTP_ERROR_THROWER(
         error?.response?.status || HttpStatus.BAD_REQUEST,
         error.response?.data || error,
@@ -672,54 +637,26 @@ export class ProdoctorApiService {
     }
   }
 
-  public async detalharAgendamento(
+  public async insertAppointment(
     integration: IntegrationDocument,
-    request: { codigo: number },
-  ): Promise<PDResponseAgendamentoDetalhadoViewModel> {
-    const funcName = this.detalharAgendamento.name;
-    this.debugRequest(integration, request, funcName);
-    this.dispatchAuditEvent(integration, request, funcName, AuditDataType.externalRequest);
-
-    try {
-      const apiUrl = await this.getApiUrl(integration, '/api/v1/Agenda/Detalhar');
-      const headers = await this.getHeaders(integration);
-
-      const response = await lastValueFrom(
-        this.httpService.post<PDResponseAgendamentoDetalhadoViewModel>(apiUrl, request, headers),
-      );
-
-      this.dispatchAuditEvent(integration, response?.data, funcName, AuditDataType.externalResponse);
-      return response?.data;
-    } catch (error) {
-      this.handleResponseError(integration, error, request, funcName);
-      throw HTTP_ERROR_THROWER(
-        error?.response?.status || HttpStatus.BAD_REQUEST,
-        error.response?.data || error,
-        HttpErrorOrigin.INTEGRATION_ERROR,
-      );
-    }
-  }
-
-  public async inserirAgendamento(
-    integration: IntegrationDocument,
-    request: AgendamentoInserirRequest,
-  ): Promise<PDResponseAgendamentoInseridoViewModel> {
-    const funcName = this.inserirAgendamento.name;
-    this.debugRequest(integration, request, funcName);
-    this.dispatchAuditEvent(integration, request, funcName, AuditDataType.externalRequest);
+    request: InsertAppointmentRequest,
+  ): Promise<InsertedAppointmentResponse> {
+    const methodName = 'insertAppointment';
+    this.debugRequest(integration, request);
+    this.dispatchAuditEvent(integration, request, methodName, AuditDataType.externalRequest);
 
     try {
       const apiUrl = await this.getApiUrl(integration, '/api/v1/Agenda/Inserir');
       const headers = await this.getHeaders(integration);
 
       const response = await lastValueFrom(
-        this.httpService.post<PDResponseAgendamentoInseridoViewModel>(apiUrl, request, headers),
+        this.httpService.post<InsertedAppointmentResponse>(apiUrl, request, headers),
       );
 
-      this.dispatchAuditEvent(integration, response?.data, funcName, AuditDataType.externalResponse);
+      this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;
     } catch (error) {
-      this.handleResponseError(integration, error, request, funcName);
+      this.handleResponseError(integration, error, request, methodName);
       throw HTTP_ERROR_THROWER(
         error?.response?.status || HttpStatus.BAD_REQUEST,
         error.response?.data || error,
@@ -728,26 +665,24 @@ export class ProdoctorApiService {
     }
   }
 
-  public async alterarAgendamento(
+  public async updateAppointment(
     integration: IntegrationDocument,
-    request: AgendamentoAlterarRequest,
-  ): Promise<PDResponseAgendamentoInseridoViewModel> {
-    const funcName = this.alterarAgendamento.name;
-    this.debugRequest(integration, request, funcName);
-    this.dispatchAuditEvent(integration, request, funcName, AuditDataType.externalRequest);
+    request: UpdateAppointmentRequest,
+  ): Promise<InsertedAppointmentResponse> {
+    const methodName = 'updateAppointment';
+    this.debugRequest(integration, request);
+    this.dispatchAuditEvent(integration, request, methodName, AuditDataType.externalRequest);
 
     try {
       const apiUrl = await this.getApiUrl(integration, '/api/v1/Agenda/Alterar');
       const headers = await this.getHeaders(integration);
 
-      const response = await lastValueFrom(
-        this.httpService.put<PDResponseAgendamentoInseridoViewModel>(apiUrl, request, headers),
-      );
+      const response = await lastValueFrom(this.httpService.put<InsertedAppointmentResponse>(apiUrl, request, headers));
 
-      this.dispatchAuditEvent(integration, response?.data, funcName, AuditDataType.externalResponse);
+      this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;
     } catch (error) {
-      this.handleResponseError(integration, error, request, funcName);
+      this.handleResponseError(integration, error, request, methodName);
       throw HTTP_ERROR_THROWER(
         error?.response?.status || HttpStatus.BAD_REQUEST,
         error.response?.data || error,
@@ -756,26 +691,26 @@ export class ProdoctorApiService {
     }
   }
 
-  public async desmarcarAgendamento(
+  public async cancelAppointment(
     integration: IntegrationDocument,
-    request: AgendamentoDesmarcarRequest,
-  ): Promise<PDResponseAgendamentoOperacaoViewModel> {
-    const funcName = this.desmarcarAgendamento.name;
-    this.debugRequest(integration, request, funcName);
-    this.dispatchAuditEvent(integration, request, funcName, AuditDataType.externalRequest);
+    request: CancelAppointmentRequest,
+  ): Promise<AppointmentOperationResponse> {
+    const methodName = 'cancelAppointment';
+    this.debugRequest(integration, request);
+    this.dispatchAuditEvent(integration, request, methodName, AuditDataType.externalRequest);
 
     try {
       const apiUrl = await this.getApiUrl(integration, '/api/v1/Agenda/Desmarcar');
       const headers = await this.getHeaders(integration);
 
       const response = await lastValueFrom(
-        this.httpService.patch<PDResponseAgendamentoOperacaoViewModel>(apiUrl, request, headers),
+        this.httpService.patch<AppointmentOperationResponse>(apiUrl, request, headers),
       );
 
-      this.dispatchAuditEvent(integration, response?.data, funcName, AuditDataType.externalResponse);
+      this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;
     } catch (error) {
-      this.handleResponseError(integration, error, request, funcName);
+      this.handleResponseError(integration, error, request, methodName);
       throw HTTP_ERROR_THROWER(
         error?.response?.status || HttpStatus.BAD_REQUEST,
         error.response?.data || error,
@@ -784,26 +719,26 @@ export class ProdoctorApiService {
     }
   }
 
-  public async alterarStatusAgendamento(
+  public async updateAppointmentState(
     integration: IntegrationDocument,
-    request: AgendamentoAlterarStatusRequest,
-  ): Promise<PDResponseAlterarStatusAgendamentoViewModel> {
-    const funcName = this.alterarStatusAgendamento.name;
-    this.debugRequest(integration, request, funcName);
-    this.dispatchAuditEvent(integration, request, funcName, AuditDataType.externalRequest);
+    request: UpdateAppointmentStateRequest,
+  ): Promise<UpdateAppointmentStateResponse> {
+    const methodName = 'updateAppointmentState';
+    this.debugRequest(integration, request);
+    this.dispatchAuditEvent(integration, request, methodName, AuditDataType.externalRequest);
 
     try {
       const apiUrl = await this.getApiUrl(integration, '/api/v1/Agenda/AlterarEstado');
       const headers = await this.getHeaders(integration);
 
       const response = await lastValueFrom(
-        this.httpService.patch<PDResponseAlterarStatusAgendamentoViewModel>(apiUrl, request, headers),
+        this.httpService.patch<UpdateAppointmentStateResponse>(apiUrl, request, headers),
       );
 
-      this.dispatchAuditEvent(integration, response?.data, funcName, AuditDataType.externalResponse);
+      this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;
     } catch (error) {
-      this.handleResponseError(integration, error, request, funcName);
+      this.handleResponseError(integration, error, request, methodName);
       throw HTTP_ERROR_THROWER(
         error?.response?.status || HttpStatus.BAD_REQUEST,
         error.response?.data || error,
@@ -812,26 +747,52 @@ export class ProdoctorApiService {
     }
   }
 
-  public async buscarAgendamentosPorStatus(
+  public async searchAppointmentsByStatus(
     integration: IntegrationDocument,
-    request: AgendamentoPorStatusRequest,
-  ): Promise<PDResponseAgendaBuscarPorStatusViewModel> {
-    const funcName = this.buscarAgendamentosPorStatus.name;
-    this.debugRequest(integration, request, funcName);
-    this.dispatchAuditEvent(integration, request, funcName, AuditDataType.externalRequest);
+    request: SearchAppointmentsByStatusRequest,
+  ): Promise<AppointmentsByStatusResponse> {
+    const methodName = 'searchAppointmentsByStatus';
+    this.debugRequest(integration, request);
+    this.dispatchAuditEvent(integration, request, methodName, AuditDataType.externalRequest);
 
     try {
-      const apiUrl = await this.getApiUrl(integration, '/api/v1/Agenda/BuscarPorStatusTipo');
+      const apiUrl = await this.getApiUrl(integration, '/api/v1/Agenda/BuscarPorStatus');
       const headers = await this.getHeaders(integration);
 
       const response = await lastValueFrom(
-        this.httpService.post<PDResponseAgendaBuscarPorStatusViewModel>(apiUrl, request, headers),
+        this.httpService.post<AppointmentsByStatusResponse>(apiUrl, request, headers),
       );
 
-      this.dispatchAuditEvent(integration, response?.data, funcName, AuditDataType.externalResponse);
+      this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;
     } catch (error) {
-      this.handleResponseError(integration, error, request, funcName);
+      this.handleResponseError(integration, error, request, methodName);
+      throw HTTP_ERROR_THROWER(
+        error?.response?.status || HttpStatus.BAD_REQUEST,
+        error.response?.data || error,
+        HttpErrorOrigin.INTEGRATION_ERROR,
+      );
+    }
+  }
+
+  public async getAvailableTimes(
+    integration: IntegrationDocument,
+    request: AvailableTimesRequest,
+  ): Promise<AvailableTimesResponse> {
+    const methodName = 'getAvailableTimes';
+    this.debugRequest(integration, request);
+    this.dispatchAuditEvent(integration, request, methodName, AuditDataType.externalRequest);
+
+    try {
+      const apiUrl = await this.getApiUrl(integration, '/api/v1/Agenda/HorariosDisponiveis');
+      const headers = await this.getHeaders(integration);
+
+      const response = await lastValueFrom(this.httpService.post<AvailableTimesResponse>(apiUrl, request, headers));
+
+      this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
+      return response?.data;
+    } catch (error) {
+      this.handleResponseError(integration, error, request, methodName);
       throw HTTP_ERROR_THROWER(
         error?.response?.status || HttpStatus.BAD_REQUEST,
         error.response?.data || error,
