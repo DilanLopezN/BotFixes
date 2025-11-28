@@ -137,21 +137,25 @@ export class ProdoctorApiService {
   }
 
   private async getApiUrl(integration: IntegrationDocument, endpoint: string): Promise<string> {
-    const baseUrl =
-      integration.environment === IntegrationEnvironment.production
-        ? integration.apiUrl || 'https://api.prodoctor.com.br'
-        : 'http://localhost:3001';
+    // const baseUrl =
+    //   integration.environment === IntegrationEnvironment.production
+    //     ? integration.apiUrl || 'https://api.prodoctor.com.br'
+    //     : 'http://localhost:3001';
+
+    const baseUrl = 'http://172.17.0.1:7575';
 
     return `${baseUrl}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
   }
 
   private async getHeaders(integration: IntegrationDocument): Promise<{ headers: Record<string, string> }> {
-    const { apiKey, apiPassword } = await this.credentialsHelper.getConfig<ProdoctorCredentialsResponse>(integration);
+    // const { apiKey, apiPassword } = await this.credentialsHelper.getConfig<ProdoctorCredentialsResponse>(integration);
 
-    if (!apiKey || !apiPassword) {
-      throw HTTP_ERROR_THROWER(HttpStatus.UNAUTHORIZED, 'Invalid ProDoctor credentials');
-    }
+    // if (!apiKey || !apiPassword) {
+    //   throw HTTP_ERROR_THROWER(HttpStatus.UNAUTHORIZED, 'Invalid ProDoctor credentials');
+    // }
 
+    const apiKey = 'teste';
+    const apiPassword = 'teste';
     return {
       headers: {
         'Content-Type': 'application/json',
@@ -784,7 +788,7 @@ export class ProdoctorApiService {
     this.dispatchAuditEvent(integration, request, methodName, AuditDataType.externalRequest);
 
     try {
-      const apiUrl = await this.getApiUrl(integration, '/api/v1/Agenda/HorariosDisponiveis');
+      const apiUrl = await this.getApiUrl(integration, '/api/v1/Agenda/Livres');
       const headers = await this.getHeaders(integration);
 
       const response = await lastValueFrom(this.httpService.post<AvailableTimesResponse>(apiUrl, request, headers));

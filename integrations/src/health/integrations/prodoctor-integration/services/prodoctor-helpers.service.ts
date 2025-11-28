@@ -7,11 +7,20 @@ import { EntityDocument } from '../../../entities/schema';
 import { CorrelationFilter } from '../../../interfaces/correlation-filter.interface';
 
 import {
+  PatientListViewModel,
+  PatientViewModel,
+  PatientBasicViewModel,
+  PatientCrudRequest,
+  ConsultationAppointmentViewModel,
+  AppointmentTypeRequest,
+  AvailableTimeViewModel,
   AgendamentoConsultaViewModel,
+  EstadoAgendaConsultaViewModel,
+  AppointmentStateViewModel,
   HorarioDisponivelViewModel,
   TipoAgendamentoRequest,
   TurnosRequest,
-  EstadoAgendaConsultaViewModel,
+  ShiftsRequest,
 } from '../interfaces';
 import { formatPhone, convertPhoneNumber } from '../../../../common/helpers/format-phone';
 import { PacienteViewModel, PacienteCRUDRequest, PacienteRequest } from '../interfaces';
@@ -48,8 +57,8 @@ export class ProdoctorHelpersService {
     const telefones = [paciente.telefone1, paciente.telefone2, paciente.telefone3, paciente.telefone4];
 
     for (const tel of telefones) {
-      if (tel?.numero && tel?.tipo?.codigo !== 3) {
-        return formatPhone(tel.ddd + tel.numero, true);
+      if (tel?.numero && tel?.tipoTelefone?.codigo !== 3) {
+        return formatPhone(tel.tipoTelefone.codigo + tel.numero, true);
       }
     }
 
@@ -63,8 +72,8 @@ export class ProdoctorHelpersService {
     const telefones = [paciente.telefone1, paciente.telefone2, paciente.telefone3, paciente.telefone4];
 
     for (const tel of telefones) {
-      if (tel?.numero && tel?.tipo?.codigo === 3) {
-        return formatPhone(tel.ddd + tel.numero, true);
+      if (tel?.numero && tel?.tipoTelefone?.codigo === 3) {
+        return formatPhone(tel.tipoTelefone.codigo + tel.numero, true);
       }
     }
 
@@ -113,7 +122,7 @@ export class ProdoctorHelpersService {
   /**
    * Transforma agendamento do ProDoctor para RawAppointment
    */
-  transformScheduleToRawAppointment(agendamento: AgendamentoConsultaViewModel): RawAppointment {
+  transformScheduleToRawAppointment(agendamento: ConsultationAppointmentViewModel): RawAppointment {
     const appointmentDate = moment(`${agendamento.data} ${agendamento.hora}`, this.dateTimeFormat);
 
     return {
@@ -152,14 +161,8 @@ export class ProdoctorHelpersService {
             code: agendamento.procedimentoMedico.codigo,
           }
         : undefined,
-      specialityId: agendamento.usuario?.especialidade?.codigo?.toString(),
-      specialityDefault: agendamento.usuario?.especialidade
-        ? {
-            name: agendamento.usuario.especialidade.nome,
-            friendlyName: agendamento.usuario.especialidade.nome,
-            code: String(agendamento.usuario.especialidade.codigo),
-          }
-        : undefined,
+      specialityId: agendamento.usuario?.codigo?.toString(),
+
       appointmentTypeId: this.mapAppointmentTypeCode(agendamento.tipoAgendamento),
       duration: String(agendamento.duracao || 0),
       data: {
@@ -172,16 +175,16 @@ export class ProdoctorHelpersService {
   /**
    * Mapeia status do agendamento
    */
-  private mapAppointmentStatus(estado?: EstadoAgendaConsultaViewModel): AppointmentStatus {
+  private mapAppointmentStatus(estado?: AppointmentStateViewModel): AppointmentStatus {
     if (!estado) return AppointmentStatus.scheduled;
 
-    if (estado.faltou || estado.desmarcado) {
+    if (estado.faltou || estado.atrasado) {
       return AppointmentStatus.canceled;
     }
     if (estado.atendido) {
       return AppointmentStatus.finished;
     }
-    if (estado.compareceu || estado.confirmado || estado.confirmadoMSG) {
+    if (estado.compareceu || estado.confirmado) {
       return AppointmentStatus.confirmed;
     }
 
@@ -208,12 +211,11 @@ export class ProdoctorHelpersService {
    * Transforma horário disponível para RawAppointment
    */
   transformAvailableScheduleToRawAppointment(
-    horario: HorarioDisponivelViewModel,
+    horario: AvailableTimeViewModel,
     doctor: EntityDocument,
     filter: CorrelationFilter,
   ): RawAppointment {
-    const appointmentDate = moment(horario.data, this.dateTimeFormat);
-
+    const appointmentDate = moment(`${horario.data} ${horario.hora}`, this.dateTimeFormat);
     return {
       appointmentCode: null,
       appointmentDate: appointmentDate.toISOString(),
@@ -257,7 +259,7 @@ export class ProdoctorHelpersService {
           }
         : undefined,
       appointmentTypeId: filter.appointmentType?.code || 'consulta',
-      duration: String(horario.duracao || 0),
+      duration: String(horario.hora || 0),
     };
   }
 
@@ -299,8 +301,8 @@ export class ProdoctorHelpersService {
   /**
    * Constrói TipoAgendamentoRequest baseado no código
    */
-  buildTypeScheduleRequest(code: string): TipoAgendamentoRequest {
-    const tipoAgendamento: TipoAgendamentoRequest = {};
+  buildTypeScheduleRequest(code: string): AppointmentTypeRequest {
+    const tipoAgendamento: AppointmentTypeRequest = {};
 
     switch (code) {
       case 'consulta':
@@ -331,8 +333,8 @@ export class ProdoctorHelpersService {
   /**
    * Constrói TurnosRequest baseado no período
    */
-  buildShiftsFromPeriod(start: string, end: string): TurnosRequest {
-    const turnos: TurnosRequest = {};
+  buildShiftsFromPeriod(start: string, end: string): ShiftsRequest {
+    const turnos: ShiftsRequest = {};
     const startHour = parseInt(start.split(':')[0], 10);
     const endHour = parseInt(end.split(':')[0], 10);
 
@@ -352,5 +354,109 @@ export class ProdoctorHelpersService {
     }
 
     return turnos;
+  }
+
+  /**
+   * Transforma PatientListViewModel para Patient
+   */
+  transformPatientListViewModelToPatient(paciente: PatientListViewModel): Patient {
+    const phone = this.extractPhoneFromList(paciente);
+    const cellPhone = this.extractCellPhoneFromList(paciente);
+
+    return {
+      code: String(paciente.codigo),
+      name: paciente.nome?.trim() || paciente.nomeCivil?.trim(),
+      cpf: paciente.cpf?.replace(/\D/g, ''),
+      email: '',
+      phone: phone,
+      cellPhone: cellPhone,
+      bornDate: this.parseDate(paciente.dataNascimento),
+      sex: undefined,
+    };
+  }
+
+  /**
+   * Transforma PatientViewModel (detalhado) para Patient
+   */
+  transformPatientViewModelToPatient(paciente: PatientViewModel): Patient {
+    return this.transformProdoctorPatientToDefaultBotPatient(paciente);
+  }
+
+  /**
+   * Transforma PatientBasicViewModel para Patient
+   */
+  transformPatientBasicViewModelToPatient(paciente: PatientBasicViewModel): Patient {
+    return {
+      code: String(paciente.codigo),
+      name: paciente.nome?.trim(),
+      cpf: '',
+      email: '',
+      phone: '',
+      cellPhone: '',
+      bornDate: '',
+      sex: undefined,
+    };
+  }
+
+  /**
+   * Extrai telefone fixo de PatientListViewModel
+   */
+  private extractPhoneFromList(paciente: PatientListViewModel): string {
+    const telefones = [paciente.telefone1, paciente.telefone2, paciente.telefone3, paciente.telefone4];
+
+    for (const tel of telefones) {
+      if (tel?.numero && tel?.tipoTelefone?.codigo !== 3) {
+        return formatPhone(tel.tipoTelefone.codigo + tel.numero, true);
+      }
+    }
+
+    return '';
+  }
+
+  /**
+   * Extrai celular de PatientListViewModel
+   */
+  private extractCellPhoneFromList(paciente: PatientListViewModel): string {
+    const telefones = [paciente.telefone1, paciente.telefone2, paciente.telefone3, paciente.telefone4];
+
+    for (const tel of telefones) {
+      if (tel?.numero && tel?.tipoTelefone?.codigo === 3) {
+        return formatPhone(tel.tipoTelefone.codigo + tel.numero, true);
+      }
+    }
+
+    return '';
+  }
+
+  /**
+   * Constrói request para criar paciente (alias)
+   */
+  buildPatientCrudRequest(patient: Partial<Patient>): PatientCrudRequest {
+    return this.buildCreatePatientRequest(patient);
+  }
+
+  /**
+   * Transforma AgendamentoConsultaViewModel para RawAppointment (alias)
+   */
+  transformAppointmentToRawAppointment(agendamento: ConsultationAppointmentViewModel): RawAppointment {
+    return this.transformScheduleToRawAppointment(agendamento);
+  }
+
+  /**
+   * Constrói TipoAgendamentoRequest (alias)
+   */
+  buildAppointmentTypeRequest(code: string): AppointmentTypeRequest {
+    return this.buildTypeScheduleRequest(code);
+  }
+
+  /**
+   * Transforma HorarioDisponivelViewModel para RawAppointment (alias)
+   */
+  transformAvailableTimeToRawAppointment(
+    horario: AvailableTimeViewModel,
+    doctor: EntityDocument,
+    filter: CorrelationFilter,
+  ): RawAppointment {
+    return this.transformAvailableScheduleToRawAppointment(horario, doctor, filter);
   }
 }

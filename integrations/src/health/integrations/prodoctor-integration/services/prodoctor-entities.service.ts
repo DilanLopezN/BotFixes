@@ -4,8 +4,6 @@ import { INTERNAL_ERROR_THROWER } from '../../../../common/exceptions.service';
 import { castObjectId } from '../../../../common/helpers/cast-objectid';
 import { EntityDocument, ScheduleType } from '../../../entities/schema';
 import { EntitiesService } from '../../../entities/services/entities.service';
-import { getExpirationByEntity } from '../../../integration-cache-utils/cache-expirations';
-
 import { IntegrationDocument } from '../../../integration/schema/integration.schema';
 import { InitialPatient } from '../../../integrator/interfaces';
 import { CorrelationFilter } from '../../../interfaces/correlation-filter.interface';
@@ -22,11 +20,9 @@ import {
   ISpecialityEntity,
   SpecialityTypes,
 } from '../../../interfaces/entity.interface';
-import { IntegrationType } from '../../../interfaces/integration-types';
 import { ProdoctorApiService } from './prodoctor-api.service';
-import { IntegrationCacheUtilsService } from 'health/integration-cache-utils/integration-cache-utils.service';
-import { EntityFiltersParams } from 'kissbot-health-core';
-import moment from 'moment';
+import { IntegrationCacheUtilsService } from '../../../integration-cache-utils/integration-cache-utils.service';
+import * as moment from 'moment';
 
 interface ListValidEntities {
   integration: IntegrationDocument;
@@ -95,23 +91,14 @@ export class ProdoctorEntitiesService {
         params.unidade_id = Number(filters[EntityType.organizationUnit].code);
       }
 
-      // se tiver convenio e não for particular (-1)
       if (filters.hasOwnProperty(EntityType.insurance) && filters[EntityType.insurance].code !== '-1') {
         params.convenio_id = Number(filters[EntityType.insurance].code);
       }
 
-      // está aqui porque pego ativo só para agendar, na extração pega todos para listar histórico
-      // dos agendamentos do paciente
       params.ativo = 1;
 
       if (patientBornDate) {
         params.patientAge = moment().diff(patientBornDate, 'years');
-      }
-    }
-
-    if (targetEntity.hasOwnProperty(EntityType.speciality)) {
-      if (filters.hasOwnProperty(EntityType.organizationUnit)) {
-        params.UnitID = Number(filters[EntityType.organizationUnit].code);
       }
     }
 
@@ -126,6 +113,7 @@ export class ProdoctorEntitiesService {
         params.unidade_id = Number(filters[EntityType.organizationUnit].code);
       }
     }
+
     return params;
   }
 
@@ -151,27 +139,20 @@ export class ProdoctorEntitiesService {
         }
       }
 
-      let entities: EntityTypes[] = [];
-
       const getResource = () => {
         switch (entityType) {
           case EntityType.organizationUnit:
             return this.listOrganizationUnits(integration);
           case EntityType.insurance:
             return this.listInsurances(integration);
-
           case EntityType.doctor:
             return this.listDoctors(integration, requestFilters);
-
           case EntityType.speciality:
             return this.listSpecialities(integration, requestFilters);
-
           case EntityType.procedure:
             return this.listProcedures(integration, requestFilters);
-
           case EntityType.appointmentType:
             return this.listAppointmentTypes(integration);
-
           default:
             return [];
         }
@@ -195,7 +176,7 @@ export class ProdoctorEntitiesService {
    */
   private async listOrganizationUnits(integration: IntegrationDocument): Promise<IOrganizationUnitEntity[]> {
     try {
-      const response = await this.prodoctorApiService.getProdoctorLocations(integration, { quantidade: 5000 });
+      const response = await this.prodoctorApiService.listLocations(integration, { quantidade: 5000 });
 
       if (!response?.sucesso || !response?.payload?.locaisProDoctor) {
         return [];
@@ -220,7 +201,7 @@ export class ProdoctorEntitiesService {
    */
   private async listInsurances(integration: IntegrationDocument): Promise<IInsuranceEntity[]> {
     try {
-      const response = await this.prodoctorApiService.getInsurances(integration, { quantidade: 5000 });
+      const response = await this.prodoctorApiService.listInsurances(integration, { quantidade: 5000 });
 
       if (!response?.sucesso || !response?.payload?.convenios) {
         return [];
@@ -253,7 +234,7 @@ export class ProdoctorEntitiesService {
         request.locaisProDoctor = [{ codigo: Number(filters.organizationUnit.code) }];
       }
 
-      const response = await this.prodoctorApiService.getMedicalUsers(integration, request);
+      const response = await this.prodoctorApiService.listUsers(integration, request);
 
       if (!response?.sucesso || !response?.payload?.usuarios) {
         return [];
@@ -287,13 +268,12 @@ export class ProdoctorEntitiesService {
     filters: CorrelationFilter,
   ): Promise<ISpecialityEntity[]> {
     try {
-      // 1. Lista todos os usuários
       const request: any = { quantidade: 5000 };
       if (filters?.organizationUnit?.code) {
         request.locaisProDoctor = [{ codigo: Number(filters.organizationUnit.code) }];
       }
 
-      const response = await this.prodoctorApiService.getMedicalUsers(integration, request);
+      const response = await this.prodoctorApiService.listUsers(integration, request);
       if (!response?.sucesso || !response?.payload?.usuarios) {
         return [];
       }
@@ -301,13 +281,11 @@ export class ProdoctorEntitiesService {
       const defaultData = this.getDefaultErpEntityData(integration);
       const specialitiesMap = new Map<number, ISpecialityEntity>();
 
-      // 2. Detalha cada usuário para pegar especialidade
       for (const usuario of response.payload.usuarios) {
         if (!usuario.ativo) continue;
 
-        const detalhes = await this.prodoctorApiService.getDetailsMedicalUser(integration, usuario.codigo);
+        const detalhes = await this.prodoctorApiService.getUserDetails(integration, usuario.codigo);
 
-        console.log('DETAILS', detalhes);
         if (detalhes?.sucesso && detalhes?.payload?.usuario?.especialidade) {
           const esp = detalhes.payload.usuario.especialidade;
 
@@ -341,7 +319,6 @@ export class ProdoctorEntitiesService {
     try {
       const request: any = { quantidade: 5000 };
 
-      // Se houver filtro de tabela de procedimentos no data
       if (filters?.procedure?.data?.text) {
         request.tabelas = [{ codigo: Number(filters.procedure.data) }];
       }
@@ -350,7 +327,7 @@ export class ProdoctorEntitiesService {
         request.convenios = [{ codigo: Number(filters.insurance.code) }];
       }
 
-      const response = await this.prodoctorApiService.getProcedures(integration, request);
+      const response = await this.prodoctorApiService.listProcedures(integration, request);
 
       if (!response?.sucesso || !response?.payload?.procedimentos) {
         return [];
@@ -388,45 +365,35 @@ export class ProdoctorEntitiesService {
         code: 'consulta',
         name: 'Consulta',
         canSchedule: true,
-        params: {
-          referenceScheduleType: ScheduleType.Consultation,
-        },
+        params: { referenceScheduleType: ScheduleType.Consultation },
       },
       {
         ...defaultData,
         code: 'retorno',
         name: 'Retorno',
         canSchedule: true,
-        params: {
-          referenceScheduleType: ScheduleType.FollowUp,
-        },
+        params: { referenceScheduleType: ScheduleType.FollowUp },
       },
       {
         ...defaultData,
         code: 'exame',
         name: 'Exame',
         canSchedule: true,
-        params: {
-          referenceScheduleType: ScheduleType.Exam,
-        },
+        params: { referenceScheduleType: ScheduleType.Exam },
       },
       {
         ...defaultData,
         code: 'cirurgia',
         name: 'Cirurgia',
         canSchedule: true,
-        params: {
-          referenceScheduleType: ScheduleType.Consultation,
-        },
+        params: { referenceScheduleType: ScheduleType.Consultation },
       },
       {
         ...defaultData,
         code: 'teleconsulta',
         name: 'Teleconsulta',
         canSchedule: true,
-        params: {
-          referenceScheduleType: ScheduleType.Consultation,
-        },
+        params: { referenceScheduleType: ScheduleType.Consultation },
       },
     ];
   }
@@ -447,132 +414,56 @@ export class ProdoctorEntitiesService {
   }
 
   /**
-   * Lista entidades válidas da API
+   * Lista entidades válidas para o bot (chamado pelo prodoctor.service)
+   */
+  public async listValidEntities(
+    integration: IntegrationDocument,
+    filters: CorrelationFilter,
+    targetEntity: EntityType,
+    cache?: boolean,
+    patient?: InitialPatient,
+  ): Promise<EntityDocument[]> {
+    try {
+      const allEntities = await this.extractEntity(integration, targetEntity, filters, cache, patient?.bornDate);
+      const codes = allEntities?.map((entity) => entity.code);
+
+      const customFilters: FilterQuery<EntityDocument> = {};
+
+      if (
+        [EntityType.insurancePlan, EntityType.planCategory, EntityType.insuranceSubPlan].includes(targetEntity) &&
+        filters?.insurance
+      ) {
+        customFilters.insuranceCode = filters.insurance.code;
+      }
+
+      const dbEntities = await this.entitiesService.getValidEntitiesbyCode(
+        integration._id,
+        codes,
+        targetEntity,
+        customFilters,
+      );
+
+      return dbEntities;
+    } catch (error) {
+      throw INTERNAL_ERROR_THROWER('ProdoctorEntitiesService.listValidEntities', error);
+    }
+  }
+
+  /**
+   * Lista entidades válidas da API (método legado)
    */
   public async listValidApiEntities(params: ListValidEntities): Promise<EntityDocument[]> {
-    const { integration, targetEntity, filters, cache, patient, fromImport } = params;
-
-    try {
-      switch (targetEntity) {
-        case EntityType.doctor:
-          return await this.getValidApiDoctors(integration, filters, cache, patient?.bornDate);
-
-        case EntityType.speciality:
-          return await this.getValidApiSpecialities(integration, filters, cache);
-
-        case EntityType.procedure:
-          return await this.getValidApiProcedures(integration, filters, cache);
-
-        case EntityType.insurance:
-          return await this.getValidApiInsurances(integration, cache);
-
-        case EntityType.insurancePlan:
-          return await this.getValidApiInsurancePlans(integration, filters, cache);
-
-        case EntityType.organizationUnit:
-          return await this.getValidApiOrganizationUnits(integration, cache);
-
-        case EntityType.appointmentType:
-          return await this.getValidApiAppointmentTypes(integration, cache);
-
-        default:
-          return await this.entitiesService.getValidEntities(targetEntity, integration._id);
-      }
-    } catch (error) {
-      throw INTERNAL_ERROR_THROWER('ProdoctorEntitiesService.listValidApiEntities', error);
-    }
+    const { integration, targetEntity, filters, cache, patient } = params;
+    return this.listValidEntities(integration, filters, targetEntity, cache, patient);
   }
 
-  private async getValidApiDoctors(
+  /**
+   * Busca múltiplas entidades por filtro
+   */
+  public async getMultipleEntitiesByFilter(
     integration: IntegrationDocument,
-    filters: CorrelationFilter,
-    cache?: boolean,
-    patientBornDate?: string,
-  ): Promise<EntityDocument[]> {
-    try {
-      const entities = await this.extractEntity(integration, EntityType.doctor, filters, cache, patientBornDate);
-      const codes = entities?.map((doctor) => doctor.code);
-      return await this.entitiesService.getValidEntitiesbyCode(integration._id, codes, EntityType.doctor);
-    } catch (error) {
-      throw INTERNAL_ERROR_THROWER('ProdoctorEntitiesService.getValidApiDoctors', error);
-    }
-  }
-
-  private async getValidApiSpecialities(
-    integration: IntegrationDocument,
-    filters: CorrelationFilter,
-    cache?: boolean,
-  ): Promise<EntityDocument[]> {
-    try {
-      const entities = await this.extractEntity(integration, EntityType.speciality, filters, cache);
-      const codes = entities?.map((speciality) => speciality.code);
-      return await this.entitiesService.getValidEntitiesbyCode(integration._id, codes, EntityType.speciality);
-    } catch (error) {
-      throw INTERNAL_ERROR_THROWER('ProdoctorEntitiesService.getValidApiSpecialities', error);
-    }
-  }
-
-  private async getValidApiProcedures(
-    integration: IntegrationDocument,
-    filters: CorrelationFilter,
-    cache?: boolean,
-  ): Promise<EntityDocument[]> {
-    try {
-      const entities = await this.extractEntity(integration, EntityType.procedure, filters, cache);
-      const codes = entities?.map((procedure) => procedure.code);
-      return await this.entitiesService.getValidEntitiesbyCode(integration._id, codes, EntityType.procedure);
-    } catch (error) {
-      throw INTERNAL_ERROR_THROWER('ProdoctorEntitiesService.getValidApiProcedures', error);
-    }
-  }
-
-  private async getValidApiInsurances(integration: IntegrationDocument, cache?: boolean): Promise<EntityDocument[]> {
-    try {
-      const entities = await this.extractEntity(integration, EntityType.insurance, {}, cache);
-      const codes = entities?.map((insurance) => insurance.code);
-      return await this.entitiesService.getValidEntitiesbyCode(integration._id, codes, EntityType.insurance);
-    } catch (error) {
-      throw INTERNAL_ERROR_THROWER('ProdoctorEntitiesService.getValidApiInsurances', error);
-    }
-  }
-
-  private async getValidApiInsurancePlans(
-    integration: IntegrationDocument,
-    filters: CorrelationFilter,
-    cache?: boolean,
-  ): Promise<EntityDocument[]> {
-    try {
-      const entities = await this.extractEntity(integration, EntityType.insurancePlan, filters, cache);
-      const codes = entities?.map((plan) => plan.code);
-      return await this.entitiesService.getValidEntitiesbyCode(integration._id, codes, EntityType.insurancePlan);
-    } catch (error) {
-      throw INTERNAL_ERROR_THROWER('ProdoctorEntitiesService.getValidApiInsurancePlans', error);
-    }
-  }
-
-  private async getValidApiOrganizationUnits(
-    integration: IntegrationDocument,
-    cache?: boolean,
-  ): Promise<EntityDocument[]> {
-    try {
-      const entities = await this.extractEntity(integration, EntityType.organizationUnit, {}, cache);
-      const codes = entities?.map((unit) => unit.code);
-      return await this.entitiesService.getValidEntitiesbyCode(integration._id, codes, EntityType.organizationUnit);
-    } catch (error) {
-      throw INTERNAL_ERROR_THROWER('ProdoctorEntitiesService.getValidApiOrganizationUnits', error);
-    }
-  }
-
-  private async getValidApiAppointmentTypes(
-    integration: IntegrationDocument,
-    cache?: boolean,
-  ): Promise<EntityDocument[]> {
-    try {
-      const entities = await this.extractEntity(integration, EntityType.appointmentType, {}, cache);
-      const codes = entities?.map((type) => type.code);
-      return await this.entitiesService.getValidEntitiesbyCode(integration._id, codes, EntityType.appointmentType);
-    } catch (error) {
-      throw INTERNAL_ERROR_THROWER('ProdoctorEntitiesService.getValidApiAppointmentTypes', error);
-    }
+    filter: { [key: string]: string },
+  ): Promise<CorrelationFilter> {
+    return await this.entitiesService.createCorrelationFilterData(filter, 'code', integration._id);
   }
 }

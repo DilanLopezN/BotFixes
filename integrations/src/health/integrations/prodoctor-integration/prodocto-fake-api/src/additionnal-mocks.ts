@@ -11,7 +11,7 @@ export const mockPatients = [
     codigo: 101,
     nome: 'Maria de Souza Santos',
     dataNascimento: '10/08/1991',
-    cpf: '12345678900',
+    cpf: '52033709825',
     nomeCivil: 'Maria de Souza Santos',
     telefone1: {
       tipoTelefone: { codigo: 3, descricao: 'Celular' },
@@ -89,6 +89,14 @@ const mockDoctors = [
     crm: '345678-MG',
     ativo: true,
     especialidade: { codigo: 6, nome: 'Pediatria' },
+  },
+  {
+    codigo: 104,
+    nome: 'Dra. Dilan Lopez',
+    cpf: '44444444444',
+    crm: '345678-MG',
+    ativo: true,
+    especialidade: { codigo: 7, nome: 'Tester' },
   },
 ];
 
@@ -502,17 +510,17 @@ export const additionalRealisticMocks: Record<string, MockFn> = {
     let filteredSlots = slots;
     if (turnos?.manha) {
       filteredSlots = slots.filter((s) => {
-        const hour = parseInt(s.dataHora.split(' ')[1].split(':')[0]);
+        const hour = parseInt(s.hora.split(':')[0]);
         return hour < 12;
       });
     } else if (turnos?.tarde) {
       filteredSlots = slots.filter((s) => {
-        const hour = parseInt(s.dataHora.split(' ')[1].split(':')[0]);
+        const hour = parseInt(s.hora.split(':')[0]);
         return hour >= 12 && hour < 18;
       });
     } else if (turnos?.noite) {
       filteredSlots = slots.filter((s) => {
-        const hour = parseInt(s.dataHora.split(' ')[1].split(':')[0]);
+        const hour = parseInt(s.hora.split(':')[0]);
         return hour >= 18;
       });
     }
@@ -525,7 +533,6 @@ export const additionalRealisticMocks: Record<string, MockFn> = {
       },
     };
   },
-
   /* -------------------------------------------------------------------------- */
   /*                    BUSCAR AGENDAMENTOS POR STATUS                          */
   /* -------------------------------------------------------------------------- */
@@ -627,9 +634,8 @@ export const additionalRealisticMocks: Record<string, MockFn> = {
   /* -------------------------------------------------------------------------- */
 
   'POST /api/v1/Pacientes': (req) => {
-    const { quantidade, nome, codigo } = (req.body || {}) as any;
+    const { quantidade, nome, codigo, termo } = (req.body || {}) as any;
 
-    let termo = '12345678900';
     const patients = [];
 
     if (termo) {

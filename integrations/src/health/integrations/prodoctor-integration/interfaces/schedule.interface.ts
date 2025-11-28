@@ -433,10 +433,15 @@ export interface DayScheduleViewModel {
 export interface AvailableTimeViewModel {
   data?: string;
   hora?: string;
-  duracao?: number;
+  diaSemana?: string;
   usuario?: {
+    cpf: string;
     codigo?: number;
     nome?: string;
+    especialidade?: {
+      codigo?: number;
+      nome: string;
+    };
   };
   localProDoctor?: {
     codigo?: number;

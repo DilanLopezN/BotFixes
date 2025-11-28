@@ -170,7 +170,7 @@ export class ProdoctorService implements IIntegratorService {
     updatePatient: UpdatePatient,
   ): Promise<Patient> {
     try {
-      const request = this.prodoctorHelpersService.buildPatientUpdateRequest(patientCode, updatePatient.patient);
+      const request = this.prodoctorHelpersService.buildUpdatePatientRequest(patientCode, updatePatient.patient);
       const response = await this.prodoctorApiService.updatePatient(integration, request);
 
       if (!response?.sucesso || !response?.payload?.paciente) {
@@ -410,17 +410,18 @@ export class ProdoctorService implements IIntegratorService {
     }
   }
 
+  // CORREÇÃO 1: Tornar data e hora opcionais para compatibilidade com InsertedAppointmentViewModel
   private buildAppointmentCode(agendamento: {
-    localProDoctor?: { codigo: number };
-    usuario?: { codigo: number };
-    data: string;
-    hora: string;
+    localProDoctor?: { codigo?: number };
+    usuario?: { codigo?: number };
+    data?: string;
+    hora?: string;
   }): string {
     const parts = [
       agendamento.localProDoctor?.codigo || 0,
       agendamento.usuario?.codigo || 0,
-      agendamento.data?.replace(/\//g, ''),
-      agendamento.hora?.replace(':', ''),
+      agendamento.data?.replace(/\//g, '') || '',
+      agendamento.hora?.replace(':', '') || '',
     ];
     return parts.join('-');
   }
@@ -641,14 +642,21 @@ export class ProdoctorService implements IIntegratorService {
     targetEntity: EntityType,
     cache?: boolean,
     patient?: InitialPatient,
+    dateLimit?: number,
   ): Promise<EntityDocument[]> {
-    return await this.prodoctorEntitiesService.listValidEntities(integration, rawFilter, targetEntity, cache, patient);
+    return await this.prodoctorEntitiesService.listValidApiEntities({
+      integration,
+      targetEntity,
+      filters: rawFilter,
+      cache,
+      patient,
+    });
   }
 
   async getMultipleEntitiesByFilter(
     integration: IntegrationDocument,
     filter: CorrelationFilterByKey,
   ): Promise<CorrelationFilter> {
-    return await this.prodoctorEntitiesService.getMultipleEntitiesByFilter(integration, filter);
+    return await this.entitiesService.createCorrelationFilterData(filter, 'code', integration._id);
   }
 }

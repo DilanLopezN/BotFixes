@@ -51,9 +51,8 @@ export interface PhoneRequest {
  * Aligned with TelefoneViewModel from swagger
  */
 export interface PhoneViewModel {
-  ddd?: string;
   numero?: string;
-  tipo?: {
+  tipoTelefone?: {
     codigo?: number;
     descricao?: string;
   };
