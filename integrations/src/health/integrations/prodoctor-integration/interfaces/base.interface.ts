@@ -41,7 +41,7 @@ interface LocalProdoctorBasicoViewModel {
   estadoRegistro?: number;
 }
 
-interface PDResponseLocalProdoctorBasicoViewModel {
+interface ProdoctorResponseLocationsBasicViewModel {
   payload: {
     locaisProDoctor: LocalProdoctorBasicoViewModel[];
   };
@@ -49,7 +49,7 @@ interface PDResponseLocalProdoctorBasicoViewModel {
   mensagens: string[];
 }
 
-interface LocalProdoctorListarRequest {
+interface LocationsProdoctorListRequest {
   termo?: string;
   campo?: number; // 0: Nome, 1: CPF/CNPJ
   pagina?: number;
@@ -106,7 +106,7 @@ interface UsuarioViewModel extends BasicUsuarioComEspecialidadeViewModel {
   endereco?: any;
 }
 
-interface PDResponseBasicUsuarioViewModel {
+interface ProdoctorResponseBasicUserViewModel {
   payload: {
     usuarios: BasicUsuarioViewModel[];
   };
@@ -114,7 +114,7 @@ interface PDResponseBasicUsuarioViewModel {
   mensagens: string[];
 }
 
-interface PDResponseUsuarioComEspecialidadeViewModel {
+interface ProdoctorResponseUserWithSpecialityViewModel {
   payload: {
     usuarios: BasicUsuarioComEspecialidadeViewModel[];
   };
@@ -122,7 +122,7 @@ interface PDResponseUsuarioComEspecialidadeViewModel {
   mensagens: string[];
 }
 
-interface PDResponseUsuarioViewModel {
+interface ProdoctorResponseMedicalUserViewModel {
   payload: {
     usuario: UsuarioViewModel;
   };
@@ -130,7 +130,7 @@ interface PDResponseUsuarioViewModel {
   mensagens: string[];
 }
 
-interface UsuarioListarRequest {
+interface UserListRequest {
   termo?: string;
   pagina?: number;
   somenteAtivos?: boolean;
@@ -170,7 +170,7 @@ interface ConvenioViewModel extends ConvenioBasicViewModel {
   logotipo?: string;
 }
 
-interface PDResponseConvenioBasicViewModel {
+interface ProdoctorResponseInsurancesBasicViewModel {
   payload: {
     convenios: ConvenioBasicViewModel[];
   };
@@ -186,7 +186,7 @@ interface PDResponseConvenioViewModel {
   mensagens: string[];
 }
 
-interface ConvenioListarRequest {
+interface InsurancesListRequest {
   termo?: string;
   pagina?: number;
   somenteAtivos?: boolean;
@@ -222,7 +222,7 @@ interface ProcedimentoMedicoViewModel extends ProcedimentoBasicMedicoViewModel {
   grupoProcedimento?: any;
 }
 
-interface PDResponseProcedimentoBasicMedicoViewModel {
+interface ProdoctorResponseProceduresBasicMedicalViewModel {
   payload: {
     procedimentos: ProcedimentoBasicMedicoViewModel[];
   };
@@ -230,7 +230,7 @@ interface PDResponseProcedimentoBasicMedicoViewModel {
   mensagens: string[];
 }
 
-interface PDResponseProcedimentoMedicoViewModel {
+interface ProdoctorResponseProcedureMedicalViewModel {
   payload: {
     procedimentoMedico: ProcedimentoMedicoViewModel;
   };
@@ -238,7 +238,7 @@ interface PDResponseProcedimentoMedicoViewModel {
   mensagens: string[];
 }
 
-interface ProcedimentoListarRequest {
+interface ProceduresListRequest {
   termo?: string;
   campo?: number; // 0: Nome, 1: Código
   pagina?: number;
@@ -267,7 +267,7 @@ interface PDResponseTabelaProcedimentoViewModel {
   mensagens: string[];
 }
 
-interface TabelaProcedimentoListarRequest {
+interface TabelaProceduresListRequest {
   termo?: string;
   pagina?: number;
   somenteAtivos?: boolean;
@@ -284,33 +284,33 @@ export {
   PeriodoRequest,
   // Local ProDoctor (Unidade)
   LocalProdoctorBasicoViewModel,
-  PDResponseLocalProdoctorBasicoViewModel,
-  LocalProdoctorListarRequest,
+  ProdoctorResponseLocationsBasicViewModel,
+  LocationsProdoctorListRequest,
   // Usuário (Médico)
   EspecialidadeViewModel,
   DadosConselhoViewModel,
   BasicUsuarioViewModel,
   BasicUsuarioComEspecialidadeViewModel,
   UsuarioViewModel,
-  PDResponseBasicUsuarioViewModel,
-  PDResponseUsuarioComEspecialidadeViewModel,
-  PDResponseUsuarioViewModel,
-  UsuarioListarRequest,
+  ProdoctorResponseBasicUserViewModel,
+  ProdoctorResponseUserWithSpecialityViewModel,
+  ProdoctorResponseMedicalUserViewModel,
+  UserListRequest,
   // Convênio
   TabelaProcedimentoBasicViewModel,
   ConvenioBasicViewModel,
   ConvenioViewModel,
-  PDResponseConvenioBasicViewModel,
+  ProdoctorResponseInsurancesBasicViewModel,
   PDResponseConvenioViewModel,
-  ConvenioListarRequest,
+  InsurancesListRequest,
   // Procedimentos
   ProcedimentoBasicMedicoViewModel,
   ProcedimentoMedicoViewModel,
-  PDResponseProcedimentoBasicMedicoViewModel,
-  PDResponseProcedimentoMedicoViewModel,
-  ProcedimentoListarRequest,
+  ProdoctorResponseProceduresBasicMedicalViewModel,
+  ProdoctorResponseProcedureMedicalViewModel,
+  ProceduresListRequest,
   // Tabelas de Procedimentos
   TabelaProcedimentoViewModel,
   PDResponseTabelaProcedimentoViewModel,
-  TabelaProcedimentoListarRequest,
+  TabelaProceduresListRequest,
 };

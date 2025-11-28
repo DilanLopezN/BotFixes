@@ -4,6 +4,8 @@ import { INTERNAL_ERROR_THROWER } from '../../../../common/exceptions.service';
 import { castObjectId } from '../../../../common/helpers/cast-objectid';
 import { EntityDocument, ScheduleType } from '../../../entities/schema';
 import { EntitiesService } from '../../../entities/services/entities.service';
+import { getExpirationByEntity } from '../../../integration-cache-utils/cache-expirations';
+
 import { IntegrationDocument } from '../../../integration/schema/integration.schema';
 import { InitialPatient } from '../../../integrator/interfaces';
 import { CorrelationFilter } from '../../../interfaces/correlation-filter.interface';
@@ -20,9 +22,11 @@ import {
   ISpecialityEntity,
   SpecialityTypes,
 } from '../../../interfaces/entity.interface';
+import { IntegrationType } from '../../../interfaces/integration-types';
 import { ProdoctorApiService } from './prodoctor-api.service';
-import { IntegrationCacheUtilsService } from '../../../../health/integration-cache-utils/integration-cache-utils.service';
-import * as moment from 'moment';
+import { IntegrationCacheUtilsService } from 'health/integration-cache-utils/integration-cache-utils.service';
+import { EntityFiltersParams } from 'kissbot-health-core';
+import moment from 'moment';
 
 interface ListValidEntities {
   integration: IntegrationDocument;
@@ -147,6 +151,8 @@ export class ProdoctorEntitiesService {
         }
       }
 
+      let entities: EntityTypes[] = [];
+
       const getResource = () => {
         switch (entityType) {
           case EntityType.organizationUnit:
@@ -189,7 +195,7 @@ export class ProdoctorEntitiesService {
    */
   private async listOrganizationUnits(integration: IntegrationDocument): Promise<IOrganizationUnitEntity[]> {
     try {
-      const response = await this.prodoctorApiService.listLocaisProDoctor(integration, { quantidade: 5000 });
+      const response = await this.prodoctorApiService.getProdoctorLocations(integration, { quantidade: 5000 });
 
       if (!response?.sucesso || !response?.payload?.locaisProDoctor) {
         return [];
@@ -214,7 +220,7 @@ export class ProdoctorEntitiesService {
    */
   private async listInsurances(integration: IntegrationDocument): Promise<IInsuranceEntity[]> {
     try {
-      const response = await this.prodoctorApiService.listConvenios(integration, { quantidade: 5000 });
+      const response = await this.prodoctorApiService.getInsurances(integration, { quantidade: 5000 });
 
       if (!response?.sucesso || !response?.payload?.convenios) {
         return [];
@@ -247,7 +253,7 @@ export class ProdoctorEntitiesService {
         request.locaisProDoctor = [{ codigo: Number(filters.organizationUnit.code) }];
       }
 
-      const response = await this.prodoctorApiService.listUsuarios(integration, request);
+      const response = await this.prodoctorApiService.getMedicalUsers(integration, request);
 
       if (!response?.sucesso || !response?.payload?.usuarios) {
         return [];
@@ -281,15 +287,13 @@ export class ProdoctorEntitiesService {
     filters: CorrelationFilter,
   ): Promise<ISpecialityEntity[]> {
     try {
+      // 1. Lista todos os usuários
       const request: any = { quantidade: 5000 };
-
       if (filters?.organizationUnit?.code) {
         request.locaisProDoctor = [{ codigo: Number(filters.organizationUnit.code) }];
       }
 
-      const response = await this.prodoctorApiService.listUsuariosComEspecialidade(integration, request);
-
-      console.log('RESPONSE EXTRACT ESPECIALITS', response);
+      const response = await this.prodoctorApiService.getMedicalUsers(integration, request);
       if (!response?.sucesso || !response?.payload?.usuarios) {
         return [];
       }
@@ -297,19 +301,21 @@ export class ProdoctorEntitiesService {
       const defaultData = this.getDefaultErpEntityData(integration);
       const specialitiesMap = new Map<number, ISpecialityEntity>();
 
-      console.log('RESPONSE PAYLOAD', response.payload.usuarios);
-
+      // 2. Detalha cada usuário para pegar especialidade
       for (const usuario of response.payload.usuarios) {
-        console.log('USUARIO', usuario);
+        if (!usuario.ativo) continue;
 
-        if (usuario.especialidade) {
-          const especialidade = usuario.especialidade;
+        const detalhes = await this.prodoctorApiService.getDetailsMedicalUser(integration, usuario.codigo);
 
-          if (!specialitiesMap.has(especialidade.codigo)) {
-            specialitiesMap.set(especialidade.codigo, {
+        console.log('DETAILS', detalhes);
+        if (detalhes?.sucesso && detalhes?.payload?.usuario?.especialidade) {
+          const esp = detalhes.payload.usuario.especialidade;
+
+          if (!specialitiesMap.has(esp.codigo)) {
+            specialitiesMap.set(esp.codigo, {
               ...defaultData,
-              code: String(especialidade.codigo),
-              name: especialidade.nome,
+              code: String(esp.codigo),
+              name: esp.nome,
               canSchedule: true,
               specialityType: SpecialityTypes.C,
               canView: true,
@@ -318,10 +324,7 @@ export class ProdoctorEntitiesService {
         }
       }
 
-      const especialitys = Array.from(specialitiesMap.values());
-
-      console.log('ESP MAPEADAS', especialitys);
-      return especialitys;
+      return Array.from(specialitiesMap.values());
     } catch (error) {
       this.logger.error('ProdoctorEntitiesService.listSpecialities', error);
       return [];
@@ -347,7 +350,7 @@ export class ProdoctorEntitiesService {
         request.convenios = [{ codigo: Number(filters.insurance.code) }];
       }
 
-      const response = await this.prodoctorApiService.listProcedimentos(integration, request);
+      const response = await this.prodoctorApiService.getProcedures(integration, request);
 
       if (!response?.sucesso || !response?.payload?.procedimentos) {
         return [];

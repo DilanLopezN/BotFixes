@@ -12,7 +12,7 @@ import { ProdoctorApiService } from './services/prodoctor-api.service';
 import { ProdoctorHelpersService } from './services/prodoctor-helpers.service';
 import { ProdoctorEntitiesService } from './services/prodoctor-entities.service';
 import { ProdoctorService } from './services/prodoctor.service';
-import { AppointmentModule } from '../../../health/analytics/appointment/appointment.module';
+import { AppointmentModule } from 'health/analytics/appointment/appointment.module';
 
 @Module({
   imports: [

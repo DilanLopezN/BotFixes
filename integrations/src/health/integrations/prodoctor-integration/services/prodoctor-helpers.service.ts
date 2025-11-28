@@ -25,7 +25,7 @@ export class ProdoctorHelpersService {
   /**
    * Transforma paciente do ProDoctor para formato padrão
    */
-  transformPatient(paciente: PacienteViewModel): Patient {
+  transformProdoctorPatientToDefaultBotPatient(paciente: PacienteViewModel): Patient {
     const phone = this.extractPhone(paciente);
     const cellPhone = this.extractCellPhone(paciente);
 
@@ -79,11 +79,12 @@ export class ProdoctorHelpersService {
 
     const parsed = moment(dateString, this.dateFormat, true);
     if (parsed.isValid()) {
-      return parsed.format('YYYY-MM-DD'); // Alterado de toISOString()
+      return parsed.toISOString();
     }
 
     return undefined;
   }
+
   /**
    * Mapeia código de sexo para string
    */
@@ -211,12 +212,11 @@ export class ProdoctorHelpersService {
     doctor: EntityDocument,
     filter: CorrelationFilter,
   ): RawAppointment {
-    const appointmentDate = moment(`${horario.data} ${horario.hora}`, this.dateTimeFormat);
-    const appointmentDateISO = appointmentDate.toISOString();
+    const appointmentDate = moment(horario.data, this.dateTimeFormat);
 
     return {
-      appointmentCode: appointmentDateISO,
-      appointmentDate: appointmentDateISO,
+      appointmentCode: null,
+      appointmentDate: appointmentDate.toISOString(),
       status: AppointmentStatus.scheduled,
       doctorId: doctor.code,
       doctorDefault: {
@@ -248,7 +248,6 @@ export class ProdoctorHelpersService {
             code: filter.procedure.code,
           }
         : undefined,
-
       specialityId: filter.speciality?.code,
       specialityDefault: filter.speciality
         ? {
@@ -257,11 +256,11 @@ export class ProdoctorHelpersService {
             code: filter.speciality.code,
           }
         : undefined,
-
-      appointmentTypeId: filter.appointmentType?.code,
-      duration: '0',
+      appointmentTypeId: filter.appointmentType?.code || 'consulta',
+      duration: String(horario.duracao || 0),
     };
   }
+
   /**
    * Constrói request para criar paciente
    */
@@ -300,7 +299,7 @@ export class ProdoctorHelpersService {
   /**
    * Constrói TipoAgendamentoRequest baseado no código
    */
-  buildTipoAgendamentoRequest(code: string): TipoAgendamentoRequest {
+  buildTypeScheduleRequest(code: string): TipoAgendamentoRequest {
     const tipoAgendamento: TipoAgendamentoRequest = {};
 
     switch (code) {
@@ -332,7 +331,7 @@ export class ProdoctorHelpersService {
   /**
    * Constrói TurnosRequest baseado no período
    */
-  buildTurnosFromPeriod(start: string, end: string): TurnosRequest {
+  buildShiftsFromPeriod(start: string, end: string): TurnosRequest {
     const turnos: TurnosRequest = {};
     const startHour = parseInt(start.split(':')[0], 10);
     const endHour = parseInt(end.split(':')[0], 10);

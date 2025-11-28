@@ -139,16 +139,15 @@ describe('ProdoctorApiService', () => {
 
         jest.spyOn(httpService, 'post').mockReturnValue(of(mockResponse as AxiosResponse));
 
-        const result = await service.searchPatient(mockIntegration as IntegrationDocument, {
-          cpf: '12345678900',
+        const result = await service.getPatient(mockIntegration as IntegrationDocument, {
+          termo: '12345678900',
+          campo: 1,
         });
 
-        console.log('RESULLT FROM TST', result);
-
         expect(result.sucesso).toBe(true);
-        expect(result.payload.paciente.cpf).toBe('12345678900');
+        expect(result.payload.pacientes[0].cpf).toBe('12345678900');
         expect(httpService.post).toHaveBeenCalledWith(
-          'http://172.17.0.1:7575/api/v1/Pacientes',
+          'http://localhost:7575/api/v1/Pacientes',
           { cpf: '12345678900' },
           expect.any(Object),
         );
@@ -161,7 +160,7 @@ describe('ProdoctorApiService', () => {
 
         jest.spyOn(httpService, 'post').mockReturnValue(of(mockResponse as AxiosResponse));
 
-        await service.searchPatient(mockIntegration as IntegrationDocument, { cpf: '123' });
+        await service.getPatient(mockIntegration as IntegrationDocument, { termo: '123', campo: 1 });
 
         expect(auditService.sendAuditEvent).toHaveBeenCalledTimes(2);
         expect(auditService.sendAuditEvent).toHaveBeenCalledWith(
@@ -201,7 +200,7 @@ describe('ProdoctorApiService', () => {
         expect(result.sucesso).toBe(true);
         expect(result.payload.paciente.codigo).toBe(101);
         expect(httpService.get).toHaveBeenCalledWith(
-          'http://172.17.0.1:7575/api/v1/Pacientes/Detalhar/101',
+          'http://localhost:7575/api/v1/Pacientes/Detalhar/101',
           expect.any(Object),
         );
       });
@@ -239,10 +238,13 @@ describe('ProdoctorApiService', () => {
 
         jest.spyOn(httpService, 'post').mockReturnValue(of(mockResponse as AxiosResponse));
 
-        const result = await service.getPatientByCpf(mockIntegration as IntegrationDocument, '12345678900');
+        const result = await service.getPatient(mockIntegration as IntegrationDocument, {
+          campo: 1,
+          termo: '12345678900',
+        });
 
         expect(result.sucesso).toBe(true);
-        expect(result.payload?.paciente.cpf).toBe('12345678900');
+        expect(result.payload.pacientes[0].cpf).toBe('12345678900');
       });
     });
 
@@ -277,7 +279,7 @@ describe('ProdoctorApiService', () => {
         expect(result.sucesso).toBe(true);
         expect(result.payload.paciente.codigo).toBe(102);
         expect(httpService.post).toHaveBeenCalledWith(
-          'http://172.17.0.1:7575/api/v1/Pacientes/Inserir',
+          'http://localhost:7575/api/v1/Pacientes/Inserir',
           request,
           expect.any(Object),
         );
@@ -358,7 +360,7 @@ describe('ProdoctorApiService', () => {
 
         jest.spyOn(httpService, 'post').mockReturnValue(of(mockResponse as AxiosResponse));
 
-        const result = await service.listPacientes(mockIntegration as IntegrationDocument, {
+        const result = await service.listPatients(mockIntegration as IntegrationDocument, {
           quantidade: 10,
         });
 
@@ -370,7 +372,7 @@ describe('ProdoctorApiService', () => {
 
   // ========== USUÁRIOS (MÉDICOS) ==========
   describe('User/Doctor Operations', () => {
-    describe('listUsuarios', () => {
+    describe('getMedicalUsers', () => {
       it('deve listar usuários', async () => {
         const mockResponse = {
           data: {
@@ -386,7 +388,7 @@ describe('ProdoctorApiService', () => {
 
         jest.spyOn(httpService, 'post').mockReturnValue(of(mockResponse as AxiosResponse));
 
-        const result = await service.listUsuarios(mockIntegration as IntegrationDocument, {
+        const result = await service.getMedicalUsers(mockIntegration as IntegrationDocument, {
           quantidade: 100,
         });
 
@@ -395,7 +397,7 @@ describe('ProdoctorApiService', () => {
       });
     });
 
-    describe('listUsuariosComEspecialidade', () => {
+    describe('getMedicalUsersComEspecialidade', () => {
       it('deve listar usuários com especialidades', async () => {
         const mockResponse = {
           data: {
@@ -417,12 +419,12 @@ describe('ProdoctorApiService', () => {
 
         jest.spyOn(httpService, 'post').mockReturnValue(of(mockResponse as AxiosResponse));
 
-        const result = await service.listUsuariosComEspecialidade(mockIntegration as IntegrationDocument, {
+        const result = await service.getMedicalUsersWithSpeciality(mockIntegration as IntegrationDocument, {
           quantidade: 100,
         });
 
         expect(result.sucesso).toBe(true);
-        expect(result.payload.usuarios[0]?.especialidades).toHaveLength(2);
+        expect(result.payload.usuarios[0].especialidades).toHaveLength(2);
       });
     });
 
@@ -444,7 +446,7 @@ describe('ProdoctorApiService', () => {
 
         jest.spyOn(httpService, 'get').mockReturnValue(of(mockResponse as AxiosResponse));
 
-        const result = await service.detalharUsuario(mockIntegration as IntegrationDocument, 100);
+        const result = await service.getDetailsMedicalUser(mockIntegration as IntegrationDocument, 100);
 
         expect(result.sucesso).toBe(true);
         expect(result.payload.usuario.crm).toBe('123456');
@@ -656,7 +658,7 @@ describe('ProdoctorApiService', () => {
 
         jest.spyOn(httpService, 'post').mockReturnValue(of(mockResponse as AxiosResponse));
 
-        const result = await service.buscarHorariosLivres(mockIntegration as IntegrationDocument, {
+        const result = await service.getAvailableScheduleTimes(mockIntegration as IntegrationDocument, {
           usuario: { codigo: 100 },
           periodo: { dataInicial: '25/11/2025', dataFinal: '30/11/2025' },
         });
@@ -738,7 +740,7 @@ describe('ProdoctorApiService', () => {
 
         jest.spyOn(httpService, 'post').mockReturnValue(of(mockResponse as AxiosResponse));
 
-        const result = await service.listConvenios(mockIntegration as IntegrationDocument, {
+        const result = await service.getInsurances(mockIntegration as IntegrationDocument, {
           quantidade: 100,
         });
 
@@ -765,7 +767,7 @@ describe('ProdoctorApiService', () => {
 
         jest.spyOn(httpService, 'get').mockReturnValue(of(mockResponse as AxiosResponse));
 
-        const result = await service.detalharConvenio(mockIntegration as IntegrationDocument, 501);
+        const result = await service.getDetailInsurances(mockIntegration as IntegrationDocument, 501);
 
         expect(result.sucesso).toBe(true);
         expect(result.payload.convenio.codigo).toBe(501);
@@ -794,7 +796,7 @@ describe('ProdoctorApiService', () => {
 
         jest.spyOn(httpService, 'post').mockReturnValue(of(mockResponse as AxiosResponse));
 
-        const result = await service.listLocaisProDoctor(mockIntegration as IntegrationDocument, {
+        const result = await service.getProdoctorLocations(mockIntegration as IntegrationDocument, {
           quantidade: 100,
         });
 
@@ -822,7 +824,7 @@ describe('ProdoctorApiService', () => {
 
         jest.spyOn(httpService, 'post').mockReturnValue(of(mockResponse as AxiosResponse));
 
-        const result = await service.listProcedimentos(mockIntegration as IntegrationDocument, {
+        const result = await service.getProcedures(mockIntegration as IntegrationDocument, {
           quantidade: 100,
         });
 
@@ -841,7 +843,7 @@ describe('ProdoctorApiService', () => {
       const mockResponse = { data: { sucesso: true, payload: {} } };
       jest.spyOn(httpService, 'post').mockReturnValue(of(mockResponse as AxiosResponse));
 
-      await service.listUsuarios(debugIntegration as IntegrationDocument, { quantidade: 10 });
+      await service.getMedicalUsers(debugIntegration as IntegrationDocument, { quantidade: 10 });
 
       expect(logSpy).not.toHaveBeenCalled();
     });
@@ -853,7 +855,7 @@ describe('ProdoctorApiService', () => {
       const mockResponse = { data: { sucesso: true, payload: {} } };
       jest.spyOn(httpService, 'post').mockReturnValue(of(mockResponse as AxiosResponse));
 
-      await service.listUsuarios(debugIntegration as IntegrationDocument, { quantidade: 10 });
+      await service.getMedicalUsers(debugIntegration as IntegrationDocument, { quantidade: 10 });
 
       expect(logSpy).toHaveBeenCalled();
     });
@@ -866,7 +868,9 @@ describe('ProdoctorApiService', () => {
         throw new Error('Network error');
       });
 
-      await expect(service.searchPatient(mockIntegration as IntegrationDocument, { cpf: '123' })).rejects.toThrow();
+      await expect(
+        service.getPatient(mockIntegration as IntegrationDocument, { termo: '123', campo: 1 }),
+      ).rejects.toThrow();
     });
 
     it('deve enviar audit event de erro', async () => {
@@ -882,7 +886,7 @@ describe('ProdoctorApiService', () => {
       });
 
       try {
-        await service.searchPatient(mockIntegration as IntegrationDocument, { cpf: '123' });
+        await service.getPatient(mockIntegration as IntegrationDocument, { termo: '123', campo: 1 });
       } catch {
         // Expected
       }
@@ -901,7 +905,9 @@ describe('ProdoctorApiService', () => {
         apiPassword: null,
       });
 
-      await expect(service.listUsuarios(mockIntegration as IntegrationDocument, { quantidade: 10 })).rejects.toThrow();
+      await expect(
+        service.getMedicalUsers(mockIntegration as IntegrationDocument, { quantidade: 10 }),
+      ).rejects.toThrow();
     });
   });
 });

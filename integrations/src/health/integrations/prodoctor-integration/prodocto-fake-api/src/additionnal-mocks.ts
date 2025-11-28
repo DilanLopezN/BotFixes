@@ -1,44 +1,56 @@
 import { Request } from 'express';
-import { inMemoryAppointments, generateAppointmentKey, generateAppointmentCode } from './db-mocks';
+import { generateAppointmentKey, inMemoryAppointments } from './db-mocks';
 
 type MockFn = (req: Request) => any;
 
 /**
- * Dados mock para pacientes
+ * Dados mock realistas para pacientes
  */
-const mockPatients = [
+export const mockPatients = [
   {
     codigo: 101,
-    nome: 'Maria de Souza',
-    cpf: '12345678900',
+    nome: 'Maria de Souza Santos',
     dataNascimento: '10/08/1991',
-    nascimento: '1991-08-10',
-    sexo: { codigo: 2, nome: 'Feminino' },
-    email: 'maria.souza@example.com',
-    telefone: { ddd: '11', numero: '999990001', tipo: { codigo: 3, nome: 'Celular' } },
-    telefones: [{ tipo: 'Celular', numero: '(11) 99999-0001' }],
+    cpf: '12345678900',
+    nomeCivil: 'Maria de Souza Santos',
+    telefone1: {
+      tipoTelefone: { codigo: 3, descricao: 'Celular' },
+      numero: '11999990001',
+    },
+    telefone2: {
+      tipoTelefone: { codigo: 1, descricao: 'Residencial' },
+      numero: '1132145678',
+    },
+    telefone3: null,
+    telefone4: null,
   },
   {
     codigo: 102,
-    nome: 'Carlos Pereira',
-    cpf: '98765432100',
+    nome: 'Carlos Pereira Lima',
     dataNascimento: '22/04/1985',
-    nascimento: '1985-04-22',
-    sexo: { codigo: 1, nome: 'Masculino' },
-    email: 'carlos.pereira@example.com',
-    telefone: { ddd: '11', numero: '999990002', tipo: { codigo: 3, nome: 'Celular' } },
-    telefones: [{ tipo: 'Celular', numero: '(11) 99999-0002' }],
+    cpf: '98765432100',
+    nomeCivil: 'Carlos Pereira Lima',
+    telefone1: {
+      tipoTelefone: { codigo: 3, descricao: 'Celular' },
+      numero: '21988887777',
+    },
+    telefone2: null,
+    telefone3: null,
+    telefone4: null,
   },
   {
     codigo: 103,
-    nome: 'Ana Santos',
+    nome: 'Ana Paula Oliveira',
+    dataNascimento: '15/12/1978',
     cpf: '11122233344',
-    dataNascimento: '15/03/1990',
-    nascimento: '1990-03-15',
-    sexo: { codigo: 2, nome: 'Feminino' },
-    email: 'ana.santos@example.com',
-    telefone: { ddd: '21', numero: '988887777', tipo: { codigo: 3, nome: 'Celular' } },
-    telefones: [{ tipo: 'Celular', numero: '(21) 98888-7777' }],
+    nomeCivil: 'Ana Paula Oliveira',
+    telefone1: {
+      tipoTelefone: { codigo: 3, descricao: 'Celular' },
+      numero: '31977776666',
+    },
+    telefone2: null,
+    telefone3: null,
+    telefone4: null,
   },
 ];
 
@@ -49,34 +61,34 @@ const mockDoctors = [
   {
     codigo: 100,
     nome: 'Dr. João da Silva',
-    especialidade: { codigo: 1, nome: 'Clínica Geral' },
-    conselho: 'CRM',
-    numeroConselho: '12345-SP',
+    cpf: '11111111111',
+    crm: '123456-SP',
     ativo: true,
+    especialidade: { codigo: 1, nome: 'Cardiologia' },
   },
   {
     codigo: 101,
-    nome: 'Dra. Ana Paula',
-    especialidade: { codigo: 2, nome: 'Cardiologia' },
-    conselho: 'CRM',
-    numeroConselho: '54321-SP',
+    nome: 'Dra. Ana Carolina Santos',
+    cpf: '22222222222',
+    crm: '654321-SP',
     ativo: true,
+    especialidade: { codigo: 3, nome: 'Dermatologia' },
   },
   {
     codigo: 102,
-    nome: 'Dr. Pedro Santos',
-    especialidade: { codigo: 3, nome: 'Ortopedia' },
-    conselho: 'CRM',
-    numeroConselho: '67890-SP',
+    nome: 'Dr. Roberto Mendes',
+    cpf: '33333333333',
+    crm: '789012-RJ',
     ativo: true,
+    especialidade: { codigo: 4, nome: 'Ortopedia' },
   },
   {
     codigo: 103,
-    nome: 'Dra. Carla Lima',
-    especialidade: { codigo: 4, nome: 'Dermatologia' },
-    conselho: 'CRM',
-    numeroConselho: '11111-SP',
+    nome: 'Dra. Fernanda Costa',
+    cpf: '44444444444',
+    crm: '345678-MG',
     ativo: true,
+    especialidade: { codigo: 6, nome: 'Pediatria' },
   },
 ];
 
@@ -84,22 +96,74 @@ const mockDoctors = [
  * Dados mock para convênios
  */
 const mockInsurances = [
-  { codigo: 501, nome: 'Unimed', ativo: true },
-  { codigo: 502, nome: 'Bradesco Saúde', ativo: true },
-  { codigo: 503, nome: 'SulAmérica', ativo: true },
-  { codigo: 504, nome: 'Amil', ativo: true },
-  { codigo: 505, nome: 'Particular', ativo: true },
+  {
+    codigo: 501,
+    nome: 'Unimed',
+    ativo: true,
+    planos: [
+      { codigo: 1, nome: 'Nacional' },
+      { codigo: 2, nome: 'Estadual' },
+    ],
+  },
+  {
+    codigo: 502,
+    nome: 'Bradesco Saúde',
+    ativo: true,
+    planos: [
+      { codigo: 3, nome: 'Top Nacional' },
+      { codigo: 4, nome: 'Efetivo' },
+    ],
+  },
+  {
+    codigo: 503,
+    nome: 'SulAmérica',
+    ativo: true,
+    planos: [{ codigo: 5, nome: 'Especial' }],
+  },
+  {
+    codigo: 504,
+    nome: 'Amil',
+    ativo: true,
+    planos: [
+      { codigo: 6, nome: 'S750' },
+      { codigo: 7, nome: 'S450' },
+    ],
+  },
+  {
+    codigo: 505,
+    nome: 'Particular',
+    ativo: true,
+    planos: [],
+  },
 ];
 
 /**
- * Dados mock para unidades/locais
+ * Dados mock para locais ProDoctor (unidades)
  */
 const mockOrganizationUnits = [
-  { codigo: 1, nome: 'Clínica Central', ativo: true },
-  { codigo: 2, nome: 'Clínica Unidade 2', ativo: true },
-  { codigo: 3, nome: 'Hospital São Paulo', ativo: true },
+  {
+    codigo: 1,
+    nome: 'Clínica Central',
+    endereco: 'Av. Paulista, 1000 - São Paulo/SP',
+    telefone: '(11) 3000-0001',
+  },
+  {
+    codigo: 2,
+    nome: 'Filial Sul',
+    endereco: 'Rua das Palmeiras, 500 - Porto Alegre/RS',
+    telefone: '(51) 3000-0002',
+  },
+  {
+    codigo: 3,
+    nome: 'Unidade Norte',
+    endereco: 'Av. das Américas, 2000 - Manaus/AM',
+    telefone: '(92) 3000-0003',
+  },
 ];
 
+/**
+ * Dados mock para procedimentos
+ */
 const mockProcedures = [
   {
     codigo: '10101012',
@@ -137,12 +201,12 @@ const mockProcedures = [
  * Dados mock para especialidades
  */
 const mockSpecialities = [
-  { codigo: 1, nome: 'Clínica Geral' },
-  { codigo: 2, nome: 'Cardiologia' },
-  { codigo: 3, nome: 'Ortopedia' },
-  { codigo: 4, nome: 'Dermatologia' },
-  { codigo: 5, nome: 'Pediatria' },
-  { codigo: 6, nome: 'Psiquiatria' },
+  { codigo: 1, nome: 'Cardiologia' },
+  { codigo: 2, nome: 'Clínica Geral' },
+  { codigo: 3, nome: 'Dermatologia' },
+  { codigo: 4, nome: 'Ortopedia' },
+  { codigo: 5, nome: 'Traumatologia' },
+  { codigo: 6, nome: 'Pediatria' },
   { codigo: 7, nome: 'Ginecologia' },
   { codigo: 8, nome: 'Oftalmologia' },
   { codigo: 9, nome: 'Neurologia' },
@@ -150,7 +214,7 @@ const mockSpecialities = [
 ];
 
 /**
- * Dados mock para agendamentos (estáticos)
+ * Dados mock para agendamentos
  */
 const mockAppointments = [
   {
@@ -163,7 +227,7 @@ const mockAppointments = [
     localProDoctor: mockOrganizationUnits[0],
     convenio: mockInsurances[0],
     procedimentoMedico: mockProcedures[0],
-    estadoAgendaConsulta: { codigo: 1, descricao: 'Agendado', agendado: true },
+    estadoAgendaConsulta: { codigo: 1, descricao: 'Agendado' },
     tipoAgendamento: { consulta: true },
     complemento: 'Primeira consulta',
   },
@@ -191,7 +255,7 @@ const mockAppointments = [
     localProDoctor: mockOrganizationUnits[0],
     convenio: mockInsurances[2],
     procedimentoMedico: mockProcedures[0],
-    estadoAgendaConsulta: { codigo: 1, descricao: 'Agendado', agendado: true },
+    estadoAgendaConsulta: { codigo: 1, descricao: 'Agendado' },
     tipoAgendamento: { consulta: true },
     complemento: '',
   },
@@ -250,88 +314,176 @@ const generateAvailableSlots = (date: string, usuario: any, localProDoctor: any)
 };
 
 /**
- * Mocks adicionais realistas para a API ProDoctor
+ * Mocks realistas adicionais para a API ProDoctor
  */
 export const additionalRealisticMocks: Record<string, MockFn> = {
   /* -------------------------------------------------------------------------- */
-  /*                    BUSCAR HORÁRIOS DISPONÍVEIS                             */
+  /*                              USUÁRIOS/MÉDICOS                              */
   /* -------------------------------------------------------------------------- */
 
-  'POST /api/v1/Agenda/BuscarHorariosDisponiveis': (req) => {
-    const { dataInicio, dataFim, usuario, localProDoctor, turnos, diasNaSemana } = (req.body || {}) as any;
+  'POST /api/v1/Usuarios': (req) => {
+    const { quantidade, locaisProDoctor } = (req.body || {}) as any;
 
-    let slots = generateAvailableSlots(dataInicio ?? '25/11/2025', usuario, localProDoctor);
+    let usuarios = [...mockDoctors];
 
-    // Filtrar por turno se especificado
-    if (turnos?.manha) {
-      slots = slots.filter((s) => {
-        const hour = parseInt(s.hora.split(':')[0]);
-        return hour < 12;
-      });
-    } else if (turnos?.tarde) {
-      slots = slots.filter((s) => {
-        const hour = parseInt(s.hora.split(':')[0]);
-        return hour >= 12 && hour < 18;
-      });
-    } else if (turnos?.noite) {
-      slots = slots.filter((s) => {
-        const hour = parseInt(s.hora.split(':')[0]);
-        return hour >= 18;
-      });
+    if (locaisProDoctor?.length) {
+      // Filtrar por local (simulação simples)
+      usuarios = usuarios.slice(0, 2);
     }
 
     return {
       sucesso: true,
-      mensagens: [],
+      mensagem: null,
       payload: {
-        agendamentos: slots,
+        usuarios: usuarios.slice(0, quantidade || 5000),
+      },
+    };
+  },
+
+  'GET /api/v1/Usuarios/Detalhar/{codigo}': (req) => {
+    const fullPath = req.params['0'];
+    const codigo = fullPath.split('/').pop(); // último elemento = 100
+
+    console.log('CODIGO:', codigo);
+
+    const doctor = mockDoctors.find((d) => d.codigo === Number(codigo));
+
+    if (!doctor) {
+      return {
+        sucesso: false,
+        mensagem: 'Usuário não encontrado',
+        payload: null,
+      };
+    }
+
+    return {
+      sucesso: true,
+      mensagem: null,
+      payload: {
+        usuario: doctor,
       },
     };
   },
 
   /* -------------------------------------------------------------------------- */
-  /*                    BUSCAR AGENDAMENTOS POR STATUS                          */
+  /*                                 CONVÊNIOS                                  */
   /* -------------------------------------------------------------------------- */
 
-  'POST /api/v1/Agenda/BuscarPorStatus': (req) => {
-    const { estadoAgendaConsulta, periodo, usuario, localProDoctor } = (req.body || {}) as any;
+  'POST /api/v1/Convenios': (req) => {
+    const { quantidade } = (req.body || {}) as any;
 
-    // Combina agendamentos mock com in-memory
-    let agendamentos = [...mockAppointments];
+    return {
+      sucesso: true,
+      mensagem: null,
+      payload: {
+        convenios: mockInsurances.slice(0, quantidade || 5000),
+      },
+    };
+  },
 
-    // Adiciona agendamentos in-memory
-    inMemoryAppointments.forEach((appointment) => {
-      agendamentos.push(appointment);
-    });
+  'GET /api/v1/Convenios/Detalhar/{codigo}': (req) => {
+    const { codigo } = req.params;
+    const insurance = mockInsurances.find((i) => i.codigo === Number(codigo));
 
-    // Filtrar por status
-    if (estadoAgendaConsulta?.confirmado) {
-      agendamentos = agendamentos.filter((a) => a.estadoAgendaConsulta?.confirmado);
-    }
-    if (estadoAgendaConsulta?.agendado) {
-      agendamentos = agendamentos.filter((a) => a.estadoAgendaConsulta?.agendado);
-    }
-    if (estadoAgendaConsulta?.atendido) {
-      agendamentos = agendamentos.filter((a) => a.estadoAgendaConsulta?.confirmado);
+    if (!insurance) {
+      return {
+        sucesso: false,
+        mensagem: 'Convênio não encontrado',
+        payload: null,
+      };
     }
 
     return {
       sucesso: true,
-      mensagens: [],
+      mensagem: null,
       payload: {
-        agendamentos: agendamentos.map((a) => ({
-          codigo: a.codigo,
-          data: a.data,
-          hora: a.hora,
-          duracao: a.duracao,
-          usuario: { codigo: a.usuario.codigo, nome: a.usuario.nome },
-          paciente: { codigo: a.paciente.codigo, nome: a.paciente.nome },
-          localProDoctor: a.localProDoctor,
-          estadoAgendaConsulta: a.estadoAgendaConsulta,
-        })),
+        convenio: insurance,
       },
     };
   },
+
+  /* -------------------------------------------------------------------------- */
+  /*                            LOCAIS PRODOCTOR                                */
+  /* -------------------------------------------------------------------------- */
+
+  'POST /api/v1/LocaisProDoctor': (req) => {
+    const { quantidade } = (req.body || {}) as any;
+
+    return {
+      sucesso: true,
+      mensagem: null,
+      payload: {
+        locaisProDoctor: mockOrganizationUnits.slice(0, quantidade || 5000),
+      },
+    };
+  },
+
+  /* -------------------------------------------------------------------------- */
+  /*                              PROCEDIMENTOS                                 */
+  /* -------------------------------------------------------------------------- */
+
+  'POST /api/v1/Procedimentos': (req) => {
+    const { quantidade, convenios, tabelas } = (req.body || {}) as any;
+
+    let procedures = [...mockProcedures];
+
+    // Filtro por tabela
+    if (tabelas?.length) {
+      procedures = procedures.filter((p) => tabelas.some((t: any) => t.codigo === p.tabela.codigo));
+    }
+
+    return {
+      sucesso: true,
+      mensagem: null,
+      payload: {
+        procedimentos: procedures.slice(0, quantidade || 5000),
+      },
+    };
+  },
+
+  'GET /api/v1/ProcedimentosMedicos/Detalhar/{codigo}': (req) => {
+    const { codigo } = req.params;
+    const procedure = mockProcedures.find((p) => p.codigo === codigo);
+
+    if (!procedure) {
+      return {
+        sucesso: false,
+        mensagem: 'Procedimento não encontrado',
+        payload: null,
+      };
+    }
+
+    return {
+      sucesso: true,
+      mensagem: null,
+      payload: {
+        procedimentoMedico: procedure,
+      },
+    };
+  },
+
+  /* -------------------------------------------------------------------------- */
+  /*                          TABELAS DE PROCEDIMENTOS                          */
+  /* -------------------------------------------------------------------------- */
+
+  'POST /api/v1/TabelasProcedimentos': (req) => {
+    return {
+      sucesso: true,
+      mensagem: null,
+      payload: {
+        tabelasProcedimentos: [
+          { codigo: 22, nome: 'CBHPM' },
+          { codigo: 90, nome: 'AMB' },
+          { codigo: 18, nome: 'TUSS' },
+        ],
+      },
+    };
+  },
+
+  /* -------------------------------------------------------------------------- */
+  /*                         HORÁRIOS DISPONÍVEIS                               */
+  /* -------------------------------------------------------------------------- */
+
   'POST /api/v1/Agenda/Livres': (req) => {
     const { usuario, periodo, localProDoctor, convenio, turnos } = (req.body || {}) as any;
 
@@ -375,158 +527,134 @@ export const additionalRealisticMocks: Record<string, MockFn> = {
   },
 
   /* -------------------------------------------------------------------------- */
-  /*                       LISTAR USUÁRIOS DETALHADOS                           */
+  /*                    BUSCAR AGENDAMENTOS POR STATUS                          */
   /* -------------------------------------------------------------------------- */
-  'POST /api/v1/Usuarios': (req) => {
-    const { quantidade, locaisProDoctor } = (req.body || {}) as any;
 
-    let usuarios = [...mockDoctors];
+  'POST /api/v1/Agenda/BuscarPorStatusTipo': (req) => {
+    const { estadoAgendaConsulta, periodo, usuario, localProDoctor } = (req.body || {}) as any;
 
-    if (locaisProDoctor?.length) {
-      // Filtrar por local (simulação simples)
-      usuarios = usuarios.slice(0, 2);
+    let agendamentos = [...mockAppointments];
+
+    if (estadoAgendaConsulta?.confirmado) {
+      agendamentos = agendamentos.filter((a) => a.estadoAgendaConsulta.confirmado);
     }
 
     return {
       sucesso: true,
       mensagem: null,
       payload: {
-        usuarios: usuarios.slice(0, quantidade || 5000),
+        agendamentos: agendamentos.map((a) => ({
+          codigo: a.codigo,
+          data: a.data,
+          hora: a.hora,
+          usuario: { codigo: a.usuario.codigo, nome: a.usuario.nome },
+          paciente: { codigo: a.paciente.codigo, nome: a.paciente.nome },
+          estadoAgendaConsulta: a.estadoAgendaConsulta,
+        })),
       },
     };
   },
 
-  // Detalhar usuário
-  'GET /api/v1/Usuarios/Detalhar/{codigo}': (req) => {
-    const { codigo } = req.params;
-    const doctor = mockDoctors.find((d) => d.codigo === Number(codigo));
+  /* -------------------------------------------------------------------------- */
+  /*                            ALTERAR STATUS                                  */
+  /* -------------------------------------------------------------------------- */
 
-    if (!doctor) {
+  'PATCH /api/v1/Agenda/AlterarStatus': (req) => {
+    const { agendamento, estadoAgendaConsulta } = (req.body || {}) as any;
+
+    return {
+      sucesso: true,
+      mensagem: 'Status alterado com sucesso (mock).',
+      payload: {
+        agendamento: {
+          codigo: agendamento?.codigo ?? 1001,
+          estadoAgendaConsulta: estadoAgendaConsulta || { confirmado: true },
+        },
+      },
+    };
+  },
+
+  /* -------------------------------------------------------------------------- */
+  /*                               DOMÍNIOS                                     */
+  /* -------------------------------------------------------------------------- */
+
+  'GET /api/v1/Dominios/Sexos': () => {
+    return {
+      sucesso: true,
+      mensagem: null,
+      payload: {
+        sexos: [
+          { codigo: 1, nome: 'Masculino' },
+          { codigo: 2, nome: 'Feminino' },
+        ],
+      },
+    };
+  },
+
+  'GET /api/v1/Dominios/TiposTelefone': () => {
+    return {
+      sucesso: true,
+      mensagem: null,
+      payload: {
+        tiposTelefone: [
+          { codigo: 1, nome: 'Residencial' },
+          { codigo: 2, nome: 'Comercial' },
+          { codigo: 3, nome: 'Celular' },
+          { codigo: 4, nome: 'Recado' },
+        ],
+      },
+    };
+  },
+
+  'GET /api/v1/Dominios/EstadosCivis': () => {
+    return {
+      sucesso: true,
+      mensagem: null,
+      payload: {
+        estadosCivis: [
+          { codigo: 1, nome: 'Solteiro(a)' },
+          { codigo: 2, nome: 'Casado(a)' },
+          { codigo: 3, nome: 'Divorciado(a)' },
+          { codigo: 4, nome: 'Viúvo(a)' },
+          { codigo: 5, nome: 'União Estável' },
+        ],
+      },
+    };
+  },
+
+  /* -------------------------------------------------------------------------- */
+  /*                        PACIENTES - OPERAÇÕES EXTRAS                        */
+  /* -------------------------------------------------------------------------- */
+
+  'POST /api/v1/Pacientes': (req) => {
+    const { quantidade, nome, codigo } = (req.body || {}) as any;
+
+    let termo = '12345678900';
+    const patients = [];
+
+    if (termo) {
+      const patient = mockPatients.find((p) => p.cpf == termo);
+      patients.push(patient);
+    }
+
+    if (codigo) {
+      const patient = mockPatients.find((p) => p.codigo == codigo);
+      patients.push(patient);
+    }
+
+    console.log('PATIENTS', patients);
+
+    if (patients.length >= 1) {
       return {
-        sucesso: false,
-        mensagem: 'Usuário não encontrado',
-        payload: null,
+        sucesso: true,
+        mensagem: null,
+        payload: {
+          pacientes: patients,
+        },
       };
     }
-
-    return {
-      sucesso: true,
-      mensagem: null,
-      payload: {
-        usuario: doctor,
-      },
-    };
   },
 
-  'POST /api/v1/Usuario/ListarDetalhes': (req) => {
-    const { quantidade, ativo } = (req.body || {}) as any;
-
-    let usuarios = mockDoctors;
-    if (ativo !== undefined) {
-      usuarios = usuarios.filter((u) => u.ativo === ativo);
-    }
-
-    return {
-      sucesso: true,
-      mensagens: [],
-      payload: {
-        total: usuarios.length,
-        itens: usuarios.slice(0, quantidade || 10),
-      },
-    };
-  },
-
-  /* -------------------------------------------------------------------------- */
-  /*                       BUSCAR PACIENTE (endpoint alternativo)               */
-  /* -------------------------------------------------------------------------- */
-  // Buscar pacientes - seguindo a API real do ProDoctor (BasicPacienteSearch -> PDResponsePacienteListaViewModel)
-  'POST /api/v1/Pacientes': (req) => {
-    const body: any = req.body || {};
-
-    // Filtros da API ProDoctor (BasicPacienteSearch)
-    const termo = body?.termo ?? '';
-    const campo = body?.campo ?? 0; // 0=Nome, 1=CPF, 2=Telefone
-    const pagina = body?.pagina ?? 1;
-    const quantidade = body?.quantidade ?? 5000;
-    const somenteAtivos = body?.somenteAtivos ?? false;
-
-    // Base de dados fake de pacientes (PacienteListarViewModel)
-    const pacientes = [
-      {
-        codigo: 101,
-        nome: 'Maria de Souza',
-        nomeCivil: 'Maria de Souza Silva',
-        dataNascimento: '10/08/1991',
-        cpf: '12345678900',
-        telefone1: { ddd: '11', numero: '999990001', tipo: { codigo: 3, nome: 'Celular' } },
-        telefone2: null,
-        telefone3: null,
-        telefone4: null,
-      },
-      {
-        codigo: 102,
-        nome: 'Carlos Pereira',
-        nomeCivil: 'Carlos Eduardo Pereira',
-        dataNascimento: '22/04/1985',
-        cpf: '98765432100',
-        telefone1: { ddd: '11', numero: '999990002', tipo: { codigo: 3, nome: 'Celular' } },
-        telefone2: { ddd: '11', numero: '32210002', tipo: { codigo: 1, nome: 'Residencial' } },
-        telefone3: null,
-        telefone4: null,
-      },
-      {
-        codigo: 103,
-        nome: 'João Henrique',
-        nomeCivil: 'João Henrique Santos',
-        dataNascimento: '23/11/1988',
-        cpf: '11122233344',
-        telefone1: { ddd: '11', numero: '999990003', tipo: { codigo: 3, nome: 'Celular' } },
-        telefone2: null,
-        telefone3: null,
-        telefone4: null,
-      },
-    ];
-
-    let resultado = [...pacientes];
-
-    // Aplicar filtro por termo e campo
-    if (termo) {
-      const termoLimpo = termo.replace(/\D/g, ''); // Remove não-dígitos para CPF/Telefone
-      const termoLower = termo.toLowerCase();
-
-      resultado = resultado.filter((p) => {
-        switch (campo) {
-          case 0: // Nome
-            return p.nome.toLowerCase().includes(termoLower) || p.nomeCivil?.toLowerCase().includes(termoLower);
-          case 1: // CPF
-            return p.cpf.includes(termoLimpo);
-          case 2: // Telefone
-            const telefones = [p.telefone1, p.telefone2, p.telefone3, p.telefone4]
-              .filter(Boolean)
-              .map((t: any) => `${t.ddd}${t.numero}`);
-            return telefones.some((tel) => tel.includes(termoLimpo));
-          default:
-            return true;
-        }
-      });
-    }
-
-    // Paginação
-    const inicio = (pagina - 1) * quantidade;
-    const fim = inicio + quantidade;
-    const pacientesPaginados = resultado.slice(inicio, fim);
-
-    // Formato de resposta da API ProDoctor (PDResponsePacienteListaViewModel)
-    return {
-      payload: {
-        pacientes: pacientesPaginados,
-      },
-      message: {
-        codigo: 0,
-        texto: null,
-      },
-    };
-  },
   'POST /api/v1/Pacientes/Buscar': (req) => {
     const { cpf, nome } = (req.body || {}) as any;
 
@@ -541,187 +669,38 @@ export const additionalRealisticMocks: Record<string, MockFn> = {
     if (!paciente) {
       return {
         sucesso: false,
-        mensagens: ['Paciente não encontrado'],
+        mensagem: 'Paciente não encontrado',
         payload: { paciente: null },
       };
     }
 
     return {
       sucesso: true,
-      mensagens: [],
+      mensagem: null,
       payload: { paciente },
     };
   },
 
-  /* -------------------------------------------------------------------------- */
-  /*                       DETALHAR PACIENTE (endpoint alternativo)             */
-  /* -------------------------------------------------------------------------- */
-
   'GET /api/v1/Pacientes/Detalhar/{codigo}': (req) => {
-    const { codigo } = req.params;
+    const fullPath = req.params['0']; // exemplo: "api/v1/Pacientes/Detalhar/100"
+    const codigo = fullPath.split('/').pop(); // pega o último: 100
+
+    console.log('CODIGO PACIENTE:', codigo);
+
     const paciente = mockPatients.find((p) => p.codigo === Number(codigo));
 
     if (!paciente) {
       return {
         sucesso: false,
-        mensagens: ['Paciente não encontrado'],
+        mensagem: 'Paciente não encontrado',
         payload: null,
       };
     }
 
     return {
       sucesso: true,
-      mensagens: [],
+      mensagem: null,
       payload: { paciente },
-    };
-  },
-
-  /* -------------------------------------------------------------------------- */
-  /*                       LISTAR ESPECIALIDADES                                */
-  /* -------------------------------------------------------------------------- */
-
-  'POST /api/v1/Especialidades/Listar': (req) => {
-    const { quantidade } = (req.body || {}) as any;
-
-    return {
-      sucesso: true,
-      mensagens: [],
-      payload: {
-        total: mockSpecialities.length,
-        itens: mockSpecialities.slice(0, quantidade || 20),
-      },
-    };
-  },
-
-  'POST /api/v1/Convenios': (req) => {
-    const body: any = req.body || {};
-    const termo = body?.termo ?? '';
-    const pagina = body?.pagina ?? 1;
-    const quantidade = body?.quantidade ?? 5000;
-    const somenteAtivos = body?.somenteAtivos ?? true;
-
-    const convenios = [
-      { codigo: 501, nome: 'Unimed', ativo: true },
-      { codigo: 502, nome: 'Bradesco Saúde', ativo: true },
-      { codigo: 503, nome: 'SulAmérica', ativo: true },
-      { codigo: 504, nome: 'Amil', ativo: true },
-      { codigo: 505, nome: 'NotreDame Intermédica', ativo: true },
-      { codigo: 506, nome: 'Hapvida', ativo: false },
-    ];
-
-    let resultado = somenteAtivos ? convenios.filter((c) => c.ativo) : [...convenios];
-
-    if (termo) {
-      const termoLower = termo.toLowerCase();
-      resultado = resultado.filter((c) => c.nome.toLowerCase().includes(termoLower));
-    }
-
-    const inicio = (pagina - 1) * quantidade;
-    const pacientesPaginados = resultado.slice(inicio, inicio + quantidade);
-
-    return {
-      sucesso: true,
-      mensagens: [],
-      payload: {
-        convenios: pacientesPaginados,
-      },
-    };
-  },
-
-  // Detalhar convênio
-  'GET /api/v1/Convenios/Detalhar/{codigo}': (req) => {
-    const { codigo } = req.params;
-    const codigoNum = Number(codigo);
-
-    const convenios: Record<number, any> = {
-      501: { codigo: 501, nome: 'Unimed', cnpj: '12.345.678/0001-01', ativo: true },
-      502: { codigo: 502, nome: 'Bradesco Saúde', cnpj: '98.765.432/0001-02', ativo: true },
-      503: { codigo: 503, nome: 'SulAmérica', cnpj: '11.222.333/0001-03', ativo: true },
-    };
-
-    const convenio = convenios[codigoNum] || { codigo: codigoNum, nome: 'Convênio Desconhecido', ativo: true };
-
-    return {
-      sucesso: true,
-      mensagens: [],
-      payload: {
-        convenio,
-      },
-    };
-  },
-
-  /* -------------------------------------------------------------------------- */
-  /*                       BUSCAR AGENDAMENTO POR CÓDIGO                        */
-  /* -------------------------------------------------------------------------- */
-
-  'GET /api/v1/Agenda/Detalhar/{codigo}': (req) => {
-    const { codigo } = req.params;
-
-    // Primeiro busca in-memory
-    let agendamento = null;
-    inMemoryAppointments.forEach((appointment) => {
-      if (appointment.codigo === Number(codigo)) {
-        agendamento = appointment;
-      }
-    });
-
-    // Se não encontrou, busca nos mocks estáticos
-    if (!agendamento) {
-      agendamento = mockAppointments.find((a) => a.codigo === Number(codigo));
-    }
-
-    if (!agendamento) {
-      return {
-        sucesso: false,
-        mensagens: ['Agendamento não encontrado'],
-        payload: null,
-      };
-    }
-
-    return {
-      sucesso: true,
-      mensagens: [],
-      payload: {
-        agendamento: {
-          ...agendamento,
-          telefones: agendamento.paciente?.telefones || [{ tipo: 'Celular', numero: '(11) 99999-0001' }],
-          email: agendamento.paciente?.email || 'paciente@example.com',
-        },
-      },
-    };
-  },
-
-  /* -------------------------------------------------------------------------- */
-  /*                       DEBUG ENDPOINTS                                      */
-  /* -------------------------------------------------------------------------- */
-
-  // Endpoint de debug para listar todos os agendamentos in-memory
-  'GET /api/v1/Debug/Agendamentos': (req) => {
-    const appointments: any[] = [];
-    inMemoryAppointments.forEach((value, key) => {
-      appointments.push({ key, ...value });
-    });
-
-    return {
-      sucesso: true,
-      mensagens: [],
-      payload: {
-        total: appointments.length,
-        agendamentos: appointments,
-      },
-    };
-  },
-
-  // Endpoint de debug para limpar todos os agendamentos in-memory
-  'DELETE /api/v1/Debug/Agendamentos': (req) => {
-    inMemoryAppointments.clear();
-
-    return {
-      sucesso: true,
-      mensagens: ['Todos os agendamentos in-memory foram removidos'],
-      payload: {
-        total: 0,
-      },
     };
   },
 };

@@ -473,7 +473,7 @@ interface AgendamentoAgendaInsertViewModel {
  * Response de horários disponíveis
  * Endpoint: POST /api/v1/Agenda/Livres
  */
-interface PDResponseHorariosDisponiveisViewModel {
+interface ProdoctorResponseAvailabelTimesViewModel {
   payload: {
     agendamentos: HorarioDisponivelViewModel[];
   };
@@ -606,7 +606,7 @@ export {
   HorarioDisponivelViewModel,
   AgendamentoAgendaInsertViewModel,
   // Responses
-  PDResponseHorariosDisponiveisViewModel,
+  ProdoctorResponseAvailabelTimesViewModel,
   PDResponseDiaAgendaConsultaViewModel,
   PDResponseAgendamentosViewModel,
   PDResponseAgendamentoDetalhadoViewModel,

@@ -27,7 +27,6 @@ import { UpdatePatient } from '../../../integrator/interfaces/update-patient.int
 import { InitialPatient } from '../../../integrator/interfaces/patient.interface';
 import {
   Appointment,
-  AppointmentSortMethod,
   AppointmentStatus,
   AppointmentValue,
   MinifiedAppointments,
@@ -46,7 +45,7 @@ import {
   AgendamentoInserirRequest,
   HorariosDisponiveisRequest,
 } from '../interfaces/schedule.interface';
-import { EntitiesFiltersService } from '../../../../health/shared/entities-filters.service';
+import { ProdoctorGetPatientResponse } from '../interfaces';
 
 @Injectable()
 export class ProdoctorService implements IIntegratorService {
@@ -62,13 +61,12 @@ export class ProdoctorService implements IIntegratorService {
     private readonly appointmentService: AppointmentService,
     private readonly flowService: FlowService,
     private readonly integrationCacheUtilsService: IntegrationCacheUtilsService,
-
-    private readonly entitiesFiltersService: EntitiesFiltersService,
   ) {}
 
   // ========== PATIENT METHODS ==========
 
   public async getPatient(integration: IntegrationDocument, filters: PatientFilters): Promise<Patient> {
+    console.log('FILTERS', filters);
     const { cpf, code, cache } = filters;
 
     try {
@@ -78,10 +76,18 @@ export class ProdoctorService implements IIntegratorService {
         return patientCache;
       }
 
-      let patient: Patient;
+      let patient: Patient; // essa interface e do health com paciente padronizado do bot
 
       if (cpf) {
-        patient = await this.getPatientByCpf(integration, cpf);
+        const response = await this.prodoctorApiService.getPatient(integration, {
+          termo: '12345678900',
+          campo: 1,
+          somenteAtivos: true,
+        });
+        console.log('RESPONSE', response);
+        patient = this.prodoctorHelpersService.transformProdoctorPatientToDefaultBotPatient(
+          response.payload.pacientes[0],
+        );
       } else if (code) {
         patient = await this.getPatientByCode(integration, code);
       }
@@ -107,7 +113,7 @@ export class ProdoctorService implements IIntegratorService {
         throw HTTP_ERROR_THROWER(HttpStatus.NOT_FOUND, 'User not found', undefined, true);
       }
 
-      return this.prodoctorHelpersService.transformPatient(response.payload.paciente);
+      return this.prodoctorHelpersService.transformProdoctorPatientToDefaultBotPatient(response.payload.paciente);
     } catch (error) {
       if (error?.status === HttpStatus.NOT_FOUND) {
         throw error;
@@ -116,30 +122,12 @@ export class ProdoctorService implements IIntegratorService {
     }
   }
 
-  private async getPatientByCpf(integration: IntegrationDocument, cpf: string): Promise<Patient> {
-    try {
-      const response = await this.prodoctorApiService.getPatientByCpf(integration, cpf);
-
-      //@ts-ignore
-      console.log('RESPONSE', response);
-      //@ts-ignore
-      if (!response?.payload?.pacientes.length) {
-        throw HTTP_ERROR_THROWER(HttpStatus.NOT_FOUND, 'User not found', undefined, true);
-      }
-
-      //@ts-ignore
-      return this.prodoctorHelpersService.transformPatient(response.payload.pacientes[0]);
-    } catch (error) {
-      if (error?.status === HttpStatus.NOT_FOUND) {
-        throw error;
-      }
-      throw INTERNAL_ERROR_THROWER('ProdoctorService.getPatientByCpf', error);
-    }
-  }
-
   public async createPatient(integration: IntegrationDocument, { patient }: CreatePatient): Promise<Patient> {
     try {
+      //TODO mudar a estrutura desse build para um nome mais generico, não especifico de create (ver clinux)
       const request = this.prodoctorHelpersService.buildCreatePatientRequest(patient);
+
+      //TODO tipar o response
       const response = await this.prodoctorApiService.createPatient(integration, request);
 
       if (!response?.sucesso || !response?.payload?.paciente) {
@@ -149,7 +137,9 @@ export class ProdoctorService implements IIntegratorService {
         });
       }
 
-      const createdPatient = this.prodoctorHelpersService.transformPatient(response.payload.paciente);
+      const createdPatient = this.prodoctorHelpersService.transformProdoctorPatientToDefaultBotPatient(
+        response.payload.paciente,
+      );
 
       await this.integrationCacheUtilsService.setPatientCache(
         integration,
@@ -170,7 +160,9 @@ export class ProdoctorService implements IIntegratorService {
     updatePatient: UpdatePatient,
   ): Promise<Patient> {
     try {
+      //TODO mesma lógica do createPatient
       const request = this.prodoctorHelpersService.buildUpdatePatientRequest(patientCode, updatePatient.patient);
+      //TODO tipar o response
       const response = await this.prodoctorApiService.updatePatient(integration, request);
 
       if (!response?.sucesso || !response?.payload?.paciente) {
@@ -180,7 +172,9 @@ export class ProdoctorService implements IIntegratorService {
         });
       }
 
-      const updatedPatient = this.prodoctorHelpersService.transformPatient(response.payload.paciente);
+      const updatedPatient = this.prodoctorHelpersService.transformProdoctorPatientToDefaultBotPatient(
+        response.payload.paciente,
+      );
 
       await this.integrationCacheUtilsService.setPatientCache(
         integration,
@@ -204,6 +198,7 @@ export class ProdoctorService implements IIntegratorService {
     const { patientCode, startDate, endDate } = patientSchedules;
 
     try {
+      //TODO segue o padrão de nomes em ingles e nosso padrao
       const request: AgendamentoBuscarRequest = {
         paciente: { codigo: Number(patientCode) },
       };
@@ -215,6 +210,8 @@ export class ProdoctorService implements IIntegratorService {
         };
       }
 
+      //TODO tipar o response
+      //TODO melhorar o nome do método buscarAgendamentosPaciente para algo mais padronizado - usamos listProDoctorPatientSchedules ou listSchedules
       const response = await this.prodoctorApiService.buscarAgendamentosPaciente(integration, request);
 
       if (!response?.sucesso || !response?.payload?.agendamentos) {
@@ -355,7 +352,7 @@ export class ProdoctorService implements IIntegratorService {
           localProDoctor: organizationUnit?.code ? { codigo: Number(organizationUnit.code) } : undefined,
           convenio: insurance?.code ? { codigo: Number(insurance.code) } : undefined,
           tipoAgendamento: appointmentType?.code
-            ? this.prodoctorHelpersService.buildTipoAgendamentoRequest(appointmentType.code)
+            ? this.prodoctorHelpersService.buildTypeScheduleRequest(appointmentType.code)
             : undefined,
           procedimentoMedico,
           complemento: appointment.notes || undefined,
@@ -579,108 +576,64 @@ export class ProdoctorService implements IIntegratorService {
     availableSchedules: ListAvailableSchedules,
   ): Promise<ListAvailableSchedulesResponse> {
     try {
-      const {
-        filter,
-        fromDay = 0,
-        untilDay = 30,
-        period,
-        patient,
-        limit,
-        periodOfDay,
-        randomize,
-        sortMethod = AppointmentSortMethod.default,
-      } = availableSchedules;
+      const { filter, fromDay = 0, untilDay = 30, period, patient } = availableSchedules;
 
       const metadata: AvailableSchedulesMetadata = {
         interAppointmentPeriod: 0,
       };
 
-      let validDoctors: EntityDocument[] = [];
-
-      if (filter.doctor?.code) {
-        const doctorEntity = await this.entitiesService.getEntityByCode(
-          filter.doctor.code,
-          EntityType.doctor,
-          integration._id,
-        );
-        if (doctorEntity) {
-          validDoctors.push(doctorEntity);
-        }
-      } else {
-        const doctors = await this.entitiesService.getValidEntities(EntityType.doctor, integration._id);
-
-        const [matchedDoctors] = await this.flowService.matchEntitiesFlows({
-          integrationId: integration._id,
-          entities: doctors,
-          targetEntity: FlowSteps.doctor,
-          filters: {
-            patientBornDate: patient?.bornDate,
-            patientSex: patient?.sex,
-            patientCpf: patient?.cpf,
-          },
-          entitiesFilter: filter,
-        });
-
-        validDoctors = this.entitiesFiltersService.filterEntitiesByParams(integration, matchedDoctors, {
-          bornDate: patient?.bornDate,
-        });
+      // Precisa de um médico para buscar horários
+      if (!filter.doctor?.code) {
+        return { schedules: [], metadata: null };
       }
 
-      if (!validDoctors.length) {
+      const doctorEntity = await this.entitiesService.getEntityByCode(
+        filter.doctor.code,
+        EntityType.doctor,
+        integration._id,
+      );
+
+      if (!doctorEntity) {
+        this.logger.warn(`Doctor entity not found: ${filter.doctor.code}`);
         return { schedules: [], metadata };
       }
 
-      // Buscar horários para cada médico válido
-      const allRawSchedules: RawAppointment[] = [];
+      const request: HorariosDisponiveisRequest = {
+        usuario: { codigo: Number(filter.doctor.code) },
+        periodo: {
+          dataInicial: moment().add(fromDay, 'days').format(this.dateFormat),
+          dataFinal: moment()
+            .add(fromDay + untilDay, 'days')
+            .format(this.dateFormat),
+        },
+      };
 
-      for (const doctorEntity of validDoctors) {
-        const request: HorariosDisponiveisRequest = {
-          usuario: { codigo: Number(doctorEntity.code) },
-          periodo: {
-            dataInicial: moment().add(fromDay, 'days').format(this.dateFormat),
-            dataFinal: moment()
-              .add(fromDay + untilDay, 'days')
-              .format(this.dateFormat),
-          },
-        };
-
-        if (filter.organizationUnit?.code) {
-          request.localProDoctor = { codigo: Number(filter.organizationUnit.code) };
-        }
-
-        if (period?.start && period?.end) {
-          request.turnos = this.prodoctorHelpersService.buildTurnosFromPeriod(period.start, period.end);
-        }
-
-        const response = await this.prodoctorApiService.buscarHorariosLivres(integration, request);
-
-        if (response?.sucesso && response?.payload?.agendamentos?.length) {
-          const rawSchedules = response.payload.agendamentos.map((horario) =>
-            this.prodoctorHelpersService.transformAvailableScheduleToRawAppointment(horario, doctorEntity, filter),
-          );
-          allRawSchedules.push(...rawSchedules);
-        }
+      if (filter.organizationUnit?.code) {
+        request.localProDoctor = { codigo: Number(filter.organizationUnit.code) };
       }
 
-      if (!allRawSchedules.length) {
+      if (period?.start && period?.end) {
+        request.turnos = this.prodoctorHelpersService.buildShiftsFromPeriod(period.start, period.end);
+      }
+
+      //TODO tipar o response
+      const response = await this.prodoctorApiService.getAvailableScheduleTimes(integration, request);
+
+      if (!response?.sucesso || !response?.payload?.agendamentos) {
         return { schedules: [], metadata };
       }
 
-      const { appointments: processedAppointments, metadata: partialMetadata } =
-        await this.appointmentService.getAppointments(
-          integration,
-          { limit, period, randomize, sortMethod, periodOfDay },
-          allRawSchedules,
-        );
+      const rawSchedules: RawAppointment[] = response.payload.agendamentos.map((horario) =>
+        this.prodoctorHelpersService.transformAvailableScheduleToRawAppointment(horario, doctorEntity, filter),
+      );
 
-      const schedules = await this.appointmentService.transformSchedules(integration, processedAppointments);
+      const schedules = await this.appointmentService.transformSchedules(integration, rawSchedules);
 
       return {
         schedules: orderBy(schedules, ['appointmentDate'], ['asc']),
-        metadata: { ...metadata, ...partialMetadata },
+        metadata,
       };
     } catch (error) {
-      this.logger.error('getAvailableSchedules ERROR:', error);
       throw INTERNAL_ERROR_THROWER('ProdoctorService.getAvailableSchedules', error);
     }
   }
@@ -691,6 +644,7 @@ export class ProdoctorService implements IIntegratorService {
     entityType: EntityType,
     filter?: CorrelationFilter,
     cache: boolean = false,
+    fromImport?: boolean,
   ): Promise<EntityTypes[]> {
     return await this.prodoctorEntitiesService.extractEntity(integration, entityType, filter, cache);
   }
@@ -758,8 +712,7 @@ export class ProdoctorService implements IIntegratorService {
   public async getStatus(integration: IntegrationDocument): Promise<OkResponse> {
     try {
       // Faz uma requisição simples para verificar status
-      const response = await this.prodoctorApiService.listLocaisProDoctor(integration, { quantidade: 1 });
-      console.log('RESPONSE', response);
+      const response = await this.prodoctorApiService.getProdoctorLocations(integration, { quantidade: 1 });
       return { ok: response?.sucesso === true };
     } catch (error) {
       return { ok: false };

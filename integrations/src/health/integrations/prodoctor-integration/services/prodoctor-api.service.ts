@@ -17,30 +17,30 @@ import { ProdoctorCredentialsResponse } from '../interfaces/credentials.interfac
 import { castObjectIdToString } from '../../../../common/helpers/cast-objectid';
 
 import {
-  PDResponseBasicUsuarioViewModel,
-  PDResponseUsuarioComEspecialidadeViewModel,
-  PDResponseUsuarioViewModel,
-  PDResponseLocalProdoctorBasicoViewModel,
-  PDResponseConvenioBasicViewModel,
+  ProdoctorResponseBasicUserViewModel,
+  ProdoctorResponseUserWithSpecialityViewModel,
+  ProdoctorResponseMedicalUserViewModel,
+  ProdoctorResponseLocationsBasicViewModel,
+  ProdoctorResponseInsurancesBasicViewModel,
   PDResponseConvenioViewModel,
-  PDResponseProcedimentoBasicMedicoViewModel,
-  PDResponseProcedimentoMedicoViewModel,
+  ProdoctorResponseProceduresBasicMedicalViewModel,
+  ProdoctorResponseProcedureMedicalViewModel,
   PDResponseTabelaProcedimentoViewModel,
-  UsuarioListarRequest,
-  LocalProdoctorListarRequest,
-  ConvenioListarRequest,
-  ProcedimentoListarRequest,
-  TabelaProcedimentoListarRequest,
+  UserListRequest,
+  LocationsProdoctorListRequest,
+  InsurancesListRequest,
+  ProceduresListRequest,
+  TabelaProceduresListRequest,
 } from '../interfaces/base.interface';
 
 import {
-  PacienteBuscarRequest,
   PacienteCRUDRequest,
-  PacienteListarRequest,
-  PDResponsePacienteSearchViewModel,
   PDResponsePacienteBasicViewModel,
   PDResponsePacienteViewModel,
-  PDResponsePacienteListaViewModel,
+  ProdoctorGetPatientResponse,
+  listPatientsRequest,
+  ProdoctorResponsePatientsListViewModel,
+  ProdoctorGetPatientRequest,
 } from '../interfaces/patient.interface';
 
 import {
@@ -57,9 +57,9 @@ import {
   PDResponseAgendamentoDetalhadoViewModel,
   PDResponseAgendamentoInseridoViewModel,
   PDResponseAgendamentoOperacaoViewModel,
-  PDResponseHorariosDisponiveisViewModel,
   PDResponseAgendaBuscarPorStatusViewModel,
   PDResponseAlterarStatusAgendamentoViewModel,
+  ProdoctorResponseAvailabelTimesViewModel,
 } from '../interfaces/schedule.interface';
 
 @Injectable()
@@ -141,18 +141,19 @@ export class ProdoctorApiService {
 
   private async getApiUrl(integration: IntegrationDocument, endpoint: string): Promise<string> {
     // const { apiUrl } = await this.credentialsHelper.getConfig<ProdoctorCredentialsResponse>(integration);
-
-    const baseUrl = 'http://172.17.0.1:7575'; //apiUrl || 'https://api.prodoctor.net';
+    const baseUrl = 'http://172.17.0.1:7575';
     return `${baseUrl}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
   }
 
   private async getHeaders(integration: IntegrationDocument): Promise<{ headers: Record<string, string> }> {
     // const { apiKey, apiPassword } = await this.credentialsHelper.getConfig<ProdoctorCredentialsResponse>(integration);
-    const apiKey = 'test';
-    const apiPassword = 'test';
-    if (!apiKey || !apiPassword) {
-      throw HTTP_ERROR_THROWER(HttpStatus.UNAUTHORIZED, 'Invalid ProDoctor credentials');
-    }
+
+    // if (!apiKey || !apiPassword) {
+    //   throw HTTP_ERROR_THROWER(HttpStatus.UNAUTHORIZED, 'Invalid ProDoctor credentials');
+    // }
+
+    const apiKey = 'teste';
+    const apiPassword = 'teste';
 
     return {
       headers: {
@@ -169,11 +170,11 @@ export class ProdoctorApiService {
 
   public async validateConnection(integration: IntegrationDocument): Promise<boolean> {
     try {
-      const request: UsuarioListarRequest = {
+      const request: UserListRequest = {
         quantidade: 1,
       };
 
-      const response = await this.listUsuarios(integration, request);
+      const response = await this.getMedicalUsers(integration, request);
       return response?.sucesso === true;
     } catch (error) {
       this.logger.error(`ProdoctorApiService.validateConnection error: ${error.message}`);
@@ -183,11 +184,11 @@ export class ProdoctorApiService {
 
   // ========== USUÁRIOS (MÉDICOS) ==========
 
-  public async listUsuarios(
+  public async getMedicalUsers(
     integration: IntegrationDocument,
-    request: UsuarioListarRequest,
-  ): Promise<PDResponseBasicUsuarioViewModel> {
-    const funcName = this.listUsuarios.name;
+    request: UserListRequest,
+  ): Promise<ProdoctorResponseBasicUserViewModel> {
+    const funcName = this.getMedicalUsers.name;
     this.debugRequest(integration, request, funcName);
     this.dispatchAuditEvent(integration, request, funcName, AuditDataType.externalRequest);
 
@@ -196,7 +197,7 @@ export class ProdoctorApiService {
       const headers = await this.getHeaders(integration);
 
       const response = await lastValueFrom(
-        this.httpService.post<PDResponseBasicUsuarioViewModel>(apiUrl, request, headers),
+        this.httpService.post<ProdoctorResponseBasicUserViewModel>(apiUrl, request, headers),
       );
 
       this.dispatchAuditEvent(integration, response?.data, funcName, AuditDataType.externalResponse);
@@ -211,11 +212,11 @@ export class ProdoctorApiService {
     }
   }
 
-  public async listUsuariosComEspecialidade(
+  public async getMedicalUsersWithSpeciality(
     integration: IntegrationDocument,
-    request: UsuarioListarRequest,
-  ): Promise<PDResponseUsuarioComEspecialidadeViewModel> {
-    const funcName = this.listUsuariosComEspecialidade.name;
+    request: UserListRequest,
+  ): Promise<ProdoctorResponseUserWithSpecialityViewModel> {
+    const funcName = this.getMedicalUsersWithSpeciality.name;
     this.debugRequest(integration, request, funcName);
     this.dispatchAuditEvent(integration, request, funcName, AuditDataType.externalRequest);
 
@@ -224,7 +225,7 @@ export class ProdoctorApiService {
       const headers = await this.getHeaders(integration);
 
       const response = await lastValueFrom(
-        this.httpService.post<PDResponseUsuarioComEspecialidadeViewModel>(apiUrl, request, headers),
+        this.httpService.post<ProdoctorResponseUserWithSpecialityViewModel>(apiUrl, request, headers),
       );
 
       this.dispatchAuditEvent(integration, response?.data, funcName, AuditDataType.externalResponse);
@@ -239,8 +240,11 @@ export class ProdoctorApiService {
     }
   }
 
-  public async detalharUsuario(integration: IntegrationDocument, codigo: number): Promise<PDResponseUsuarioViewModel> {
-    const funcName = this.detalharUsuario.name;
+  public async getDetailsMedicalUser(
+    integration: IntegrationDocument,
+    codigo: number,
+  ): Promise<ProdoctorResponseMedicalUserViewModel> {
+    const funcName = this.getDetailsMedicalUser.name;
     this.debugRequest(integration, { codigo }, funcName);
     this.dispatchAuditEvent(integration, { codigo }, funcName, AuditDataType.externalRequest);
 
@@ -248,7 +252,9 @@ export class ProdoctorApiService {
       const apiUrl = await this.getApiUrl(integration, `/api/v1/Usuarios/Detalhar/${codigo}`);
       const headers = await this.getHeaders(integration);
 
-      const response = await lastValueFrom(this.httpService.get<PDResponseUsuarioViewModel>(apiUrl, headers));
+      const response = await lastValueFrom(
+        this.httpService.get<ProdoctorResponseMedicalUserViewModel>(apiUrl, headers),
+      );
 
       this.dispatchAuditEvent(integration, response?.data, funcName, AuditDataType.externalResponse);
       return response?.data;
@@ -264,11 +270,11 @@ export class ProdoctorApiService {
 
   // ========== LOCAIS PRODOCTOR (UNIDADES) ==========
 
-  public async listLocaisProDoctor(
+  public async getProdoctorLocations(
     integration: IntegrationDocument,
-    request: LocalProdoctorListarRequest,
-  ): Promise<PDResponseLocalProdoctorBasicoViewModel> {
-    const funcName = this.listLocaisProDoctor.name;
+    request: LocationsProdoctorListRequest,
+  ): Promise<ProdoctorResponseLocationsBasicViewModel> {
+    const funcName = this.getProdoctorLocations.name;
     this.debugRequest(integration, request, funcName);
     this.dispatchAuditEvent(integration, request, funcName, AuditDataType.externalRequest);
 
@@ -277,7 +283,7 @@ export class ProdoctorApiService {
       const headers = await this.getHeaders(integration);
 
       const response = await lastValueFrom(
-        this.httpService.post<PDResponseLocalProdoctorBasicoViewModel>(apiUrl, request, headers),
+        this.httpService.post<ProdoctorResponseLocationsBasicViewModel>(apiUrl, request, headers),
       );
 
       this.dispatchAuditEvent(integration, response?.data, funcName, AuditDataType.externalResponse);
@@ -294,11 +300,11 @@ export class ProdoctorApiService {
 
   // ========== CONVÊNIOS ==========
 
-  public async listConvenios(
+  public async getInsurances(
     integration: IntegrationDocument,
-    request: ConvenioListarRequest,
-  ): Promise<PDResponseConvenioBasicViewModel> {
-    const funcName = this.listConvenios.name;
+    request: InsurancesListRequest,
+  ): Promise<ProdoctorResponseInsurancesBasicViewModel> {
+    const funcName = this.getInsurances.name;
     this.debugRequest(integration, request, funcName);
     this.dispatchAuditEvent(integration, request, funcName, AuditDataType.externalRequest);
 
@@ -307,7 +313,7 @@ export class ProdoctorApiService {
       const headers = await this.getHeaders(integration);
 
       const response = await lastValueFrom(
-        this.httpService.post<PDResponseConvenioBasicViewModel>(apiUrl, request, headers),
+        this.httpService.post<ProdoctorResponseInsurancesBasicViewModel>(apiUrl, request, headers),
       );
 
       this.dispatchAuditEvent(integration, response?.data, funcName, AuditDataType.externalResponse);
@@ -322,11 +328,11 @@ export class ProdoctorApiService {
     }
   }
 
-  public async detalharConvenio(
+  public async getDetailInsurances(
     integration: IntegrationDocument,
     codigo: number,
   ): Promise<PDResponseConvenioViewModel> {
-    const funcName = this.detalharConvenio.name;
+    const funcName = this.getDetailInsurances.name;
     this.debugRequest(integration, { codigo }, funcName);
     this.dispatchAuditEvent(integration, { codigo }, funcName, AuditDataType.externalRequest);
 
@@ -350,11 +356,11 @@ export class ProdoctorApiService {
 
   // ========== PROCEDIMENTOS ==========
 
-  public async listProcedimentos(
+  public async getProcedures(
     integration: IntegrationDocument,
-    request: ProcedimentoListarRequest,
-  ): Promise<PDResponseProcedimentoBasicMedicoViewModel> {
-    const funcName = this.listProcedimentos.name;
+    request: ProceduresListRequest,
+  ): Promise<ProdoctorResponseProceduresBasicMedicalViewModel> {
+    const funcName = this.getProcedures.name;
     this.debugRequest(integration, request, funcName);
     this.dispatchAuditEvent(integration, request, funcName, AuditDataType.externalRequest);
 
@@ -363,7 +369,7 @@ export class ProdoctorApiService {
       const headers = await this.getHeaders(integration);
 
       const response = await lastValueFrom(
-        this.httpService.post<PDResponseProcedimentoBasicMedicoViewModel>(apiUrl, request, headers),
+        this.httpService.post<ProdoctorResponseProceduresBasicMedicalViewModel>(apiUrl, request, headers),
       );
 
       this.dispatchAuditEvent(integration, response?.data, funcName, AuditDataType.externalResponse);
@@ -378,12 +384,12 @@ export class ProdoctorApiService {
     }
   }
 
-  public async detalharProcedimento(
+  public async getProceduresDetails(
     integration: IntegrationDocument,
     tabela: number,
     codigo: string,
-  ): Promise<PDResponseProcedimentoMedicoViewModel> {
-    const funcName = this.detalharProcedimento.name;
+  ): Promise<ProdoctorResponseProcedureMedicalViewModel> {
+    const funcName = this.getProceduresDetails.name;
     const params = { tabela, codigo };
     this.debugRequest(integration, params, funcName);
     this.dispatchAuditEvent(integration, params, funcName, AuditDataType.externalRequest);
@@ -393,7 +399,7 @@ export class ProdoctorApiService {
       const headers = await this.getHeaders(integration);
 
       const response = await lastValueFrom(
-        this.httpService.get<PDResponseProcedimentoMedicoViewModel>(apiUrl, headers),
+        this.httpService.get<ProdoctorResponseProcedureMedicalViewModel>(apiUrl, headers),
       );
 
       this.dispatchAuditEvent(integration, response?.data, funcName, AuditDataType.externalResponse);
@@ -408,43 +414,13 @@ export class ProdoctorApiService {
     }
   }
 
-  // ========== TABELAS DE PROCEDIMENTOS ==========
-
-  public async listTabelasProcedimentos(
-    integration: IntegrationDocument,
-    request: TabelaProcedimentoListarRequest,
-  ): Promise<PDResponseTabelaProcedimentoViewModel> {
-    const funcName = this.listTabelasProcedimentos.name;
-    this.debugRequest(integration, request, funcName);
-    this.dispatchAuditEvent(integration, request, funcName, AuditDataType.externalRequest);
-
-    try {
-      const apiUrl = await this.getApiUrl(integration, '/api/v1/TabelasProcedimentos');
-      const headers = await this.getHeaders(integration);
-
-      const response = await lastValueFrom(
-        this.httpService.post<PDResponseTabelaProcedimentoViewModel>(apiUrl, request, headers),
-      );
-
-      this.dispatchAuditEvent(integration, response?.data, funcName, AuditDataType.externalResponse);
-      return response?.data;
-    } catch (error) {
-      this.handleResponseError(integration, error, request, funcName);
-      throw HTTP_ERROR_THROWER(
-        error?.response?.status || HttpStatus.BAD_REQUEST,
-        error.response?.data || error,
-        HttpErrorOrigin.INTEGRATION_ERROR,
-      );
-    }
-  }
-
   // ========== PACIENTES ==========
 
-  public async searchPatient(
+  public async getPatient(
     integration: IntegrationDocument,
-    request: PacienteBuscarRequest,
-  ): Promise<PDResponsePacienteSearchViewModel> {
-    const funcName = this.searchPatient.name;
+    request: ProdoctorGetPatientRequest,
+  ): Promise<ProdoctorResponsePatientsListViewModel> {
+    const funcName = this.getPatient.name;
     this.debugRequest(integration, request, funcName);
     this.dispatchAuditEvent(integration, request, funcName, AuditDataType.externalRequest);
 
@@ -453,7 +429,7 @@ export class ProdoctorApiService {
       const headers = await this.getHeaders(integration);
 
       const response = await lastValueFrom(
-        this.httpService.post<PDResponsePacienteSearchViewModel>(apiUrl, request, headers),
+        this.httpService.post<ProdoctorResponsePatientsListViewModel>(apiUrl, request, headers),
       );
 
       this.dispatchAuditEvent(integration, response?.data, funcName, AuditDataType.externalResponse);
@@ -461,7 +437,7 @@ export class ProdoctorApiService {
     } catch (error) {
       if (error?.response?.status === HttpStatus.NOT_FOUND) {
         return {
-          payload: { paciente: {} },
+          payload: { pacientes: [] },
           sucesso: false,
           mensagens: ['Paciente não encontrado'],
         };
@@ -473,19 +449,6 @@ export class ProdoctorApiService {
         HttpErrorOrigin.INTEGRATION_ERROR,
       );
     }
-  }
-
-  public async getPatientByCpf(
-    integration: IntegrationDocument,
-    cpf: string,
-  ): Promise<PDResponsePacienteSearchViewModel> {
-    const request: PacienteBuscarRequest = {
-      termo: cpf.replace(/\D/g, ''),
-      campo: 1,
-    };
-
-    const res = await this.searchPatient(integration, request);
-    return res;
   }
 
   public async getPatientDetails(
@@ -595,11 +558,11 @@ export class ProdoctorApiService {
     }
   }
 
-  public async listPacientes(
+  public async listPatients(
     integration: IntegrationDocument,
-    request: PacienteListarRequest,
-  ): Promise<PDResponsePacienteListaViewModel> {
-    const funcName = this.listPacientes.name;
+    request: listPatientsRequest,
+  ): Promise<ProdoctorResponsePatientsListViewModel> {
+    const funcName = this.listPatients.name;
     this.debugRequest(integration, request, funcName);
     this.dispatchAuditEvent(integration, request, funcName, AuditDataType.externalRequest);
 
@@ -608,7 +571,7 @@ export class ProdoctorApiService {
       const headers = await this.getHeaders(integration);
 
       const response = await lastValueFrom(
-        this.httpService.post<PDResponsePacienteListaViewModel>(apiUrl, request, headers),
+        this.httpService.post<ProdoctorResponsePatientsListViewModel>(apiUrl, request, headers),
       );
 
       this.dispatchAuditEvent(integration, response?.data, funcName, AuditDataType.externalResponse);
@@ -681,11 +644,11 @@ export class ProdoctorApiService {
     }
   }
 
-  public async buscarHorariosLivres(
+  public async getAvailableScheduleTimes(
     integration: IntegrationDocument,
     request: HorariosDisponiveisRequest,
-  ): Promise<PDResponseHorariosDisponiveisViewModel> {
-    const funcName = this.buscarHorariosLivres.name;
+  ): Promise<ProdoctorResponseAvailabelTimesViewModel> {
+    const funcName = this.getAvailableScheduleTimes.name;
     this.debugRequest(integration, request, funcName);
     this.dispatchAuditEvent(integration, request, funcName, AuditDataType.externalRequest);
 
@@ -694,7 +657,7 @@ export class ProdoctorApiService {
       const headers = await this.getHeaders(integration);
 
       const response = await lastValueFrom(
-        this.httpService.post<PDResponseHorariosDisponiveisViewModel>(apiUrl, request, headers),
+        this.httpService.post<ProdoctorResponseAvailabelTimesViewModel>(apiUrl, request, headers),
       );
 
       this.dispatchAuditEvent(integration, response?.data, funcName, AuditDataType.externalResponse);

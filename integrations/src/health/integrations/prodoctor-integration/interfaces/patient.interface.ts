@@ -112,17 +112,18 @@ interface PacienteRequest {
 /**
  * Request para busca de paciente por CPF
  */
-interface PacienteBuscarRequest {
-  cpf?: string;
-  termo?: string;
-  campo?: number;
+interface ProdoctorGetPatientRequest {
+  campo: number;
+  termo: string;
+  somenteAtivos?: boolean;
+
   localProDoctor?: CodigoBaseRequest;
 }
 
 /**
  * Request para listagem de pacientes
  */
-interface PacienteListarRequest {
+interface listPatientsRequest {
   termo?: string;
   campo?: number; // 0: Nome, 1: CPF, 2: Telefone
   pagina?: number;
@@ -153,7 +154,7 @@ interface PacienteBasicViewModel {
 /**
  * ViewModel de paciente para busca/insert
  */
-interface PacienteSearchViewModel {
+interface ProdoctorGetPatientResponse {
   codigo?: number;
   nome?: string;
   nomeCivil?: string;
@@ -249,7 +250,7 @@ interface PacienteViewModel {
 
 interface PDResponsePacienteSearchViewModel {
   payload: {
-    paciente: PacienteSearchViewModel;
+    paciente: ProdoctorGetPatientResponse;
   };
   sucesso: boolean;
   mensagens: string[];
@@ -271,7 +272,7 @@ interface PDResponsePacienteViewModel {
   mensagens: string[];
 }
 
-interface PDResponsePacienteListaViewModel {
+interface ProdoctorResponsePatientsListViewModel {
   payload: {
     pacientes: PacienteListarViewModel[];
   };
@@ -290,17 +291,17 @@ export {
   EnderecoViewModel,
   // Request
   PacienteRequest,
-  PacienteBuscarRequest,
-  PacienteListarRequest,
+  ProdoctorGetPatientResponse,
+  ProdoctorGetPatientRequest,
+  listPatientsRequest,
   PacienteCRUDRequest,
   // ViewModel
   PacienteBasicViewModel,
-  PacienteSearchViewModel,
   PacienteListarViewModel,
   PacienteViewModel,
   // Response
   PDResponsePacienteSearchViewModel,
   PDResponsePacienteBasicViewModel,
   PDResponsePacienteViewModel,
-  PDResponsePacienteListaViewModel,
+  ProdoctorResponsePatientsListViewModel,
 };

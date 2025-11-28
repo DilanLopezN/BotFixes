@@ -302,47 +302,47 @@ describe('ProdoctorHelpersService', () => {
     });
   });
 
-  describe('buildTipoAgendamentoRequest', () => {
+  describe('buildTypeScheduleRequest', () => {
     it('deve construir tipo consulta', () => {
-      const result = service.buildTipoAgendamentoRequest('consulta');
+      const result = service.buildTypeScheduleRequest('consulta');
 
       expect(result.consulta).toBe(true);
       expect(result.retorno).toBeFalsy();
     });
 
     it('deve construir tipo retorno', () => {
-      const result = service.buildTipoAgendamentoRequest('retorno');
+      const result = service.buildTypeScheduleRequest('retorno');
 
       expect(result.retorno).toBe(true);
       expect(result.consulta).toBeFalsy();
     });
 
     it('deve construir tipo exame', () => {
-      const result = service.buildTipoAgendamentoRequest('exame');
+      const result = service.buildTypeScheduleRequest('exame');
 
       expect(result.exame).toBe(true);
     });
 
     it('deve construir tipo cirurgia', () => {
-      const result = service.buildTipoAgendamentoRequest('cirurgia');
+      const result = service.buildTypeScheduleRequest('cirurgia');
 
       expect(result.cirurgia).toBe(true);
     });
 
     it('deve construir tipo teleconsulta', () => {
-      const result = service.buildTipoAgendamentoRequest('teleconsulta');
+      const result = service.buildTypeScheduleRequest('teleconsulta');
 
       expect(result.teleconsulta).toBe(true);
     });
 
     it('deve construir tipo compromisso', () => {
-      const result = service.buildTipoAgendamentoRequest('compromisso');
+      const result = service.buildTypeScheduleRequest('compromisso');
 
       expect(result.compromisso).toBe(true);
     });
 
     it('deve retornar consulta como padrão para tipo desconhecido', () => {
-      const result = service.buildTipoAgendamentoRequest('unknown');
+      const result = service.buildTypeScheduleRequest('unknown');
 
       expect(result.consulta).toBe(true);
     });
@@ -350,7 +350,11 @@ describe('ProdoctorHelpersService', () => {
 
   describe('transformAvailableScheduleToRawAppointment', () => {
     it('deve transformar horário disponível', () => {
-      const horario = { data: '25/11/2025', hora: '14:00', duracao: 30 };
+      const horario = {
+        dataHora: '25/11/2025 14:00',
+        duracao: 30,
+      };
+
       const doctor = {
         code: '100',
         name: 'Dr. Carlos',
