@@ -33,8 +33,8 @@ import {
   KonsistCamposUsuarioRetorno,
   KonsistListarPacienteRequest,
   KonsistDadosPacienteResponse,
-  KonsistIncluirPacienteRequest,
-  KonsistIncluirPacienteResponse,
+  KonsistIncluirPacienteRequest as KonsistCreatePatientRequest,
+  KonsistCreatePatientResponse,
 } from '../interfaces';
 
 @Injectable()
@@ -652,12 +652,12 @@ export class KonsistApiService {
   }
 
   /**
-   * POST /paciente - Insere dados cadastrais do paciente
+   * POST /paciente - Insere dados cadastrais do paciente, interfaces condizentes check
    */
   public async createPatient(
     integration: IntegrationDocument,
-    request: KonsistIncluirPacienteRequest,
-  ): Promise<KonsistIncluirPacienteResponse> {
+    request: KonsistCreatePatientRequest,
+  ): Promise<KonsistCreatePatientResponse> {
     const methodName = 'createPatient';
     this.debugRequest(integration, request, methodName);
     this.dispatchAuditEvent(integration, request, methodName, AuditDataType.externalRequest);
@@ -665,7 +665,7 @@ export class KonsistApiService {
     try {
       const headers = await this.getHeaders(integration);
       const response = await lastValueFrom(
-        this.httpService.post<KonsistIncluirPacienteResponse>('/paciente', request, headers),
+        this.httpService.post<KonsistCreatePatientResponse>('/paciente', request, headers),
       );
 
       this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
@@ -750,6 +750,94 @@ export class KonsistApiService {
       return response?.data;
     } catch (error) {
       this.handleResponseError(integration, error, { userEmail }, methodName);
+      throw HTTP_ERROR_THROWER(
+        error?.response?.status || HttpStatus.BAD_REQUEST,
+        error.response?.data || error,
+        HttpErrorOrigin.INTEGRATION_ERROR,
+      );
+    }
+  }
+
+  // ==================== SPECIALITIES ====================
+
+  /**
+   * GET /listarespecialidade - Lista todas as especialidades disponíveis
+   */
+  public async listSpecialities(integration: IntegrationDocument): Promise<any[]> {
+    const methodName = 'listSpecialities';
+    this.debugRequest(integration, {}, methodName);
+    this.dispatchAuditEvent(integration, {}, methodName, AuditDataType.externalRequest);
+
+    try {
+      const headers = await this.getHeaders(integration);
+      const response = await lastValueFrom(this.httpService.get<any[]>('/listarespecialidade', headers));
+
+      this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
+      return response?.data || [];
+    } catch (error) {
+      this.handleResponseError(integration, error, {}, methodName);
+      throw HTTP_ERROR_THROWER(
+        error?.response?.status || HttpStatus.BAD_REQUEST,
+        error.response?.data || error,
+        HttpErrorOrigin.INTEGRATION_ERROR,
+      );
+    }
+  }
+
+  // ==================== PRE-AGENDAMENTO ====================
+
+  /**
+   * POST /medico/agendamento/marcar - Realiza o pré-agendamento
+   */
+  public async createPreAgendamento(
+    integration: IntegrationDocument,
+    request: KonsistPreAgendamentoRequest,
+  ): Promise<{ protocolo: string }> {
+    const methodName = 'createPreAgendamento';
+    this.debugRequest(integration, request, methodName);
+    this.dispatchAuditEvent(integration, request, methodName, AuditDataType.externalRequest);
+
+    try {
+      const headers = await this.getHeaders(integration);
+      const response = await lastValueFrom(
+        this.httpService.post<{ protocolo: string }>('/medico/agendamento/marcar', request, headers),
+      );
+
+      this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
+      return response?.data;
+    } catch (error) {
+      this.handleResponseError(integration, error, request, methodName);
+      throw HTTP_ERROR_THROWER(
+        error?.response?.status || HttpStatus.BAD_REQUEST,
+        error.response?.data || error,
+        HttpErrorOrigin.INTEGRATION_ERROR,
+      );
+    }
+  }
+
+  // ==================== AGENDAMENTOS POR PERÍODO ====================
+
+  /**
+   * POST /agendamentos - Consulta agendamentos dentro de um período
+   */
+  public async getAppointmentsByPeriod(
+    integration: IntegrationDocument,
+    request: KonsistPeriodoAgendamentoRequest,
+  ): Promise<KonsistAgendamentoResponse[]> {
+    const methodName = 'getAppointmentsByPeriod';
+    this.debugRequest(integration, request, methodName);
+    this.dispatchAuditEvent(integration, request, methodName, AuditDataType.externalRequest);
+
+    try {
+      const headers = await this.getHeaders(integration);
+      const response = await lastValueFrom(
+        this.httpService.post<KonsistAgendamentoResponse[]>('/agendamentos', request, headers),
+      );
+
+      this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
+      return response?.data;
+    } catch (error) {
+      this.handleResponseError(integration, error, request, methodName);
       throw HTTP_ERROR_THROWER(
         error?.response?.status || HttpStatus.BAD_REQUEST,
         error.response?.data || error,

@@ -120,8 +120,18 @@ export const mockServicos = [
  * Filiais/Locais mock
  */
 export const mockFiliais = [
-  { id: 1, nome: 'Clínica Central', empresa_endereco: 'Av. Paulista, 1000 - São Paulo/SP', empresa_telefone: '(11) 3000-0001' },
-  { id: 2, nome: 'Filial Sul', empresa_endereco: 'Rua das Palmeiras, 500 - Porto Alegre/RS', empresa_telefone: '(51) 3000-0002' },
+  {
+    id: 1,
+    nome: 'Clínica Central',
+    empresa_endereco: 'Av. Paulista, 1000 - São Paulo/SP',
+    empresa_telefone: '(11) 3000-0001',
+  },
+  {
+    id: 2,
+    nome: 'Filial Sul',
+    empresa_endereco: 'Rua das Palmeiras, 500 - Porto Alegre/RS',
+    empresa_telefone: '(51) 3000-0002',
+  },
 ];
 
 // ========== HELPERS ==========
@@ -333,7 +343,16 @@ export const realisticMocks: Record<string, MockFn> = {
   // POST /medico/agendamento/marcar - Criar pré-agendamento
   'POST /medico/agendamento/marcar': (req) => {
     const body = req.body || {};
-    const { chave, idpaciente, idmedico, idconvenio, idservico, codigoprocedimento, descricaoprocedimento, observacao } = body;
+    const {
+      chave,
+      idpaciente,
+      idmedico,
+      idconvenio,
+      idservico,
+      codigoprocedimento,
+      descricaoprocedimento,
+      observacao,
+    } = body;
 
     const protocolo = `PROT-${Date.now()}`;
 

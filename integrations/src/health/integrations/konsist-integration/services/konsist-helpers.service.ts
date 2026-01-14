@@ -11,6 +11,7 @@ import {
   KonsistAgendamentoResponse,
   KonsistAgendamentoItem,
   KonsistIncluirPacienteRequest,
+  KonsistContato,
 } from '../interfaces';
 
 @Injectable()
@@ -29,8 +30,8 @@ export class KonsistHelpersService {
     return {
       code: String(paciente),
       name: paciente.nome,
-      cpf: paciente.cpf, // CPF não está disponível no KonsistDadosPacienteResponse
-      email: paciente.email, // Email não está disponível no KonsistDadosPacienteResponse
+      cpf: paciente.cpf,
+      email: paciente.email,
       phone: '',
       cellPhone: paciente.email,
       bornDate: this.parseDate(paciente.datanascimento),
@@ -40,6 +41,7 @@ export class KonsistHelpersService {
 
   /**
    * Transforma paciente completo do Konsist (com contatos) para formato padrão
+   * KonsistContato tem: descricao e conteudo (não ddd/numero)
    */
   public replacePatientWithContacts(paciente: KonsistAgendamentoResponse): Patient {
     if (!paciente) return null;
@@ -48,15 +50,23 @@ export class KonsistHelpersService {
     let cellPhone = '';
 
     // Extrai telefones dos contatos
+    // KonsistContato: { descricao?: string; conteudo?: string }
     if (paciente.contatos?.length) {
-      const contato = paciente.contatos[0];
-      if (contato.ddd && contato.numero) {
-        const fullNumber = `${contato.ddd}${contato.numero}`;
-        // Celular começa com 9
-        if (contato.numero?.startsWith('9')) {
-          cellPhone = formatPhone(fullNumber, true);
-        } else {
-          phone = formatPhone(fullNumber, true);
+      for (const contato of paciente.contatos) {
+        // descricao pode indicar tipo: "celular", "telefone", etc
+        // conteudo é o número em si
+        if (contato.conteudo) {
+          const cleanNumber = contato.conteudo.replace(/\D/g, '');
+          const isCellPhone =
+            contato.descricao?.toLowerCase()?.includes('celular') ||
+            contato.descricao?.toLowerCase()?.includes('cel') ||
+            (cleanNumber.length >= 10 && cleanNumber.charAt(cleanNumber.length - 9) === '9');
+
+          if (isCellPhone && !cellPhone) {
+            cellPhone = formatPhone(cleanNumber, true);
+          } else if (!phone) {
+            phone = formatPhone(cleanNumber, true);
+          }
         }
       }
     } else if (paciente.telefone) {
@@ -78,45 +88,40 @@ export class KonsistHelpersService {
   /**
    * Converte data do formato Konsist para ISO
    */
-  private parseDate(dateString?: string): string | undefined {
-    if (!dateString) return undefined;
+  private parseDate(dateString?: string): string {
+    if (!dateString) return '';
 
-    // Tenta formato DD/MM/YYYY
-    let parsed = moment(dateString, this.dateFormat, true);
-    if (parsed.isValid()) {
-      return parsed.toISOString();
-    }
+    const formats = ['YYYY-MM-DD', 'DD/MM/YYYY', 'DD-MM-YYYY'];
+    const parsed = moment(dateString, formats, true);
 
-    // Tenta formato ISO
-    parsed = moment(dateString);
-    if (parsed.isValid()) {
-      return parsed.toISOString();
-    }
+    if (!parsed.isValid()) return '';
 
-    return undefined;
+    return parsed.format('YYYY-MM-DD');
   }
 
   /**
-   * Mapeia sexo para string padrão
+   * Mapeia sexo do Konsist para padrão
    */
   private mapSex(sexo?: string): string {
     if (!sexo) return '';
-    const sexoUpper = sexo.toUpperCase();
-    if (sexoUpper === 'M' || sexoUpper === 'MASCULINO') return 'M';
-    if (sexoUpper === 'F' || sexoUpper === 'FEMININO') return 'F';
+    const upperSexo = sexo.toUpperCase();
+    if (upperSexo === 'M' || upperSexo === 'MASCULINO') return 'M';
+    if (upperSexo === 'F' || upperSexo === 'FEMININO') return 'F';
     return '';
   }
 
   /**
-   * Converte status do Konsist para status padrão do sistema
-   * Status Konsist: 1=Confirmado (C), 2=Desmarcado (D), 3=Atendido (A), 4=Faltou (F), 5=Chegou (L), 6=Liberado
+   * Mapeia status do Konsist para status padrão
+   * Konsist: C=Confirmado, L=chegou, D=Desmarcado, F=Faltou, A=Atendido, M=Atendido Medico
    * AppointmentStatus: canceled=0, scheduled=1, confirmed=2, finished=3
    */
-  public convertStatus(status: number | string): AppointmentStatus {
+  public mapAppointmentStatus(status?: string | number): AppointmentStatus {
+    if (!status) return AppointmentStatus.scheduled;
+
     const statusNum = typeof status === 'string' ? parseInt(status, 10) : status;
     const statusStr = typeof status === 'string' ? status.toUpperCase() : '';
 
-    // Por número
+    // Por número (vem do /status endpoint)
     switch (statusNum) {
       case 1: // Confirmado
         return AppointmentStatus.confirmed;
@@ -168,108 +173,61 @@ export class KonsistHelpersService {
   }
 
   /**
-   * Cria objeto de agendamento a partir do horário disponível
-   * Interface KonsistAgendaHorarioRetorno: chave, idmedico, data, hora
+   * Transforma horário disponível do Konsist para RawAppointment
    */
-  public createAppointmentFromAvailableSlot(
-    slot: KonsistAgendaHorarioRetorno,
-    filter: CorrelationFilter,
-  ): RawAppointment {
+  public transformAvailableSlot(slot: KonsistAgendaHorarioRetorno, filters: CorrelationFilter): RawAppointment {
+    const dateTime = this.combineDateTime(slot.data, slot.hora);
+
     return {
-      appointmentCode: String(slot.chave || `${slot.data}-${slot.hora}`),
-      appointmentDate: this.combineDateTime(slot.data, slot.hora),
-      duration: '30', // Duração padrão, não vem na interface
-      status: AppointmentStatus.scheduled,
+      appointmentCode: String(slot.chave),
+      appointmentDate: dateTime,
+      duration: '-1',
       doctorId: String(slot.idmedico),
-      doctorDefault: filter.doctor
-        ? {
-            name: filter.doctor.name,
-            friendlyName: filter.doctor.friendlyName || filter.doctor.name,
-            code: filter.doctor.code,
-          }
-        : undefined,
-      insuranceId: filter.insurance?.code,
-      insuranceDefault: filter.insurance
-        ? {
-            name: filter.insurance.name,
-            friendlyName: filter.insurance.friendlyName || filter.insurance.name,
-            code: filter.insurance.code,
-          }
-        : undefined,
-      organizationUnitId: filter.organizationUnit?.code,
-      organizationUnitDefault: filter.organizationUnit
-        ? {
-            name: filter.organizationUnit.name,
-            friendlyName: filter.organizationUnit.friendlyName || filter.organizationUnit.name,
-            code: filter.organizationUnit.code,
-          }
-        : undefined,
-      procedureId: filter.procedure?.code,
-      procedureDefault: filter.procedure
-        ? {
-            name: filter.procedure.name,
-            friendlyName: filter.procedure.friendlyName || filter.procedure.name,
-            code: filter.procedure.code,
-          }
-        : undefined,
-      specialityId: filter.speciality?.code,
-      specialityDefault: filter.speciality
-        ? {
-            name: filter.speciality.name,
-            friendlyName: filter.speciality.friendlyName || filter.speciality.name,
-            code: filter.speciality.code,
-          }
-        : undefined,
-      appointmentTypeId: filter.appointmentType?.code || 'C',
-      data: {
-        chave: slot.chave,
-        idmedico: slot.idmedico,
-      },
+      organizationUnitId: filters?.organizationUnit?.code || '1',
+      specialityId: filters?.speciality?.code || '-1',
+      insuranceId: filters?.insurance?.code || '-1',
+      procedureId: filters?.procedure?.code || '-1',
+      status: AppointmentStatus.scheduled,
     };
   }
 
   /**
-   * Converte item de agendamento do Konsist para formato interno
-   * Interface KonsistAgendamentoItem: agendamento_chave, agendamento_medico, agendamento_data, agendamento_hora, etc.
+   * Transforma agendamento do Konsist para RawAppointment
    */
-  public convertAppointmentItemToInternal(
-    item: KonsistAgendamentoItem,
-    patientData?: KonsistAgendamentoResponse,
+  public transformAppointment(
+    agendamento: KonsistAgendamentoItem,
+    _paciente: KonsistAgendamentoResponse,
   ): RawAppointment {
+    const dateTime = this.combineDateTime(agendamento.agendamento_data, agendamento.agendamento_hora);
+
     return {
-      appointmentCode: String(item.agendamento_chave),
-      appointmentDate: this.combineDateTime(item.agendamento_data, item.agendamento_hora),
-      duration: '30',
-      status: this.convertStatus(item.agendamento_status),
-      appointmentTypeId: 'C',
+      appointmentCode: String(agendamento.agendamento_chave),
+      appointmentDate: dateTime,
+      duration: '-1',
+      doctorId: '-1',
+      organizationUnitId: '1',
+      specialityId: '-1',
+      insuranceId: '-1',
+      procedureId: agendamento.agendamento_codigo_procedimento || '-1',
+      status: this.mapAppointmentStatus(agendamento.agendamento_status),
       data: {
-        medico: item.agendamento_medico,
-        especialidade: item.agendamento_especialidade,
-        procedimento: item.agendamento_procedimento,
-        codigoProcedimento: item.agendamento_codigo_procedimento,
-        preparo: item.agendamento_preparo,
-        categoria: item.agendamento_categoria,
-        empresaUnidade: item.empresa_unidade,
-        empresaEndereco: item.empresa_endereco,
-        empresaTelefone: item.empresa_telefone,
-        paciente: patientData?.paciente,
-        idpaciente: patientData?.idpaciente,
+        medico: agendamento.agendamento_medico,
+        especialidade: agendamento.agendamento_especialidade,
+        procedimento: agendamento.agendamento_procedimento,
+        preparo: agendamento.agendamento_preparo,
+        unidade: agendamento.empresa_unidade,
+        endereco: agendamento.empresa_endereco,
+        telefone: agendamento.empresa_telefone,
       },
     };
   }
 
   /**
-   * Combina data e hora em formato ISO
+   * Combina data e hora em ISO string
    */
-  public combineDateTime(date: string, time: string): string {
+  private combineDateTime(date?: string, time?: string): string {
     if (!date) return '';
 
-    // Se a data já contém hora, retorna diretamente
-    if (date.includes('T') || date.includes(' ')) {
-      return moment(date).toISOString();
-    }
-
-    // Combina data + hora
     const dateTime = time ? `${date} ${time}` : date;
     return moment(dateTime, 'YYYY-MM-DD HH:mm').toISOString();
   }

@@ -100,9 +100,9 @@ export class KonsistEntitiesService {
     }, {});
 
     if (cache) {
-      const cachedResource = await this.integrationCacheUtilsService.getEntityCache(
-        integration,
+      const cachedResource = await this.integrationCacheUtilsService.getCachedEntitiesFromRequest(
         targetEntity,
+        integration,
         resourceCacheParams,
       );
 
@@ -137,9 +137,9 @@ export class KonsistEntitiesService {
     }
 
     if (cache && entities?.length) {
-      await this.integrationCacheUtilsService.setEntityCache(
-        integration,
+      await this.integrationCacheUtilsService.setCachedEntitiesFromRequest(
         targetEntity,
+        integration,
         resourceCacheParams,
         entities,
         getExpirationByEntity(targetEntity),
@@ -153,6 +153,7 @@ export class KonsistEntitiesService {
 
   /**
    * Lista médicos da API Konsist
+   * KonsistMedicoResponse: { id, nome?, crm?, local?, podemarcaratendido? }
    */
   public async listDoctors(integration: IntegrationDocument, filters: CorrelationFilter): Promise<IDoctorEntity[]> {
     try {
@@ -169,9 +170,8 @@ export class KonsistEntitiesService {
         ...this.getDefaultErpEntityData(integration),
         data: {
           crm: resource.crm,
-          ufCrm: resource.ufCrm,
-          especialidade: resource.especialidade,
-          email: resource.email,
+          local: resource.local,
+          podemarcaratendido: resource.podemarcaratendido,
         },
       }));
     } catch (error) {
@@ -183,6 +183,7 @@ export class KonsistEntitiesService {
 
   /**
    * Lista convênios da API Konsist
+   * KonsistConvenioResponse: { id?, codigo?, nome?, reduzido?, num_cnpj?, status? }
    */
   public async listInsurances(
     integration: IntegrationDocument,
@@ -203,7 +204,7 @@ export class KonsistEntitiesService {
         data: {
           codigo: resource.codigo,
           reduzido: resource.reduzido,
-          cnpj: resource.cnpj,
+          cnpj: resource.num_cnpj,
         },
       }));
     } catch (error) {
@@ -215,6 +216,7 @@ export class KonsistEntitiesService {
 
   /**
    * Lista unidades organizacionais (filiais) da API Konsist
+   * KonsistEmpresaResponse: { tipo?, id?, empresa?, cnpj?, endereco?, numero?, bairro?, cep?, ddd?, fone?, site?, localizacao?, complemento? }
    */
   public async listOrganizationUnits(
     integration: IntegrationDocument,
@@ -229,7 +231,7 @@ export class KonsistEntitiesService {
 
       return response.map((resource) => ({
         code: String(resource.id),
-        name: resource.empresa?.trim() || resource.razaoSocial?.trim(),
+        name: resource.empresa?.trim(),
         ...this.getDefaultErpEntityData(integration),
         data: {
           tipo: resource.tipo,
@@ -237,10 +239,12 @@ export class KonsistEntitiesService {
           endereco: resource.endereco,
           numero: resource.numero,
           bairro: resource.bairro,
-          cidade: resource.cidade,
-          uf: resource.uf,
           cep: resource.cep,
-          telefone: resource.telefone,
+          ddd: resource.ddd,
+          fone: resource.fone,
+          site: resource.site,
+          localizacao: resource.localizacao,
+          complemento: resource.complemento,
         },
       }));
     } catch (error) {
@@ -292,39 +296,34 @@ export class KonsistEntitiesService {
 
   /**
    * Lista especialidades da API Konsist
-   * Nota: Konsist não tem endpoint específico de especialidades,
-   * extraímos dos médicos ou usamos lista fixa
+   * Usa endpoint /listarespecialidade se disponível, senão usa lista fixa
    */
   public async listSpecialities(
     integration: IntegrationDocument,
     _filters: CorrelationFilter,
   ): Promise<ISpecialityEntity[]> {
     try {
-      // Busca médicos para extrair especialidades únicas
-      const doctors = await this.konsistApiService.listDoctors(integration);
+      // Tenta buscar especialidades da API
+      const response = await this.konsistApiService.listSpecialities(integration);
 
-      if (!doctors?.length) {
-        return [];
+      if (response?.length) {
+        return response.map((resource: any) => ({
+          code: String(resource.id || resource.codigo),
+          name: resource.nome?.trim() || resource.descricao?.trim(),
+          specialityType: SpecialityTypes.C,
+          ...this.getDefaultErpEntityData(integration),
+        }));
       }
 
-      // Extrai especialidades únicas dos médicos
-      const specialitiesMap = new Map<string, ISpecialityEntity>();
-
-      doctors.forEach((doctor) => {
-        if (doctor.especialidade) {
-          const code = String(doctor.especialidade).toLowerCase().replace(/\s+/g, '_');
-          if (!specialitiesMap.has(code)) {
-            specialitiesMap.set(code, {
-              code,
-              name: doctor.especialidade?.trim(),
-              specialityType: SpecialityTypes.C,
-              ...this.getDefaultErpEntityData(integration),
-            });
-          }
-        }
-      });
-
-      return Array.from(specialitiesMap.values());
+      // Fallback: retorna lista vazia ou especialidade genérica
+      return [
+        {
+          code: 'consulta',
+          name: 'Consulta',
+          specialityType: SpecialityTypes.C,
+          ...this.getDefaultErpEntityData(integration),
+        },
+      ];
     } catch (error) {
       throw INTERNAL_ERROR_THROWER('KonsistEntitiesService.listSpecialities', error);
     }

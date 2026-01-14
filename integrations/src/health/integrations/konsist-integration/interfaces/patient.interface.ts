@@ -43,6 +43,6 @@ export interface KonsistPacienteResponse {
   contatos?: KonsistContato[];
 }
 
-export interface KonsistIncluirPacienteResponse {
+export interface KonsistCreatePatientResponse {
   idpaciente: number;
 }

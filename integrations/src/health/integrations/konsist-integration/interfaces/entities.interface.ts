@@ -47,9 +47,4 @@ interface KonsistPatientData {
 
 // ========== EXPORTS ==========
 
-export {
-  KonsistInsuranceData,
-  KonsistDoctorData,
-  KonsistOrganizationUnitData,
-  KonsistPatientData,
-};
+export { KonsistInsuranceData, KonsistDoctorData, KonsistOrganizationUnitData, KonsistPatientData };
