@@ -26,7 +26,7 @@ export class ExternalInsurancesService {
         };
 
       default:
-        throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, 'Invalid insurance');
+        throw HTTP_ERROR_THROWER(HttpStatus.BAD_GATEWAY, 'Invalid insurance');
     }
   }
 

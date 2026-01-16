@@ -17,7 +17,7 @@ import { CredentialsModule } from '../../credentials/credentials.module';
   imports: [
     // @docs: https://docs.feegow.com/?version=1.0
     HttpModule.register({
-      timeout: 60_000,
+      timeout: 45_000,
       baseURL: 'https://api.feegow.com/v1/api',
     }),
     EntitiesModule,

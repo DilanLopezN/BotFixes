@@ -159,10 +159,6 @@ export class IntegrationRulesDto {
   @IsOptional()
   [IntegrationRules.doNotAllowSameHourScheduling]?: boolean;
 
-  @IsBoolean()
-  @IsOptional()
-  [IntegrationRules.doNotAllowSameDayForProcedureWithLaterality]?: boolean;
-
   @IsNumber()
   @IsOptional()
   [IntegrationRules.minutesAfterAppointmentCanSchedule]?: number;
@@ -170,10 +166,6 @@ export class IntegrationRulesDto {
   @IsBoolean()
   @IsOptional()
   [IntegrationRules.useInsuranceSuggestion]?: boolean;
-
-  @IsBoolean()
-  @IsOptional()
-  [IntegrationRules.useScheduleSuggestion]?: boolean;
 
   @IsBoolean()
   @IsOptional()
@@ -227,10 +219,6 @@ export class IntegrationRulesDto {
   @IsBoolean()
   @IsOptional()
   [IntegrationRules.useListInAllSteps]?: boolean;
-
-  @IsBoolean()
-  @IsOptional()
-  [IntegrationRules.useCachedEntitiesFromErp]?: boolean;
 }
 
 export class IntegrationMessagesDto {

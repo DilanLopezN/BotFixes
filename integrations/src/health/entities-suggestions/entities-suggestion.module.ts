@@ -6,17 +6,10 @@ import { EntitiesModule } from '../entities/entities.module';
 import { InsuranceSuggestionService } from './insurance-suggestion.service';
 import { DoctorSuggestionService } from './doctor-suggestion.service';
 import { IntegratorModule } from '../integrator/integrator.module';
-import { ScheduleSuggestionService } from './schedule-suggestion.service';
-import { CacheModule } from '../../core/cache/cache.module';
 
 @Module({
-  imports: [FlowModule, AppointmentModule, EntitiesModule, forwardRef(() => IntegratorModule), CacheModule],
-  providers: [
-    EntitiesSuggestionService,
-    InsuranceSuggestionService,
-    DoctorSuggestionService,
-    ScheduleSuggestionService,
-  ],
-  exports: [EntitiesSuggestionService, ScheduleSuggestionService],
+  imports: [FlowModule, AppointmentModule, EntitiesModule, forwardRef(() => IntegratorModule)],
+  providers: [EntitiesSuggestionService, InsuranceSuggestionService, DoctorSuggestionService],
+  exports: [EntitiesSuggestionService],
 })
 export class EntitiesSuggestionModule {}

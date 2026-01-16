@@ -60,6 +60,7 @@ export interface CreateSchedulePatient {
   height?: number;
   weight?: number;
   cpf?: string;
+
   data?: any;
 }
 
@@ -75,5 +76,6 @@ export interface CreateSchedule {
   appointmentType?: AppointmentType;
   scheduleType?: TypeOfService;
   laterality?: Laterality;
+  notes?: string;
   data?: Record<string, any>;
 }

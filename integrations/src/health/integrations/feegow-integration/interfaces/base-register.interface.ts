@@ -97,10 +97,6 @@ interface FeegowDoctorsResponse {
     nome_especialidade: string;
     CBOS: number;
   }[];
-  age_restriction?: {
-    idade_minima?: number | null;
-    idade_maxima?: number | null;
-  };
 }
 
 interface FeegowAppointmentTypesParamsRequest {}

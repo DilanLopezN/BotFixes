@@ -12,7 +12,7 @@ import { onlyNumbers } from '../../../../common/helpers/format-cpf';
 import { IntegrationDocument } from '../../../integration/schema/integration.schema';
 import { RawAppointment } from '../../../shared/appointment.service';
 import { AppointmentStatus } from '../../../interfaces/appointment.interface';
-import { EntityDocument, TypeOfService, TypeOfServiceEntityDocument } from '../../../entities/schema';
+import { EntityDocument, TypeOfService } from '../../../entities/schema';
 import { Types } from 'mongoose';
 import { castObjectIdToString } from '../../../../common/helpers/cast-objectid';
 import { CorrelationFilter } from '../../../interfaces/correlation-filter.interface';
@@ -455,31 +455,5 @@ export class BotdesignerHelpersService {
     )
       ? 'N'
       : null;
-  }
-
-  public async processTypeOfServiceForPayload(
-    integration: IntegrationDocument,
-    typeOfService: { code: string },
-  ): Promise<{ typeOfServiceCode: string | null; classificationCode: string | null }> {
-    if (!typeOfService?.code) {
-      return { typeOfServiceCode: null, classificationCode: null };
-    }
-
-    const codeStr = String(typeOfService.code);
-
-    const isNumeric = /^-?\d+$/.test(codeStr);
-    const isValid = (isNumeric && Number(codeStr) > 0) || !isNumeric;
-
-    if (!isValid) {
-      return { typeOfServiceCode: null, classificationCode: null };
-    }
-
-    const entity = await this.entitiesService.getEntityByCode(codeStr, EntityType.typeOfService, integration._id);
-
-    const classificationCode = (entity as TypeOfServiceEntityDocument)?.params?.referenceTypeOfService
-      ? this.typeOfServiceToBotdesignerTypeOfService((entity as any).params.referenceTypeOfService)
-      : null;
-
-    return { typeOfServiceCode: codeStr, classificationCode };
   }
 }

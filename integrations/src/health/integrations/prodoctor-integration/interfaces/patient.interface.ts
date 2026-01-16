@@ -1,7 +1,7 @@
 // ========== PATIENT INTERFACES ==========
 // Aligned with ProDoctor official API swagger
 
-import { CodigoBaseRequest } from './base.interface';
+import { CodeRequest } from './base.interface';
 
 // ========== ENUMS ==========
 
@@ -9,7 +9,7 @@ import { CodigoBaseRequest } from './base.interface';
  * Patient search field enum
  * Aligned with CampoBuscaPaciente from swagger
  */
-export enum PatientSearchField {
+export enum ProdoctorPatientSearchField {
   NAME = 0,
   CPF = 1,
   PHONE = 2,
@@ -43,14 +43,14 @@ export enum MessageConfirmationSending {
 export interface PhoneRequest {
   ddd?: string;
   numero?: string;
-  tipo?: CodigoBaseRequest;
+  tipo?: CodeRequest;
 }
 
 /**
  * Phone view model structure
  * Aligned with TelefoneViewModel from swagger
  */
-export interface PhoneViewModel {
+export interface PatientPhoneResponse {
   numero?: string;
   tipoTelefone?: {
     codigo?: number;
@@ -74,7 +74,7 @@ export interface StreetTypeRequest {
  * Aligned with LogradouroRequest from swagger
  */
 export interface StreetRequest {
-  tipo?: CodigoBaseRequest;
+  tipo?: CodeRequest;
   nome?: string;
 }
 
@@ -88,9 +88,9 @@ export interface AddressRequest {
   complemento?: string;
   cep?: string;
   bairro?: string;
-  cidade?: CodigoBaseRequest;
-  uf?: CodigoBaseRequest;
-  pais?: CodigoBaseRequest;
+  cidade?: CodeRequest;
+  uf?: CodeRequest;
+  pais?: CodeRequest;
 }
 
 /**
@@ -142,8 +142,8 @@ export interface AddressViewModel {
  * Legal guardian request
  * Aligned with ResponsavelRequest from swagger
  */
-export interface LegalGuardianRequest {
-  tipo?: CodigoBaseRequest;
+export interface ProdoctorLegalGuardianRequest {
+  tipo?: CodeRequest;
   nome?: string;
   cpf?: string;
   telefone?: PhoneRequest;
@@ -153,14 +153,14 @@ export interface LegalGuardianRequest {
  * Legal guardian view model
  * Aligned with ResponsavelViewModel from swagger
  */
-export interface LegalGuardianViewModel {
+export interface ProdoctorLegalGuardianData {
   tipo?: {
     codigo?: number;
     nome?: string;
   };
   nome?: string;
   cpf?: string;
-  telefone?: PhoneViewModel;
+  telefone?: PatientPhoneResponse;
 }
 
 // ========== PATIENT INSURANCE ==========
@@ -169,8 +169,8 @@ export interface LegalGuardianViewModel {
  * Patient insurance request
  * Aligned with PacienteConvenioRequest from swagger
  */
-export interface PatientInsuranceRequest {
-  convenio?: CodigoBaseRequest;
+export interface ProdoctorInsurancePatientRequest {
+  convenio?: CodeRequest;
   plano?: string;
   numeroMatricula?: string;
   validade?: string;
@@ -186,7 +186,7 @@ export interface PatientInsuranceRequest {
  * Patient insurance view model
  * Aligned with PacienteConvenioViewModel from swagger
  */
-export interface PatientInsuranceViewModel {
+export interface ProdoctorInsurancePatientData {
   convenio?: {
     codigo?: number;
     nome?: string;
@@ -207,7 +207,7 @@ export interface PatientInsuranceViewModel {
  * Patient data for CRUD operations
  * Aligned with PacienteRequest from swagger
  */
-export interface PatientDataRequest {
+export interface ProdoctorPatientDataRequest {
   codigo?: number;
   nome?: string;
   nomeCivil?: string;
@@ -217,11 +217,11 @@ export interface PatientDataRequest {
   cartaoNacionalSaude?: string; // CNS
   correioEletronico?: string;
   foto?: string; // Base64
-  sexo?: CodigoBaseRequest;
-  estadoCivil?: CodigoBaseRequest;
-  cor?: CodigoBaseRequest;
-  religiao?: CodigoBaseRequest;
-  escolaridade?: CodigoBaseRequest;
+  sexo?: CodeRequest;
+  estadoCivil?: CodeRequest;
+  cor?: CodeRequest;
+  religiao?: CodeRequest;
+  escolaridade?: CodeRequest;
   profissao?: {
     codigo?: string;
     nome?: string;
@@ -234,11 +234,11 @@ export interface PatientDataRequest {
   telefone2?: PhoneRequest;
   telefone3?: PhoneRequest;
   telefone4?: PhoneRequest;
-  responsavelLegal?: LegalGuardianRequest;
-  responsavelOutro?: LegalGuardianRequest;
-  registroConvenio1?: PatientInsuranceRequest;
-  registroConvenio2?: PatientInsuranceRequest;
-  registroConvenio3?: PatientInsuranceRequest;
+  responsavelLegal?: ProdoctorLegalGuardianRequest;
+  responsavelOutro?: ProdoctorLegalGuardianRequest;
+  registroConvenio1?: ProdoctorInsurancePatientRequest;
+  registroConvenio2?: ProdoctorInsurancePatientRequest;
+  registroConvenio3?: ProdoctorInsurancePatientRequest;
   dataCadastro?: string;
   cpfNaoExiste?: boolean;
   pendencia?: string;
@@ -250,9 +250,9 @@ export interface PatientDataRequest {
  * Aligned with BasicPacienteSearch from swagger
  * Used for POST /api/v1/Pacientes
  */
-export interface PatientSearchRequest {
+export interface ProdoctorPatientSearchRequest {
   termo?: string;
-  campo?: PatientSearchField;
+  campo?: ProdoctorPatientSearchField;
   pagina?: number;
   somenteAtivos?: boolean;
   quantidade?: number; // 1-5000, default 5000
@@ -263,13 +263,13 @@ export interface PatientSearchRequest {
  * Aligned with PacienteCRUDRequest from swagger
  * Used for POST /api/v1/Pacientes/Inserir and PUT /api/v1/Pacientes/Alterar
  */
-export interface PatientCrudRequest {
+export interface ProdoctorPatientRequest {
   codigo?: number;
   suprimirAlertas?: {
     suprimirAlertaValidadeCarteirinha?: boolean;
     suprimirAlertaNomeCivilDiferenteDoNome?: boolean;
   };
-  paciente: PatientDataRequest;
+  paciente: ProdoctorPatientDataRequest;
 }
 
 // ========== PATIENT VIEW MODELS ==========
@@ -279,7 +279,7 @@ export interface PatientCrudRequest {
  * Aligned with PacienteBasicViewModel from swagger
  * Returned from insert/update operations
  */
-export interface PatientBasicViewModel {
+export interface ProdoctorUpdatePatientDetails {
   codigo?: number;
   nome?: string;
 }
@@ -289,16 +289,16 @@ export interface PatientBasicViewModel {
  * Aligned with PacienteListarViewModel from swagger
  * Returned from POST /api/v1/Pacientes
  */
-export interface PatientListViewModel {
+export interface ProdoctorGetPatientResponse {
   codigo?: number;
   nome?: string;
   nomeCivil?: string;
   dataNascimento?: string; // DD/MM/YYYY
   cpf?: string;
-  telefone1?: PhoneViewModel;
-  telefone2?: PhoneViewModel;
-  telefone3?: PhoneViewModel;
-  telefone4?: PhoneViewModel;
+  telefone1?: PatientPhoneResponse;
+  telefone2?: PatientPhoneResponse;
+  telefone3?: PatientPhoneResponse;
+  telefone4?: PatientPhoneResponse;
 }
 
 /**
@@ -306,17 +306,17 @@ export interface PatientListViewModel {
  * Aligned with PacienteSearchViewModel from swagger
  * Returned from POST /api/v1/Pacientes/Inserir
  */
-export interface PatientSearchViewModel {
+export interface ProdoctorCreatePatientDetails {
   codigo?: number;
   nome?: string;
   nomeCivil?: string;
   dataNascimento?: string; // DD/MM/YYYY
   cpf?: string;
   correioEletronico?: string;
-  telefone1?: PhoneViewModel;
-  telefone2?: PhoneViewModel;
-  telefone3?: PhoneViewModel;
-  telefone4?: PhoneViewModel;
+  telefone1?: PatientPhoneResponse;
+  telefone2?: PatientPhoneResponse;
+  telefone3?: PatientPhoneResponse;
+  telefone4?: PatientPhoneResponse;
 }
 
 /**
@@ -324,7 +324,7 @@ export interface PatientSearchViewModel {
  * Aligned with PacienteViewModel from swagger
  * Returned from GET /api/v1/Pacientes/Detalhar/{codigo}
  */
-export interface PatientViewModel {
+export interface ProdoctorPatientResponse {
   codigo?: number;
   nome?: string;
   nomeCivil?: string;
@@ -358,12 +358,12 @@ export interface PatientViewModel {
   paginaWeb?: string;
   enderecoResidencial?: AddressViewModel;
   enderecoComercial?: AddressViewModel;
-  telefone1?: PhoneViewModel;
-  telefone2?: PhoneViewModel;
-  telefone3?: PhoneViewModel;
-  telefone4?: PhoneViewModel;
-  responsavelLegal?: LegalGuardianViewModel;
-  convenios?: PatientInsuranceViewModel[];
+  telefone1?: PatientPhoneResponse;
+  telefone2?: PatientPhoneResponse;
+  telefone3?: PatientPhoneResponse;
+  telefone4?: PatientPhoneResponse;
+  responsavelLegal?: ProdoctorLegalGuardianData;
+  convenios?: ProdoctorInsurancePatientData[];
   prontuario?: string;
   cns?: string;
   observacao?: string;
@@ -373,14 +373,25 @@ export interface PatientViewModel {
 
 // ========== API RESPONSES ==========
 
+export interface ProdoctorResponseSexosViewModel {
+  sucesso: boolean;
+  mensagem: string | null;
+  payload: {
+    sexos: Array<{
+      codigo: number;
+      nome: string;
+    }>;
+  };
+}
+
 /**
  * Patient list response
  * Aligned with PDResponsePacienteListaViewModel from swagger
  * Response from POST /api/v1/Pacientes
  */
-export interface PatientListResponse {
+export interface ProdoctorListPatientResponse {
   payload: {
-    pacientes: PatientListViewModel[];
+    pacientes: ProdoctorGetPatientResponse[];
   };
   sucesso: boolean;
   mensagens: string[];
@@ -391,9 +402,9 @@ export interface PatientListResponse {
  * Aligned with PDResponsePacienteSearchViewModel from swagger
  * Response from POST /api/v1/Pacientes/Inserir
  */
-export interface PatientSearchResponse {
+export interface ProdoctorCreatePatientResponse {
   payload: {
-    paciente: PatientSearchViewModel;
+    paciente: ProdoctorCreatePatientDetails;
   };
   sucesso: boolean;
   mensagens: string[];
@@ -404,9 +415,9 @@ export interface PatientSearchResponse {
  * Aligned with PDResponsePacienteBasicViewModel from swagger
  * Response from PUT /api/v1/Pacientes/Alterar
  */
-export interface PatientBasicResponse {
+export interface ProdoctorUpdatePatientResponse {
   payload: {
-    paciente: PatientBasicViewModel;
+    paciente: ProdoctorUpdatePatientDetails;
   };
   sucesso: boolean;
   mensagens: string[];
@@ -419,59 +430,8 @@ export interface PatientBasicResponse {
  */
 export interface PatientDetailsResponse {
   payload: {
-    paciente: PatientViewModel;
+    paciente: ProdoctorPatientResponse;
   };
   sucesso: boolean;
   mensagens: string[];
 }
-
-// ========== LEGACY EXPORTS (for backward compatibility) ==========
-// TODO: Remove these after migration is complete
-
-/** @deprecated Use PhoneRequest instead */
-export type TelefoneRequest = PhoneRequest;
-
-/** @deprecated Use PhoneViewModel instead */
-export type TelefoneViewModel = PhoneViewModel;
-
-/** @deprecated Use AddressRequest instead */
-export type EnderecoRequest = AddressRequest;
-
-/** @deprecated Use AddressViewModel instead */
-export type EnderecoViewModel = AddressViewModel;
-
-/** @deprecated Use PatientDataRequest instead */
-export type PacienteRequest = PatientDataRequest;
-
-/** @deprecated Use PatientSearchRequest instead */
-export type ProdoctorGetPatientRequest = PatientSearchRequest;
-
-/** @deprecated Use PatientSearchViewModel instead */
-export type ProdoctorGetPatientResponse = PatientSearchViewModel;
-
-/** @deprecated Use PatientSearchRequest instead */
-export type listPatientsRequest = PatientSearchRequest;
-
-/** @deprecated Use PatientCrudRequest instead */
-export type PacienteCRUDRequest = PatientCrudRequest;
-
-/** @deprecated Use PatientBasicViewModel instead */
-export type PacienteBasicViewModel = PatientBasicViewModel;
-
-/** @deprecated Use PatientListViewModel instead */
-export type PacienteListarViewModel = PatientListViewModel;
-
-/** @deprecated Use PatientViewModel instead */
-export type PacienteViewModel = PatientViewModel;
-
-/** @deprecated Use PatientSearchResponse instead */
-export type PDResponsePacienteSearchViewModel = PatientSearchResponse;
-
-/** @deprecated Use PatientBasicResponse instead */
-export type PDResponsePacienteBasicViewModel = PatientBasicResponse;
-
-/** @deprecated Use PatientDetailsResponse instead */
-export type PDResponsePacienteViewModel = PatientDetailsResponse;
-
-/** @deprecated Use PatientListResponse instead */
-export type ProdoctorResponsePatientsListViewModel = PatientListResponse;

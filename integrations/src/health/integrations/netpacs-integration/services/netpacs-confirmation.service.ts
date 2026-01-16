@@ -45,8 +45,6 @@ import { ExtractedSchedule } from '../../../schedules/interfaces/extracted-sched
 import { groupBy } from 'lodash';
 import { OkResponse } from '../../../../common/interfaces/ok-response.interface';
 import { castObjectIdToString } from '../../../../common/helpers/cast-objectid';
-import { GetScheduleByIdData } from '../../../integrator/interfaces/get-schedule-by-id.interface';
-import { Schedules } from '../../../schedules/entities/schedules.entity';
 
 @Injectable()
 export class NetpacsConfirmationService {
@@ -275,6 +273,10 @@ export class NetpacsConfirmationService {
           integrationId: integration._id,
           entitiesFilter: scheduleCorrelation,
           targetFlowTypes: [FlowSteps.confirmActive],
+          filters: {
+            patientBornDate: moment(schedule.patientBornDate).format('YYYY-MM-DD'),
+            patientCpf: schedule.patientCpf,
+          },
         });
 
         if (actions?.length) {
@@ -366,6 +368,10 @@ export class NetpacsConfirmationService {
           integrationId: integration._id,
           entitiesFilter: correlation,
           targetFlowTypes: [FlowSteps.confirmActive],
+          filters: {
+            patientBornDate: schedule.patientBornDate,
+            patientCpf: schedule.patientCpf,
+          },
           trigger: FlowTriggerType.active_confirmation_confirm,
         });
 
@@ -487,6 +493,10 @@ export class NetpacsConfirmationService {
           integrationId: integration._id,
           entitiesFilter: correlation,
           targetFlowTypes: [FlowSteps.confirmActive],
+          filters: {
+            patientBornDate: schedule.patientBornDate,
+            patientCpf: schedule.patientCpf,
+          },
           trigger: FlowTriggerType.active_confirmation_confirm,
         });
 
@@ -611,18 +621,6 @@ export class NetpacsConfirmationService {
     } catch (error) {
       console.error(error);
       throw INTERNAL_ERROR_THROWER('NetpacsConfirmationService.validateScheduleData', error);
-    }
-  }
-
-  async getConfirmationScheduleById(integration: IntegrationDocument, data: GetScheduleByIdData): Promise<Schedules> {
-    try {
-      return await this.schedulesService.getScheduleByCodeOrId(
-        castObjectIdToString(integration._id),
-        null,
-        data.scheduleId,
-      );
-    } catch (error) {
-      throw INTERNAL_ERROR_THROWER('NetpacsConfirmationService.getConfirmationScheduleById', error);
     }
   }
 }

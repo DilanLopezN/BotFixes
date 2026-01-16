@@ -95,7 +95,7 @@ export class ApiService {
 
       return response.data;
     } catch (error) {
-      throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, error, HttpErrorOrigin.API_ERROR);
+      throw HTTP_ERROR_THROWER(HttpStatus.BAD_GATEWAY, error, HttpErrorOrigin.API_ERROR);
     }
   }
 

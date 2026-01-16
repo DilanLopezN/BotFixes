@@ -1,4 +1,4 @@
-import { HttpException, HttpStatus, Injectable, Logger, NotImplementedException } from '@nestjs/common';
+import { HttpStatus, Injectable, Logger, NotImplementedException } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
 import * as fuzzy from 'fast-fuzzy';
 import * as crypto from 'crypto';
@@ -34,7 +34,6 @@ import {
 import { CacheService } from '../../../core/cache/cache.service';
 import { IExternalEntity } from '../../api/interfaces/entity.interface';
 import { EntitiesSuggestionService } from '../../entities-suggestions/entitites-suggestion.service';
-import { ScheduleSuggestionService } from '../../entities-suggestions/schedule-suggestion.service';
 import {
   AppointmentTypeEntityDocument,
   DoctorEntityDocument,
@@ -112,7 +111,6 @@ import {
   PatientFilters,
   PatientFollowUpSchedules,
   PatientSchedules,
-  PatientSchedulesByCpf,
   PatientSuggestedInsurances,
   Reschedule,
   UpdatePatient,
@@ -155,11 +153,10 @@ import { ReportProcessorService } from '../../report-processor/services/report-p
 import { ExtractedSchedule } from '../../schedules/interfaces/extracted-schedule.interface';
 import { SchedulingLinks } from '../../scheduling/entities/scheduling-links.entity';
 import { BotdesignerFakeService } from '../../integrations/botdesigner-fake-integration/services/botdesigner-fake.service';
-import { StenciService } from '../../integrations/stenci-integration/services/stenci.service';
 import { PatientSchedulesToUploadFile } from '../interfaces/patient-schedules-to-upload-file.interface';
 import { ValidateDoctorData } from '../interfaces/validate-doctor.interface';
-import { ScheduleSuggestionParams } from '../../entities-suggestions/interfaces/schedule-suggestion.interface';
-import { ProdoctorService } from '../../integrations/prodoctor-integration/services/prodoctor.service';
+import { ProdoctorService } from '../../../health/integrations/prodoctor-integration/services/prodoctor.service';
+import { KonsistService } from '../../../health/integrations/konsist-integration/services/konsist.service';
 
 @Injectable()
 export class IntegratorService {
@@ -178,7 +175,6 @@ export class IntegratorService {
     private readonly integrationCacheUtilsService: IntegrationCacheUtilsService,
     private readonly rulesHandlerService: RulesHandlerService,
     private readonly entitiesSuggestionService: EntitiesSuggestionService,
-    private readonly scheduleSuggestionService: ScheduleSuggestionService,
     private readonly schedulingLinksService: SchedulingLinksService,
     private readonly reportProcessorService: ReportProcessorService,
   ) {}
@@ -198,7 +194,7 @@ export class IntegratorService {
     }
 
     if (!integration.enabled) {
-      throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, 'Disabled integration', undefined, true);
+      throw HTTP_ERROR_THROWER(HttpStatus.BAD_GATEWAY, 'Disabled integration', undefined, true);
     }
 
     switch (integration?.type) {
@@ -304,19 +300,20 @@ export class IntegratorService {
           integration,
         };
 
-      case IntegrationType.STENCI:
-        return {
-          service: this.moduleRef.get<StenciService>(StenciService, { strict: false }),
-          integration,
-        };
       case IntegrationType.PRODOCTOR:
         return {
           service: this.moduleRef.get<ProdoctorService>(ProdoctorService, { strict: false }),
           integration,
         };
 
+      case IntegrationType.KONSIST:
+        return {
+          service: this.moduleRef.get<KonsistService>(KonsistService, { strict: false }),
+          integration,
+        };
+
       default:
-        throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, 'Invalid integration');
+        throw HTTP_ERROR_THROWER(HttpStatus.BAD_GATEWAY, 'Invalid integration');
     }
   }
 
@@ -327,7 +324,7 @@ export class IntegratorService {
     try {
       return await this.getIntegration(integrationId);
     } catch (error) {
-      throw INTERNAL_ERROR_THROWER('IntegratorService', error);
+      return INTERNAL_ERROR_THROWER('IntegratorService', error);
     }
   }
 
@@ -365,6 +362,7 @@ export class IntegratorService {
           true,
         );
       }
+
       return {
         ...patient,
         bornDate: moment.utc(patient.bornDate).startOf('day').format('YYYY-MM-DDTHH:mm:ss'),
@@ -598,12 +596,6 @@ export class IntegratorService {
       return schedule;
     });
 
-    this.logger.debug('========== INTEGRATOR getAvailableSchedules ==========');
-    this.logger.debug('validSchedules from service:', validSchedules?.length);
-    this.logger.debug('schedules after matchAppointmentsFlows:', schedules?.length);
-    this.logger.debug('executedFlows:', JSON.stringify(executedFlows));
-    this.logger.debug('processedSchedules:', processedSchedules?.length);
-    this.logger.debug('First processedSchedule:', JSON.stringify(processedSchedules?.[0]));
     const response = {
       schedules: processedSchedules,
       metadata: {
@@ -675,9 +667,7 @@ export class IntegratorService {
 
       return result;
     } catch (error) {
-      void this.integrationCacheUtilsService.removeAvailableSchedulesCache(integration).catch((err) => {
-        this.logger.warn('IntegratorService.removeAvailableSchedulesCache', err);
-      });
+      this.integrationCacheUtilsService.removeAvailableSchedulesCache(integration).then();
       throw error;
     }
   }
@@ -882,45 +872,6 @@ export class IntegratorService {
     return orderBy(schedulesWithActions || [], 'appointmentDate', 'asc');
   }
 
-  async getPatientSchedulesByCpf(
-    integrationId: string,
-    patientSchedules: PatientSchedulesByCpf,
-  ): Promise<Appointment[]> {
-    try {
-      const patient = await this.getPatient(integrationId, {
-        cpf: patientSchedules.patientCpf,
-        bornDate: patientSchedules.patientBornDate,
-        name: patientSchedules.patientName,
-        phone: patientSchedules.patientPhone,
-      });
-
-      if (!patient?.code) {
-        return [];
-      }
-
-      return await this.getPatientSchedules(integrationId, {
-        patientCode: patient.code,
-        patientCpf: patient.cpf,
-        patientName: patient.name,
-        patientPhone: patient.phone || patientSchedules.patientPhone,
-        patientBornDate: patient.bornDate,
-        startDate: patientSchedules.startDate,
-        endDate: patientSchedules.endDate,
-        target: patientSchedules.target,
-        returnGuidance: patientSchedules.returnGuidance,
-        ignoreFlowExecution: patientSchedules.ignoreFlowExecution,
-        specialityCode: patientSchedules.specialityCode,
-        organizationUnitLocationCode: patientSchedules.organizationUnitLocationCode,
-      });
-    } catch (error) {
-      if (error?.status === HttpStatus.NOT_FOUND || error?.statusCode === HttpStatus.NOT_FOUND) {
-        return [];
-      }
-
-      throw error;
-    }
-  }
-
   async getPatientFollowUpSchedules(
     integrationId: string,
     patientSchedules: PatientFollowUpSchedules,
@@ -1045,9 +996,7 @@ export class IntegratorService {
     }
 
     if (entityType === EntityType.procedure) {
-      void this.reportProcessorService.importRagProcedures(integration).catch((err) => {
-        this.logger.error('IntegratorService.synchronizeEntities.importRagProcedures', err);
-      });
+      void this.reportProcessorService.importRagProcedures(integration).then();
     }
 
     return { ok: true };
@@ -1363,7 +1312,7 @@ export class IntegratorService {
   }
 
   async matchFlowsFromFilters(integrationId: string, matchFlows: MatchFlowsFromFilters): Promise<FlowAction[]> {
-    const { targetFlowType, filters, periodOfDay, trigger } = matchFlows;
+    const { targetFlowType, filters, patientBornDate, periodOfDay, patientSex, patientCpf, trigger } = matchFlows;
 
     if (Object.values(FlowSteps).includes(targetFlowType)) {
       const result = await this.flowService.matchFlowsAndGetActions({
@@ -1371,7 +1320,10 @@ export class IntegratorService {
         entitiesFilter: filters,
         targetFlowTypes: [targetFlowType],
         filters: {
+          patientBornDate,
           periodOfDay,
+          patientSex,
+          patientCpf,
         },
         trigger,
       });
@@ -1450,7 +1402,7 @@ export class IntegratorService {
     const { service, integration } = await this.validateIntegration(integrationId);
 
     if (moment(data.startDate).startOf('day').valueOf() > moment(data.endDate).valueOf()) {
-      throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, 'IntegratorService.listSchedulesToConfirm: Invalid endDate');
+      throw HTTP_ERROR_THROWER(HttpStatus.BAD_GATEWAY, 'IntegratorService.listSchedulesToConfirm: Invalid endDate');
     }
 
     if (!service.listSchedulesToConfirm) {
@@ -1687,7 +1639,7 @@ export class IntegratorService {
 
     const formattedBornDate = moment.utc(Number(bornDate)).startOf('day').format('YYYY-MM-DD');
 
-    void Promise.allSettled([
+    Promise.all([
       this.getPatient(integrationId, {
         bornDate: formattedBornDate,
         code: erpCode,
@@ -1700,9 +1652,7 @@ export class IntegratorService {
         patientBornDate: formattedBornDate,
         patientPhone: phone,
       }),
-    ]).catch((err) => {
-      this.logger?.warn('IntegratorService.preloadPatientData', err);
-    });
+    ]).then();
   }
 
   async listPatientSuggestedInsurances(
@@ -1992,28 +1942,5 @@ export class IntegratorService {
   async importProceduresEmbeddings(integrationId: string): Promise<OkResponse> {
     const { integration } = await this.validateIntegration(integrationId);
     return await this.reportProcessorService.importRagProcedures(integration);
-  }
-
-  async getScheduleSuggestions(
-    integrationId: string,
-    suggestionParams: ScheduleSuggestionParams,
-    availableSchedulesFilters: ListAvailableSchedules,
-  ): Promise<ListAvailableSchedulesResponse> {
-    const { integration } = await this.validateIntegration(integrationId);
-
-    const { maxResults, timeRangeHours } = suggestionParams;
-
-    // valores default: máximo 4 sugestões e range de 1 hora do horário do paciente.
-    return await this.scheduleSuggestionService.listPatientSuggestedSchedule(
-      integration,
-      {
-        // quantidade máxima de sugestões a serem exibidas
-        maxResults: maxResults ? parseInt(maxResults as unknown as string) : 2,
-        // timeRangeHours: valor em hora - para minutos, colocar facionário
-        // 0,25 = 15 minutos / 0,5 = 30 minutos
-        timeRangeHours: timeRangeHours ? parseInt(timeRangeHours as unknown as string) : 0.25,
-      },
-      availableSchedulesFilters,
-    );
   }
 }

@@ -412,6 +412,10 @@ export class ClinuxConfirmationService {
             integrationId: integration._id,
             entitiesFilter: scheduleCorrelation,
             targetFlowTypes: [FlowSteps.confirmActive],
+            filters: {
+              patientBornDate: schedule.patientBornDate,
+              patientCpf: schedule.patientCpf,
+            },
           });
 
           if (actions?.length) {
@@ -523,6 +527,10 @@ export class ClinuxConfirmationService {
             integrationId: integration._id,
             entitiesFilter: correlation,
             targetFlowTypes: [FlowSteps.confirmActive],
+            filters: {
+              patientBornDate: schedule.patientBornDate,
+              patientCpf: schedule.patientCpf,
+            },
             trigger: FlowTriggerType.active_confirmation_confirm,
           });
 

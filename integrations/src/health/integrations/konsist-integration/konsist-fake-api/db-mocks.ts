@@ -50,48 +50,21 @@ export const mockPatients = [
   },
 ];
 
-/**
- * Médicos mock
- */
 export const mockMedicos = [
-  {
-    id: 100,
-    nome: 'Dr. João da Silva',
-    conselho: 'CRM',
-    numconselho: '123456',
-    ufconselho: 'SP',
-    titulo: 'Dr.',
-    especialidades: [{ id: 1, nome: 'Cardiologia' }],
-  },
-  {
-    id: 101,
-    nome: 'Dra. Ana Carolina Santos',
-    conselho: 'CRM',
-    numconselho: '654321',
-    ufconselho: 'SP',
-    titulo: 'Dra.',
-    especialidades: [{ id: 3, nome: 'Dermatologia' }],
-  },
-  {
-    id: 102,
-    nome: 'Dr. Roberto Mendes',
-    conselho: 'CRM',
-    numconselho: '789012',
-    ufconselho: 'RJ',
-    titulo: 'Dr.',
-    especialidades: [{ id: 4, nome: 'Ortopedia' }],
-  },
+  { id: 100, nome: 'Dr. João da Silva', crm: 'CRM/SP 123456', local: 1, podemarcaratendido: true },
+  { id: 101, nome: 'Dra. Ana Carolina Santos', crm: 'CRM/SP 654321', local: 1, podemarcaratendido: true },
+  { id: 102, nome: 'Dr. Roberto Mendes', crm: 'CRM/RJ 789012', local: 2, podemarcaratendido: true },
 ];
 
 /**
  * Convênios mock
  */
 export const mockConvenios = [
-  { id: 501, nome: 'Unimed', ativo: true },
-  { id: 502, nome: 'Bradesco Saúde', ativo: true },
-  { id: 503, nome: 'SulAmérica', ativo: true },
-  { id: 504, nome: 'Amil', ativo: true },
-  { id: 505, nome: 'Particular', ativo: true },
+  { id: 501, codigo: '001', nome: 'Unimed', reduzido: 'UNIM', num_cnpj: '12345678000101', status: 'A' },
+  { id: 502, codigo: '002', nome: 'Bradesco Saúde', reduzido: 'BRAD', num_cnpj: '22345678000102', status: 'A' },
+  { id: 503, codigo: '003', nome: 'SulAmérica', reduzido: 'SULA', num_cnpj: '32345678000103', status: 'A' },
+  { id: 504, codigo: '004', nome: 'Amil', reduzido: 'AMIL', num_cnpj: '42345678000104', status: 'A' },
+  { id: 505, codigo: '005', nome: 'Particular', reduzido: 'PART', num_cnpj: null, status: 'A' },
 ];
 
 /**
@@ -121,16 +94,34 @@ export const mockServicos = [
  */
 export const mockFiliais = [
   {
+    tipo: 'FILIAL',
     id: 1,
-    nome: 'Clínica Central',
-    empresa_endereco: 'Av. Paulista, 1000 - São Paulo/SP',
-    empresa_telefone: '(11) 3000-0001',
+    empresa: 'Clínica Central',
+    cnpj: '12345678000199',
+    endereco: 'Av. Paulista',
+    numero: '1000',
+    bairro: 'Bela Vista',
+    cep: '01310100',
+    ddd: '11',
+    fone: '30000001',
+    site: 'www.clinicacentral.com.br',
+    localizacao: 'https://maps.google.com/?q=-23.5505,-46.6333',
+    complemento: 'Sala 101',
   },
   {
+    tipo: 'FILIAL',
     id: 2,
-    nome: 'Filial Sul',
-    empresa_endereco: 'Rua das Palmeiras, 500 - Porto Alegre/RS',
-    empresa_telefone: '(51) 3000-0002',
+    empresa: 'Filial Sul',
+    cnpj: '12345678000288',
+    endereco: 'Rua das Palmeiras',
+    numero: '500',
+    bairro: 'Centro',
+    cep: '90000000',
+    ddd: '51',
+    fone: '30000002',
+    site: 'www.clinicasul.com.br',
+    localizacao: 'https://maps.google.com/?q=-30.0346,-51.2177',
+    complemento: null,
   },
 ];
 
@@ -301,19 +292,7 @@ export const realisticMocks: Record<string, MockFn> = {
 
     let medicos = [...mockMedicos];
 
-    // Filtra por especialidade se informado
-    if (idespecialidade) {
-      medicos = medicos.filter((m) => m.especialidades.some((e: any) => e.id === Number(idespecialidade)));
-    }
-
-    return medicos.map((m) => ({
-      id: m.id,
-      nome: m.nome,
-      titulo: m.titulo,
-      conselho: m.conselho,
-      numconselho: m.numconselho,
-      especialidades: m.especialidades,
-    }));
+    return medicos;
   },
 
   /* -------------------------------------------------------------------------- */
@@ -481,5 +460,67 @@ export const realisticMocks: Record<string, MockFn> = {
       medico,
       agendamentos: appointments,
     };
+  },
+
+  // POST /agendamentos - Buscar agendamentos por período
+  'POST /agendamentos': (req) => {
+    const { datai, dataf, idpaciente, cpfPaciente, status } = req.body || {};
+
+    const allPatients = [...mockPatients, ...Array.from(inMemoryPatients.values())];
+
+    let patient = null;
+    if (idpaciente) {
+      patient = allPatients.find((p) => p.id === Number(idpaciente));
+    } else if (cpfPaciente) {
+      patient = allPatients.find((p) => p.cpf === cpfPaciente?.replace(/\D/g, ''));
+    }
+
+    if (!patient) {
+      return [];
+    }
+
+    const appointments = Array.from(inMemoryAppointments.values()).filter((a) => {
+      if (a.idpaciente !== patient.id) return false;
+      if (status && a.status !== status) return false;
+      return true;
+    });
+
+    // Retorna no formato AgendamentoResponse
+    return [
+      {
+        idpaciente: patient.id,
+        paciente: patient.nome,
+        telefone: patient.celular || patient.telefone,
+        contatos: [
+          { descricao: 'Celular', conteudo: patient.celular },
+          { descricao: 'Email', conteudo: patient.email },
+        ],
+        agendamento: appointments.map((a) => {
+          const medico = mockMedicos.find((m) => m.id === a.idmedico);
+          const servico = mockServicos.find((s) => s.id === a.idservico || s.codigo === a.codigoprocedimento);
+          const filial = mockFiliais.find((f) => f.id === a.idlocal) || mockFiliais[0];
+
+          return {
+            agendamento_chave: a.id,
+            agendamento_medico: medico?.nome || 'Médico',
+            agendamento_especialidade: servico?.idespecialidade
+              ? mockEspecialidades.find((e) => e.id === servico.idespecialidade)?.nome
+              : null,
+            agendamento_data: a.data || a.dataCriacao?.split('T')[0],
+            agendamento_hora: a.hora || '08:00',
+            agendamento_procedimento: a.descricaoprocedimento || servico?.nome,
+            agendamento_codigo_procedimento: a.codigoprocedimento || servico?.codigo,
+            agendamento_preparo: null,
+            agendamento_status: a.status === 1 ? 'Agendado' : a.status === 2 ? 'Confirmado' : 'Cancelado',
+            agendamento_categoria: null,
+            agendamento_status_personalizado: null,
+            agendamento_marcacao: [],
+            empresa_unidade: filial.empresa,
+            empresa_endereco: `${filial.endereco}, ${filial.numero} - ${filial.bairro}`,
+            empresa_telefone: `(${filial.ddd}) ${filial.fone}`,
+          };
+        }),
+      },
+    ];
   },
 };

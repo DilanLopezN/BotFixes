@@ -18,7 +18,7 @@ import { ClinuxApiV2Service } from './services/clinux-api-v2.service';
 @Module({
   imports: [
     HttpModule.register({
-      timeout: 60_000,
+      timeout: 45_000,
     }),
     EntitiesModule,
     FlowModule,

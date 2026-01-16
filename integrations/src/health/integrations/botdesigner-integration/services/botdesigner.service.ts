@@ -261,12 +261,28 @@ export class BotdesignerService implements IIntegratorService {
         payload.data.patientWeight = patient.weight || null;
       }
 
-      const typeOfServiceResult = await this.botdesignerHelpersService.processTypeOfServiceForPayload(
-        integration,
-        typeOfService,
-      );
-      payload.data.typeOfServiceCode = typeOfServiceResult.typeOfServiceCode;
-      payload.data.classificationCode = typeOfServiceResult.classificationCode || payload.data.classificationCode;
+      if (typeOfService?.code) {
+        const codeStr = String(typeOfService.code);
+
+        const isNumeric = /^-?\d+$/.test(codeStr);
+        const isValid = (isNumeric && Number(codeStr) > 0) || !isNumeric;
+
+        if (isValid) {
+          payload.data.typeOfServiceCode = codeStr;
+
+          const entity: TypeOfServiceEntityDocument = await this.entitiesService.getEntityByCode(
+            codeStr,
+            EntityType.typeOfService,
+            integration._id,
+          );
+
+          if (entity?.params?.referenceTypeOfService) {
+            payload.data.classificationCode = this.botdesignerHelpersService.typeOfServiceToBotdesignerTypeOfService(
+              entity.params.referenceTypeOfService,
+            );
+          }
+        }
+      }
 
       const result = await this.botdesignerApiService.createSchedule(integration, payload);
 
@@ -363,12 +379,20 @@ export class BotdesignerService implements IIntegratorService {
         payload.data.patientWeight = patient.weight || null;
       }
 
-      const typeOfServiceResult = await this.botdesignerHelpersService.processTypeOfServiceForPayload(
-        integration,
-        typeOfService,
-      );
-      payload.data.typeOfServiceCode = typeOfServiceResult.typeOfServiceCode;
-      payload.data.classificationCode = typeOfServiceResult.classificationCode || payload.data.classificationCode;
+      if (typeOfService?.code && Number.isInteger(Number(typeOfService.code)) && Number(typeOfService.code) >= 0) {
+        payload.data.typeOfServiceCode = typeOfService.code;
+        const entity: TypeOfServiceEntityDocument = await this.entitiesService.getEntityByCode(
+          typeOfService.code,
+          EntityType.typeOfService,
+          integration._id,
+        );
+
+        if (entity?.params?.referenceTypeOfService) {
+          payload.data.classificationCode = this.botdesignerHelpersService.typeOfServiceToBotdesignerTypeOfService(
+            entity.params.referenceTypeOfService,
+          );
+        }
+      }
 
       const result = await this.botdesignerApiService.createScheduleExam(integration, payload);
 
@@ -610,7 +634,7 @@ export class BotdesignerService implements IIntegratorService {
 
     if (dateLimit && moment(payload.params.startDate).valueOf() > moment(dateLimit).valueOf()) {
       throw HTTP_ERROR_THROWER(
-        HttpStatus.BAD_REQUEST,
+        HttpStatus.BAD_GATEWAY,
         {
           message: `dateLimit effect : initialDate ${payload.params.startDate}`,
         },
@@ -722,7 +746,7 @@ export class BotdesignerService implements IIntegratorService {
         }
       }
     } catch (error) {
-      throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, error);
+      throw HTTP_ERROR_THROWER(HttpStatus.BAD_GATEWAY, error);
     }
 
     const metadata: AvailableSchedulesMetadata = {
@@ -1247,7 +1271,6 @@ export class BotdesignerService implements IIntegratorService {
           procedure,
           speciality,
           appointmentType,
-          typeOfService,
         },
       } = reschedule;
 
@@ -1305,14 +1328,6 @@ export class BotdesignerService implements IIntegratorService {
       if (patient.weight) {
         payload.data.patientWeight = patient.weight || null;
       }
-
-      const typeOfServiceResult = await this.botdesignerHelpersService.processTypeOfServiceForPayload(
-        integration,
-        typeOfService,
-      );
-
-      payload.data.typeOfServiceCode = typeOfServiceResult.typeOfServiceCode;
-      payload.data.classificationCode = typeOfServiceResult.classificationCode || payload.data.classificationCode;
 
       const result = await this.botdesignerApiService.reschedule(integration, payload);
 
@@ -1844,10 +1859,6 @@ export class BotdesignerService implements IIntegratorService {
             },
             {
               name: 'URL_0',
-              value: message.URL_0,
-            },
-            {
-              name: 'link_0',
               value: message.URL_0,
             },
           ],

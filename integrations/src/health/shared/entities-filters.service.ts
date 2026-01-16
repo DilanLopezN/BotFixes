@@ -90,6 +90,8 @@ export class EntitiesFiltersService {
       case IntegrationType.FEEGOW:
       case IntegrationType.MANAGER:
       case IntegrationType.CUSTOM_IMPORT:
+      case IntegrationType.PRODOCTOR:
+      case IntegrationType.KONSIST:
         break;
 
       case IntegrationType.BOTDESIGNER:

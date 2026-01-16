@@ -300,6 +300,9 @@ export interface AvailableTimesRequest {
   localProDoctor?: CodeRequest;
   turnos?: ShiftsRequest;
   diasNaSemana?: WeekDaysRequest;
+  especialidade?: {
+    codigo: number;
+  };
 }
 
 // ========== VIEW MODELS ==========
@@ -569,114 +572,3 @@ export interface AvailableTimesResponse {
   sucesso: boolean;
   mensagens: string[];
 }
-
-// ========== LEGACY EXPORTS (for backward compatibility) ==========
-// TODO: Remove these after migration is complete
-
-/** @deprecated Use AppointmentPatientRequest instead */
-export type PacienteAgendamentoRequest = AppointmentPatientRequest;
-
-/** @deprecated Use AppointmentProcedureRequest instead */
-export type ProcedimentoMedicoAgendamentoRequest = AppointmentProcedureRequest;
-
-/** @deprecated Use AppointmentStateRequest instead */
-export type EstadoAgendaConsultaRequest = AppointmentStateRequest;
-
-/** @deprecated Use AppointmentTypeRequest instead */
-export type TipoAgendamentoRequest = AppointmentTypeRequest;
-
-/** @deprecated Use AppointmentSurgeryRequest instead */
-export type AgendamentoCirurgiaRequest = AppointmentSurgeryRequest;
-
-/** @deprecated Use AppointmentAlertsRequest instead */
-export type AgendamentoAlertasRequest = AppointmentAlertsRequest;
-
-/** @deprecated Use ShiftsRequest instead */
-export type TurnosRequest = ShiftsRequest;
-
-/** @deprecated Use WeekDaysRequest instead */
-export type DiasNaSemanaRequest = WeekDaysRequest;
-
-/** @deprecated Use AppointmentIdentificationRequest instead */
-export type AgendamentoIDRequest = AppointmentIdentificationRequest;
-
-/** @deprecated Use AppointmentDetailedRequest instead */
-export type AgendamentoDetalhadoRequest = AppointmentDetailedRequest;
-
-/** @deprecated Use ListAppointmentsByUserRequest instead */
-export type AgendamentoListarPorUsuarioRequest = ListAppointmentsByUserRequest;
-
-/** @deprecated Use SearchPatientAppointmentsRequest instead */
-export type AgendamentoBuscarRequest = SearchPatientAppointmentsRequest;
-
-/** @deprecated Use GetAppointmentDetailsRequest instead */
-export type AgendamentoDetalharRequest = GetAppointmentDetailsRequest;
-
-/** @deprecated Use InsertAppointmentRequest instead */
-export type AgendamentoInserirRequest = InsertAppointmentRequest;
-
-/** @deprecated Use UpdateAppointmentRequest instead */
-export type AgendamentoAlterarRequest = UpdateAppointmentRequest;
-
-/** @deprecated Use CancelAppointmentRequest instead */
-export type AgendamentoDesmarcarRequest = CancelAppointmentRequest;
-
-/** @deprecated Use DeleteAppointmentRequest instead */
-export type AgendamentoApagarRequest = DeleteAppointmentRequest;
-
-/** @deprecated Use UpdateAppointmentStateRequest instead */
-export type AgendamentoAlterarStatusRequest = UpdateAppointmentStateRequest;
-
-/** @deprecated Use SearchAppointmentsByStatusRequest instead */
-export type AgendamentoPorStatusRequest = SearchAppointmentsByStatusRequest;
-
-/** @deprecated Use AvailableTimesRequest instead */
-export type HorariosDisponiveisRequest = AvailableTimesRequest;
-
-/** @deprecated Use AppointmentStateViewModel instead */
-export type EstadoAgendaConsultaViewModel = AppointmentStateViewModel;
-
-/** @deprecated Use AppointmentTypeViewModel instead */
-export type TipoAgendamentoViewModel = AppointmentTypeViewModel;
-
-/** @deprecated Use AppointmentBasicViewModel instead */
-export type AgendamentoBasicoViewModel = AppointmentBasicViewModel;
-
-/** @deprecated Use ConsultationAppointmentViewModel instead */
-export type AgendamentoConsultaViewModel = ConsultationAppointmentViewModel;
-
-/** @deprecated Use DetailedAppointmentViewModel instead */
-export type AgendamentoDetalhadoViewModel = DetailedAppointmentViewModel;
-
-/** @deprecated Use DayScheduleViewModel instead */
-export type DiaAgendaConsultaViewModel = DayScheduleViewModel;
-
-/** @deprecated Use AvailableTimeViewModel instead */
-export type HorarioDisponivelViewModel = AvailableTimeViewModel;
-
-/** @deprecated Use InsertedAppointmentViewModel instead */
-export type AgendamentoAgendaInsertViewModel = InsertedAppointmentViewModel;
-
-/** @deprecated Use DayScheduleResponse instead */
-export type PDResponseDiaAgendaConsultaViewModel = DayScheduleResponse;
-
-/** @deprecated Use AppointmentsListResponse instead */
-export type PDResponseAgendamentosViewModel = AppointmentsListResponse;
-
-/** @deprecated Use AppointmentDetailsResponse instead */
-export type PDResponseAgendamentoDetalhadoViewModel = AppointmentDetailsResponse;
-
-/** @deprecated Use InsertedAppointmentResponse instead */
-export type PDResponseAgendamentoInseridoViewModel = InsertedAppointmentResponse;
-
-/** @deprecated Use AppointmentOperationResponse instead */
-export type PDResponseAgendamentoOperacaoViewModel = AppointmentOperationResponse;
-
-/** @deprecated Use AppointmentsByStatusResponse instead */
-export type PDResponseAgendaBuscarPorStatusViewModel = AppointmentsByStatusResponse;
-
-/** @deprecated Use UpdateAppointmentStateResponse instead */
-export type PDResponseAlterarStatusAgendamentoViewModel = UpdateAppointmentStateResponse;
-
-/** @deprecated Use AvailableTimesResponse instead */
-export type ProdoctorResponseAvailabelTimesViewModel = AvailableTimesResponse;

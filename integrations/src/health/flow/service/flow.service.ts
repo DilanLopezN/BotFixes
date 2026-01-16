@@ -19,17 +19,14 @@ import * as contextService from 'request-context';
 import { CtxMetadata } from '../../../common/interfaces/ctx-metadata';
 import { isHomologChannel } from '../../../common/helpers/homolog-channel';
 import { FlowFilters, FlowsByFilter } from '../interfaces/flow-filters.interface';
-import { FlowCacheService } from './flow-cache.service';
 
 @Injectable()
 export class FlowService {
   private readonly logger = new Logger(FlowService.name);
-
   constructor(
     @InjectModel(Flow.name) protected flowModel: Model<FlowDocument>,
     @InjectModel(FlowDraft.name) protected flowDraftModel: Model<FlowDraftDocument>,
     private readonly flowTransformerService: FlowTransformerService,
-    private readonly flowCacheService: FlowCacheService,
   ) {}
 
   private getModel(): Model<FlowDocument | FlowDraftDocument> {
@@ -104,9 +101,6 @@ export class FlowService {
       });
 
       await Promise.all(chunk(bulkOps, 50).map((bulkOpsChunk) => this.flowDraftModel.bulkWrite(bulkOpsChunk)));
-
-      await this.flowCacheService.clearMatchFlowsAndGetActionsCacheByIntegrationId(castObjectIdToString(integrationId));
-
       return {
         ok: true,
       };
@@ -124,11 +118,7 @@ export class FlowService {
     });
 
     const session = await this.flowModel.db.startSession();
-    session.startTransaction({
-      maxCommitTimeMS: 60_000,
-      readConcern: { level: 'majority' },
-      writeConcern: { w: 'majority', wtimeout: 60_000 },
-    });
+    session.startTransaction();
 
     try {
       await this.flowModel.deleteMany(
@@ -157,9 +147,6 @@ export class FlowService {
 
       await this.flowModel.insertMany(flows, { session });
       await session.commitTransaction();
-
-      await this.flowCacheService.clearMatchFlowsAndGetActionsCacheByIntegrationId(castObjectIdToString(integrationId));
-
       return {
         ok: true,
       };
@@ -231,42 +218,18 @@ export class FlowService {
               if: { $in: [matchedEntityTypeKey, { $ifNull: ['$opposeStep', []] }] },
               then: {
                 $or: [
-                  {
-                    $not: [
-                      {
-                        $in: [
-                          castObjectId(entitiesFilter[matchedEntityTypeKey]._id),
-                          { $ifNull: [`$${formattedMatchedEntityTypeKey}`, []] },
-                        ],
-                      },
-                    ],
-                  },
-                  { $eq: [{ $type: `$${formattedMatchedEntityTypeKey}` }, 'missing'] },
-                  { $eq: [`$${formattedMatchedEntityTypeKey}`, null] },
-                  {
-                    $and: [
-                      { $isArray: `$${formattedMatchedEntityTypeKey}` },
-                      { $eq: [{ $size: `$${formattedMatchedEntityTypeKey}` }, 0] },
-                    ],
-                  },
+                    { $not: [{ $in: [castObjectId(entitiesFilter[matchedEntityTypeKey]._id), { $ifNull: [`$${formattedMatchedEntityTypeKey}`, []] }] }] },
+                    { $eq: [{ $type: `$${formattedMatchedEntityTypeKey}` }, 'missing'] },
+                    { $eq: [`$${formattedMatchedEntityTypeKey}`, null] },
+                    { $and: [{ $isArray: `$${formattedMatchedEntityTypeKey}` }, { $eq: [{ $size: `$${formattedMatchedEntityTypeKey}` }, 0] }] },
                 ],
               },
               else: {
                 $or: [
-                  {
-                    $in: [
-                      castObjectId(entitiesFilter[matchedEntityTypeKey]._id),
-                      { $ifNull: [`$${formattedMatchedEntityTypeKey}`, []] },
-                    ],
-                  },
-                  { $eq: [{ $type: `$${formattedMatchedEntityTypeKey}` }, 'missing'] },
-                  { $eq: [`$${formattedMatchedEntityTypeKey}`, null] },
-                  {
-                    $and: [
-                      { $isArray: `$${formattedMatchedEntityTypeKey}` },
-                      { $eq: [{ $size: `$${formattedMatchedEntityTypeKey}` }, 0] },
-                    ],
-                  },
+                    { $in: [castObjectId(entitiesFilter[matchedEntityTypeKey]._id), { $ifNull: [`$${formattedMatchedEntityTypeKey}`, []] }] },
+                    { $eq: [{ $type: `$${formattedMatchedEntityTypeKey}` }, 'missing'] },
+                    { $eq: [`$${formattedMatchedEntityTypeKey}`, null] },
+                    { $and: [{ $isArray: `$${formattedMatchedEntityTypeKey}` }, { $eq: [{ $size: `$${formattedMatchedEntityTypeKey}` }, 0] }] },
                 ],
               },
             },
@@ -568,14 +531,14 @@ export class FlowService {
       flowsWithoutIncludeOnly.forEach((flow) => {
         let isOpposedStep = null;
         if (flow.opposeStep && flow.opposeStep.length > 0) {
-          isOpposedStep = flow.opposeStep.filter((step) => step === targetEntity)?.[0];
+          isOpposedStep = flow.opposeStep.filter(step => step === targetEntity)?.[0];
         }
 
         if (isOpposedStep) {
           if (flow.type === FlowType.action) {
             if (
-              !this.getHexIds(flow[`${targetEntity}Id`]).includes(this.getHexId(entity._id)) ||
-              (!forceTargetEntityToCompare && !flow[`${targetEntity}Id`]?.length)
+              (!this.getHexIds(flow[`${targetEntity}Id`]).includes(this.getHexId(entity._id))
+              || (!forceTargetEntityToCompare && !flow[`${targetEntity}Id`]?.length))
             ) {
               executedFlows.set(castObjectIdToString(flow._id), flow.type);
               return actions.push(...flow.actions);
@@ -683,7 +646,7 @@ export class FlowService {
       flows.forEach((flow) => {
         let isOpposedStep = null;
         if (flow.opposeStep && flow.opposeStep.length > 0) {
-          isOpposedStep = flow.opposeStep.filter((step) => step === targetEntity)?.[0];
+          isOpposedStep = flow.opposeStep.filter(step => step === targetEntity)?.[0];
         }
 
         if (isOpposedStep) {
@@ -777,20 +740,6 @@ export class FlowService {
     trigger,
     customFlowActions,
   }: MatchFlowActions): Promise<FlowAction[]> {
-    const cacheParams = {
-      entitiesFilter,
-      filters,
-      integrationId,
-      targetFlowTypes,
-      trigger,
-      customFlowActions,
-    };
-
-    const cachedResult = await this.flowCacheService.getMatchFlowActionsCache(cacheParams);
-    if (cachedResult !== null) {
-      return cachedResult;
-    }
-
     const flows = await this.getFlowsByFilter({
       integrationId,
       entitiesFilter,
@@ -806,17 +755,11 @@ export class FlowService {
     });
 
     if (!flows.length && !customFlowActions?.length) {
-      const emptyResult: FlowAction[] = [];
-      await this.flowCacheService.setMatchFlowActionsCache(cacheParams, emptyResult);
-      return emptyResult;
+      return [];
     }
 
     const flowActions: FlowAction[] = customFlowActions || [];
     flows.forEach((flow) => flowActions.push(...(flow.actions ?? [])));
-    const result = this.flowTransformerService.transformFlowActions(flowActions);
-
-    await this.flowCacheService.setMatchFlowActionsCache(cacheParams, result);
-
-    return result;
+    return this.flowTransformerService.transformFlowActions(flowActions);
   }
 }

@@ -16,7 +16,7 @@ import { CredentialsModule } from '../../credentials/credentials.module';
   imports: [
     // @docs: http://rc.tdsasistemas.com.br/RcDemonstracao/documentacao/indexv2.html
     HttpModule.register({
-      timeout: 70_000,
+      timeout: 60_000,
     }),
     EntitiesModule,
     FlowModule,

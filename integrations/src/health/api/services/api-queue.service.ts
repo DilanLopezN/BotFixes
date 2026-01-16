@@ -170,7 +170,6 @@ export class ApiQueueService {
               scheduleDate: mountedAttributes['schedule.date'] || '-1',
               data: {
                 URL_0: mountedAttributes['URL_0'] || '-1',
-                link_0: mountedAttributes['URL_0'] || '-1',
               },
             },
             apiKey: messageBody.token,

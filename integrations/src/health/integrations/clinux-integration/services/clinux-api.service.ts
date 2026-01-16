@@ -818,7 +818,7 @@ export class ClinuxApiService {
   ): Promise<ClinuxGetPatientResponse[]> {
     try {
       if (!payload.cd_paciente && !payload.ds_cpf) {
-        throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, 'Invalid patient params');
+        throw HTTP_ERROR_THROWER(HttpStatus.BAD_GATEWAY, 'Invalid patient params');
       }
 
       const requestParams = await this.getDefaultRequestParams(integration, payload);

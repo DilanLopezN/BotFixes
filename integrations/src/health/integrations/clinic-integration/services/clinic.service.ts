@@ -271,7 +271,7 @@ export class ClinicService implements IIntegratorService {
           }
         }
       } catch (error) {
-        throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, error);
+        throw HTTP_ERROR_THROWER(HttpStatus.BAD_GATEWAY, error);
       }
 
       const interAppointmentMetadata: AvailableSchedulesMetadata = {

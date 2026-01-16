@@ -49,7 +49,6 @@ import {
   MultipleEntitiesFilterDto,
   PatientFollowUpSchedulesQueryDto,
   PatientSchedulesDto,
-  PatientSchedulesByCpfDto,
   RescheduleDto,
   UpdatePatientDto,
   ListPatientSuggestedDataDto,
@@ -63,7 +62,6 @@ import { ValidatePatientRecoverAccessProtocol } from '../../integrations/matrix-
 import { PatientSuggestedDoctors, PatientSuggestedInsurances } from '../interfaces';
 import { RecoverAccessProtocolResponse } from 'kissbot-health-core';
 import { ValidateCpfOrCode } from '../decorators/get-patient.decorator';
-import { ScheduleSuggestionDto } from '../../entities-suggestions/dto/schedule-suggestion.dto';
 
 @UseInterceptors(AuditInterceptor)
 @Controller({
@@ -169,28 +167,6 @@ export class IntegratorController {
       patientPhone: dto.patient.phone,
       patientBornDate: dto.patient.bornDate,
       ...dto,
-    });
-  }
-
-  @ApiTags('Patient')
-  @UseGuards(AuthGuard)
-  @HttpCode(HttpStatus.OK)
-  @Post('patient-appointments-by-cpf')
-  async getPatientSchedulesByCpf(
-    @Param('integrationId', ObjectIdPipe) integrationId: string,
-    @Body() dto: PatientSchedulesByCpfDto,
-  ): Promise<Appointment[]> {
-    this.debugRequest(dto);
-    return await this.integratorService.getPatientSchedulesByCpf(integrationId, {
-      patientCpf: dto.patient.cpf,
-      patientBornDate: dto.patient.bornDate,
-      patientName: dto.patient.name,
-      patientPhone: dto.patient.phone,
-      startDate: dto.startDate,
-      endDate: dto.endDate,
-      target: dto.target,
-      specialityCode: dto.specialityCode,
-      organizationUnitLocationCode: dto.organizationUnitLocationCode,
     });
   }
 
@@ -486,19 +462,6 @@ export class IntegratorController {
     @Body(new ValidationPipe()) dto: ListSchedulesToConfirmDto,
   ): Promise<ConfirmationSchedule> {
     return await this.integratorService.listSchedulesToConfirm(integrationId, dto);
-  }
-
-  @ApiTags('Schedule')
-  @UseGuards(AuthGuard)
-  @HttpCode(HttpStatus.OK)
-  @Post('scheduleSuggestions')
-  async getScheduleSuggestions(
-    @Param('integrationId', ObjectIdPipe) integrationId: string,
-    @Query(new ValidationPipe()) queryDto: ScheduleSuggestionDto,
-    @Body(new ValidationPipe()) bodyDto: ListAvailableSchedulesDto,
-  ) {
-    this.debugRequest({ query: { ...queryDto }, body: { ...bodyDto } });
-    return await this.integratorService.getScheduleSuggestions(integrationId, queryDto, bodyDto);
   }
 
   @ApiTags('Entities')

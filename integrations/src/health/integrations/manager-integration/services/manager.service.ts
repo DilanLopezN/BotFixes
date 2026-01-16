@@ -384,7 +384,7 @@ export class ManagerService implements IIntegratorService {
         }
       }
     } catch (error) {
-      throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, error);
+      throw HTTP_ERROR_THROWER(HttpStatus.BAD_GATEWAY, error);
     }
 
     const { fromDay } = availableSchedules;

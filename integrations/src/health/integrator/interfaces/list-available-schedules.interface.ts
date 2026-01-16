@@ -37,7 +37,6 @@ export interface ListAvailableSchedules {
   dateLimit?: number;
   appointmentCodeToCancel?: string;
   scheduleType?: TypeOfService;
-  isSuggestionRequest?: boolean; // flag utilizada para evitar filtragem de regras de agendamento
 }
 
 export interface AvailableSchedulesMetadata {

@@ -730,21 +730,6 @@ export class MatrixApiService {
       this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response.data;
     } catch (error) {
-      try {
-        // Identificado com a Marina da tecnolab que sempre que retorna este erro
-        // é porque o agendamento já foi cancelado dentro do erp. Então foi acordado
-        // que ao retornar este erro será tratado como um cancelamento efetuado
-        const errorMessage = error?.response?.data?.erro ?? '';
-        if (typeof errorMessage === 'string' && errorMessage.includes('Não foi possível desmarcar o agendamento.')) {
-          return;
-        }
-      } catch (e) {
-        throw HTTP_ERROR_THROWER(
-          error?.response?.status || HttpStatus.BAD_REQUEST,
-          e,
-          HttpErrorOrigin.INTEGRATION_ERROR,
-        );
-      }
       await this.handleResponseError(integration, error, params, 'cancelSchedule');
       throw HTTP_ERROR_THROWER(
         error?.response?.status || HttpStatus.BAD_REQUEST,

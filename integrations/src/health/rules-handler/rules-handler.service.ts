@@ -148,14 +148,9 @@ export class RulesHandlerService {
         doNotAllowSameDayScheduling = false,
         doNotAllowSameDayAndDoctorScheduling = false,
         doNotAllowSameHourScheduling = false,
-        doNotAllowSameDayForProcedureWithLaterality = false,
         minutesAfterAppointmentCanSchedule = 60,
       } = integration.rules ?? {};
-
-      // Pode-se realizar filtragem quando não é sugestão de horários ou quando há regras de bloqueio
-      const filterSchedules =
-        !availableSchedules?.isSuggestionRequest &&
-        (doNotAllowSameDayScheduling || doNotAllowSameDayAndDoctorScheduling);
+      const filterSchedules = doNotAllowSameDayScheduling || doNotAllowSameDayAndDoctorScheduling;
 
       if (!replacedAppointments?.length) {
         return { replacedAppointments, metadata };
@@ -238,20 +233,9 @@ export class RulesHandlerService {
               patientSchedule?.procedure?.code &&
               groupedSchedules[patientScheduleDate]?.length
             ) {
-              // se for o mesmo procedimento, remove o dia todo
-              let shouldDeleteDateSchedule =
+              const shouldDeleteDateSchedule =
                 patientSchedule?.procedure?.code.toString() ===
                 groupedSchedules[patientScheduleDate]?.[0]?.procedureId?.toString();
-
-              // se a integração for Matrix e regra permitir lateralidade (e tiver lateralidade) - mantem horario
-              if (integration.type === IntegrationType.MATRIX && !doNotAllowSameDayForProcedureWithLaterality) {
-                // não temos lateralidade no agendamento do paciente, então deixamos agendar sem comparar lateralidade
-                // apenas verificamos se tem lateralidade nos horarios ofertados
-                // Debito Tecnico: quando horario do paciente tiver lateralidade, realizar a comparação entre lateralidades
-                const hasLaterality = !!groupedSchedules[patientScheduleDate][0]?.data?.codigoRegiaoColeta;
-
-                if (hasLaterality) shouldDeleteDateSchedule = false;
-              }
 
               if (shouldDeleteDateSchedule) {
                 delete groupedSchedules[patientScheduleDate];

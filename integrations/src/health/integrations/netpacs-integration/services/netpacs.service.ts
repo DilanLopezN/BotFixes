@@ -87,7 +87,7 @@ import { FlowAction, FlowActionElement, FlowSteps } from '../../../flow/interfac
 import { IntegrationCacheUtilsService } from '../../../integration-cache-utils/integration-cache-utils.service';
 import { UpdatePatient } from '../../../integrator/interfaces/update-patient.interface';
 import { defaultAppointmentTypes, defaultTypesOfService } from '../../../entities/default-entities';
-import { castObjectId } from '../../../../common/helpers/cast-objectid';
+import { castObjectId, castObjectIdToString } from '../../../../common/helpers/cast-objectid';
 import {
   GetScheduleValue,
   ListSchedulesToConfirmV2,
@@ -103,8 +103,6 @@ import { NetpacsServiceHelpersService } from './netpacs-helpers.service';
 import { formatCurrency } from '../../../../common/helpers/format-currency';
 import { EntitiesFiltersService } from '../../../shared/entities-filters.service';
 import { convertPhoneNumber, formatPhone } from '../../../../common/helpers/format-phone';
-import { GetScheduleByIdData } from '../../../integrator/interfaces/get-schedule-by-id.interface';
-import { Schedules } from '../../../schedules/entities/schedules.entity';
 
 type RequestParams = { [key: string]: any };
 
@@ -1848,9 +1846,5 @@ export class NetpacsService implements IIntegratorService {
     } catch (error) {
       throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, error, HttpErrorOrigin.INTEGRATION_ERROR);
     }
-  }
-
-  async getConfirmationScheduleById(integration: IntegrationDocument, data: GetScheduleByIdData): Promise<Schedules> {
-    return await this.netpacsConfirmationService.getConfirmationScheduleById(integration, data);
   }
 }

@@ -55,12 +55,6 @@ export class BotdesignerEntitiesService {
     };
   }
 
-  private shouldUseCachedEntitiesFromErp(integration: IntegrationDocument): boolean {
-    // Se a flag não estiver definida (undefined ou null), usa o cache (default true)
-    // Se a flag estiver explicitamente como false, não usa o cache
-    return integration.rules?.useCachedEntitiesFromErp !== false;
-  }
-
   public async listOrganizationUnits(
     integration: IntegrationDocument,
     params: EntityFiltersParams,
@@ -437,7 +431,7 @@ export class BotdesignerEntitiesService {
         return entity.code;
       });
 
-      if (cache && this.shouldUseCachedEntitiesFromErp(integration)) {
+      if (cache) {
         const cachedEntities = await this.integrationCacheUtilsService.getProcessedEntities(
           integration,
           targetEntity,
@@ -477,7 +471,7 @@ export class BotdesignerEntitiesService {
         return entity;
       });
 
-      if (cache && entities?.length && this.shouldUseCachedEntitiesFromErp(integration)) {
+      if (cache && entities?.length) {
         await this.integrationCacheUtilsService.setProcessedEntities(integration, targetEntity, entities, codes);
       }
 
@@ -566,13 +560,16 @@ export class BotdesignerEntitiesService {
       requestFilters.typeOfServiceCode = [filters.typeOfService.code];
     }
 
-    return {
-      ...requestFilters,
-      patientCpf: patient?.cpf || undefined,
-      patientCode: patient?.code || undefined,
-      patientSex: patient?.sex || undefined,
-      patientAge: patient?.bornDate ? moment().diff(patient.bornDate, 'years') : undefined,
-    };
+    if (patient?.sex) {
+      requestFilters.patientSex = patient.sex;
+    }
+
+    if (patient?.bornDate) {
+      const patientAge = moment().diff(patient.bornDate, 'years');
+      requestFilters.patientAge = patientAge;
+    }
+
+    return requestFilters;
   }
 
   private getValidFiltersToCacheEntities(targetEntity: EntityType, filters: EntityFiltersParams): EntityFiltersParams {
@@ -622,7 +619,7 @@ export class BotdesignerEntitiesService {
     const requestFilters: EntityFiltersParams = this.getResourceFilters(integration, filters, patient);
     const resourceCacheParams = this.getValidFiltersToCacheEntities(entityType, { ...requestFilters });
 
-    if (cache && this.shouldUseCachedEntitiesFromErp(integration)) {
+    if (cache) {
       const resourceCache = await this.integrationCacheUtilsService.getCachedEntitiesFromRequest(
         entityType,
         integration,
@@ -682,7 +679,7 @@ export class BotdesignerEntitiesService {
 
     const resource: EntityTypes[] = await listResource();
 
-    if (cache && resource?.length && this.shouldUseCachedEntitiesFromErp(integration)) {
+    if (cache && resource?.length) {
       await this.integrationCacheUtilsService.setCachedEntitiesFromRequest(
         entityType,
         integration,

@@ -256,7 +256,7 @@ export class SuporteInformaticaService implements IIntegratorService {
       }
 
       if (!response?.PessoaLogin || !response?.UsuarioLogin) {
-        throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, 'SuporteInformaticaService.createPatient');
+        throw HTTP_ERROR_THROWER(HttpStatus.BAD_GATEWAY, 'SuporteInformaticaService.createPatient');
       }
 
       const patient = this.suporteInformaticaHelpersService.replaceSIPatientFromTokenLogin(response);

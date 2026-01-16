@@ -139,7 +139,7 @@ export class TdsaApiService {
     this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
     if (!cpf && !code) {
-      throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, 'Invalid patient params');
+      throw HTTP_ERROR_THROWER(HttpStatus.BAD_GATEWAY, 'Invalid patient params');
     }
 
     try {

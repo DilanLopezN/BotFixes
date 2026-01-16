@@ -718,7 +718,7 @@ export class CmService implements IIntegratorService {
         }
       }
     } catch (error) {
-      throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, error);
+      throw HTTP_ERROR_THROWER(HttpStatus.BAD_GATEWAY, error);
     }
 
     const { codeIntegration } = await this.credentialsHelper.getConfig<CMCredentialsResponse>(integration);
@@ -748,7 +748,7 @@ export class CmService implements IIntegratorService {
       // se inicio do periodo é maior que data limite, retorna exception pois não tem nada para retornar
       if (moment(payload.dataHoraInicio).valueOf() > moment(dateLimit).valueOf()) {
         throw HTTP_ERROR_THROWER(
-          HttpStatus.BAD_REQUEST,
+          HttpStatus.BAD_GATEWAY,
           {
             message: `dateLimit effect : initialDate ${payload.dataHoraInicio}`,
           },
@@ -905,7 +905,7 @@ export class CmService implements IIntegratorService {
 
         if (!entities.length) {
           throw HTTP_ERROR_THROWER(
-            HttpStatus.BAD_REQUEST,
+            HttpStatus.BAD_GATEWAY,
             {
               message: 'occupationArea: No doctors found',
             },

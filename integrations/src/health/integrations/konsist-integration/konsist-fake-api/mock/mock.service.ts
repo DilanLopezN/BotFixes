@@ -44,6 +44,7 @@ export class MockService {
           '/status': { post: { responses: { '201': {} } } },
           '/status-lote': { post: { responses: { '201': {} } } },
           // Agendamentos
+          '/agendamentos': { post: { responses: { '200': {} } } },
           '/agendamentos/{cpf}': { get: { responses: { '200': {} } } },
           '/listaragenda': { post: { responses: { '200': {} } } },
         },

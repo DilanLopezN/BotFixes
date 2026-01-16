@@ -123,11 +123,7 @@ export class EntitiesService {
     data: { [entityType: string]: IExternalEntity[] },
   ): Promise<void> {
     const session = await this.connection.startSession();
-    session.startTransaction({
-      maxCommitTimeMS: 60_000,
-      readConcern: { level: 'majority' },
-      writeConcern: { w: 'majority', wtimeout: 60_000 },
-    });
+    session.startTransaction();
 
     try {
       for (const entityType of Object.keys(data)) {

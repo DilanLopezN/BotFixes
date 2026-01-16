@@ -7,23 +7,18 @@ import { EntityDocument } from '../../../entities/schema';
 import { CorrelationFilter } from '../../../interfaces/correlation-filter.interface';
 
 import {
-  PatientListViewModel,
-  PatientViewModel,
-  PatientBasicViewModel,
-  PatientCrudRequest,
+  ProdoctorGetPatientResponse,
+  ProdoctorPatientResponse,
+  ProdoctorUpdatePatientDetails,
+  ProdoctorPatientRequest,
   ConsultationAppointmentViewModel,
   AppointmentTypeRequest,
   AvailableTimeViewModel,
-  AgendamentoConsultaViewModel,
-  EstadoAgendaConsultaViewModel,
   AppointmentStateViewModel,
-  HorarioDisponivelViewModel,
-  TipoAgendamentoRequest,
-  TurnosRequest,
   ShiftsRequest,
+  ProdoctorPatientDataRequest,
 } from '../interfaces';
 import { formatPhone, convertPhoneNumber } from '../../../../common/helpers/format-phone';
-import { PacienteViewModel, PacienteCRUDRequest, PacienteRequest } from '../interfaces';
 
 @Injectable()
 export class ProdoctorHelpersService {
@@ -34,14 +29,14 @@ export class ProdoctorHelpersService {
   /**
    * Transforma paciente do ProDoctor para formato padrão
    */
-  transformProdoctorPatientToDefaultBotPatient(paciente: PacienteViewModel): Patient {
+  replaceProdoctorPatientToPatient(paciente: ProdoctorPatientResponse): Patient {
     const phone = this.extractPhone(paciente);
     const cellPhone = this.extractCellPhone(paciente);
 
     return {
       code: String(paciente.codigo),
       name: paciente.nome?.trim() || paciente.nomeCivil?.trim(),
-      cpf: paciente.cpf?.replace(/\D/g, ''),
+      cpf: paciente.cpf,
       email: paciente.correioEletronico,
       phone: phone,
       cellPhone: cellPhone,
@@ -53,7 +48,7 @@ export class ProdoctorHelpersService {
   /**
    * Extrai telefone fixo
    */
-  private extractPhone(paciente: PacienteViewModel): string {
+  private extractPhone(paciente: ProdoctorPatientResponse): string {
     const telefones = [paciente.telefone1, paciente.telefone2, paciente.telefone3, paciente.telefone4];
 
     for (const tel of telefones) {
@@ -68,7 +63,7 @@ export class ProdoctorHelpersService {
   /**
    * Extrai celular
    */
-  private extractCellPhone(paciente: PacienteViewModel): string {
+  private extractCellPhone(paciente: ProdoctorPatientResponse): string {
     const telefones = [paciente.telefone1, paciente.telefone2, paciente.telefone3, paciente.telefone4];
 
     for (const tel of telefones) {
@@ -264,12 +259,12 @@ export class ProdoctorHelpersService {
   }
 
   /**
-   * Constrói request para criar paciente
+   * Constrói request para atualizar paciente
    */
-  buildCreatePatientRequest(patient: Partial<Patient>): PacienteCRUDRequest {
-    const paciente: PacienteRequest = {
+  buildUpdatePatientRequest(patientCode: string, patient: Partial<Patient>): ProdoctorPatientRequest {
+    const paciente: ProdoctorPatientDataRequest = {
       nome: patient.name,
-      cpf: patient.cpf?.replace(/\D/g, ''),
+      cpf: patient.cpf,
       dataNascimento: patient.bornDate ? this.formatDate(patient.bornDate) : undefined,
       correioEletronico: patient.email,
       sexo: this.mapSexToCode(patient.sex),
@@ -286,14 +281,7 @@ export class ProdoctorHelpersService {
       }
     }
 
-    return { paciente };
-  }
-
-  /**
-   * Constrói request para atualizar paciente
-   */
-  buildUpdatePatientRequest(patientCode: string, patient: Partial<Patient>): PacienteCRUDRequest {
-    const request = this.buildCreatePatientRequest(patient);
+    const request = { paciente };
     request.paciente.codigo = Number(patientCode);
     return request;
   }
@@ -359,14 +347,14 @@ export class ProdoctorHelpersService {
   /**
    * Transforma PatientListViewModel para Patient
    */
-  transformPatientListViewModelToPatient(paciente: PatientListViewModel): Patient {
+  transformPatientListViewModelToPatient(paciente: ProdoctorGetPatientResponse): Patient {
     const phone = this.extractPhoneFromList(paciente);
     const cellPhone = this.extractCellPhoneFromList(paciente);
 
     return {
       code: String(paciente.codigo),
       name: paciente.nome?.trim() || paciente.nomeCivil?.trim(),
-      cpf: paciente.cpf?.replace(/\D/g, ''),
+      cpf: paciente.cpf,
       email: '',
       phone: phone,
       cellPhone: cellPhone,
@@ -378,14 +366,14 @@ export class ProdoctorHelpersService {
   /**
    * Transforma PatientViewModel (detalhado) para Patient
    */
-  transformPatientViewModelToPatient(paciente: PatientViewModel): Patient {
-    return this.transformProdoctorPatientToDefaultBotPatient(paciente);
+  transformPatientViewModelToPatient(paciente: ProdoctorPatientResponse): Patient {
+    return this.replaceProdoctorPatientToPatient(paciente);
   }
 
   /**
    * Transforma PatientBasicViewModel para Patient
    */
-  transformPatientBasicViewModelToPatient(paciente: PatientBasicViewModel): Patient {
+  replaceCreatedProdoctorPatientToPatient(paciente: ProdoctorUpdatePatientDetails): Patient {
     return {
       code: String(paciente.codigo),
       name: paciente.nome?.trim(),
@@ -401,7 +389,7 @@ export class ProdoctorHelpersService {
   /**
    * Extrai telefone fixo de PatientListViewModel
    */
-  private extractPhoneFromList(paciente: PatientListViewModel): string {
+  private extractPhoneFromList(paciente: ProdoctorGetPatientResponse): string {
     const telefones = [paciente.telefone1, paciente.telefone2, paciente.telefone3, paciente.telefone4];
 
     for (const tel of telefones) {
@@ -416,7 +404,7 @@ export class ProdoctorHelpersService {
   /**
    * Extrai celular de PatientListViewModel
    */
-  private extractCellPhoneFromList(paciente: PatientListViewModel): string {
+  private extractCellPhoneFromList(paciente: ProdoctorGetPatientResponse): string {
     const telefones = [paciente.telefone1, paciente.telefone2, paciente.telefone3, paciente.telefone4];
 
     for (const tel of telefones) {
@@ -431,32 +419,41 @@ export class ProdoctorHelpersService {
   /**
    * Constrói request para criar paciente (alias)
    */
-  buildPatientCrudRequest(patient: Partial<Patient>): PatientCrudRequest {
-    return this.buildCreatePatientRequest(patient);
+  replacePatientToProdoctorPatient(patient: Partial<Patient>): ProdoctorPatientRequest {
+    const paciente: ProdoctorPatientDataRequest = {
+      nome: patient.name,
+      cpf: patient.cpf,
+      dataNascimento: patient.bornDate ? this.formatDate(patient.bornDate) : undefined,
+      correioEletronico: patient.email,
+      sexo: this.mapSexToCode(patient.sex),
+    };
+
+    if (patient.cellPhone || patient.phone) {
+      const phoneNumber = convertPhoneNumber(patient.cellPhone || patient.phone);
+      if (phoneNumber) {
+        paciente.telefone1 = {
+          ddd: phoneNumber.substring(0, 2),
+          numero: phoneNumber.substring(2),
+          tipo: { codigo: 3 },
+        };
+      }
+    }
+
+    return { paciente };
   }
 
-  /**
-   * Transforma AgendamentoConsultaViewModel para RawAppointment (alias)
-   */
-  transformAppointmentToRawAppointment(agendamento: ConsultationAppointmentViewModel): RawAppointment {
-    return this.transformScheduleToRawAppointment(agendamento);
-  }
-
-  /**
-   * Constrói TipoAgendamentoRequest (alias)
-   */
-  buildAppointmentTypeRequest(code: string): AppointmentTypeRequest {
-    return this.buildTypeScheduleRequest(code);
-  }
-
-  /**
-   * Transforma HorarioDisponivelViewModel para RawAppointment (alias)
-   */
-  transformAvailableTimeToRawAppointment(
-    horario: AvailableTimeViewModel,
-    doctor: EntityDocument,
-    filter: CorrelationFilter,
-  ): RawAppointment {
-    return this.transformAvailableScheduleToRawAppointment(horario, doctor, filter);
+  buildAppointmentCode(agendamento: {
+    localProDoctor?: { codigo?: number };
+    usuario?: { codigo?: number };
+    data?: string;
+    hora?: string;
+  }): string {
+    const parts = [
+      agendamento.localProDoctor?.codigo || 0,
+      agendamento.usuario?.codigo || 0,
+      agendamento.data?.replace(/\//g, '') || '',
+      agendamento.hora?.replace(':', '') || '',
+    ];
+    return parts.join('-');
   }
 }

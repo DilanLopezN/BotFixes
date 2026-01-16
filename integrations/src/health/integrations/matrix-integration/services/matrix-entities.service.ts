@@ -162,20 +162,22 @@ export class MatrixEntitiesService {
         return [];
       }
 
-      return response.map((resource) => {
-        const entity: IOrganizationUnitEntity = {
-          code: String(resource.unidade_id ?? -1),
-          name: String(resource.unidade_nome).trim(),
-          data: {
-            address: resource.unidade_endereco
-              ? `${resource.unidade_endereco}, ${resource.numero}, ${resource.bairro} - ${resource.cep}`
-              : '',
-          },
-          ...this.getDefaultErpEntityData(integration),
-        };
+      return Promise.all(
+        response.map(async (resource) => {
+          const entity: IOrganizationUnitEntity = {
+            code: String(resource.unidade_id ?? -1),
+            name: String(resource.unidade_nome).trim(),
+            data: {
+              address: resource.unidade_endereco
+                ? `${resource.unidade_endereco}, ${resource.numero}, ${resource.bairro} - ${resource.cep}`
+                : '',
+            },
+            ...this.getDefaultErpEntityData(integration),
+          };
 
-        return entity;
-      });
+          return entity;
+        }),
+      );
     } catch (error) {
       throw INTERNAL_ERROR_THROWER('MatrixService.listOrganizationUnits', error);
     }
@@ -185,16 +187,18 @@ export class MatrixEntitiesService {
     try {
       const response = await this.matrixApiService.listInsurances(integration);
 
-      return response
-        ?.filter((resource) => resource.planos?.length)
-        ?.map((resource) => {
-          const entity = {
-            code: String(resource.convenio_id),
-            name: String(resource.convenio_nome)?.trim(),
-            ...this.getDefaultErpEntityData(integration),
-          };
-          return entity;
-        });
+      return Promise.all(
+        response
+          ?.filter((resource) => resource.planos?.length)
+          .map(async (resource) => {
+            const entity = {
+              code: String(resource.convenio_id),
+              name: String(resource.convenio_nome)?.trim(),
+              ...this.getDefaultErpEntityData(integration),
+            };
+            return entity;
+          }),
+      );
     } catch (error) {
       throw INTERNAL_ERROR_THROWER('MatrixService.listInsurances', error);
     }
@@ -261,7 +265,7 @@ export class MatrixEntitiesService {
 
       return response
         ?.filter((resource) => (resource.ativo === 'S' && resource.procedimentos.length ? true : false))
-        ?.map((resource) => {
+        .map((resource) => {
           const entity: ISpecialityEntity = {
             code: String(resource.setor_id),
             name: String(resource.setor_nome)?.trim(),

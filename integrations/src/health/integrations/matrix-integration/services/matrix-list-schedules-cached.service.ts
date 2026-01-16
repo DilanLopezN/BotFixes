@@ -112,6 +112,10 @@ export class MatrixListSchedulesCachedService {
 
       for (let i = 0; i < promises.length; i += concurrencyLimit) {
         const chunk = promises.slice(i, i + concurrencyLimit);
+        this.logger.debug(
+          `Processando chunk ${Math.floor(i / concurrencyLimit) + 1}/${Math.ceil(promises.length / concurrencyLimit)} (${chunk.length} operações)`,
+        );
+
         const chunkResults = await Promise.allSettled(chunk);
         results.push(...chunkResults);
 

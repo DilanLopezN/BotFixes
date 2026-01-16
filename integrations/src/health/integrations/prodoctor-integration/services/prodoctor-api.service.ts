@@ -35,11 +35,12 @@ import {
 
 // ========== PATIENT INTERFACES ==========
 import {
-  PatientSearchRequest,
-  PatientCrudRequest,
-  PatientListResponse,
-  PatientBasicResponse,
+  ProdoctorPatientSearchRequest,
+  ProdoctorPatientRequest,
+  ProdoctorListPatientResponse,
+  ProdoctorUpdatePatientResponse,
   PatientDetailsResponse,
+  ProdoctorResponseSexosViewModel,
 } from '../interfaces/patient.interface';
 
 // ========== SCHEDULE INTERFACES ==========
@@ -137,25 +138,21 @@ export class ProdoctorApiService {
   }
 
   private async getApiUrl(integration: IntegrationDocument, endpoint: string): Promise<string> {
-    // const baseUrl =
-    //   integration.environment === IntegrationEnvironment.production
-    //     ? integration.apiUrl || 'https://api.prodoctor.com.br'
-    //     : 'http://localhost:3001';
-
-    const baseUrl = 'http://172.17.0.1:7575';
+    const baseUrl =
+      integration.environment === IntegrationEnvironment.production
+        ? integration.apiUrl || 'https://open-api.prodoctor.net'
+        : 'https://open-api.prodoctor.net';
 
     return `${baseUrl}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
   }
 
   private async getHeaders(integration: IntegrationDocument): Promise<{ headers: Record<string, string> }> {
-    // const { apiKey, apiPassword } = await this.credentialsHelper.getConfig<ProdoctorCredentialsResponse>(integration);
+    const { apiKey, apiPassword } = await this.credentialsHelper.getConfig<ProdoctorCredentialsResponse>(integration);
 
-    // if (!apiKey || !apiPassword) {
-    //   throw HTTP_ERROR_THROWER(HttpStatus.UNAUTHORIZED, 'Invalid ProDoctor credentials');
-    // }
+    if (!apiKey || !apiPassword) {
+      throw HTTP_ERROR_THROWER(HttpStatus.UNAUTHORIZED, 'Invalid ProDoctor credentials');
+    }
 
-    const apiKey = 'teste';
-    const apiPassword = 'teste';
     return {
       headers: {
         'Content-Type': 'application/json',
@@ -167,19 +164,32 @@ export class ProdoctorApiService {
     };
   }
 
-  // ========== CONNECTION VALIDATION ==========
+  // ========== DOMÍNIOS ==========
 
-  public async validateConnection(integration: IntegrationDocument): Promise<boolean> {
+  /**
+   * Lista os sexos disponíveis - rota simples para validação de status
+   * GET /api/v1/Dominios/Sexos
+   */
+  public async getSexos(integration: IntegrationDocument): Promise<ProdoctorResponseSexosViewModel> {
+    const funcName = this.getSexos.name;
+    this.debugRequest(integration, {});
+    this.dispatchAuditEvent(integration, {}, funcName, AuditDataType.externalRequest);
+
     try {
-      const request: UserSearchRequest = {
-        quantidade: 1,
-      };
+      const apiUrl = await this.getApiUrl(integration, '/api/v1/Dominios/Sexos');
+      const headers = await this.getHeaders(integration);
 
-      const response = await this.listUsers(integration, request);
-      return response?.sucesso === true;
+      const response = await lastValueFrom(this.httpService.get<ProdoctorResponseSexosViewModel>(apiUrl, headers));
+
+      this.dispatchAuditEvent(integration, response?.data, funcName, AuditDataType.externalResponse);
+      return response?.data;
     } catch (error) {
-      this.logger.error(`ProdoctorApiService.validateConnection error: ${error.message}`);
-      return false;
+      this.handleResponseError(integration, error, {}, funcName, true);
+      throw HTTP_ERROR_THROWER(
+        error?.response?.status || HttpStatus.BAD_REQUEST,
+        error.response?.data || error,
+        HttpErrorOrigin.INTEGRATION_ERROR,
+      );
     }
   }
 
@@ -425,11 +435,11 @@ export class ProdoctorApiService {
 
   // ========== PATIENTS ==========
 
-  public async searchPatients(
+  public async getPatient(
     integration: IntegrationDocument,
-    request: PatientSearchRequest,
-  ): Promise<PatientListResponse> {
-    const methodName = 'searchPatients';
+    request: ProdoctorPatientSearchRequest,
+  ): Promise<ProdoctorListPatientResponse> {
+    const methodName = 'getPatient';
     this.debugRequest(integration, request);
     this.dispatchAuditEvent(integration, request, methodName, AuditDataType.externalRequest);
 
@@ -437,7 +447,9 @@ export class ProdoctorApiService {
       const apiUrl = await this.getApiUrl(integration, '/api/v1/Pacientes');
       const headers = await this.getHeaders(integration);
 
-      const response = await lastValueFrom(this.httpService.post<PatientListResponse>(apiUrl, request, headers));
+      const response = await lastValueFrom(
+        this.httpService.post<ProdoctorListPatientResponse>(apiUrl, request, headers),
+      );
 
       this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;
@@ -486,8 +498,8 @@ export class ProdoctorApiService {
 
   public async createPatient(
     integration: IntegrationDocument,
-    request: PatientCrudRequest,
-  ): Promise<PatientBasicResponse> {
+    request: ProdoctorPatientRequest,
+  ): Promise<ProdoctorUpdatePatientResponse> {
     const methodName = 'createPatient';
     this.debugRequest(integration, request);
     this.dispatchAuditEvent(integration, request, methodName, AuditDataType.externalRequest);
@@ -496,7 +508,9 @@ export class ProdoctorApiService {
       const apiUrl = await this.getApiUrl(integration, '/api/v1/Pacientes/Inserir');
       const headers = await this.getHeaders(integration);
 
-      const response = await lastValueFrom(this.httpService.post<PatientBasicResponse>(apiUrl, request, headers));
+      const response = await lastValueFrom(
+        this.httpService.post<ProdoctorUpdatePatientResponse>(apiUrl, request, headers),
+      );
 
       this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;
@@ -527,8 +541,8 @@ export class ProdoctorApiService {
 
   public async updatePatient(
     integration: IntegrationDocument,
-    request: PatientCrudRequest,
-  ): Promise<PatientBasicResponse> {
+    request: ProdoctorPatientRequest,
+  ): Promise<ProdoctorUpdatePatientResponse> {
     const methodName = 'updatePatient';
     this.debugRequest(integration, request);
     this.dispatchAuditEvent(integration, request, methodName, AuditDataType.externalRequest);
@@ -547,7 +561,9 @@ export class ProdoctorApiService {
       const apiUrl = await this.getApiUrl(integration, '/api/v1/Pacientes/Alterar');
       const headers = await this.getHeaders(integration);
 
-      const response = await lastValueFrom(this.httpService.put<PatientBasicResponse>(apiUrl, request, headers));
+      const response = await lastValueFrom(
+        this.httpService.put<ProdoctorUpdatePatientResponse>(apiUrl, request, headers),
+      );
 
       this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;
@@ -779,11 +795,11 @@ export class ProdoctorApiService {
     }
   }
 
-  public async getAvailableTimes(
+  public async getAvailableSchedule(
     integration: IntegrationDocument,
     request: AvailableTimesRequest,
   ): Promise<AvailableTimesResponse> {
-    const methodName = 'getAvailableTimes';
+    const methodName = 'getAvailableSchedule';
     this.debugRequest(integration, request);
     this.dispatchAuditEvent(integration, request, methodName, AuditDataType.externalRequest);
 

@@ -17,7 +17,7 @@ import { AppointmentModule } from 'health/analytics/appointment/appointment.modu
 @Module({
   imports: [
     HttpModule.register({
-      timeout: 150_000,
+      timeout: 30_000,
     }),
     EntitiesModule,
     FlowModule,
@@ -31,4 +31,4 @@ import { AppointmentModule } from 'health/analytics/appointment/appointment.modu
   providers: [ProdoctorService, ProdoctorApiService, ProdoctorHelpersService, ProdoctorEntitiesService],
   exports: [ProdoctorService, ProdoctorApiService, ProdoctorHelpersService, ProdoctorEntitiesService],
 })
-export class ProdoctorIntegrationModule {}
+export class ProdoctorModule {}

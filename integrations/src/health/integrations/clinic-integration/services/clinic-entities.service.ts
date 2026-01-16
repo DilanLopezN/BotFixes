@@ -363,12 +363,6 @@ export class ClinicEntitiesService {
       return acc;
     }, {});
 
-    try {
-      if ([EntityType.doctor, EntityType.speciality].includes(data.targetEntity) && patient.bornDate) {
-        resourceCacheParams['patientAge'] = moment().diff(moment(patient.bornDate), 'years');
-      }
-    } catch (error) {}
-
     // quando for buscar médicos que ja foram atendidos por um paciente, não utiliza do cache
     if (
       cache &&

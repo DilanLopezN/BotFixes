@@ -189,14 +189,11 @@ enum IntegrationRules {
   doNotAllowSameDayAndProcedureScheduling = 'doNotAllowSameDayAndProcedureScheduling',
   // Se a regra estiver ativa não permite que paciente agende para o mesmo horário outro agendamento.
   doNotAllowSameHourScheduling = 'doNotAllowSameHourScheduling',
-  // Se a regra estiver ativa, não permite agendar o mesmo procedimento com lateralidade
-  doNotAllowSameDayForProcedureWithLaterality = 'doNotAllowSameDayForProcedureWithLaterality',
   // Se a regra doNotAllowSameHourScheduling estiver ativa, agenda à partir do tempo em minutos definido
   minutesAfterAppointmentCanSchedule = 'minutesAfterAppointmentCanSchedule',
   // ativação de steps de _suggestion
   useInsuranceSuggestion = 'useInsuranceSuggestion',
   useDoctorSuggestion = 'useDoctorSuggestion',
-  useScheduleSuggestion = 'useScheduleSuggestion',
   // filtro alternativo Clinux
   useClinuxApiV2 = 'useClinuxApiV2',
   useScheduledSending = 'useScheduledSending',
@@ -213,10 +210,6 @@ enum IntegrationRules {
   useListInAllSteps = 'useListInAllSteps',
   useReportProcessorAISpecialityAndProcedureDetection = 'useReportProcessorAISpecialityAndProcedureDetection',
   useReportProcessorAIProcedureDetection = 'useReportProcessorAIProcedureDetection',
-  // Quando ativo (default true) usa entidades cacheadas do ERP ao invés de buscar novamente.
-  // Para integrações antigas sem essa flag, o comportamento padrão é true.
-  // Apenas ignora o cache quando explicitamente configurado como false.
-  useCachedEntitiesFromErp = 'useCachedEntitiesFromErp',
 }
 
 export type { IIntegration, Routines, Scheduling };

@@ -90,8 +90,6 @@ import { TdsaHelpersService } from './tdsa-helpers.service';
 import { EntitiesFiltersService } from '../../../shared/entities-filters.service';
 import { InterAppointmentService } from '../../../shared/inter-appointment.service';
 import { convertPhoneNumber, formatPhone } from '../../../../common/helpers/format-phone';
-import { GetScheduleByIdData } from '../../../integrator/interfaces/get-schedule-by-id.interface';
-import { Schedules } from '../../../schedules/entities/schedules.entity';
 
 type EntityFilters = { [key in EntityType]?: EntityTypes };
 type RequestParams = { [key: string]: any };
@@ -369,7 +367,7 @@ export class TdsaService implements IIntegratorService {
         }
       }
     } catch (error) {
-      throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, error);
+      throw HTTP_ERROR_THROWER(HttpStatus.BAD_GATEWAY, error);
     }
 
     const payload: TdsaListAvailableSchedulesRequest = {
@@ -1487,9 +1485,5 @@ export class TdsaService implements IIntegratorService {
     } catch (error) {
       throw INTERNAL_ERROR_THROWER('TdsaService.validateScheduleData', error);
     }
-  }
-
-  async getConfirmationScheduleById(integration: IntegrationDocument, data: GetScheduleByIdData): Promise<Schedules> {
-    return await this.confirmationService.getConfirmationScheduleById(integration, data);
   }
 }

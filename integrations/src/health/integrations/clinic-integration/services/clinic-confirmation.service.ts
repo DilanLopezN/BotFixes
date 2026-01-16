@@ -20,7 +20,6 @@ import {
 } from '../../../interfaces/confirmation-schedule.interface';
 import { CorrelationFilterByKeys } from '../../../interfaces/correlation-filter.interface';
 import { EntityType } from '../../../interfaces/entity.interface';
-import { ExtractType } from '../../../integrator/interfaces/list-schedules-to-confirm.interface';
 import { EntityDocument, SpecialityEntityDocument } from '../../../entities/schema';
 import { FlowAction, FlowActionElement, FlowSteps } from '../../../flow/interfaces/flow.interface';
 import { INTERNAL_ERROR_THROWER } from '../../../../common/exceptions.service';
@@ -52,7 +51,7 @@ export class ClinicConfirmationService {
     integration: IntegrationDocument,
     data: ListSchedulesToConfirmV2,
   ): Promise<ExtractedSchedule[]> {
-    const { startDate, endDate, erpParams } = data;
+    const { startDate, endDate } = data;
 
     const requestFilters: ClinicListSchedulesParams = {
       start_date: moment(startDate).format('YYYY-MM-DD'),
@@ -60,31 +59,7 @@ export class ClinicConfirmationService {
     };
 
     const response = await this.clinicApiService.listSchedules(integration, requestFilters);
-
-    // Verifica se é resgate no show
-    const isNoShowRecover = erpParams?.EXTRACT_TYPE === ExtractType.recover_lost_schedule;
-
-    // Filtra os agendamentos baseado no tipo de extração
-    let filteredSchedules: ClinicSchedule[] = [];
-
-    if (isNoShowRecover) {
-      // Para resgate no show: considera "Paciente faltou" e "Paciente não chegou"
-      filteredSchedules =
-        response?.result?.items?.filter(
-          (schedule) => schedule.status === 'Paciente faltou' || schedule.status === 'Paciente não chegou',
-        ) || [];
-    } else {
-      // Para confirmação normal: aplica os filtros originais
-      filteredSchedules =
-        response?.result?.items?.filter(
-          (schedule) =>
-            schedule.status !== 'Paciente desmarcou' &&
-            schedule.confirm === 'A Confirmar' &&
-            schedule.status === 'Paciente não chegou',
-        ) || [];
-    }
-
-    return await this.transformClinicSchedulesToExtractedSchedules(integration, filteredSchedules);
+    return await this.transformClinicSchedulesToExtractedSchedules(integration, response?.result?.items);
   }
 
   private async transformClinicSchedulesToExtractedSchedules(
@@ -95,29 +70,35 @@ export class ClinicConfirmationService {
     const extractedSchedules: ExtractedSchedule[] = [];
 
     for (const clinicSchedule of schedules) {
-      doctorsIds.add(String(clinicSchedule.doctor_id));
+      if (
+        clinicSchedule.status !== 'Paciente desmarcou' &&
+        clinicSchedule.confirm === 'A Confirmar' &&
+        clinicSchedule.status === 'Paciente não chegou'
+      ) {
+        doctorsIds.add(String(clinicSchedule.doctor_id));
 
-      extractedSchedules.push({
-        doctorCode: String(clinicSchedule.doctor_id),
-        insuranceCode: String(clinicSchedule.healthInsuranceID),
-        procedureCode: clinicSchedule.consultationType ? String(clinicSchedule.consultationType) : null,
-        procedureName: clinicSchedule.consultationTypeDescription ? clinicSchedule.consultationTypeDescription : null,
-        organizationUnitCode: String(1),
-        specialityCode: null,
-        appointmentTypeCode: this.getAppointmentTypeCodeFromScheduleType(clinicSchedule.typeDescription),
-        scheduleCode: String(clinicSchedule.id),
-        scheduleDate: this.clinicHelpersService.convertStartDate(
-          clinicSchedule.date_schedule,
-          clinicSchedule.hour_schedule,
-        ),
-        patient: {
-          code: clinicSchedule.patient_id ? String(clinicSchedule.patient_id) : null,
-          name: clinicSchedule.client,
-          phones: [clinicSchedule.mobile],
-          cpf: String(clinicSchedule.cpf),
-          bornDate: moment(clinicSchedule.birthday).format('YYYY-MM-DD'),
-        },
-      });
+        extractedSchedules.push({
+          doctorCode: String(clinicSchedule.doctor_id),
+          insuranceCode: String(clinicSchedule.healthInsuranceID),
+          procedureCode: clinicSchedule.consultationType ? String(clinicSchedule.consultationType) : null,
+          procedureName: clinicSchedule.consultationTypeDescription ? clinicSchedule.consultationTypeDescription : null,
+          organizationUnitCode: String(1),
+          specialityCode: null,
+          appointmentTypeCode: this.getAppointmentTypeCodeFromScheduleType(clinicSchedule.typeDescription),
+          scheduleCode: String(clinicSchedule.id),
+          scheduleDate: this.clinicHelpersService.convertStartDate(
+            clinicSchedule.date_schedule,
+            clinicSchedule.hour_schedule,
+          ),
+          patient: {
+            code: clinicSchedule.patient_id ? String(clinicSchedule.patient_id) : null,
+            name: clinicSchedule.client,
+            phones: [clinicSchedule.mobile],
+            cpf: String(clinicSchedule.cpf),
+            bornDate: moment(clinicSchedule.birthday).format('YYYY-MM-DD'),
+          },
+        });
+      }
     }
 
     if (!doctorsIds.size) {
@@ -330,6 +311,10 @@ export class ClinicConfirmationService {
           integrationId: integration._id,
           entitiesFilter: scheduleCorrelation,
           targetFlowTypes: [FlowSteps.confirmActive],
+          filters: {
+            patientBornDate: moment(schedule.patientBornDate).format('YYYY-MM-DD'),
+            patientCpf: schedule.patientCpf,
+          },
         });
 
         if (actions?.length) {

@@ -41,7 +41,7 @@ class IntegrationRules {
   @Prop({ type: Boolean, required: false, default: false })
   listConsultationTypesAsProcedure?: boolean;
 
-  @Prop({ type: Boolean, required: false, default: false })
+  @Prop({ type: Boolean, required: false, default: true })
   listOnlyDoctorsWithAvailableSchedules?: boolean;
 
   @Prop({ type: Boolean, required: false, default: false })
@@ -74,19 +74,19 @@ class IntegrationRules {
   @Prop({ type: Boolean, required: false, default: false })
   splitInsuranceIntoInsurancePlansV2?: boolean;
 
-  @Prop({ type: Boolean, required: false, default: false })
+  @Prop({ type: Boolean, required: false, default: true })
   updatePatientEmailBeforeCreateSchedule?: boolean;
 
   @Prop({ type: Boolean, required: false, default: false })
   updatePatientSexBeforeCreateSchedule?: boolean;
 
-  @Prop({ type: Boolean, required: false, default: false })
+  @Prop({ type: Boolean, required: false, default: true })
   updatePatientPhoneBeforeCreateSchedule?: boolean;
 
-  @Prop({ type: Boolean, required: false, default: false })
+  @Prop({ type: Boolean, required: false, default: true })
   usesCorrelation?: boolean;
 
-  @Prop({ type: Boolean, required: false, default: false })
+  @Prop({ type: Boolean, required: false, default: true })
   showFutureSearchInAvailableScheduleList?: boolean;
 
   @Prop({ type: Boolean, required: false, default: false })
@@ -113,7 +113,7 @@ class IntegrationRules {
   @Prop({ type: Number, required: false })
   limitUntilDaySearchAppointmentsWithDoctor?: number;
 
-  @Prop({ type: Boolean, required: false, default: false })
+  @Prop({ type: Boolean, required: false, default: true })
   runInterAppointment?: boolean;
 
   @Prop({ type: Number, required: false })
@@ -143,9 +143,6 @@ class IntegrationRules {
   @Prop({ type: Boolean, required: false, default: false })
   doNotAllowSameHourScheduling?: boolean;
 
-  @Prop({ type: Boolean, required: false, default: false })
-  doNotAllowSameDayForProcedureWithLaterality?: boolean;
-
   @Prop({ type: Number, required: false })
   minutesAfterAppointmentCanSchedule?: number;
 
@@ -154,9 +151,6 @@ class IntegrationRules {
 
   @Prop({ type: Boolean, required: false, default: false })
   useDoctorSuggestion?: boolean;
-
-  @Prop({ type: Boolean, required: false, default: false })
-  useScheduleSuggestion?: boolean;
 
   @Prop({ type: Boolean, required: false, default: false })
   useClinuxApiV2?: boolean;
@@ -193,9 +187,6 @@ class IntegrationRules {
 
   @Prop({ type: Boolean, required: false, default: false })
   useReportProcessorAIProcedureDetection?: boolean;
-
-  @Prop({ type: Boolean, required: false, default: true })
-  useCachedEntitiesFromErp?: boolean;
 }
 
 @Schema({ versionKey: false, _id: false })

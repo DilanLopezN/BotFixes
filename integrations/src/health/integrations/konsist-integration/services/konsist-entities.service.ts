@@ -24,7 +24,8 @@ import { InitialPatient } from '../../../integrator/interfaces';
 import { getExpirationByEntity } from '../../../integration-cache-utils/cache-expirations';
 import { KonsistApiService } from './konsist-api.service';
 import { KonsistHelpersService } from './konsist-helpers.service';
-
+import { EntityFiltersParams } from 'kissbot-health-core';
+import * as moment from 'moment';
 interface ListValidEntities {
   integration: IntegrationDocument;
   targetEntity: EntityType;
@@ -33,6 +34,9 @@ interface ListValidEntities {
   patient?: InitialPatient;
   fromImport?: boolean;
 }
+
+type EntityFilters = { [key in EntityType]?: EntityTypes };
+type RequestParams = { [key: string]: any };
 
 @Injectable()
 export class KonsistEntitiesService {
@@ -57,19 +61,31 @@ export class KonsistEntitiesService {
     };
   }
 
+  public async listValidApiEntities(params: ListValidEntities): Promise<EntityDocument[]> {
+    const { integration, targetEntity, filters, cache, patient } = params;
+    return this.listValidEntities(integration, filters, targetEntity, cache, patient);
+  }
+
   /**
    * Lista entidades válidas da API com cache
    */
-  public async listValidApiEntities<T>(data: ListValidEntities): Promise<T[]> {
-    const { integration, targetEntity, filters, cache } = data;
-
+  public async listValidEntities(
+    integration: IntegrationDocument,
+    filters: CorrelationFilter,
+    targetEntity: EntityType,
+    cache?: boolean,
+    patient?: InitialPatient,
+  ): Promise<EntityDocument[]> {
     try {
-      const entities = await this.extractEntity(data);
-      const codes = entities?.map((entity) => entity.code) ?? [];
+      const allEntities = await this.extractEntity(integration, targetEntity, filters, cache, patient?.bornDate);
+      const codes = allEntities?.map((entity) => entity.code);
 
       const customFilters: FilterQuery<EntityDocument> = {};
 
-      if (targetEntity === EntityType.insurancePlan && filters?.insurance) {
+      if (
+        [EntityType.insurancePlan, EntityType.planCategory, EntityType.insuranceSubPlan].includes(targetEntity) &&
+        filters?.insurance
+      ) {
         customFilters.insuranceCode = filters.insurance.code;
       }
 
@@ -80,73 +96,127 @@ export class KonsistEntitiesService {
         customFilters,
       );
 
-      return dbEntities as unknown as T[];
+      return dbEntities;
     } catch (error) {
-      throw INTERNAL_ERROR_THROWER('KonsistEntitiesService.listValidApiEntities', error);
+      throw INTERNAL_ERROR_THROWER('ProdoctorEntitiesService.listValidEntities', error);
     }
+  }
+
+  private getResourceFilters(
+    targetEntity: EntityType,
+    filters: EntityFilters,
+    patientBornDate?: string,
+  ): RequestParams {
+    if (!filters || Object.keys(filters).length === 0) {
+      return {};
+    }
+
+    const params: RequestParams = {};
+
+    if (targetEntity === EntityType.procedure) {
+      if (filters.hasOwnProperty(EntityType.speciality)) {
+        params.especialidade_id = Number(filters[EntityType.speciality].code);
+      }
+
+      if (filters.hasOwnProperty(EntityType.appointmentType)) {
+        params.tipo_procedimento = Number(filters[EntityType.appointmentType].code);
+      }
+
+      if (filters.hasOwnProperty(EntityType.organizationUnit)) {
+        params.unidade_id = Number(filters[EntityType.organizationUnit].code);
+      }
+    }
+
+    if (targetEntity === EntityType.doctor) {
+      if (filters.hasOwnProperty(EntityType.speciality)) {
+        params.especialidade_id = Number(filters[EntityType.speciality].code);
+      }
+
+      if (filters.hasOwnProperty(EntityType.organizationUnit)) {
+        params.unidade_id = Number(filters[EntityType.organizationUnit].code);
+      }
+
+      if (filters.hasOwnProperty(EntityType.insurance) && filters[EntityType.insurance].code !== '-1') {
+        params.convenio_id = Number(filters[EntityType.insurance].code);
+      }
+
+      params.ativo = 1;
+
+      if (patientBornDate) {
+        params.patientAge = moment().diff(patientBornDate, 'years');
+      }
+    }
+
+    if (targetEntity === EntityType.insurancePlan) {
+      if (filters.hasOwnProperty(EntityType.insurance)) {
+        params.insurance_id = Number(filters[EntityType.insurance].code);
+      }
+    }
+
+    if (targetEntity === EntityType.speciality) {
+      if (filters.hasOwnProperty(EntityType.organizationUnit)) {
+        params.unidade_id = Number(filters[EntityType.organizationUnit].code);
+      }
+    }
+
+    return params;
   }
 
   /**
    * Extrai entidades da API Konsist
    */
-  public async extractEntity(data: ListValidEntities): Promise<EntityTypes[]> {
-    const { filters, integration, targetEntity, cache } = data;
+  public async extractEntity(
+    integration: IntegrationDocument,
+    entityType: EntityType,
+    rawFilters?: EntityFilters,
+    cache?: boolean,
+    patientBornDate?: string,
+  ): Promise<EntityTypes[]> {
+    try {
+      const requestFilters = this.getResourceFilters(entityType, rawFilters, patientBornDate);
 
-    const resourceCacheParams = Object.keys(filters ?? {}).reduce((acc, key) => {
-      if (filters[key]?.code) {
-        acc[key] = filters[key].code;
+      if (cache) {
+        const resourceCache = await this.integrationCacheUtilsService.getCachedEntitiesFromRequest(
+          entityType,
+          integration,
+          requestFilters,
+        );
+
+        if (!!resourceCache) {
+          return resourceCache;
+        }
       }
-      return acc;
-    }, {});
 
-    if (cache) {
-      const cachedResource = await this.integrationCacheUtilsService.getCachedEntitiesFromRequest(
-        targetEntity,
-        integration,
-        resourceCacheParams,
-      );
+      const getResource = () => {
+        switch (entityType) {
+          case EntityType.organizationUnit:
+            return this.listOrganizationUnits(integration, requestFilters);
+          case EntityType.insurance:
+            return this.listInsurances(integration, requestFilters);
+          case EntityType.doctor:
+            return this.listDoctors(integration, requestFilters);
+          case EntityType.speciality:
+            return this.listSpecialities(integration, requestFilters);
+          case EntityType.procedure:
+            return this.listProcedures(integration, requestFilters);
+          case EntityType.appointmentType:
+            return this.listAppointmentTypes(integration, requestFilters);
+          default:
+            return [];
+        }
+      };
 
-      if (cachedResource) {
-        return cachedResource;
-      }
-    }
-
-    let entities: EntityTypes[] = [];
-
-    switch (targetEntity) {
-      case EntityType.doctor:
-        entities = await this.listDoctors(integration, filters);
-        break;
-      case EntityType.insurance:
-        entities = await this.listInsurances(integration, filters);
-        break;
-      case EntityType.organizationUnit:
-        entities = await this.listOrganizationUnits(integration, filters);
-        break;
-      case EntityType.procedure:
-        entities = await this.listProcedures(integration, filters);
-        break;
-      case EntityType.speciality:
-        entities = await this.listSpecialities(integration, filters);
-        break;
-      case EntityType.appointmentType:
-        entities = await this.listAppointmentTypes(integration, filters);
-        break;
-      default:
-        entities = [];
-    }
-
-    if (cache && entities?.length) {
+      const resource: EntityTypes[] = await getResource();
       await this.integrationCacheUtilsService.setCachedEntitiesFromRequest(
-        targetEntity,
+        entityType,
         integration,
-        resourceCacheParams,
-        entities,
-        getExpirationByEntity(targetEntity),
+        requestFilters,
+        resource,
       );
+      return resource;
+    } catch (error) {
+      throw INTERNAL_ERROR_THROWER('ProdoctorEntitiesService.extractEntity', error);
     }
-
-    return entities;
   }
 
   // ==================== DOCTORS ====================
@@ -229,29 +299,31 @@ export class KonsistEntitiesService {
         return [];
       }
 
-      return response.map((resource) => ({
-        code: String(resource.id),
-        name: resource.empresa?.trim(),
-        ...this.getDefaultErpEntityData(integration),
-        data: {
-          tipo: resource.tipo,
-          cnpj: resource.cnpj,
-          endereco: resource.endereco,
-          numero: resource.numero,
-          bairro: resource.bairro,
-          cep: resource.cep,
-          ddd: resource.ddd,
-          fone: resource.fone,
-          site: resource.site,
-          localizacao: resource.localizacao,
-          complemento: resource.complemento,
-        },
-      }));
+      const entities = response
+        .filter((resource) => resource.id && resource.empresa?.trim()?.length)
+        .map((resource) => ({
+          code: String(resource.id),
+          name: resource.empresa?.trim(),
+          ...this.getDefaultErpEntityData(integration),
+          data: {
+            tipo: resource.tipo,
+            cnpj: resource.cnpj,
+            endereco: resource.endereco,
+            numero: resource.numero,
+            bairro: resource.bairro,
+            cep: resource.cep,
+            ddd: resource.ddd,
+            fone: resource.fone,
+            site: resource.site,
+            localizacao: resource.localizacao,
+            complemento: resource.complemento,
+          },
+        }));
+      return entities;
     } catch (error) {
       throw INTERNAL_ERROR_THROWER('KonsistEntitiesService.listOrganizationUnits', error);
     }
   }
-
   // ==================== PROCEDURES ====================
 
   /**

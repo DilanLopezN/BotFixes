@@ -293,6 +293,10 @@ export class SaoMarcosConfirmationService {
             integrationId: integration._id,
             entitiesFilter: scheduleCorrelation,
             targetFlowTypes: [FlowSteps.confirmActive],
+            filters: {
+              patientBornDate: schedule.patientBornDate,
+              patientCpf: schedule.patientCpf,
+            },
           });
 
           if (actions?.length) {

@@ -16,8 +16,9 @@ import { MatrixModule } from './matrix-integration/matrix.module';
 import { AmigoModule } from './amigo-integration/amigo.module';
 import { KayserModule } from './kayser-integration/kayser.module';
 import { BotdesignerFakeModule } from './botdesigner-fake-integration/botdesigner-fake.module';
-import { StenciModule } from './stenci-integration/stenci.module';
-import { ProdoctorIntegrationModule } from './prodoctor-integration/prodoctor-integration.module';
+
+import { ProdoctorModule } from './prodoctor-integration/prodoctor.module';
+import { KonsistModule } from './konsist-integration/konsist.module';
 
 @Module({
   imports: [
@@ -38,8 +39,8 @@ import { ProdoctorIntegrationModule } from './prodoctor-integration/prodoctor-in
     AmigoModule,
     KayserModule,
     BotdesignerFakeModule,
-    StenciModule,
-    ProdoctorIntegrationModule,
+    ProdoctorModule,
+    KonsistModule,
   ],
 })
 export class IntegrationsModule {}

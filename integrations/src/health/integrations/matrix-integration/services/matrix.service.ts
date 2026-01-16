@@ -132,11 +132,8 @@ export class MatrixService implements IIntegratorService {
       return { ok: true };
     } catch (error) {
       const errorMessage = error.response.error.erro;
-      // Identificado com a Marina da tecnolab que sempre que retorna este erro
-      // é porque o agendamento já foi cancelado dentro do erp. Então foi acordado
-      // que ao retornar este erro será tratado como um cancelamento efetuado
       if (errorMessage.includes('Não foi possível desmarcar o agendamento.')) {
-        return { ok: true };
+        return { ok: false };
       }
 
       throw INTERNAL_ERROR_THROWER('MatrixService.cancelSchedule', error);
@@ -621,7 +618,7 @@ export class MatrixService implements IIntegratorService {
             : null,
           insuranceId: filter.insurance.code,
           appointmentCode: String(matrixTimeSchedule.horario_id),
-          duration: matrixTimeSchedule?.duracao ?? '-1',
+          duration: '-1',
           appointmentDate: this.matrixHelpersService.convertDate(matrixTimeSchedule.dataHora),
           status: AppointmentStatus.scheduled,
           doctorId: String(matrixTimeSchedule.responsavel_id),
@@ -629,8 +626,6 @@ export class MatrixService implements IIntegratorService {
           data: {
             sala_id: matrixTimeSchedule.sala_id,
             duracao: matrixTimeSchedule.duracao,
-            // lateralidade: se não vem da API, pega do filtro de busca
-            codigoRegiaoColeta: matrixSchedule.codigoRegiaoColeta || payload.procedimentos[0].codigoRegiaoColeta,
           },
         })),
     );

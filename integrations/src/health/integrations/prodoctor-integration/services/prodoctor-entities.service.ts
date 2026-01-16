@@ -281,11 +281,23 @@ export class ProdoctorEntitiesService {
       const defaultData = this.getDefaultErpEntityData(integration);
       const specialitiesMap = new Map<number, ISpecialityEntity>();
 
-      for (const usuario of response.payload.usuarios) {
-        if (!usuario.ativo) continue;
+      // Filtra apenas usuários ativos
+      const activeUsers = response.payload.usuarios.filter((u) => u.ativo);
 
-        const detalhes = await this.prodoctorApiService.getUserDetails(integration, usuario.codigo);
+      // Cria chamadas paralelas
+      const detailPromises = activeUsers.map((usuario) =>
+        this.prodoctorApiService.getUserDetails(integration, usuario.codigo).catch((err) => {
+          // garante que erro individual não quebre o Promise.all
+          this.logger.error('Erro ao buscar detalhes do usuário', err);
+          return null;
+        }),
+      );
 
+      // Executa tudo em paralelo
+      const detailsResponses = await Promise.all(detailPromises);
+
+      // Processa especialidades
+      for (const detalhes of detailsResponses) {
         if (detalhes?.sucesso && detalhes?.payload?.usuario?.especialidade) {
           const esp = detalhes.payload.usuario.especialidade;
 

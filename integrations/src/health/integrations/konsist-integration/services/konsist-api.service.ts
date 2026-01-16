@@ -99,13 +99,25 @@ export class KonsistApiService {
     });
   }
 
+  private async getApiUrl(integration: IntegrationDocument, endpoint: string): Promise<string> {
+    // const { base_url } = await this.credentialsHelper.getConfig<KonsistCredentialsResponse>(integration);
+
+    // if (!base_url) {
+    //   throw HTTP_ERROR_THROWER(HttpStatus.UNAUTHORIZED, 'Invalid Konsist credentials - missing base_url');
+    // }
+    const base_url = 'http://172.17.0.1:7576';
+
+    return `${base_url}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
+  }
+
   private async getHeaders(integration: IntegrationDocument): Promise<{ headers: Record<string, string> }> {
-    const { api_key } = await this.credentialsHelper.getConfig<KonsistCredentialsResponse>(integration);
+    // const { api_key } = await this.credentialsHelper.getConfig<KonsistCredentialsResponse>(integration);
 
-    if (!api_key) {
-      throw HTTP_ERROR_THROWER(HttpStatus.UNAUTHORIZED, 'Invalid Konsist credentials');
-    }
+    // if (!api_key) {
+    //   throw HTTP_ERROR_THROWER(HttpStatus.UNAUTHORIZED, 'Invalid Konsist credentials - missing api_key');
+    // }
 
+    const api_key = '123456';
     return {
       headers: {
         'Content-Type': 'application/json',
@@ -128,10 +140,9 @@ export class KonsistApiService {
     this.dispatchAuditEvent(integration, request, methodName, AuditDataType.externalRequest);
 
     try {
+      const url = await this.getApiUrl(integration, '/listaragenda');
       const headers = await this.getHeaders(integration);
-      const response = await lastValueFrom(
-        this.httpService.post<KonsistAgendaRetorno[]>('/listaragenda', request, headers),
-      );
+      const response = await lastValueFrom(this.httpService.post<KonsistAgendaRetorno[]>(url, request, headers));
 
       this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;
@@ -157,10 +168,9 @@ export class KonsistApiService {
     this.dispatchAuditEvent(integration, { userEmail }, methodName, AuditDataType.externalRequest);
 
     try {
+      const url = await this.getApiUrl(integration, `/listarmedicoagenda/${userEmail}`);
       const headers = await this.getHeaders(integration);
-      const response = await lastValueFrom(
-        this.httpService.get<KonsistMedicoResponse[]>(`/listarmedicoagenda/${userEmail}`, headers),
-      );
+      const response = await lastValueFrom(this.httpService.get<KonsistMedicoResponse[]>(url, headers));
 
       this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;
@@ -188,10 +198,9 @@ export class KonsistApiService {
     this.dispatchAuditEvent(integration, { cpf }, methodName, AuditDataType.externalRequest);
 
     try {
+      const url = await this.getApiUrl(integration, `/agendamentos/${cpf}`);
       const headers = await this.getHeaders(integration);
-      const response = await lastValueFrom(
-        this.httpService.get<KonsistAgendamentoResponse>(`/agendamentos/${cpf}`, headers),
-      );
+      const response = await lastValueFrom(this.httpService.get<KonsistAgendamentoResponse>(url, headers));
 
       this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;
@@ -217,10 +226,9 @@ export class KonsistApiService {
     this.dispatchAuditEvent(integration, request, methodName, AuditDataType.externalRequest);
 
     try {
+      const url = await this.getApiUrl(integration, '/agendamentos');
       const headers = await this.getHeaders(integration);
-      const response = await lastValueFrom(
-        this.httpService.post<KonsistAgendamentoResponse[]>('/agendamentos', request, headers),
-      );
+      const response = await lastValueFrom(this.httpService.post<KonsistAgendamentoResponse[]>(url, request, headers));
 
       this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;
@@ -248,10 +256,9 @@ export class KonsistApiService {
     this.dispatchAuditEvent(integration, request, methodName, AuditDataType.externalRequest);
 
     try {
+      const url = await this.getApiUrl(integration, '/medico/agendamento/disponiveis');
       const headers = await this.getHeaders(integration);
-      const response = await lastValueFrom(
-        this.httpService.post<any>('/medico/agendamento/disponiveis', request, headers),
-      );
+      const response = await lastValueFrom(this.httpService.post<any>(url, request, headers));
 
       this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;
@@ -277,14 +284,9 @@ export class KonsistApiService {
     this.dispatchAuditEvent(integration, request, methodName, AuditDataType.externalRequest);
 
     try {
+      const url = await this.getApiUrl(integration, '/medico/agendamento/horarios-disponiveis');
       const headers = await this.getHeaders(integration);
-      const response = await lastValueFrom(
-        this.httpService.post<KonsistAgendaHorarioRetorno[]>(
-          '/medico/agendamento/horarios-disponiveis',
-          request,
-          headers,
-        ),
-      );
+      const response = await lastValueFrom(this.httpService.post<KonsistAgendaHorarioRetorno[]>(url, request, headers));
 
       this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;
@@ -310,10 +312,9 @@ export class KonsistApiService {
     this.dispatchAuditEvent(integration, request, methodName, AuditDataType.externalRequest);
 
     try {
+      const url = await this.getApiUrl(integration, '/medico/agendamento/marcar');
       const headers = await this.getHeaders(integration);
-      const response = await lastValueFrom(
-        this.httpService.post<{ protocolo: string }>('/medico/agendamento/marcar', request, headers),
-      );
+      const response = await lastValueFrom(this.httpService.post<{ protocolo: string }>(url, request, headers));
 
       this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;
@@ -339,13 +340,10 @@ export class KonsistApiService {
     this.dispatchAuditEvent(integration, request, methodName, AuditDataType.externalRequest);
 
     try {
+      const url = await this.getApiUrl(integration, '/medico/agendamento/status-protocolo');
       const headers = await this.getHeaders(integration);
       const response = await lastValueFrom(
-        this.httpService.post<KonsistProtocoloStatusRetorno[]>(
-          '/medico/agendamento/status-protocolo',
-          request,
-          headers,
-        ),
+        this.httpService.post<KonsistProtocoloStatusRetorno[]>(url, request, headers),
       );
 
       this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
@@ -371,8 +369,9 @@ export class KonsistApiService {
     this.dispatchAuditEvent(integration, request, methodName, AuditDataType.externalRequest);
 
     try {
+      const url = await this.getApiUrl(integration, '/status');
       const headers = await this.getHeaders(integration);
-      const response = await lastValueFrom(this.httpService.post<any>('/status', request, headers));
+      const response = await lastValueFrom(this.httpService.post<any>(url, request, headers));
 
       this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;
@@ -398,9 +397,10 @@ export class KonsistApiService {
     this.dispatchAuditEvent(integration, request, methodName, AuditDataType.externalRequest);
 
     try {
+      const url = await this.getApiUrl(integration, '/status-lote');
       const headers = await this.getHeaders(integration);
       const response = await lastValueFrom(
-        this.httpService.post<KonsistRetornoAlteracaoStatus[]>('/status-lote', request, headers),
+        this.httpService.post<KonsistRetornoAlteracaoStatus[]>(url, request, headers),
       );
 
       this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
@@ -426,8 +426,9 @@ export class KonsistApiService {
     this.dispatchAuditEvent(integration, {}, methodName, AuditDataType.externalRequest);
 
     try {
+      const url = await this.getApiUrl(integration, '/cliente');
       const headers = await this.getHeaders(integration);
-      const response = await lastValueFrom(this.httpService.get<KonsistEmpresaResponse[]>('/cliente', headers));
+      const response = await lastValueFrom(this.httpService.get<KonsistEmpresaResponse[]>(url, headers));
 
       this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;
@@ -450,8 +451,9 @@ export class KonsistApiService {
     this.dispatchAuditEvent(integration, { id }, methodName, AuditDataType.externalRequest);
 
     try {
+      const url = await this.getApiUrl(integration, `/cliente/${id}`);
       const headers = await this.getHeaders(integration);
-      const response = await lastValueFrom(this.httpService.get<KonsistEmpresaResponse>(`/cliente/${id}`, headers));
+      const response = await lastValueFrom(this.httpService.get<KonsistEmpresaResponse>(url, headers));
 
       this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;
@@ -474,8 +476,9 @@ export class KonsistApiService {
     this.dispatchAuditEvent(integration, {}, methodName, AuditDataType.externalRequest);
 
     try {
+      const url = await this.getApiUrl(integration, '/clientefilial');
       const headers = await this.getHeaders(integration);
-      const response = await lastValueFrom(this.httpService.get<KonsistEmpresaResponse[]>('/clientefilial', headers));
+      const response = await lastValueFrom(this.httpService.get<KonsistEmpresaResponse[]>(url, headers));
 
       this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;
@@ -498,10 +501,9 @@ export class KonsistApiService {
     this.dispatchAuditEvent(integration, { id }, methodName, AuditDataType.externalRequest);
 
     try {
+      const url = await this.getApiUrl(integration, `/clientefilial/${id}`);
       const headers = await this.getHeaders(integration);
-      const response = await lastValueFrom(
-        this.httpService.get<KonsistEmpresaResponse>(`/clientefilial/${id}`, headers),
-      );
+      const response = await lastValueFrom(this.httpService.get<KonsistEmpresaResponse>(url, headers));
 
       this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;
@@ -526,8 +528,9 @@ export class KonsistApiService {
     this.dispatchAuditEvent(integration, {}, methodName, AuditDataType.externalRequest);
 
     try {
+      const url = await this.getApiUrl(integration, '/listarconvenio');
       const headers = await this.getHeaders(integration);
-      const response = await lastValueFrom(this.httpService.get<KonsistConvenioResponse[]>('/listarconvenio', headers));
+      const response = await lastValueFrom(this.httpService.get<KonsistConvenioResponse[]>(url, headers));
 
       this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;
@@ -550,10 +553,9 @@ export class KonsistApiService {
     this.dispatchAuditEvent(integration, { id }, methodName, AuditDataType.externalRequest);
 
     try {
+      const url = await this.getApiUrl(integration, `/listarconvenio/${id}`);
       const headers = await this.getHeaders(integration);
-      const response = await lastValueFrom(
-        this.httpService.get<KonsistConvenioResponse>(`/listarconvenio/${id}`, headers),
-      );
+      const response = await lastValueFrom(this.httpService.get<KonsistConvenioResponse>(url, headers));
 
       this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;
@@ -578,8 +580,9 @@ export class KonsistApiService {
     this.dispatchAuditEvent(integration, {}, methodName, AuditDataType.externalRequest);
 
     try {
+      const url = await this.getApiUrl(integration, '/listarmedico');
       const headers = await this.getHeaders(integration);
-      const response = await lastValueFrom(this.httpService.get<KonsistMedicoResponse[]>('/listarmedico', headers));
+      const response = await lastValueFrom(this.httpService.get<KonsistMedicoResponse[]>(url, headers));
 
       this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;
@@ -602,8 +605,9 @@ export class KonsistApiService {
     this.dispatchAuditEvent(integration, { id }, methodName, AuditDataType.externalRequest);
 
     try {
+      const url = await this.getApiUrl(integration, `/listarmedico/${id}`);
       const headers = await this.getHeaders(integration);
-      const response = await lastValueFrom(this.httpService.get<KonsistMedicoResponse>(`/listarmedico/${id}`, headers));
+      const response = await lastValueFrom(this.httpService.get<KonsistMedicoResponse>(url, headers));
 
       this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;
@@ -631,9 +635,10 @@ export class KonsistApiService {
     this.dispatchAuditEvent(integration, request, methodName, AuditDataType.externalRequest);
 
     try {
+      const url = await this.getApiUrl(integration, '/listarpaciente');
       const headers = await this.getHeaders(integration);
       const response = await lastValueFrom(
-        this.httpService.post<KonsistDadosPacienteResponse[]>('/listarpaciente', request, headers),
+        this.httpService.post<KonsistDadosPacienteResponse[]>(url, request, headers),
       );
 
       this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
@@ -652,7 +657,7 @@ export class KonsistApiService {
   }
 
   /**
-   * POST /paciente - Insere dados cadastrais do paciente, interfaces condizentes check
+   * POST /paciente - Insere dados cadastrais do paciente
    */
   public async createPatient(
     integration: IntegrationDocument,
@@ -663,10 +668,9 @@ export class KonsistApiService {
     this.dispatchAuditEvent(integration, request, methodName, AuditDataType.externalRequest);
 
     try {
+      const url = await this.getApiUrl(integration, '/paciente');
       const headers = await this.getHeaders(integration);
-      const response = await lastValueFrom(
-        this.httpService.post<KonsistCreatePatientResponse>('/paciente', request, headers),
-      );
+      const response = await lastValueFrom(this.httpService.post<KonsistCreatePatientResponse>(url, request, headers));
 
       this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;
@@ -691,8 +695,9 @@ export class KonsistApiService {
     this.dispatchAuditEvent(integration, {}, methodName, AuditDataType.externalRequest);
 
     try {
+      const url = await this.getApiUrl(integration, '/listarservico');
       const headers = await this.getHeaders(integration);
-      const response = await lastValueFrom(this.httpService.get<any[]>('/listarservico', headers));
+      const response = await lastValueFrom(this.httpService.get<any[]>(url, headers));
 
       this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;
@@ -715,8 +720,9 @@ export class KonsistApiService {
     this.dispatchAuditEvent(integration, { insuranceId }, methodName, AuditDataType.externalRequest);
 
     try {
+      const url = await this.getApiUrl(integration, `/listarservico/${insuranceId}`);
       const headers = await this.getHeaders(integration);
-      const response = await lastValueFrom(this.httpService.get<any[]>(`/listarservico/${insuranceId}`, headers));
+      const response = await lastValueFrom(this.httpService.get<any[]>(url, headers));
 
       this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;
@@ -741,10 +747,9 @@ export class KonsistApiService {
     this.dispatchAuditEvent(integration, { userEmail }, methodName, AuditDataType.externalRequest);
 
     try {
+      const url = await this.getApiUrl(integration, `/dadosusuario/${userEmail}`);
       const headers = await this.getHeaders(integration);
-      const response = await lastValueFrom(
-        this.httpService.get<KonsistCamposUsuarioRetorno>(`/dadosusuario/${userEmail}`, headers),
-      );
+      const response = await lastValueFrom(this.httpService.get<KonsistCamposUsuarioRetorno>(url, headers));
 
       this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;
@@ -769,8 +774,9 @@ export class KonsistApiService {
     this.dispatchAuditEvent(integration, {}, methodName, AuditDataType.externalRequest);
 
     try {
+      const url = await this.getApiUrl(integration, '/listarespecialidade');
       const headers = await this.getHeaders(integration);
-      const response = await lastValueFrom(this.httpService.get<any[]>('/listarespecialidade', headers));
+      const response = await lastValueFrom(this.httpService.get<any[]>(url, headers));
 
       this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data || [];
@@ -798,10 +804,9 @@ export class KonsistApiService {
     this.dispatchAuditEvent(integration, request, methodName, AuditDataType.externalRequest);
 
     try {
+      const url = await this.getApiUrl(integration, '/medico/agendamento/marcar');
       const headers = await this.getHeaders(integration);
-      const response = await lastValueFrom(
-        this.httpService.post<{ protocolo: string }>('/medico/agendamento/marcar', request, headers),
-      );
+      const response = await lastValueFrom(this.httpService.post<{ protocolo: string }>(url, request, headers));
 
       this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;
@@ -829,10 +834,9 @@ export class KonsistApiService {
     this.dispatchAuditEvent(integration, request, methodName, AuditDataType.externalRequest);
 
     try {
+      const url = await this.getApiUrl(integration, '/agendamentos');
       const headers = await this.getHeaders(integration);
-      const response = await lastValueFrom(
-        this.httpService.post<KonsistAgendamentoResponse[]>('/agendamentos', request, headers),
-      );
+      const response = await lastValueFrom(this.httpService.post<KonsistAgendamentoResponse[]>(url, request, headers));
 
       this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;

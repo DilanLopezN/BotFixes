@@ -45,7 +45,7 @@ interface FeegowAvailableSchedules {
   procedimento_id?: number;
   data_start: string;
   data_end: string;
-  unidade_id?: number;
+  unidade_id: number;
   convenio_id?: number;
   profissional_id?: number;
 }
@@ -91,7 +91,6 @@ interface FeegowScheduleResponse {
   convenio_id: number;
   encaixe?: boolean;
   telemedicina?: boolean;
-  agendado_em?: string;
 }
 
 interface FeegowReschedule {

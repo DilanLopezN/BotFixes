@@ -51,11 +51,6 @@ export class FeegowConfirmationService {
   ): Promise<ExtractedSchedule[]> {
     const { startDate, endDate, erpParams } = data;
 
-    const daysDiff = moment(endDate).diff(moment(startDate), 'days');
-    if (daysDiff > 180) {
-      throw new Error(`Feegow API does not support date ranges larger than 180 days. Requested: ${daysDiff} days`);
-    }
-
     const requestFilters: FeegowPatientSchedules = {
       data_start: moment(startDate).format('DD-MM-YYYY'),
       data_end: moment(endDate).format('DD-MM-YYYY'),
@@ -66,37 +61,8 @@ export class FeegowConfirmationService {
       requestFilters.status_id = 6;
     }
 
-    if (erpParams?.EXTRACT_TYPE === ExtractType.schedule_notification) {
-      requestFilters.status_id = 1;
-      // Para buscar máximo permitido pela API - 180 dias
-      requestFilters.data_start = moment().format('DD-MM-YYYY');
-      requestFilters.data_end = moment().add(180, 'days').format('DD-MM-YYYY');
-    }
-
     const response = await this.apiService.listSchedules(integration, requestFilters);
     let feegowSchedules = response?.content ?? [];
-
-    if (erpParams?.EXTRACT_TYPE === ExtractType.schedule_notification && feegowSchedules.length) {
-      const feegow_time_format = 'YYYY-MM-DD HH:mm:ss';
-      // Filtrar agendamentos cancelados
-      feegowSchedules = feegowSchedules.filter((schedule) => {
-        return schedule.status_id !== 11 && schedule.status_id !== 22;
-      });
-
-      const cutoffTimestamp = moment().subtract(15, 'minutes');
-
-      // Filtrar apenas agendamentos criados após o timestamp de corte
-      // e ordena por maior 'agendado_em' primeiro
-      feegowSchedules = feegowSchedules
-        .filter((schedule) => {
-          if (!schedule.agendado_em) return false;
-          return moment(schedule.agendado_em, feegow_time_format).isAfter(cutoffTimestamp);
-        })
-        .sort((a, b) => {
-          if (!a.agendado_em || !b.agendado_em) return 0;
-          return moment(b.agendado_em, feegow_time_format).diff(moment(a.agendado_em, feegow_time_format));
-        });
-    }
 
     // Filter out appointments with encaixe = true if omitEncaixe is provided
     if (erpParams?.omitEncaixe && feegowSchedules.length) {
@@ -140,9 +106,6 @@ export class FeegowConfirmationService {
           insuranceCode: String(feegowSchedule.convenio_id ?? '-1'),
           specialityCode: String(feegowSchedule.especialidade_id),
           appointmentTypeCode: '',
-          data: {
-            scheduleDate_createdAt: feegowSchedule?.agendado_em, // data em que o agendamento foi criando no Feegow
-          },
         };
         try {
           const response = await this.apiService.getPatientByCode(integration, String(feegowSchedule.paciente_id));
@@ -325,6 +288,10 @@ export class FeegowConfirmationService {
           integrationId: integration._id,
           entitiesFilter: scheduleCorrelation,
           targetFlowTypes: [FlowSteps.confirmActive],
+          filters: {
+            patientBornDate: moment(schedule.patientBornDate).format('YYYY-MM-DD'),
+            patientCpf: schedule.patientCpf,
+          },
         });
 
         if (actions?.length) {

@@ -249,6 +249,10 @@ export class DrMobileConfirmationService {
           integrationId: integration._id,
           entitiesFilter: scheduleCorrelation,
           targetFlowTypes: [FlowSteps.confirmActive],
+          filters: {
+            patientBornDate: moment(schedule.patientBornDate).format('YYYY-MM-DD'),
+            patientCpf: schedule.patientCpf,
+          },
         });
 
         if (actions?.length) {

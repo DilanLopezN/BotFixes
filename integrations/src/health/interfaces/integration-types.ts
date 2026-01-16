@@ -17,7 +17,9 @@ enum IntegrationType {
   AMIGO = 'AMIGO',
   KAYSER = 'KAYSER',
   STENCI = 'STENCI',
+  SHIFT = 'SHIFT',
   PRODOCTOR = 'PRODOCTOR',
+  KONSIST = 'KONSIST',
 }
 
 export { IntegrationType };
