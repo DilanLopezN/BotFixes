@@ -24,8 +24,8 @@ import { InitialPatient } from '../../../integrator/interfaces';
 import { getExpirationByEntity } from '../../../integration-cache-utils/cache-expirations';
 import { KonsistApiService } from './konsist-api.service';
 import { KonsistHelpersService } from './konsist-helpers.service';
-import { EntityFiltersParams } from 'kissbot-health-core';
 import * as moment from 'moment';
+
 interface ListValidEntities {
   integration: IntegrationDocument;
   targetEntity: EntityType;
@@ -50,7 +50,7 @@ export class KonsistEntitiesService {
   /**
    * Retorna dados padrão para entidades do ERP
    */
-  public getDefaultErpEntityData(
+  private getDefaultErpEntityData(
     integration: IntegrationDocument,
   ): Pick<EntityDocument, 'integrationId' | 'source' | 'activeErp' | 'version'> {
     return {
@@ -61,47 +61,9 @@ export class KonsistEntitiesService {
     };
   }
 
-  public async listValidApiEntities(params: ListValidEntities): Promise<EntityDocument[]> {
-    const { integration, targetEntity, filters, cache, patient } = params;
-    return this.listValidEntities(integration, filters, targetEntity, cache, patient);
-  }
-
   /**
-   * Lista entidades válidas da API com cache
+   * Monta filtros de request baseado no tipo de entidade
    */
-  public async listValidEntities(
-    integration: IntegrationDocument,
-    filters: CorrelationFilter,
-    targetEntity: EntityType,
-    cache?: boolean,
-    patient?: InitialPatient,
-  ): Promise<EntityDocument[]> {
-    try {
-      const allEntities = await this.extractEntity(integration, targetEntity, filters, cache, patient?.bornDate);
-      const codes = allEntities?.map((entity) => entity.code);
-
-      const customFilters: FilterQuery<EntityDocument> = {};
-
-      if (
-        [EntityType.insurancePlan, EntityType.planCategory, EntityType.insuranceSubPlan].includes(targetEntity) &&
-        filters?.insurance
-      ) {
-        customFilters.insuranceCode = filters.insurance.code;
-      }
-
-      const dbEntities = await this.entitiesService.getValidEntitiesbyCode(
-        integration._id,
-        codes,
-        targetEntity,
-        customFilters,
-      );
-
-      return dbEntities;
-    } catch (error) {
-      throw INTERNAL_ERROR_THROWER('ProdoctorEntitiesService.listValidEntities', error);
-    }
-  }
-
   private getResourceFilters(
     targetEntity: EntityType,
     filters: EntityFilters,
@@ -163,7 +125,7 @@ export class KonsistEntitiesService {
   }
 
   /**
-   * Extrai entidades da API Konsist
+   * Extrai entidades da API Konsist - Assinatura igual ao ProDoctor
    */
   public async extractEntity(
     integration: IntegrationDocument,
@@ -190,9 +152,9 @@ export class KonsistEntitiesService {
       const getResource = () => {
         switch (entityType) {
           case EntityType.organizationUnit:
-            return this.listOrganizationUnits(integration, requestFilters);
+            return this.listOrganizationUnits(integration);
           case EntityType.insurance:
-            return this.listInsurances(integration, requestFilters);
+            return this.listInsurances(integration);
           case EntityType.doctor:
             return this.listDoctors(integration, requestFilters);
           case EntityType.speciality:
@@ -200,7 +162,7 @@ export class KonsistEntitiesService {
           case EntityType.procedure:
             return this.listProcedures(integration, requestFilters);
           case EntityType.appointmentType:
-            return this.listAppointmentTypes(integration, requestFilters);
+            return this.listAppointmentTypes(integration);
           default:
             return [];
         }
@@ -218,14 +180,53 @@ export class KonsistEntitiesService {
       throw INTERNAL_ERROR_THROWER('ProdoctorEntitiesService.extractEntity', error);
     }
   }
+  /**
+   * Lista entidades válidas - Assinatura igual ao ProDoctor
+   */
+  public async listValidEntities(
+    integration: IntegrationDocument,
+    filters: CorrelationFilter,
+    targetEntity: EntityType,
+    cache?: boolean,
+    patient?: InitialPatient,
+  ): Promise<EntityDocument[]> {
+    try {
+      const allEntities = await this.extractEntity(integration, targetEntity, filters, cache, patient?.bornDate);
+      const codes = allEntities?.map((entity) => entity.code);
+
+      const customFilters: FilterQuery<EntityDocument> = {};
+
+      if (
+        [EntityType.insurancePlan, EntityType.planCategory, EntityType.insuranceSubPlan].includes(targetEntity) &&
+        filters?.insurance
+      ) {
+        customFilters.insuranceCode = filters.insurance.code;
+      }
+
+      const dbEntities = await this.entitiesService.getValidEntitiesbyCode(
+        integration._id,
+        codes,
+        targetEntity,
+        customFilters,
+      );
+
+      return dbEntities;
+    } catch (error) {
+      throw INTERNAL_ERROR_THROWER('KonsistEntitiesService.listValidEntities', error);
+    }
+  }
+
+  /**
+   * Lista entidades válidas da API (wrapper para compatibilidade)
+   */
+  public async listValidApiEntities(params: ListValidEntities): Promise<EntityDocument[]> {
+    const { integration, targetEntity, filters, cache, patient } = params;
+    return this.listValidEntities(integration, filters, targetEntity, cache, patient);
+  }
 
   // ==================== DOCTORS ====================
 
-  /**
-   * Lista médicos da API Konsist
-   * KonsistMedicoResponse: { id, nome?, crm?, local?, podemarcaratendido? }
-   */
-  public async listDoctors(integration: IntegrationDocument, filters: CorrelationFilter): Promise<IDoctorEntity[]> {
+  private async listDoctors(integration: IntegrationDocument, filters: RequestParams): Promise<IDoctorEntity[]> {
     try {
       const response = await this.konsistApiService.listDoctors(integration);
 
@@ -251,14 +252,7 @@ export class KonsistEntitiesService {
 
   // ==================== INSURANCES ====================
 
-  /**
-   * Lista convênios da API Konsist
-   * KonsistConvenioResponse: { id?, codigo?, nome?, reduzido?, num_cnpj?, status? }
-   */
-  public async listInsurances(
-    integration: IntegrationDocument,
-    _filters: CorrelationFilter,
-  ): Promise<IInsuranceEntity[]> {
+  private async listInsurances(integration: IntegrationDocument): Promise<IInsuranceEntity[]> {
     try {
       const response = await this.konsistApiService.listInsurances(integration);
 
@@ -284,14 +278,7 @@ export class KonsistEntitiesService {
 
   // ==================== ORGANIZATION UNITS ====================
 
-  /**
-   * Lista unidades organizacionais (filiais) da API Konsist
-   * KonsistEmpresaResponse: { tipo?, id?, empresa?, cnpj?, endereco?, numero?, bairro?, cep?, ddd?, fone?, site?, localizacao?, complemento? }
-   */
-  public async listOrganizationUnits(
-    integration: IntegrationDocument,
-    _filters: CorrelationFilter,
-  ): Promise<IOrganizationUnitEntity[]> {
+  private async listOrganizationUnits(integration: IntegrationDocument): Promise<IOrganizationUnitEntity[]> {
     try {
       const response = await this.konsistApiService.listOrganizationUnits(integration);
 
@@ -299,7 +286,7 @@ export class KonsistEntitiesService {
         return [];
       }
 
-      const entities = response
+      return response
         .filter((resource) => resource.id && resource.empresa?.trim()?.length)
         .map((resource) => ({
           code: String(resource.id),
@@ -319,26 +306,19 @@ export class KonsistEntitiesService {
             complemento: resource.complemento,
           },
         }));
-      return entities;
     } catch (error) {
       throw INTERNAL_ERROR_THROWER('KonsistEntitiesService.listOrganizationUnits', error);
     }
   }
+
   // ==================== PROCEDURES ====================
 
-  /**
-   * Lista procedimentos/serviços da API Konsist
-   */
-  public async listProcedures(
-    integration: IntegrationDocument,
-    filters: CorrelationFilter,
-  ): Promise<IProcedureEntity[]> {
+  private async listProcedures(integration: IntegrationDocument, filters: RequestParams): Promise<IProcedureEntity[]> {
     try {
       let response: any[];
 
-      // Se tem filtro de convênio, busca serviços específicos do convênio
-      if (filters?.insurance?.code) {
-        response = await this.konsistApiService.listProceduresByInsurance(integration, filters.insurance.code);
+      if (filters?.convenio_id) {
+        response = await this.konsistApiService.listProceduresByInsurance(integration, String(filters.convenio_id));
       } else {
         response = await this.konsistApiService.listProcedures(integration);
       }
@@ -351,7 +331,7 @@ export class KonsistEntitiesService {
         code: String(resource.id || resource.codigo),
         name: resource.nome?.trim() || resource.descricao?.trim(),
         specialityType: SpecialityTypes.C,
-        specialityCode: filters?.speciality?.code || '-1',
+        specialityCode: filters?.especialidade_id ? String(filters.especialidade_id) : '-1',
         ...this.getDefaultErpEntityData(integration),
         data: {
           tipo: resource.tipo,
@@ -366,36 +346,25 @@ export class KonsistEntitiesService {
 
   // ==================== SPECIALITIES ====================
 
-  /**
-   * Lista especialidades da API Konsist
-   * Usa endpoint /listarespecialidade se disponível, senão usa lista fixa
-   */
-  public async listSpecialities(
+  private async listSpecialities(
     integration: IntegrationDocument,
-    _filters: CorrelationFilter,
+    filters: RequestParams,
   ): Promise<ISpecialityEntity[]> {
     try {
-      // Tenta buscar especialidades da API
       const response = await this.konsistApiService.listSpecialities(integration);
 
-      if (response?.length) {
-        return response.map((resource: any) => ({
-          code: String(resource.id || resource.codigo),
-          name: resource.nome?.trim() || resource.descricao?.trim(),
-          specialityType: SpecialityTypes.C,
-          ...this.getDefaultErpEntityData(integration),
-        }));
+      if (!response?.length) {
+        return [];
       }
 
-      // Fallback: retorna lista vazia ou especialidade genérica
-      return [
-        {
-          code: 'consulta',
-          name: 'Consulta',
-          specialityType: SpecialityTypes.C,
-          ...this.getDefaultErpEntityData(integration),
-        },
-      ];
+      return response.map((resource: any) => ({
+        code: String(resource.id || resource.codigo),
+        name: resource.nome?.trim() || resource.descricao?.trim(),
+        specialityType: SpecialityTypes.C,
+        canSchedule: true,
+        canView: true,
+        ...this.getDefaultErpEntityData(integration),
+      }));
     } catch (error) {
       throw INTERNAL_ERROR_THROWER('KonsistEntitiesService.listSpecialities', error);
     }
@@ -403,35 +372,40 @@ export class KonsistEntitiesService {
 
   // ==================== APPOINTMENT TYPES ====================
 
-  /**
-   * Lista tipos de atendimento
-   * Konsist usa tipos fixos: Consulta (C) e Exame (E)
-   */
-  public async listAppointmentTypes(
-    integration: IntegrationDocument,
-    _filters: CorrelationFilter,
-  ): Promise<IAppointmentTypeEntity[]> {
+  private async listAppointmentTypes(integration: IntegrationDocument): Promise<IAppointmentTypeEntity[]> {
     try {
-      return [
+      // Konsist usa tipos fixos de agendamento
+      const defaultTypes: IAppointmentTypeEntity[] = [
         {
-          code: 'C',
+          code: String(ScheduleType.Consultation),
           name: 'Consulta',
           ...this.getDefaultErpEntityData(integration),
-          params: {
-            referenceScheduleType: ScheduleType.Consultation,
-          },
         },
         {
-          code: 'E',
+          code: String(ScheduleType.Exam),
           name: 'Exame',
           ...this.getDefaultErpEntityData(integration),
-          params: {
-            referenceScheduleType: ScheduleType.Exam,
-          },
+        },
+        {
+          code: String(ScheduleType.FollowUp),
+          name: 'Retorno',
+          ...this.getDefaultErpEntityData(integration),
         },
       ];
+
+      return defaultTypes;
     } catch (error) {
       throw INTERNAL_ERROR_THROWER('KonsistEntitiesService.listAppointmentTypes', error);
     }
+  }
+
+  /**
+   * Busca múltiplas entidades por filtro
+   */
+  public async getMultipleEntitiesByFilter(
+    integration: IntegrationDocument,
+    filter: { [key: string]: string },
+  ): Promise<CorrelationFilter> {
+    return await this.entitiesService.createCorrelationFilterData(filter, 'code', integration._id);
   }
 }

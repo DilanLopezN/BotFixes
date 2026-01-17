@@ -524,6 +524,8 @@ export class KonsistService implements IIntegratorService {
 
   // ==================== ENTITY METHODS ====================
 
+  // ==================== ENTITY METHODS ====================
+
   async extractSingleEntity(
     integration: IntegrationDocument,
     entityType: EntityType,
