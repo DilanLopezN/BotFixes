@@ -106,8 +106,12 @@ export interface KonsistAgendamentoItem {
 }
 
 export interface KonsistAgendamentoResponse {
-  idpaciente?: number;
-  paciente?: string;
+  id: number;
+  nome: string;
+  cpf: string;
+
+  email: string;
+  datanascimento: string;
   telefone?: string;
   contatos?: KonsistContato[];
   agendamento?: KonsistAgendamentoItem[];

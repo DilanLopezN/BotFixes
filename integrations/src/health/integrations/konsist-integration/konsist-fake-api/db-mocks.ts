@@ -21,8 +21,8 @@ export const mockPatients = [
   {
     id: 1,
     nome: 'Maria de Souza Santos',
-    cpf: '12345678900',
-    datanascimento: '1991-08-10',
+    cpf: '52033709825',
+    datanascimento: '2000-11-17',
     sexo: 'F',
     email: 'maria.santos@email.com',
     celular: '11999990001',
@@ -300,6 +300,7 @@ export const realisticMocks: Record<string, MockFn> = {
   /* -------------------------------------------------------------------------- */
 
   // POST /medico/agendamento/horarios-disponiveis - Retorna horários disponíveis
+
   'POST /medico/agendamento/horarios-disponiveis': (req) => {
     const { idmedico, idconvenio, codigoprocedimento, datainicio, datafim } = req.body || {};
 
@@ -307,14 +308,20 @@ export const realisticMocks: Record<string, MockFn> = {
       return null;
     }
 
-    const startDate = datainicio || new Date().toISOString().split('T')[0];
-    const endDate = datafim || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    console.log('BODY', req.body);
+
+    // Valida se datainicio/datafim são datas válidas (YYYY-MM-DD) ou horários inválidos
+    const isValidDate = (str: string) => /^\d{4}-\d{2}-\d{2}$/.test(str);
+
+    const startDate = isValidDate(datainicio) ? datainicio : new Date().toISOString().split('T')[0];
+    const endDate = isValidDate(datafim)
+      ? datafim
+      : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
     const slots = generateAvailableSlots(idmedico, startDate, endDate);
 
     return slots;
   },
-
   /* -------------------------------------------------------------------------- */
   /*                      PRÉ-AGENDAMENTO (Passo 3)                             */
   /* -------------------------------------------------------------------------- */

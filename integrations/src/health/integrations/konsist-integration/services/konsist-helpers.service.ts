@@ -74,13 +74,13 @@ export class KonsistHelpersService {
     }
 
     return {
-      code: String(paciente.idpaciente),
-      name: paciente.paciente?.trim(),
-      cpf: '',
-      email: '',
+      code: String(paciente.id),
+      name: paciente.nome?.trim(),
+      cpf: paciente.cpf,
+      email: paciente.email,
       phone,
       cellPhone,
-      bornDate: '',
+      bornDate: paciente.datanascimento,
       sex: '',
     };
   }

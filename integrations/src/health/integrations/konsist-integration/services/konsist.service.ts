@@ -1,24 +1,29 @@
 import { HttpStatus, Injectable, Logger } from '@nestjs/common';
-import { pick } from 'lodash';
 import * as moment from 'moment';
+import { HTTP_ERROR_THROWER, HttpErrorOrigin, INTERNAL_ERROR_THROWER } from '../../../../common/exceptions.service';
+import { OkResponse } from '../../../../common/interfaces/ok-response.interface';
+import { EntityDocument } from '../../../entities/schema';
+import { EntitiesService } from '../../../entities/services/entities.service';
+import { FlowSteps } from '../../../flow/interfaces/flow.interface';
+import { FlowService } from '../../../flow/service/flow.service';
+import { IntegrationCacheUtilsService } from '../../../integration-cache-utils/integration-cache-utils.service';
+import { IntegrationDocument } from '../../../integration/schema/integration.schema';
+import { CancelSchedule } from '../../../integrator/interfaces/cancel-schedule.interface';
+import { ConfirmSchedule } from '../../../integrator/interfaces/confirm-schedule.interface';
+import { CreatePatient } from '../../../integrator/interfaces/create-patient.interface';
+import { CreateSchedule } from '../../../integrator/interfaces/create-schedule.interface';
+import { GetScheduleValue } from '../../../integrator/interfaces/get-schedule-value.interface';
+import { IIntegratorService } from '../../../integrator/interfaces/integrator-service.interface';
 import {
   AvailableSchedulesMetadata,
-  CancelSchedule,
-  ConfirmSchedule,
-  CreatePatient,
-  CreateSchedule,
-  GetScheduleValue,
-  IIntegratorService,
-  InitialPatient,
   ListAvailableSchedules,
   ListAvailableSchedulesResponse,
-  PatientFilters,
-  PatientSchedules,
-  Reschedule,
-  UpdatePatient,
-} from '../../../integrator/interfaces';
-import { OkResponse } from '../../../../common/interfaces/ok-response.interface';
-import { IntegrationDocument } from '../../../integration/schema/integration.schema';
+} from '../../../integrator/interfaces/list-available-schedules.interface';
+import { PatientFilters } from '../../../integrator/interfaces/patient-filters.interface';
+import { PatientSchedules } from '../../../integrator/interfaces/patient-schedules.interface';
+import { Reschedule } from '../../../integrator/interfaces/reschedule.interface';
+import { UpdatePatient } from '../../../integrator/interfaces/update-patient.interface';
+import { InitialPatient } from '../../../integrator/interfaces/patient.interface';
 import {
   Appointment,
   AppointmentSortMethod,
@@ -26,17 +31,10 @@ import {
   AppointmentValue,
   MinifiedAppointments,
 } from '../../../interfaces/appointment.interface';
-import { Patient } from '../../../interfaces/patient.interface';
-import { EntityType, EntityTypes } from '../../../interfaces/entity.interface';
-import { EntityDocument } from '../../../entities/schema';
 import { CorrelationFilter, CorrelationFilterByKey } from '../../../interfaces/correlation-filter.interface';
-import { FlowService } from '../../../flow/service/flow.service';
-import { FlowSteps } from '../../../flow/interfaces/flow.interface';
+import { EntityType, EntityTypes } from '../../../interfaces/entity.interface';
+import { Patient } from '../../../interfaces/patient.interface';
 import { AppointmentService, RawAppointment } from '../../../shared/appointment.service';
-import { EntitiesService } from '../../../entities/services/entities.service';
-import { IntegrationCacheUtilsService } from '../../../integration-cache-utils/integration-cache-utils.service';
-import { HTTP_ERROR_THROWER, HttpErrorOrigin, INTERNAL_ERROR_THROWER } from '../../../../common/exceptions.service';
-import { PATIENT_CACHE_EXPIRATION } from '../../../integration-cache-utils/cache-expirations';
 import { KonsistApiService } from './konsist-api.service';
 import { KonsistEntitiesService } from './konsist-entities.service';
 import { KonsistHelpersService } from './konsist-helpers.service';
@@ -44,7 +42,6 @@ import {
   KonsistAgendaHorarioRequest,
   KonsistPreAgendamentoRequest,
   KonsistPeriodoAgendamentoRequest,
-  KonsistIncluirPacienteRequest,
 } from '../interfaces';
 
 @Injectable()
@@ -66,65 +63,32 @@ export class KonsistService implements IIntegratorService {
   async getStatus(integration: IntegrationDocument): Promise<OkResponse> {
     try {
       const insurances = await this.konsistApiService.listInsurances(integration);
-
-      return { ok: !!insurances?.length };
+      return { ok: !!insurances };
     } catch (error) {
+      this.logger.error('KonsistService.getStatus', error);
       return { ok: false };
     }
   }
 
-  // ==================== PATIENT METHODS ====================
+  // ==================== PATIENT ====================
 
   async getPatient(integration: IntegrationDocument, filters: PatientFilters): Promise<Patient> {
-    const { cpf, code, bornDate, cache } = filters;
-
     try {
-      // Tenta buscar do cache primeiro
-      if (cache) {
-        const cachedPatient = await this.integrationCacheUtilsService.getPatientFromCache(
-          integration,
-          code,
-          cpf,
-          bornDate,
-        );
-        if (cachedPatient) {
-          return cachedPatient;
-        }
-      }
+      if (!filters?.cpf && !filters?.code) return null;
 
-      // Busca na API
-      const patients = await this.konsistApiService.listPatients(integration, { cpf });
+      const searchParam: any = {};
+      if (filters.cpf) searchParam.cpf = filters.cpf;
+      if (filters.name) searchParam.nome = filters.name;
 
-      if (!patients?.length) {
-        return null;
-      }
+      const patientData = await this.konsistApiService.listPatients(integration, searchParam);
 
-      const patientData = patients[0];
-      const patient: Patient = {
-        code: String(patientData.idpaciente),
-        name: patientData.nomeregistro || patientData.nomesocial,
-        cpf: cpf,
-        bornDate: patientData.nascimento,
-        sex: patientData.sexo,
-        email: '',
-        phone: '',
-        cellPhone: '',
-      };
+      if (!patientData?.length) return null;
 
-      // Salva no cache
-      if (cache && patient) {
-        await this.integrationCacheUtilsService.setPatientCache(
-          integration,
-          patient.code,
-          cpf,
-          patient,
-          PATIENT_CACHE_EXPIRATION.toString(),
-        );
-      }
-
-      return patient;
+      //@ts-ignore
+      return this.konsistHelpersService.replacePatientWithContacts(patientData[0]);
     } catch (error) {
-      throw INTERNAL_ERROR_THROWER('KonsistService.getPatient', error);
+      this.logger.error('KonsistService.getPatient', error);
+      return null;
     }
   }
 
@@ -132,21 +96,22 @@ export class KonsistService implements IIntegratorService {
     try {
       const { patient } = createPatient;
 
-      const payload: KonsistIncluirPacienteRequest = {
+      const payload = {
         nome: patient.name,
         cpf: patient.cpf,
-        datanascimento: this.konsistHelpersService.formatDateForKonsist(patient.bornDate),
+        datanascimento: patient.bornDate ? moment(patient.bornDate).format('YYYY-MM-DD') : undefined,
         sexo: patient.sex || 'M',
-        idconvenio: 0,
+        idconvenio: undefined,
         email: patient.email,
-        telefone: this.konsistHelpersService.formatPhoneForKonsist(patient.cellPhone || patient.phone),
+        telefone: patient.cellPhone
+          ? {
+              ddd: patient.cellPhone.substring(0, 2),
+              numero: patient.cellPhone.substring(2),
+            }
+          : undefined,
       };
 
       const response = await this.konsistApiService.createPatient(integration, payload);
-
-      if (!response?.idpaciente) {
-        throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, 'Failed to create patient', HttpErrorOrigin.INTEGRATION_ERROR);
-      }
 
       return {
         code: String(response.idpaciente),
@@ -166,15 +131,14 @@ export class KonsistService implements IIntegratorService {
   async updatePatient(
     integration: IntegrationDocument,
     patientCode: string,
-    updatePatient: UpdatePatient,
+    _updatePatient: UpdatePatient,
   ): Promise<Patient> {
     // Konsist não tem endpoint de atualização de paciente
-    // Retorna o paciente existente
-    const patient = await this.getPatient(integration, { code: patientCode, cache: false });
+    const patient = await this.getPatient(integration, { code: patientCode });
     return patient;
   }
 
-  // ==================== SCHEDULE METHODS ====================
+  // ==================== SCHEDULES ====================
 
   async getAvailableSchedules(
     integration: IntegrationDocument,
@@ -191,50 +155,11 @@ export class KonsistService implements IIntegratorService {
     } = availableSchedules;
 
     try {
-      const metadata: AvailableSchedulesMetadata = {
-        interAppointmentPeriod: 0,
-      };
-
-      // Validação: se não tem médico no filtro, retorna vazio
-      if (!filter.doctor?.code) {
-        return { schedules: [], metadata };
-      }
-
-      // Valida se o médico existe na base (padrão outras integrações)
-      const doctorEntity = await this.entitiesService.getEntityByCode(
-        filter.doctor.code,
-        EntityType.doctor,
-        integration._id,
-      );
-
-      if (!doctorEntity) {
-        this.logger.warn(`Doctor entity not found: ${filter.doctor.code}`);
-        return { schedules: [], metadata };
-      }
-
-      // Valida flows e filtros de idade (padrão Feegow/Amigo)
-      const [matchedDoctors] = await this.flowService.matchEntitiesFlows({
-        integrationId: integration._id,
-        entities: [doctorEntity],
-        entitiesFilter: filter,
-        targetEntity: FlowSteps.doctor,
-        filters: {
-          patientBornDate: patient?.bornDate,
-          patientSex: patient?.sex,
-          patientCpf: patient?.cpf,
-        },
-      });
-
-      if (!matchedDoctors?.length) {
-        this.logger.warn(`Doctor ${filter.doctor.code} filtered out by flows`);
-        return { schedules: [], metadata };
-      }
-
       const schedules: RawAppointment[] = [];
+      const metadata: AvailableSchedulesMetadata = {};
 
-      // Monta request para buscar horários disponíveis (Passo 2 da API)
       const request: KonsistAgendaHorarioRequest = {
-        idmedico: Number(filter.doctor.code),
+        idmedico: Number(filter.doctor?.code),
         idconvenio: Number(filter.insurance?.code),
         codigoprocedimento: filter.procedure?.code || '',
         datainicio: period?.start ? String(period.start) : moment().format('YYYY-MM-DD'),
@@ -255,7 +180,6 @@ export class KonsistService implements IIntegratorService {
         }
       }
 
-      // Processa e randomiza os agendamentos
       const { appointments: processedAppointments, metadata: partialMetadata } =
         await this.appointmentService.getAppointments(
           integration,
@@ -269,7 +193,6 @@ export class KonsistService implements IIntegratorService {
           schedules,
         );
 
-      // Transforma em Appointment com entidades
       const validSchedules = await this.appointmentService.transformSchedules(integration, processedAppointments);
 
       return { schedules: validSchedules, metadata: { ...metadata, ...partialMetadata } };
@@ -277,11 +200,11 @@ export class KonsistService implements IIntegratorService {
       throw INTERNAL_ERROR_THROWER('KonsistService.getAvailableSchedules', error);
     }
   }
+
   async createSchedule(integration: IntegrationDocument, createSchedule: CreateSchedule): Promise<Appointment> {
     try {
       const { appointment, patient, doctor, insurance, procedure } = createSchedule;
 
-      // Monta payload para pré-agendamento
       const payload: KonsistPreAgendamentoRequest = {
         origem: 1,
         chave: Number(appointment.code) || Number(appointment.data?.chave),
@@ -289,30 +212,17 @@ export class KonsistService implements IIntegratorService {
         idmedico: Number(doctor?.code),
         idconvenio: Number(insurance?.code),
         idservico: Number(procedure?.code),
-        codigoprocedimento: String(procedure?.data?.codigo || procedure?.code || ''),
-        descricaoprocedimento: procedure?.data?.name || '',
-        observacao: 'Agendamento via Bot',
+        codigoprocedimento: procedure?.code || '',
+        descricaoprocedimento: procedure?.data?.nome || 'Consulta',
+        observacao: appointment.notes || '',
       };
 
-      const response = await this.konsistApiService.createPreAgendamento(integration, payload);
-
-      if (!response?.protocolo) {
-        throw HTTP_ERROR_THROWER(
-          HttpStatus.BAD_REQUEST,
-          'Failed to create schedule',
-          HttpErrorOrigin.INTEGRATION_ERROR,
-        );
-      }
+      const response = await this.konsistApiService.createPreSchedule(integration, payload);
 
       return {
-        appointmentCode: response.protocolo,
+        appointmentCode: String(response?.protocolo || appointment.code),
         appointmentDate: appointment.appointmentDate,
-        duration: appointment.duration || '30',
         status: AppointmentStatus.scheduled,
-        data: {
-          protocolo: response.protocolo,
-          chave: payload.chave,
-        },
       };
     } catch (error) {
       throw INTERNAL_ERROR_THROWER('KonsistService.createSchedule', error);
@@ -323,16 +233,12 @@ export class KonsistService implements IIntegratorService {
     const { appointmentCode } = cancelSchedule;
 
     try {
-      const response = await this.konsistApiService.updateAppointmentStatus(integration, {
+      await this.konsistApiService.updateAppointmentStatus(integration, {
         chave: Number(appointmentCode),
         status: 2, // 2 = Desmarcado
       });
 
-      if (response?.statusalterado) {
-        return { ok: true };
-      }
-
-      return { ok: false };
+      return { ok: true };
     } catch (error) {
       throw INTERNAL_ERROR_THROWER('KonsistService.cancelSchedule', error);
     }
@@ -342,16 +248,12 @@ export class KonsistService implements IIntegratorService {
     const { appointmentCode } = confirmSchedule;
 
     try {
-      const response = await this.konsistApiService.updateAppointmentStatus(integration, {
+      await this.konsistApiService.updateAppointmentStatus(integration, {
         chave: Number(appointmentCode),
         status: 1, // 1 = Confirmado
       });
 
-      if (response?.statusalterado) {
-        return { ok: true };
-      }
-
-      return { ok: false };
+      return { ok: true };
     } catch (error) {
       throw INTERNAL_ERROR_THROWER('KonsistService.confirmSchedule', error);
     }
@@ -361,23 +263,7 @@ export class KonsistService implements IIntegratorService {
     const { scheduleToCancelCode, scheduleToCreate, patient } = reschedule;
 
     try {
-      // Busca agendamentos do paciente para validar o que será cancelado
-      const patientAppointments = await this.getPatientSchedules(integration, {
-        patientCode: patient.code,
-        patientCpf: patient.cpf,
-      });
-
-      const appointmentToCancel = patientAppointments.find(
-        (appointment) => appointment.appointmentCode == scheduleToCancelCode,
-      );
-
-      if (!appointmentToCancel) {
-        throw INTERNAL_ERROR_THROWER('KonsistService.reschedule', {
-          message: 'Invalid appointment code to cancel',
-        });
-      }
-
-      // Primeiro cria o novo agendamento
+      // Cria novo agendamento primeiro
       const createdAppointment = await this.createSchedule(integration, {
         ...scheduleToCreate,
         appointment: {
@@ -428,13 +314,13 @@ export class KonsistService implements IIntegratorService {
 
     try {
       const request: KonsistPeriodoAgendamentoRequest = {
-        datai: startDate ? String(startDate) : moment().format('YYYY-MM-DD'),
-        dataf: endDate ? String(endDate) : moment().add(90, 'days').format('YYYY-MM-DD'),
+        datai: startDate ? moment(startDate).format('YYYY-MM-DD') : moment().format('YYYY-MM-DD'),
+        dataf: endDate ? moment(endDate).format('YYYY-MM-DD') : moment().add(90, 'days').format('YYYY-MM-DD'),
         cpfPaciente: patientCpf,
         idpaciente: patientCode ? Number(patientCode) : undefined,
       };
 
-      const response = await this.konsistApiService.getAppointmentsByPeriod(integration, request);
+      const response = await this.konsistApiService.listAppointments(integration, request);
 
       if (!response?.length) {
         return [];
@@ -451,7 +337,6 @@ export class KonsistService implements IIntegratorService {
         }
       }
 
-      // Transforma em Appointments
       const appointments = await this.appointmentService.transformSchedules(integration, rawAppointments);
 
       // Adiciona flow actions se necessário
@@ -465,15 +350,13 @@ export class KonsistService implements IIntegratorService {
           integrationId: integration._id,
           targetFlowTypes: flowSteps,
           entitiesFilter: {
-            ...pick(schedule, [
-              EntityType.appointmentType,
-              EntityType.doctor,
-              EntityType.procedure,
-              EntityType.insurance,
-              EntityType.insurancePlan,
-              EntityType.organizationUnit,
-              EntityType.speciality,
-            ]),
+            [EntityType.appointmentType]: schedule.appointmentType,
+            [EntityType.doctor]: schedule.doctor,
+            [EntityType.procedure]: schedule.procedure,
+            [EntityType.insurance]: schedule.insurance,
+            [EntityType.insurancePlan]: schedule.insurancePlan,
+            [EntityType.organizationUnit]: schedule.organizationUnit,
+            [EntityType.speciality]: schedule.speciality,
           },
         });
 
@@ -490,48 +373,60 @@ export class KonsistService implements IIntegratorService {
     integration: IntegrationDocument,
     patientSchedules: PatientSchedules,
   ): Promise<MinifiedAppointments> {
-    const schedules = await this.getPatientSchedules(integration, patientSchedules);
-
     const minifiedSchedules: MinifiedAppointments = {
+      appointmentList: [],
       lastAppointment: null,
       nextAppointment: null,
-      appointmentList: schedules.map((s) => ({
+    };
+
+    try {
+      const schedules = await this.getPatientSchedules(integration, patientSchedules);
+
+      if (!schedules?.length) return minifiedSchedules;
+
+      const now = moment();
+      const pastSchedules = schedules.filter((s) => moment(s.appointmentDate).isBefore(now));
+      const futureSchedules = schedules.filter((s) => moment(s.appointmentDate).isSameOrAfter(now));
+
+      minifiedSchedules.appointmentList = schedules.map((s) => ({
         appointmentCode: s.appointmentCode,
         appointmentDate: s.appointmentDate,
         appointmentType: s.appointmentType?.code,
         actions: s.actions,
-      })),
+      }));
+
+      if (pastSchedules.length) {
+        minifiedSchedules.lastAppointment = pastSchedules[pastSchedules.length - 1];
+      }
+
+      if (futureSchedules.length) {
+        minifiedSchedules.nextAppointment = futureSchedules[0];
+      }
+
+      return minifiedSchedules;
+    } catch (error) {
+      throw INTERNAL_ERROR_THROWER('KonsistService.getMinifiedPatientSchedules', error);
+    }
+  }
+
+  async getScheduleValue(
+    _integration: IntegrationDocument,
+    _scheduleValue: GetScheduleValue,
+  ): Promise<AppointmentValue> {
+    return {
+      value: 'Consulte a clínica',
+      currency: 'R$',
     };
-
-    const now = moment();
-    const pastSchedules = schedules.filter((s) => moment(s.appointmentDate).isBefore(now));
-    const futureSchedules = schedules.filter((s) => moment(s.appointmentDate).isAfter(now));
-
-    if (pastSchedules.length) {
-      minifiedSchedules.lastAppointment = pastSchedules[pastSchedules.length - 1];
-    }
-
-    if (futureSchedules.length) {
-      minifiedSchedules.nextAppointment = futureSchedules[0];
-    }
-
-    return minifiedSchedules;
   }
 
-  getScheduleValue(): Promise<AppointmentValue> {
-    throw HTTP_ERROR_THROWER(HttpStatus.NOT_IMPLEMENTED, 'KonsistService.getScheduleValue: Not implemented');
-  }
-
-  // ==================== ENTITY METHODS ====================
-
-  // ==================== ENTITY METHODS ====================
+  // ==================== ENTITY METHODS - IGUAL AO PRODOCTOR ====================
 
   async extractSingleEntity(
     integration: IntegrationDocument,
     entityType: EntityType,
     filter?: CorrelationFilter,
     cache: boolean = false,
-    fromImport?: boolean,
+    _fromImport?: boolean,
   ): Promise<EntityTypes[]> {
     return await this.konsistEntitiesService.extractEntity(integration, entityType, filter, cache);
   }
@@ -542,7 +437,7 @@ export class KonsistService implements IIntegratorService {
     targetEntity: EntityType,
     cache?: boolean,
     patient?: InitialPatient,
-    dateLimit?: number,
+    _dateLimit?: number,
   ): Promise<EntityDocument[]> {
     return await this.konsistEntitiesService.listValidApiEntities({
       integration,
@@ -557,6 +452,6 @@ export class KonsistService implements IIntegratorService {
     integration: IntegrationDocument,
     filter: CorrelationFilterByKey,
   ): Promise<CorrelationFilter> {
-    return this.entitiesService.createCorrelationFilterData(filter, 'code', integration._id);
+    return await this.entitiesService.createCorrelationFilterData(filter, 'code', integration._id);
   }
 }
