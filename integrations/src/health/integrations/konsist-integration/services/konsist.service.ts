@@ -84,8 +84,7 @@ export class KonsistService implements IIntegratorService {
 
       if (!patientData?.length) return null;
 
-      //@ts-ignore
-      return this.konsistHelpersService.replacePatientWithContacts(patientData[0]);
+      return this.konsistHelpersService.replaceKonsistPatientToPatient(patientData[0]);
     } catch (error) {
       this.logger.error('KonsistService.getPatient', error);
       return null;

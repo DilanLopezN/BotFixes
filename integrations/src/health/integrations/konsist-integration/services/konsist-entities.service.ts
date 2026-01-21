@@ -401,8 +401,6 @@ export class KonsistEntitiesService {
 
   // ==================== APPOINTMENT TYPES ====================
 
-  // ==================== APPOINTMENT TYPES ====================
-
   private async listAppointmentTypes(
     integration: IntegrationDocument,
     _filters?: CorrelationFilter,
@@ -413,16 +411,16 @@ export class KonsistEntitiesService {
           code: 'C',
           name: 'Consulta',
           ...this.getDefaultErpEntityData(integration),
-          data: {
-            scheduleType: ScheduleType.Consultation,
+          params: {
+            referenceScheduleType: ScheduleType.Consultation,
           },
         },
         {
           code: 'E',
           name: 'Exame',
           ...this.getDefaultErpEntityData(integration),
-          data: {
-            scheduleType: ScheduleType.Exam,
+          params: {
+            referenceScheduleType: ScheduleType.Exam,
           },
         },
       ];

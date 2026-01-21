@@ -19,34 +19,38 @@ export const generateAppointmentKey = (): number => ++appointmentKeyCounter;
  */
 export const mockPatients = [
   {
-    id: 1,
-    nome: 'Maria de Souza Santos',
+    idpaciente: 1,
+    nomeregistro: 'Maria de Souza Santos',
+    nomesocial: 'Maria Santos',
+    nascimento: '2000-11-17',
     cpf: '52033709825',
-    datanascimento: '2000-11-17',
     sexo: 'F',
-    email: 'maria.santos@email.com',
-    celular: '11999990001',
-    telefone: '1132145678',
+    idmedico: 10,
+    idconvenio: 2,
+    convenio: 'Unimed',
+    plano: 'Premium',
   },
   {
-    id: 2,
-    nome: 'Carlos Pereira Lima',
-    cpf: '98765432100',
-    datanascimento: '1985-04-22',
+    idpaciente: 2,
+    nomeregistro: 'Carlos Pereira Lima',
+    nomesocial: 'Carlos Lima',
+    nascimento: '1985-04-22',
     sexo: 'M',
-    email: 'carlos.lima@email.com',
-    celular: '21988887777',
-    telefone: null,
+    idmedico: 12,
+    idconvenio: 1,
+    convenio: 'Amil',
+    plano: 'Gold',
   },
   {
-    id: 3,
-    nome: 'Ana Paula Oliveira',
-    cpf: '11122233344',
-    datanascimento: '1978-12-15',
+    idpaciente: 3,
+    nomeregistro: 'Ana Paula Oliveira',
+    nomesocial: 'Ana Oliveira',
+    nascimento: '1978-12-15',
     sexo: 'F',
-    email: 'ana.oliveira@email.com',
-    celular: '31977776666',
-    telefone: '3132145678',
+    idmedico: 10,
+    idconvenio: 3,
+    convenio: 'SulAmérica',
+    plano: 'Especial',
   },
 ];
 
@@ -185,6 +189,8 @@ export const realisticMocks: Record<string, MockFn> = {
     if (pacientes.length === 0) {
       return null; // Retorna 404
     }
+
+    console.log('PACIENTES', pacientes);
 
     return pacientes;
   },

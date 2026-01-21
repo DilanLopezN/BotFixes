@@ -109,7 +109,7 @@ export interface KonsistAgendamentoResponse {
   id: number;
   nome: string;
   cpf: string;
-
+  nascimento: string;
   email: string;
   datanascimento: string;
   telefone?: string;

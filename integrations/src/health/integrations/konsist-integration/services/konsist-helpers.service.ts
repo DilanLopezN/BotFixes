@@ -17,7 +17,7 @@ import {
 @Injectable()
 export class KonsistHelpersService {
   private readonly logger = new Logger(KonsistHelpersService.name);
-  private readonly dateFormat = 'DD/MM/YYYY';
+  private readonly dateFormat = 'YYYY-MM-DD';
   private readonly dateTimeFormat = 'YYYY-MM-DDTHH:mm:ss';
 
   /**
@@ -39,6 +39,18 @@ export class KonsistHelpersService {
     };
   }
 
+  replaceKonsistPatientToPatient(paciente: KonsistDadosPacienteResponse): Patient {
+    return {
+      code: String(paciente.idpaciente),
+      name: paciente.nomeregistro || paciente.nomesocial,
+      cpf: null,
+      email: '',
+      phone: '',
+      cellPhone: '',
+      bornDate: this.parseDate(paciente.nascimento),
+      sex: this.mapSex(paciente.sexo),
+    };
+  }
   /**
    * Transforma paciente completo do Konsist (com contatos) para formato padrão
    * KonsistContato tem: descricao e conteudo (não ddd/numero)
@@ -80,7 +92,14 @@ export class KonsistHelpersService {
       email: paciente.email,
       phone,
       cellPhone,
-      bornDate: paciente.datanascimento,
+      bornDate:
+        paciente.datanascimento || paciente.nascimento
+          ? moment(
+              paciente.datanascimento || paciente.nascimento,
+              ['YYYY-MM-DD', 'DD/MM/YYYY', 'DD/MM/YY'],
+              true,
+            ).format('YYYY-MM-DD')
+          : '',
       sex: '',
     };
   }
@@ -88,15 +107,12 @@ export class KonsistHelpersService {
   /**
    * Converte data do formato Konsist para ISO
    */
-  private parseDate(dateString?: string): string {
-    if (!dateString) return '';
+  private parseDate(dateString?: string): string | undefined {
+    if (!dateString) return undefined;
 
-    const formats = ['YYYY-MM-DD', 'DD/MM/YYYY', 'DD-MM-YYYY'];
-    const parsed = moment(dateString, formats, true);
+    const parsed = moment(dateString, this.dateFormat, true);
 
-    if (!parsed.isValid()) return '';
-
-    return parsed.format('YYYY-MM-DD');
+    return parsed.isValid() ? parsed.toISOString() : undefined;
   }
 
   /**
