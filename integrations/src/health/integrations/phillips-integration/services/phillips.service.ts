@@ -10,11 +10,15 @@ import { CorrelationFilter, CorrelationFilterByKey } from '../../../interfaces/c
 import { EntitiesService } from '../../../entities/services/entities.service';
 import { IntegrationCacheUtilsService } from '../../../integration-cache-utils/integration-cache-utils.service';
 import {
+  CancelScheduleV2,
+  ConfirmScheduleV2,
   CreatePatient,
   IIntegratorService,
   ListAvailableSchedulesResponse,
+  ListSchedulesToConfirmV2,
   PatientFilters,
   PatientSchedules,
+  ValidateScheduleConfirmation,
 } from '../../../integrator/interfaces';
 
 import { PhillipsApiService } from './phillips-api.service';
@@ -24,6 +28,10 @@ import { PhillipsEntitiesService } from './phillips-entities.service';
 import { AppointmentService, RawAppointment } from '../../../../health/shared/appointment.service';
 import moment from 'moment';
 import { PhillipsParamsType } from '../interfaces';
+import { ConfirmationSchedule } from 'health/interfaces/confirmation-schedule.interface';
+import { MatchFlowsConfirmationDto } from 'health/integrator/dto';
+import { FlowAction, FlowActionElement } from 'health/flow/interfaces/flow.interface';
+import { PhillipsConfirmationService } from './phillips-confirmation.service';
 
 @Injectable()
 export class PhillipsService implements IIntegratorService {
@@ -37,7 +45,7 @@ export class PhillipsService implements IIntegratorService {
     private readonly phillipsHelpersService: PhillipsHelpersService,
     private readonly appointmentService: AppointmentService,
     private readonly helpersService: PhillipsHelpersService,
-    //private readonly confirmationService: PhillipsConfirmationService,
+    private readonly phillipsConfirmationService: PhillipsConfirmationService,
     private readonly integrationCacheUtilsService: IntegrationCacheUtilsService,
   ) {}
 
@@ -148,6 +156,46 @@ export class PhillipsService implements IIntegratorService {
   }
 
   // // ========== CONFIRMATION ==========
+
+  public async listSchedulesToConfirm(
+    integration: IntegrationDocument,
+    data: ListSchedulesToConfirmV2,
+  ): Promise<ConfirmationSchedule> {
+    return await this.phillipsConfirmationService.listSchedulesToConfirm(integration, data);
+  }
+
+  public async matchFlowsConfirmation(
+    integration: IntegrationDocument,
+    data: MatchFlowsConfirmationDto,
+  ): Promise<FlowAction<FlowActionElement>[]> {
+    return await this.phillipsConfirmationService.matchFlowsConfirmation(integration, data);
+  }
+
+  public async confirmationCancelSchedule(
+    integration: IntegrationDocument,
+    cancelSchedule: CancelScheduleV2,
+  ): Promise<OkResponse> {
+    return await this.phillipsConfirmationService.cancelSchedule(integration, cancelSchedule);
+  }
+
+  public async confirmationConfirmSchedule(
+    integration: IntegrationDocument,
+    confirmSchedule: ConfirmScheduleV2,
+  ): Promise<OkResponse> {
+    return await this.phillipsConfirmationService.confirmSchedule(integration, confirmSchedule);
+  }
+
+  public async validateScheduleData(
+    integration: IntegrationDocument,
+    data: ValidateScheduleConfirmation,
+  ): Promise<OkResponse> {
+    try {
+      return await this.phillipsConfirmationService.validateScheduleData(integration, data);
+    } catch (error) {
+      console.error(error);
+      throw INTERNAL_ERROR_THROWER('PhillipsService.validateScheduleData', error);
+    }
+  }
 
   // public async matchFlowsConfirmation(
   //   integration: IntegrationDocument,
