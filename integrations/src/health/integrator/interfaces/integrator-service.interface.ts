@@ -1,5 +1,6 @@
 import { OkResponse } from '../../../common/interfaces/ok-response.interface';
 import { IntegrationDocument } from '../../integration/schema/integration.schema';
+import { Readable } from 'stream';
 import { DoctorEntityDocument, EntityDocument, InsuranceEntityDocument } from '../../entities/schema';
 import {
   Appointment,
@@ -68,6 +69,8 @@ import { PatientDeleteFile } from './documents/patient-delete-file.interface';
 import { ExtractedSchedule } from '../../schedules/interfaces/extracted-schedule.interface';
 import { PatientSchedulesToUploadFile } from './patient-schedules-to-upload-file.interface';
 import { ValidateDoctorData } from './validate-doctor.interface';
+import { SendAuthorizationInsuranceData } from './send-authorization-insurance-data.interface';
+import { FutureSchedule, ListFutureSchedulesParams } from './future-schedules.interface';
 
 export interface IIntegratorService {
   cancelSchedule(integration: IntegrationDocument, cancelSchedule: CancelSchedule): Promise<OkResponse>;
@@ -155,7 +158,7 @@ export interface IIntegratorService {
 
   validateDoctor?(integration: IntegrationDocument, data: ValidateDoctorData): Promise<OkResponse>;
 
-  downloadMedicalReport?(integration: IntegrationDocument, data: DownloadMedicalReportTokenData): Promise<Buffer>;
+  downloadMedicalReport?(integration: IntegrationDocument, data: DownloadMedicalReportTokenData): Promise<Readable>;
   getMedicalReportUrl?(integration: IntegrationDocument, data: DownloadMedicalReportTokenData): Promise<string>;
   listAvailableMedicalReports?(
     integration: IntegrationDocument,
@@ -205,4 +208,12 @@ export interface IIntegratorService {
     integration: IntegrationDocument,
     data: PatientSchedulesToUploadFile,
   ): Promise<Appointment[]>;
+
+  sendAuthorizationInsuranceData?(
+    integration: IntegrationDocument,
+    data: SendAuthorizationInsuranceData,
+  ): Promise<OkResponse>;
+
+  listFutureSchedules?(integration: IntegrationDocument, params: ListFutureSchedulesParams): Promise<FutureSchedule[]>;
+  cancelFutureSchedule?(integration: IntegrationDocument, scheduleCode: string, erpParams?: any): Promise<OkResponse>;
 }

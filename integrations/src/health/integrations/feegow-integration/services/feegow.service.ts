@@ -95,6 +95,7 @@ import { convertPhoneNumber, formatPhone } from '../../../../common/helpers/form
 import { Schedules } from '../../../schedules/entities/schedules.entity';
 import { GetScheduleByIdData } from '../../../integrator/interfaces/get-schedule-by-id.interface';
 import { SchedulesService } from '../../../schedules/schedules.service';
+import { between } from '../../../../common/helpers/between';
 
 type EntityFilters = { [key in EntityType]?: EntityTypes };
 type RequestParams = { [key: string]: any };
@@ -259,8 +260,28 @@ export class FeegowService implements IIntegratorService {
         interAppointmentPeriod: interAppointmentPeriodApplied,
       };
 
-      const response: FeegowResponsePlain<FeegowAvailableSchedulesResponse> | FeegowResponseArray<any> =
-        await this.apiService.getAvailableSchedules(integration, payload);
+      let response: FeegowResponsePlain<FeegowAvailableSchedulesResponse> | FeegowResponseArray<any> = null;
+
+      try {
+        // Busca todos os médicos para validar restrições de idade
+        const allValidDoctors = await this.getValidApiDoctors(integration, filter, false, patient?.bornDate);
+        const validDoctorCodesSet = new Set(allValidDoctors.map((doctor) => doctor.code));
+
+        response = await this.apiService.getAvailableSchedules(integration, payload);
+
+        // Remove médicos que retornaram horários mas não são válidos
+        if (response.success && 'profissional_id' in response.content && response.content.profissional_id) {
+          const content = response.content as FeegowAvailableSchedulesResponse;
+
+          Object.keys(content.profissional_id).forEach((doctorId) => {
+            if (!validDoctorCodesSet.has(doctorId)) {
+              delete content.profissional_id[doctorId];
+            }
+          });
+        }
+      } catch (error) {
+        console.error('Erro ao buscar médicos válidos na listagem de horários livres', error);
+      }
 
       // Na oferta de horários filtrar médicos que atendem convênio escolhido - Filtro (convenio_id) na rota feegow não funciona
       // caso o paciente não escolha um médico
@@ -358,9 +379,9 @@ export class FeegowService implements IIntegratorService {
           appointmentCode: schedule.appointmentDate,
           appointmentDate: schedule.appointmentDate,
           duration: '-1',
-          procedureId: filter.procedure.code,
+          procedureId: filter.procedure?.code,
           doctorId: filter.doctor?.code ?? schedule.doctorCode,
-          organizationUnitId: filter.organizationUnit.code,
+          organizationUnitId: filter.organizationUnit?.code,
           specialityId: filter.speciality?.code,
           status: AppointmentStatus.scheduled,
         };
@@ -454,7 +475,11 @@ export class FeegowService implements IIntegratorService {
     }
   }
 
-  private getResourceFilters(targetEntity: EntityType, filters: EntityFilters): RequestParams {
+  private getResourceFilters(
+    targetEntity: EntityType,
+    filters: EntityFilters,
+    patientBornDate?: string,
+  ): RequestParams {
     if (!filters || Object.keys(filters).length === 0) {
       return {};
     }
@@ -492,6 +517,10 @@ export class FeegowService implements IIntegratorService {
       // está aqui porque pego ativo só para agendar, na extração pega todos para listar histórico
       // dos agendamentos do paciente
       params.ativo = 1;
+
+      if (patientBornDate) {
+        params.patientAge = moment().diff(patientBornDate, 'years');
+      }
     }
 
     if (targetEntity.hasOwnProperty(EntityType.speciality)) {
@@ -526,8 +555,9 @@ export class FeegowService implements IIntegratorService {
     entityType: EntityType,
     rawFilters?: EntityFilters,
     cache?: boolean,
+    patientBornDate?: string,
   ): Promise<EntityTypes[]> {
-    const requestFilters = this.getResourceFilters(entityType, rawFilters);
+    const requestFilters = this.getResourceFilters(entityType, rawFilters, patientBornDate);
 
     if (cache) {
       const resourceCache = await this.integrationCacheUtilsService.getCachedEntitiesFromRequest(
@@ -553,7 +583,7 @@ export class FeegowService implements IIntegratorService {
           return this.getInsurancePlans(integration, requestFilters);
 
         case EntityType.doctor:
-          return this.getDoctors(integration, requestFilters);
+          return this.getDoctors(integration, requestFilters, patientBornDate);
 
         case EntityType.speciality:
           return this.getSpecialities(integration, requestFilters);
@@ -775,13 +805,31 @@ export class FeegowService implements IIntegratorService {
   private async getDoctors(
     integration: IntegrationDocument,
     requestFilters: FeegowDoctorsParamsRequest,
+    patientBornDate?: string,
   ): Promise<IOrganizationUnitEntity[]> {
     try {
       const response = await this.apiService.getDoctors(integration, requestFilters);
+      let filteredDoctors = response.content;
+
+      if (patientBornDate) {
+        const patientAge = moment().diff(patientBornDate, 'years');
+
+        filteredDoctors = response.content.filter((resource) =>
+          between(
+            patientAge,
+            resource.age_restriction?.idade_minima
+              ? parseInt(String(resource.age_restriction.idade_minima), 10)
+              : undefined,
+            resource.age_restriction?.idade_maxima
+              ? parseInt(String(resource.age_restriction.idade_maxima), 10)
+              : undefined,
+          ),
+        );
+      }
 
       if (requestFilters.convenio_id && integration.rules?.useFeegowFilterDoctorsByInsurance) {
         const filterDoctorByInsurance = await Promise.all(
-          response.content.map(async (doctor) => {
+          filteredDoctors.map(async (doctor) => {
             const doctorsInsurances = await this.apiService.getDoctorsInsurances(integration, {
               profissional_id: doctor.profissional_id,
             });
@@ -791,11 +839,11 @@ export class FeegowService implements IIntegratorService {
             return hasInsurance ? doctor : null;
           }),
         );
-        response.content = filterDoctorByInsurance.filter((doctor) => doctor !== null);
+        filteredDoctors = filterDoctorByInsurance.filter((doctor) => doctor !== null);
       }
 
       return (
-        response.content?.map((resource) => ({
+        filteredDoctors?.map((resource) => ({
           code: String(resource.profissional_id),
           integrationId: castObjectId(integration._id),
           name: resource.nome?.trim(),
@@ -893,9 +941,10 @@ export class FeegowService implements IIntegratorService {
     integration: IntegrationDocument,
     filters: CorrelationFilter,
     cache?: boolean,
+    patientBornDate?: string,
   ): Promise<DoctorEntityDocument[]> {
     try {
-      const entities = await this.extractEntity(integration, EntityType.doctor, filters, cache);
+      const entities = await this.extractEntity(integration, EntityType.doctor, filters, cache, patientBornDate);
       const codes = entities?.map((doctor) => doctor.code);
       const validEntities = await this.entitiesService.getValidEntitiesbyCode(
         integration._id,
@@ -1043,21 +1092,38 @@ export class FeegowService implements IIntegratorService {
         }
       }
     } catch (error) {
-      throw HTTP_ERROR_THROWER(HttpStatus.BAD_GATEWAY, error);
+      throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, error);
+    }
+
+    let tipo: string;
+
+    if (filter.procedure?.code) {
+      tipo = 'P';
+    } else if (filter.speciality?.code) {
+      tipo = 'E';
+    } else {
+      throw HTTP_ERROR_THROWER(
+        HttpStatus.BAD_REQUEST,
+        'É necessário informar procedimento ou especialidade para listar horários disponíveis',
+        HttpErrorOrigin.ERROR,
+      );
     }
 
     const payload: FeegowAvailableSchedules = {
-      unidade_id: Number(filter.organizationUnit.code),
+      tipo,
       data_start: moment().add(fromDay, 'days').startOf('day').format(dateFormat),
       data_end: moment()
         .add(fromDay + untilDay, 'days')
         .endOf('day')
         .format(dateFormat),
-      tipo: 'P',
     };
 
     if (filter.procedure?.code) {
       payload.procedimento_id = Number(filter.procedure.code);
+    }
+
+    if (filter.organizationUnit?.code) {
+      payload.unidade_id = Number(filter.organizationUnit.code);
     }
 
     if (filter.doctor?.code) {
@@ -1066,17 +1132,18 @@ export class FeegowService implements IIntegratorService {
 
     if (filter.speciality?.code) {
       payload.especialidade_id = Number(filter.speciality.code);
-      payload.tipo = 'E';
     }
 
-    const savedIsurance: InsuranceEntityDocument = await this.entitiesService.getEntityByCode(
-      filter.insurance.code,
-      EntityType.insurance,
-      integration._id,
-    );
+    if (filter.insurance?.code) {
+      const savedIsurance: InsuranceEntityDocument = await this.entitiesService.getEntityByCode(
+        filter.insurance.code,
+        EntityType.insurance,
+        integration._id,
+      );
 
-    if (!savedIsurance?.params?.isParticular) {
-      payload.convenio_id = Number(filter.insurance.code);
+      if (savedIsurance && !savedIsurance.params?.isParticular) {
+        payload.convenio_id = Number(filter.insurance.code);
+      }
     }
 
     return { payload, interAppointmentPeriodApplied, doctorsScheduledMapped };
@@ -1087,8 +1154,6 @@ export class FeegowService implements IIntegratorService {
     filter: CorrelationFilter,
     patient?: InitialPatient,
   ): Promise<EntityDocument[]> {
-    // Se tiver diferença nos valores com a response, vai listar medicos que nao tem horarios
-    // ou vice-versa
     const availableSchedules: ListAvailableSchedules = {
       filter,
       randomize: false,
@@ -1107,26 +1172,27 @@ export class FeegowService implements IIntegratorService {
     };
 
     try {
-      const { payload } = await this.createListAvailableSchedulesObject(integration, availableSchedules);
-      const response = await this.apiService.getAvailableSchedules(integration, payload);
+      const validDoctors = await this.getValidApiDoctors(integration, filter, false, patient?.bornDate);
 
-      const doctorsSet = new Set<string>();
-
-      const content = response?.content as FeegowAvailableSchedulesResponse;
-
-      Object.keys(content?.profissional_id ?? {}).forEach((doctorId) => {
-        doctorsSet.add(doctorId);
-      });
-
-      if (!doctorsSet.size) {
+      if (!validDoctors.length) {
         return [];
       }
 
-      return await this.entitiesService.getValidEntitiesbyCode(
-        integration._id,
-        Array.from(doctorsSet),
-        EntityType.doctor,
-      );
+      const { payload } = await this.createListAvailableSchedulesObject(integration, availableSchedules);
+      const response = await this.apiService.getAvailableSchedules(integration, payload);
+
+      const doctorsWithSchedulesSet = new Set<string>();
+      const content = response?.content as FeegowAvailableSchedulesResponse;
+
+      Object.keys(content?.profissional_id ?? {}).forEach((doctorId) => {
+        doctorsWithSchedulesSet.add(doctorId);
+      });
+
+      if (!doctorsWithSchedulesSet.size) {
+        return [];
+      }
+
+      return validDoctors.filter((doctor) => doctorsWithSchedulesSet.has(doctor.code));
     } catch (error) {
       throw INTERNAL_ERROR_THROWER('FeegowIntegrationService.getValidDoctorsFromScheduleList', error);
     }
@@ -1142,7 +1208,7 @@ export class FeegowService implements IIntegratorService {
       return await this.getValidDoctorsFromScheduleList(integration, filters, patient);
     }
 
-    return await this.getValidApiDoctors(integration, filters, cache);
+    return await this.getValidApiDoctors(integration, filters, cache, patient?.bornDate);
   }
 
   public async getMinifiedPatientSchedules(
@@ -1161,8 +1227,8 @@ export class FeegowService implements IIntegratorService {
       const filters: FeegowPatientSchedules = {
         paciente_id: Number(patientCode),
         // range máximo de 6 meses de busca
-        data_start: moment().subtract(2, 'months').format(dateFilterFormat),
-        data_end: moment().add(3, 'months').format(dateFilterFormat),
+        data_start: moment().subtract(45, 'days').format(dateFilterFormat),
+        data_end: moment().add(120, 'days').format(dateFilterFormat),
       };
 
       if (startDate) {
@@ -1421,8 +1487,8 @@ export class FeegowService implements IIntegratorService {
       const filters: FeegowPatientSchedules = {
         paciente_id: Number(patientCode),
         // range máximo de 6 meses de busca
-        data_start: moment().subtract(2, 'months').format(dateFilterFormat),
-        data_end: moment().add(3, 'months').format(dateFilterFormat),
+        data_start: moment().subtract(45, 'days').format(dateFilterFormat),
+        data_end: moment().add(120, 'days').format(dateFilterFormat),
       };
 
       if (startDate) {
@@ -1459,15 +1525,29 @@ export class FeegowService implements IIntegratorService {
     try {
       const { scheduleToCancelCode, scheduleToCreate, patient } = reschedule;
 
-      // busca agendamentos do paciente para pegar dados de qual será cancelado
-      const patientAppointments = await this.getPatientSchedules(integration, { patientCode: patient.code });
-      const appointmentToCancel = patientAppointments.find(
-        (appointment) => appointment.appointmentCode == scheduleToCancelCode,
-      );
+      // quando pedido de reagendamento vem do resgate de paciente faltoso (no-show) ou confirmação de agendamento
+      // não é necessário cancelar pelo reagendamento pois é feito antes.
+      const shouldCancelAppointment = !scheduleToCreate?.data?.doNotCancelPreviousAppointment;
 
-      if (!appointmentToCancel) {
+      try {
+        // busca agendamentos do paciente para pegar dados de qual será cancelado
+        const patientAppointments = await this.getPatientSchedules(integration, { patientCode: patient.code });
+
+        // encontra o agendamento que deve ser cancelado
+        const appointmentToCancel = patientAppointments.find(
+          (appointment) => appointment.appointmentCode == scheduleToCancelCode,
+        );
+
+        // Lança erro se era NECESSÁRIO cancelar o agendamento mas não o encontrou
+        if (!appointmentToCancel && shouldCancelAppointment) {
+          throw INTERNAL_ERROR_THROWER('FeegowService.reschedule', {
+            message: 'Invalid appointment code to cancel',
+          });
+        }
+      } catch (error) {
         throw INTERNAL_ERROR_THROWER('FeegowService.reschedule', {
-          message: 'Invalid appointment code to cancel',
+          ...error,
+          message: 'Error on trying to get patient schedules',
         });
       }
 
@@ -1481,6 +1561,15 @@ export class FeegowService implements IIntegratorService {
         agendamento_id: Number(scheduleToCancelCode),
       };
 
+      /**
+       * Realiza o reagendamento na feegow
+       *
+       * Obs.: rota permite reagendar agendamento que possuem status "cancelado" como:
+       *  "id": 11,
+       *    "status": "Desmarcado pelo paciente"
+       *  "id": 6,
+       *    "status": "Não compareceu"
+       */
       const response = await this.apiService.reschedule(integration, payload);
 
       if (response.success) {

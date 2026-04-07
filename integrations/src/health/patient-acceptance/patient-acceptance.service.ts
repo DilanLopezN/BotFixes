@@ -152,7 +152,9 @@ export class PatientAcceptanceService {
     if (resultAcceptance.acceptedAt && patientResult?.length) {
       for (const patient of patientResult) {
         const { bornDate, name, cpf, erpCode } = patient;
-        this.integratorService.preloadPatientData(integrationId, { code: erpCode, phone }).then();
+        void this.integratorService.preloadPatientData(integrationId, { code: erpCode, phone }).catch((err) => {
+          this.logger.warn('PatientAcceptanceService.getPatientDataFromAcceptance', err);
+        });
 
         response.requestAcceptance = false;
         response.patient.push({
@@ -207,7 +209,9 @@ export class PatientAcceptanceService {
 
     for (const patient of patientResult) {
       const { bornDate, name, cpf, erpCode } = patient;
-      this.integratorService.preloadPatientData(integrationId, { code: erpCode, phone }).then();
+      void this.integratorService.preloadPatientData(integrationId, { code: erpCode, phone }).catch((err) => {
+        this.logger.warn('PatientAcceptanceService.getPatientDataFromAcceptance', err);
+      });
 
       response.push({
         name: capitalizeText(name),
@@ -230,12 +234,14 @@ export class PatientAcceptanceService {
         bornDate: bornDate ? moment.utc(bornDate).startOf('day').valueOf() : null,
       });
 
-      Promise.all(
+      void Promise.all(
         patientResult.map((patient) => {
           const { erpCode } = patient;
           return this.integratorService.preloadPatientData(integrationId, { phone, code: erpCode });
         }),
-      ).then();
+      ).catch((err) => {
+        this.logger?.warn('PatientAcceptanceService.doPreloadData', err);
+      });
 
       return {
         ok: true,

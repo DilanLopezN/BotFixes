@@ -9,4 +9,5 @@ export interface DownloadMedicalReportTokenData extends DownloadTokenData {
   medicalReportCode?: string;
   medicalReportExamCode?: string;
   isExternal?: boolean;
+  customData?: unknown;
 }

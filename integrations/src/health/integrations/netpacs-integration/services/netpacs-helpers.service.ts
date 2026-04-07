@@ -114,4 +114,47 @@ export class NetpacsServiceHelpersService {
 
     return schedule;
   }
+
+  /**
+   * Mensagens de erro esperadas da API NETPACS que indicam situações
+   * que devem ser tratadas como sucesso (agendamento já está no estado desejado)
+   */
+  private readonly EXPECTED_ATTENDANCE_ERROR_MESSAGES = [
+    'O Atendimento já se encontra na situação que deseja alterar.',
+    'encontra-se na situação de Cancelado. A situação não pode ser alterada.',
+    'A situação não pode ser alterada, pois existe uma regra de atendimento',
+  ];
+
+  /**
+   * Extrai a mensagem de erro de diferentes estruturas possíveis de resposta da API
+   */
+  public extractErrorMessage(error: any): string | undefined {
+    // Tenta todos os caminhos possíveis onde a mensagem pode estar
+    return (
+      error?.response?.data?.error?.message || // Formato: { data: { error: { message: "..." } } }
+      error?.response?.data?.message || // Formato: { data: { message: "..." } }
+      error?.response?.error?.message || // Formato: { error: { message: "..." } }
+      error?.message || // Formato: { message: "..." }
+      undefined
+    );
+  }
+
+  /**
+   * Verifica se um erro é um erro esperado que deve ser tratado como sucesso
+   */
+  public isExpectedAttendanceError(error: any | string | undefined): boolean {
+    // Se receber uma string, verifica diretamente
+    if (typeof error === 'string') {
+      return this.EXPECTED_ATTENDANCE_ERROR_MESSAGES.some((msg) => error.includes(msg));
+    }
+
+    // Se receber um objeto de erro, extrai a mensagem
+    const errorMessage = this.extractErrorMessage(error);
+
+    if (!errorMessage) {
+      return false;
+    }
+
+    return this.EXPECTED_ATTENDANCE_ERROR_MESSAGES.some((msg) => errorMessage.includes(msg));
+  }
 }

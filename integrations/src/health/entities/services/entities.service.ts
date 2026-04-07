@@ -123,7 +123,11 @@ export class EntitiesService {
     data: { [entityType: string]: IExternalEntity[] },
   ): Promise<void> {
     const session = await this.connection.startSession();
-    session.startTransaction();
+    session.startTransaction({
+      maxCommitTimeMS: 60_000,
+      readConcern: { level: 'majority' },
+      writeConcern: { w: 'majority', wtimeout: 60_000 },
+    });
 
     try {
       for (const entityType of Object.keys(data)) {
@@ -159,7 +163,8 @@ export class EntitiesService {
         // todas as entidades que não vieram da api serão excluidas
         // só atualiza se tiver algo no entitiesIds, se não tiver nada, pode ter dado erro na request então ignoro
         if (entitiesIdsToDelete.length) {
-          for (const toDeleteChuck of chunk(entitiesIdsToDelete, 200)) {
+          const chunks = chunk(entitiesIdsToDelete, 200);
+          for (const toDeleteChuck of chunks) {
             await model.deleteMany(
               {
                 _id: { $in: toDeleteChuck },
@@ -170,8 +175,11 @@ export class EntitiesService {
           }
         }
 
-        for (const bulkOpsChunk of chunk(bulkOps, 500)) {
-          await model.bulkWrite(bulkOpsChunk, { session });
+        if (bulkOps.length) {
+          const chunks = chunk(bulkOps, 500);
+          for (const bulkOpsChunk of chunks) {
+            await model.bulkWrite(bulkOpsChunk, { session });
+          }
         }
       }
 

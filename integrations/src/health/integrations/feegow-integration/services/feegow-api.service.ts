@@ -51,7 +51,7 @@ import { castObjectIdToString } from '../../../../common/helpers/cast-objectid';
 
 @Injectable()
 export class FeegowApiService {
-  private logger = new Logger(FeegowApiService.name);
+  private readonly logger = new Logger(FeegowApiService.name);
 
   constructor(
     private readonly httpService: HttpService,
@@ -72,12 +72,13 @@ export class FeegowApiService {
     );
   }
 
-  private debugRequest(integration: IntegrationDocument, payload: Record<any, any>) {
-    if (!integration.debug) {
-      return;
-    }
+  private debugRequest(integration: IntegrationDocument, payload: any, funcName?: string) {
+    if (!integration || (!integration.debug && process.env.NODE_ENV !== 'local')) return;
 
-    this.logger.debug(`${integration._id}:${integration.name}:SI-debug`, payload);
+    const base = `${integration._id}:${integration.name}:${IntegrationType.FEEGOW}-debug`;
+    const label = funcName ? `${base}:${funcName}` : base;
+
+    this.logger.debug(label, payload);
   }
 
   private dispatchAuditEvent(integration: IntegrationDocument, data: any, identifier: string, dataType: AuditDataType) {
@@ -136,8 +137,8 @@ export class FeegowApiService {
     integration: IntegrationDocument,
     code: string,
   ): Promise<FeegowResponsePlain<FeegowPatientByCodeResponse>> {
-    this.debugRequest(integration, { code });
     const methodName = 'getPatientByCode';
+    this.debugRequest(integration, { code }, methodName);
     this.dispatchAuditEvent(integration, { code }, methodName, AuditDataType.externalRequest);
 
     try {
@@ -171,9 +172,8 @@ export class FeegowApiService {
     integration: IntegrationDocument,
     cpf: string,
   ): Promise<FeegowResponseArray<FeegowPatientByCpfResponse>> {
-    this.debugRequest(integration, { cpf });
-
     const methodName = 'getPatientByCpf';
+    this.debugRequest(integration, { cpf }, methodName);
     this.dispatchAuditEvent(integration, { cpf }, methodName, AuditDataType.externalRequest);
 
     try {
@@ -212,7 +212,7 @@ export class FeegowApiService {
     payload: FeegowCreatePatient,
   ): Promise<FeegowResponsePlain<FeegowCreatePatientResponse>> {
     const methodName = 'createPatient';
-    this.debugRequest(integration, payload);
+    this.debugRequest(integration, payload, methodName);
     this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
     try {
@@ -243,8 +243,7 @@ export class FeegowApiService {
     payload: FeegowUpdatePatient,
   ): Promise<FeegowResponsePlain<string>> {
     const methodName = 'updatePatient';
-
-    this.debugRequest(integration, payload);
+    this.debugRequest(integration, payload, methodName);
     this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
     try {
@@ -275,9 +274,8 @@ export class FeegowApiService {
     params?: FeegowOrganizationUnitsParamsRequest,
     ignoreException?: boolean,
   ): Promise<FeegowResponsePlain<FeegowOrganizationsResponse>> {
-    this.debugRequest(integration, params);
-
     const methodName = 'getOrganizationUnits';
+    this.debugRequest(integration, params, methodName);
     this.dispatchAuditEvent(integration, params, methodName, AuditDataType.externalRequest);
 
     try {
@@ -305,9 +303,8 @@ export class FeegowApiService {
     integration: IntegrationDocument,
     params?: FeegowDoctorsParamsRequest,
   ): Promise<FeegowResponseArray<FeegowDoctorsResponse>> {
-    this.debugRequest(integration, params);
-
     const methodName = 'getDoctors';
+    this.debugRequest(integration, params, methodName);
     this.dispatchAuditEvent(integration, params, methodName, AuditDataType.externalRequest);
 
     try {
@@ -335,9 +332,8 @@ export class FeegowApiService {
     integration: IntegrationDocument,
     params?: FeegowDoctorsInsurancesParamsRequest,
   ): Promise<FeegowResponseArray<FeegowDoctorsInsurancesResponse>> {
-    this.debugRequest(integration, params);
-
     const methodName = 'getDoctorsInsurances';
+    this.debugRequest(integration, params, methodName);
     this.dispatchAuditEvent(integration, params, methodName, AuditDataType.externalRequest);
 
     try {
@@ -365,9 +361,8 @@ export class FeegowApiService {
     integration: IntegrationDocument,
     params?: FeegowSpecialitiesParamsRequest,
   ): Promise<FeegowResponseArray<FeegowSpecialitiesResponse>> {
-    this.debugRequest(integration, params);
-
     const methodName = 'getSpecialities';
+    this.debugRequest(integration, params, methodName);
     this.dispatchAuditEvent(integration, params, methodName, AuditDataType.externalRequest);
 
     try {
@@ -395,9 +390,8 @@ export class FeegowApiService {
     integration: IntegrationDocument,
     params?: FeegowProceduresParamsRequest,
   ): Promise<FeegowResponseArray<FeegowProceduresResponse>> {
-    this.debugRequest(integration, params);
-
     const methodName = 'getProcedures';
+    this.debugRequest(integration, params, methodName);
     this.dispatchAuditEvent(integration, params, methodName, AuditDataType.externalRequest);
 
     try {
@@ -425,9 +419,8 @@ export class FeegowApiService {
     integration: IntegrationDocument,
     params?: FeegowInsurancesParamsRequest,
   ): Promise<FeegowResponseArray<FeegowInsurancesResponse>> {
-    this.debugRequest(integration, params);
-
     const methodName = 'getInsurances';
+    this.debugRequest(integration, params, methodName);
     this.dispatchAuditEvent(integration, params, methodName, AuditDataType.externalRequest);
 
     try {
@@ -454,9 +447,8 @@ export class FeegowApiService {
     integration: IntegrationDocument,
     params?: FeegowAppointmentTypesParamsRequest,
   ): Promise<FeegowResponseArray<FeegowAppointmentTypesResponse>> {
-    this.debugRequest(integration, params);
-
     const methodName = 'getAppointmentTypes';
+    this.debugRequest(integration, params, methodName);
     this.dispatchAuditEvent(integration, params, methodName, AuditDataType.externalRequest);
 
     try {
@@ -484,8 +476,7 @@ export class FeegowApiService {
     payload: FeegowCancelSchedule,
   ): Promise<FeegowResponsePlain<string>> {
     const methodName = 'cancelSchedule';
-
-    this.debugRequest(integration, payload);
+    this.debugRequest(integration, payload, methodName);
     this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
     try {
@@ -512,8 +503,7 @@ export class FeegowApiService {
     payload: FeegowConfirmSchedule,
   ): Promise<FeegowResponsePlain<FeegowConfirmScheduleResponse>> {
     const methodName = 'confirmSchedule';
-
-    this.debugRequest(integration, payload);
+    this.debugRequest(integration, payload, methodName);
     this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
     try {
@@ -540,8 +530,7 @@ export class FeegowApiService {
     payload: FeegowCreateSchedule,
   ): Promise<FeegowResponsePlain<FeegowCreateScheduleResponse | string>> {
     const methodName = 'createSchedule';
-
-    this.debugRequest(integration, payload);
+    this.debugRequest(integration, payload, methodName);
     this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
     try {
@@ -589,8 +578,7 @@ export class FeegowApiService {
     params?: FeegowAvailableSchedules,
   ): Promise<FeegowResponsePlain<FeegowAvailableSchedulesResponse> | FeegowResponseArray<any>> {
     const methodName = 'listAvailableSchedules';
-
-    this.debugRequest(integration, params);
+    this.debugRequest(integration, params, methodName);
     this.dispatchAuditEvent(integration, params, methodName, AuditDataType.externalRequest);
 
     try {
@@ -620,9 +608,8 @@ export class FeegowApiService {
     integration: IntegrationDocument,
     params?: FeegowPatientSchedules,
   ): Promise<FeegowResponseArray<FeegowScheduleResponse>> {
-    this.debugRequest(integration, params);
-
     const methodName = 'listSchedules';
+    this.debugRequest(integration, params, methodName);
     this.dispatchAuditEvent(integration, params, methodName, AuditDataType.externalRequest);
 
     try {
@@ -650,8 +637,7 @@ export class FeegowApiService {
     payload: FeegowReschedule,
   ): Promise<FeegowResponsePlain<string>> {
     const methodName = 'reschedule';
-
-    this.debugRequest(integration, payload);
+    this.debugRequest(integration, payload, methodName);
     this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
     try {

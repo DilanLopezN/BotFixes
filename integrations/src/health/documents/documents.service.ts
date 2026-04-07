@@ -43,7 +43,7 @@ export class DocumentsService {
     private readonly auditService: AuditService,
   ) {}
 
-  async getSignedUrl(key: string, expiresIn = 900): Promise<string> {
+  async getSignedUrl(key: string, expiresIn = 86_400): Promise<string> {
     return this.s3Service.getSignedUrl({
       key,
       bucketName: this.bucketName,
@@ -287,7 +287,7 @@ export class DocumentsService {
 
     return await Promise.all(
       result.map(async (document) => {
-        const signedUrl = await this.getSignedUrl(document.s3Key, 7_200);
+        const signedUrl = await this.getSignedUrl(document.s3Key);
 
         return {
           id: document.id,
@@ -330,7 +330,7 @@ export class DocumentsService {
 
     return await Promise.all(
       result.map(async (document) => {
-        const signedUrl = await this.getSignedUrl(document.s3Key, 7_200);
+        const signedUrl = await this.getSignedUrl(document.s3Key);
 
         return {
           id: document.id,

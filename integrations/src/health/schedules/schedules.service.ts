@@ -170,6 +170,10 @@ export class SchedulesService {
         scheduleIds = [scheduleId];
       }
 
+      if (!scheduleIds?.length) {
+        return actions;
+      }
+
       for (const id of scheduleIds) {
         const [correlation, schedule] = await this.getEntitiesDataFromSchedule(integrationId, scheduleCode, id);
 
@@ -181,10 +185,6 @@ export class SchedulesService {
           integrationId: castObjectId(integrationId),
           entitiesFilter: correlation,
           targetFlowTypes: [FlowSteps.confirmActive],
-          filters: {
-            patientBornDate: schedule.patientBornDate,
-            patientCpf: schedule.patientCpf,
-          },
           trigger,
         });
         actions.push(...result);
@@ -572,6 +572,19 @@ export class SchedulesService {
     const alreadyCanceled = await this.isCanceledSchedule(integrationId, scheduleCode, scheduleId);
     const schedule = await this.getScheduleByCodeOrId(integrationId, scheduleCode, scheduleId);
 
+    if (!schedule) {
+      throw HTTP_ERROR_THROWER(
+        HttpStatus.NOT_FOUND,
+        {
+          message: 'Agendamento não encontrado',
+          scheduleCode,
+          scheduleId,
+        },
+        undefined,
+        true,
+      );
+    }
+
     if (alreadyCanceled) {
       throw HTTP_ERROR_THROWER(
         HttpStatus.CONFLICT,
@@ -594,6 +607,19 @@ export class SchedulesService {
   ): Promise<Schedules> {
     const alreadyCanceled = await this.isCanceledSchedule(integrationId, scheduleCode, scheduleId);
     const schedule = await this.getScheduleByCodeOrId(integrationId, scheduleCode, scheduleId);
+
+    if (!schedule) {
+      throw HTTP_ERROR_THROWER(
+        HttpStatus.NOT_FOUND,
+        {
+          message: 'Agendamento não encontrado',
+          scheduleCode,
+          scheduleId,
+        },
+        undefined,
+        true,
+      );
+    }
 
     if (alreadyCanceled) {
       throw HTTP_ERROR_THROWER(

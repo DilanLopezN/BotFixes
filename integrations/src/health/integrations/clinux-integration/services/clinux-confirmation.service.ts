@@ -136,7 +136,7 @@ export class ClinuxConfirmationService {
 
     let response: ClinuxSchedule[];
     if (data.erpParams.useApiV2) {
-      const dateFormat = 'DD/MM/YYYY';
+      const dateFormat = 'DD-MM-YYYY';
       const requestFilters: ClinuxListSchedulesParamsRequest = {
         dt_de: moment(startDate).format(dateFormat),
         dt_ate: moment(endDate).format(dateFormat),
@@ -412,10 +412,6 @@ export class ClinuxConfirmationService {
             integrationId: integration._id,
             entitiesFilter: scheduleCorrelation,
             targetFlowTypes: [FlowSteps.confirmActive],
-            filters: {
-              patientBornDate: schedule.patientBornDate,
-              patientCpf: schedule.patientCpf,
-            },
           });
 
           if (actions?.length) {
@@ -527,10 +523,6 @@ export class ClinuxConfirmationService {
             integrationId: integration._id,
             entitiesFilter: correlation,
             targetFlowTypes: [FlowSteps.confirmActive],
-            filters: {
-              patientBornDate: schedule.patientBornDate,
-              patientCpf: schedule.patientCpf,
-            },
             trigger: FlowTriggerType.active_confirmation_confirm,
           });
 

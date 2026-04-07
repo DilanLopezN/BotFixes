@@ -90,11 +90,11 @@ export class AmigoConfirmationService {
 
     let schedules = await this.apiService.listPatientSchedules(integration, payload);
 
-    if (erpParams.filterAgendaEventIds?.length) {
+    if (erpParams?.filterAgendaEventIds?.length) {
       schedules = schedules.filter((sch) => erpParams.filterAgendaEventIds.includes(String(sch?.agenda_event?.id)));
     }
 
-    if (erpParams.omitAgendaEventIds?.length) {
+    if (erpParams?.omitAgendaEventIds?.length) {
       schedules = schedules.filter((sch) => !erpParams?.omitAgendaEventIds?.includes(String(sch?.agenda_event?.id)));
     }
 
@@ -277,10 +277,6 @@ export class AmigoConfirmationService {
             integrationId: integration._id,
             entitiesFilter: scheduleCorrelation,
             targetFlowTypes: [FlowSteps.confirmActive],
-            filters: {
-              patientBornDate: schedule.patientBornDate,
-              patientCpf: schedule.patientCpf,
-            },
           });
 
           if (actions?.length) {

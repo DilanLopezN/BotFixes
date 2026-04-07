@@ -1,6 +1,7 @@
 import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { lastValueFrom } from 'rxjs';
+import { Readable } from 'stream';
 import * as Sentry from '@sentry/node';
 import { HttpErrorOrigin, HTTP_ERROR_THROWER } from '../../../../common/exceptions.service';
 import { IntegrationDocument } from '../../../integration/schema/integration.schema';
@@ -85,14 +86,6 @@ export class ClinuxApiService {
         return Promise.reject(error);
       },
     );
-  }
-
-  private debugRequest(integration: IntegrationDocument, payload: any) {
-    if (!integration.debug) {
-      return;
-    }
-
-    this.logger.debug(`${integration._id}:${integration.name}:CLINUX-debug`, payload);
   }
 
   private handleResponseError(
@@ -185,7 +178,6 @@ export class ClinuxApiService {
   ): Promise<ClinuxOrganizationsResponse[]> {
     try {
       const requestParams = await this.getDefaultRequestParams(integration, params);
-      this.debugRequest(integration, requestParams);
 
       const apiUrl = await this.getApiUrl(integration);
       const response = await lastValueFrom(
@@ -215,7 +207,6 @@ export class ClinuxApiService {
   ): Promise<ClinuxInsurancesResponse[]> {
     try {
       const requestParams = await this.getDefaultRequestParams(integration, params);
-      this.debugRequest(integration, requestParams);
 
       const apiUrl = await this.getApiUrl(integration);
       const response = await lastValueFrom(
@@ -245,7 +236,6 @@ export class ClinuxApiService {
   ): Promise<ClinuxDoctorsResponse[]> {
     try {
       const requestParams = await this.getDefaultRequestParams(integration, params);
-      this.debugRequest(integration, requestParams);
 
       const apiUrl = await this.getApiUrl(integration);
       const response = await lastValueFrom(
@@ -271,7 +261,6 @@ export class ClinuxApiService {
   ): Promise<ClinuxSpecialitiesResponse[]> {
     try {
       const requestParams = await this.getDefaultRequestParams(integration, params);
-      this.debugRequest(integration, requestParams);
 
       const apiUrl = await this.getApiUrl(integration);
       const response = await lastValueFrom(
@@ -301,7 +290,6 @@ export class ClinuxApiService {
   ): Promise<ClinuxInsurancePlansResponse[]> {
     try {
       const requestParams = await this.getDefaultRequestParams(integration, params);
-      this.debugRequest(integration, requestParams);
 
       const apiUrl = await this.getApiUrl(integration);
       const response = await lastValueFrom(
@@ -331,7 +319,6 @@ export class ClinuxApiService {
   ): Promise<ClinuxProceduresResponse[]> {
     try {
       const requestParams = await this.getDefaultRequestParams(integration, params);
-      this.debugRequest(integration, requestParams);
 
       const apiUrl = await this.getApiUrl(integration);
       const response = await lastValueFrom(
@@ -361,7 +348,6 @@ export class ClinuxApiService {
   ): Promise<ClinuxProcedureValueResponse[]> {
     try {
       const requestParams = await this.getDefaultRequestParams(integration, params);
-      this.debugRequest(integration, requestParams);
 
       const apiUrl = await this.getApiUrl(integration);
       const response = await lastValueFrom(
@@ -390,7 +376,6 @@ export class ClinuxApiService {
     params: PatientAuthParamsRequest,
   ): Promise<PatientAuthResponse[]> {
     try {
-      this.debugRequest(integration, params);
       const apiUrl = await this.getApiUrl(integration);
       const response = await lastValueFrom(
         this.httpService.post<PatientAuthResponse[]>(`${apiUrl}/cgi-bin/dwserver.cgi/se1/doPacienteLogin`, undefined, {
@@ -470,7 +455,6 @@ export class ClinuxApiService {
     try {
       const defaultPatientToken = await this.getDefaultPatientToken(integration);
       const requestParams = await this.getDefaultRequestParams(integration, params);
-      this.debugRequest(integration, requestParams);
       this.dispatchAuditEvent(integration, params, methodName, AuditDataType.externalRequest);
 
       const apiUrl = await this.getApiUrl(integration);
@@ -508,7 +492,6 @@ export class ClinuxApiService {
     try {
       const defaultPatientToken = await this.getDefaultPatientToken(integration);
       const requestParams = await this.getDefaultRequestParams(integration, params);
-      this.debugRequest(integration, requestParams);
       this.dispatchAuditEvent(integration, params, methodName, AuditDataType.externalRequest);
 
       const apiUrl = await this.getApiUrl(integration);
@@ -546,7 +529,6 @@ export class ClinuxApiService {
     try {
       const defaultPatientToken = await this.getDefaultPatientToken(integration);
       const requestParams = await this.getDefaultRequestParams(integration, params);
-      this.debugRequest(integration, requestParams);
       this.dispatchAuditEvent(integration, params, methodName, AuditDataType.externalRequest);
 
       const apiUrl = await this.getApiUrl(integration);
@@ -578,7 +560,6 @@ export class ClinuxApiService {
   ): Promise<ClinuxListPatientSchedulesResponse[]> {
     try {
       const requestParams = await this.getDefaultRequestParams(integration, params);
-      this.debugRequest(integration, requestParams);
 
       const apiUrl = await this.getApiUrl(integration);
       const response = await lastValueFrom(
@@ -608,7 +589,6 @@ export class ClinuxApiService {
   ): Promise<ClinuxListPatientAttendanceParamsResponse[]> {
     try {
       const requestParams = await this.getDefaultRequestParams(integration, params);
-      this.debugRequest(integration, requestParams);
 
       const apiUrl = await this.getApiUrl(integration);
       const response = await lastValueFrom(
@@ -640,7 +620,6 @@ export class ClinuxApiService {
 
     try {
       const requestParams = await this.getDefaultRequestParams(integration, params);
-      this.debugRequest(integration, requestParams);
 
       const apiUrl = await this.getApiUrl(integration);
       const response = await lastValueFrom(
@@ -673,7 +652,6 @@ export class ClinuxApiService {
 
     try {
       const requestParams = await this.getDefaultRequestParams(integration, params);
-      this.debugRequest(integration, requestParams);
 
       const apiUrl = await this.getApiUrl(integration);
       const response = await lastValueFrom(
@@ -704,7 +682,6 @@ export class ClinuxApiService {
   ): Promise<ClinuxUpdatePatientResponse[]> {
     try {
       const requestParams = await this.getDefaultRequestParams(integration, params);
-      this.debugRequest(integration, requestParams);
 
       const apiUrl = await this.getApiUrl(integration);
       const response = await lastValueFrom(
@@ -736,7 +713,6 @@ export class ClinuxApiService {
 
     try {
       const requestParams = await this.getDefaultRequestParams(integration, params);
-      this.debugRequest(integration, requestParams);
       this.dispatchAuditEvent(integration, params, methodName, AuditDataType.externalRequest);
 
       const apiUrl = await this.getApiUrl(integration);
@@ -792,7 +768,6 @@ export class ClinuxApiService {
   public async renewToken(integration: IntegrationDocument): Promise<AuthResponse[]> {
     try {
       const requestParams = await this.getDefaultRequestParams(integration);
-      this.debugRequest(integration, requestParams);
 
       const apiUrl = await this.getApiUrl(integration);
       const response = await lastValueFrom(
@@ -818,12 +793,10 @@ export class ClinuxApiService {
   ): Promise<ClinuxGetPatientResponse[]> {
     try {
       if (!payload.cd_paciente && !payload.ds_cpf) {
-        throw HTTP_ERROR_THROWER(HttpStatus.BAD_GATEWAY, 'Invalid patient params');
+        throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, 'Invalid patient params');
       }
 
       const requestParams = await this.getDefaultRequestParams(integration, payload);
-      this.debugRequest(integration, payload);
-
       const apiUrl = await this.getApiUrl(integration);
       const response = await lastValueFrom(
         this.httpService.post<ClinuxGetPatientResponse[]>(
@@ -852,8 +825,6 @@ export class ClinuxApiService {
   ): Promise<ClinuxSchedule[]> {
     try {
       const requestParams = await this.getDefaultRequestParams(integration, payload);
-      this.debugRequest(integration, payload);
-
       const apiUrl = await this.getApiUrl(integration);
       const response = await lastValueFrom(
         this.httpService.post<ClinuxSchedule[]>(`${apiUrl}/cgi-bin/dwserver.cgi/se1/doListaConfirmacao`, undefined, {
@@ -878,8 +849,6 @@ export class ClinuxApiService {
   ): Promise<ClinuxProcedureGuidanceResponse[]> {
     try {
       const requestParams = await this.getDefaultRequestParams(integration, payload);
-      this.debugRequest(integration, payload);
-
       const apiUrl = await this.getApiUrl(integration);
       const response = await lastValueFrom(
         this.httpService.post<ClinuxProcedureGuidanceResponse[]>(
@@ -908,8 +877,6 @@ export class ClinuxApiService {
   ): Promise<ClinuxExternalResultResponse[]> {
     try {
       const requestParams = await this.getDefaultRequestParams(integration, payload);
-      this.debugRequest(integration, payload);
-
       const apiUrl = await this.getApiUrl(integration);
       const response = await lastValueFrom(
         this.httpService.post<ClinuxExternalResultResponse[]>(
@@ -941,19 +908,23 @@ export class ClinuxApiService {
   public async getExternalResultFileDownload(
     integration: IntegrationDocument,
     payload: ClinuxExternalResultDownloadRequest,
-  ): Promise<Buffer> {
+  ): Promise<Readable> {
     try {
       const requestParams = await this.getDefaultRequestParams(integration, payload);
-      this.debugRequest(integration, payload);
-
       const response = await lastValueFrom(
         this.httpService.post<any>(await this.getExternalResultFileDownloadClinuxUrl(integration), undefined, {
           params: requestParams,
-          responseType: 'arraybuffer',
+          responseType: 'stream',
         }),
       );
 
-      return response.data;
+      const stream = response.data as Readable;
+
+      stream.on('error', (error) => {
+        console.error('Stream error in getExternalResultFileDownload:', error);
+      });
+
+      return stream;
     } catch (error) {
       this.handleResponseError(integration, error, payload, 'getExternalResultFileDownload');
       throw HTTP_ERROR_THROWER(
@@ -973,19 +944,25 @@ export class ClinuxApiService {
   public async getResultFileDownload(
     integration: IntegrationDocument,
     payload: ClinuxResultDownloadRequest,
-  ): Promise<Buffer> {
+  ): Promise<Readable> {
     try {
       const requestParams = await this.getDefaultRequestParams(integration, payload);
-      this.debugRequest(integration, payload);
-
       const response = await lastValueFrom(
         this.httpService.post<any>(await this.getResultFileDownloadClinuxUrl(integration), undefined, {
           params: requestParams,
-          responseType: 'arraybuffer',
+          responseType: 'stream',
         }),
       );
 
-      return response.data;
+      const stream = response.data as Readable;
+
+      // Add default error handler to prevent unhandled stream errors from crashing the process
+      // Consumers can still add their own error handlers
+      stream.on('error', (error) => {
+        console.error('Stream error in getResultFileDownload:', error);
+      });
+
+      return stream;
     } catch (error) {
       this.handleResponseError(integration, error, payload, 'getResultFileDownload');
       throw HTTP_ERROR_THROWER(
@@ -1002,8 +979,6 @@ export class ClinuxApiService {
   ): Promise<string> {
     try {
       const requestParams = await this.getDefaultRequestParams(integration, payload);
-      this.debugRequest(integration, payload);
-
       const response = `${await this.getExternalResultFileDownloadClinuxUrl(integration)}?${new URLSearchParams(requestParams).toString()}`;
 
       return response;
@@ -1019,8 +994,6 @@ export class ClinuxApiService {
   ): Promise<string> {
     try {
       const requestParams = await this.getDefaultRequestParams(integration, payload);
-      this.debugRequest(integration, payload);
-
       const response = `${await this.getResultFileDownloadClinuxUrl(integration)}?${new URLSearchParams(requestParams).toString()}`;
 
       return response;

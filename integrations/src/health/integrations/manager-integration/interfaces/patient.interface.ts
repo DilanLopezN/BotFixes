@@ -96,6 +96,7 @@ interface ManagerPatientSchedulesResponse {
   };
   cancelamentoDisponivel: boolean;
   confirmacaoDisponivel: 'INDISPONIVEL' | 'CONFIRMADO' | 'DISPONIVEL';
+  horaChegada: string;
 }
 
 interface ManagerPatientResponse {

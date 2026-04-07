@@ -96,6 +96,15 @@ export class CmApiService {
     };
   }
 
+  private debugRequest(integration: IntegrationDocument, payload: any, funcName?: string) {
+    if (!integration || (!integration.debug && process.env.NODE_ENV !== 'local')) return;
+
+    const base = `${integration._id}:${integration.name}:${IntegrationType.CM}-debug`;
+    const label = funcName ? `${base}:${funcName}` : base;
+
+    this.logger.debug(label, payload);
+  }
+
   private dispatchAuditEvent(integration: IntegrationDocument, data: any, identifier: string, dataType: AuditDataType) {
     this.auditService.sendAuditEvent({
       dataType,
@@ -173,15 +182,6 @@ export class CmApiService {
     }
   }
 
-  private debugRequest(integration: IntegrationDocument, payload: any) {
-    if (!integration.debug) {
-      return;
-    }
-
-    const envKey = integration.environment === IntegrationEnvironment.test ? '-TEST' : '';
-    this.logger.debug(`${integration._id}:${integration.name}:CM${envKey}-debug`, payload);
-  }
-
   public async getPatientByCode(
     integration: IntegrationDocument,
     code: string,
@@ -195,6 +195,8 @@ export class CmApiService {
       codigosClientes: codeIntegration,
     };
     const methodName = 'getPatientByCode';
+    this.debugRequest(integration, { code }, methodName);
+    this.dispatchAuditEvent(integration, { code }, methodName, AuditDataType.externalRequest);
 
     try {
       const apiUrl = this.getUrl(integration);
@@ -206,6 +208,7 @@ export class CmApiService {
       );
 
       if (!this.handleResponseError(integration, response, code, methodName)) {
+        this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
         return response.data?.[0];
       }
     } catch (error) {
@@ -219,11 +222,13 @@ export class CmApiService {
     cpf: string,
     isRetry?: boolean,
   ): Promise<CMResponsePlain<GetPatientResponse>> {
+    const methodName = 'getPatientByCpf';
+    this.debugRequest(integration, { cpf }, methodName);
+    this.dispatchAuditEvent(integration, { cpf }, methodName, AuditDataType.externalRequest);
+
     try {
       const { codeIntegration } = await this.credentialsHelper.getConfig<CMCredentialsResponse>(integration);
       const apiUrl = this.getUrl(integration);
-      this.debugRequest(integration, { cpf });
-
       const response = await lastValueFrom(
         this.httpService.post<CMResponsePlain<GetPatientResponse>>(
           `${apiUrl}/pacientes/ObterPacientePorCpf`,
@@ -241,6 +246,7 @@ export class CmApiService {
       );
 
       if (!this.handleResponseError(integration, response, cpf, 'getPatientByCpf')) {
+        this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
         return response.data?.[0];
       }
     } catch (error) {
@@ -258,9 +264,11 @@ export class CmApiService {
     const route = 'pacientes/AdicionarPaciente';
     const headers = await this.getDefaultHeaders(integration);
 
+    this.debugRequest(integration, payload, methodName);
+    this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
+
     try {
       const apiUrl = this.getUrl(integration);
-      this.debugRequest(integration, payload);
 
       const response = await lastValueFrom(
         this.httpService.post<CMResponsePlain<CreatePatientResponse>>(`${apiUrl}/${route}`, payload, {
@@ -269,6 +277,7 @@ export class CmApiService {
       );
 
       if (!this.handleResponseError(integration, response, payload, methodName)) {
+        this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
         return response.data?.[0];
       }
     } catch (error) {
@@ -287,9 +296,10 @@ export class CmApiService {
     const route = 'pacientes/AtualizarPaciente';
     const headers = await this.getDefaultHeaders(integration);
 
+    this.debugRequest(integration, payload, methodName);
+
     try {
       const apiUrl = this.getUrl(integration);
-      this.debugRequest(integration, payload);
       this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
       const response = await lastValueFrom(
@@ -368,9 +378,13 @@ export class CmApiService {
       payload = cleanseObject(payload);
     } catch (error) {}
 
+    const methodName = 'doResourceListRequest';
+
+    this.debugRequest(integration, payload, methodName);
+    this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
+
     try {
       const apiUrl = this.getUrl(integration);
-      this.debugRequest(integration, payload);
 
       const response = await lastValueFrom(
         this.httpService.post<CMResponseArray<any>>(`${apiUrl}/${target}`, payload, {
@@ -383,6 +397,7 @@ export class CmApiService {
       if (
         !this.handleResponseError(integration, response, payload, 'doResourceListRequest', undefined, ignoreException)
       ) {
+        this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
         return response.data?.[0];
       }
     } catch (error) {
@@ -400,13 +415,14 @@ export class CmApiService {
     const route = 'agendamentoonlines/ListarHorariosSimplificado';
     const headers = await this.getDefaultHeaders(integration);
 
+    this.debugRequest(integration, payload, methodName);
+
     try {
       payload = cleanseObject(payload);
     } catch (error) {}
 
     try {
       const apiUrl = this.getUrl(integration);
-      this.debugRequest(integration, payload);
       this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
       const response = await lastValueFrom(
@@ -435,13 +451,14 @@ export class CmApiService {
     const route = 'agendamentoonlines/AdicionarAgendamento';
     const headers = await this.getDefaultHeaders(integration);
 
+    this.debugRequest(integration, payload, methodName);
+
     try {
       payload = cleanseObject(payload);
     } catch (error) {}
 
     try {
       const apiUrl = this.getUrl(integration);
-      this.debugRequest(integration, payload);
       this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
       const response = await lastValueFrom(
@@ -476,9 +493,11 @@ export class CmApiService {
   ): Promise<CMResponsePlain<CancelAppointmentResponse[]>> {
     const methodName = 'cancelAppointment';
 
+    this.debugRequest(integration, payload, methodName);
+    this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
+
     try {
       const apiUrl = this.getUrl(integration);
-      this.debugRequest(integration, payload);
 
       const response = await lastValueFrom(
         this.httpService.post<CMResponsePlain<CancelAppointmentResponse[]>>(
@@ -512,10 +531,11 @@ export class CmApiService {
     const route = 'agendamentoonlines/ListarAgendamentosPaciente';
     const headers = await this.getDefaultHeaders(integration);
 
+    this.debugRequest(integration, params, methodName);
+    this.dispatchAuditEvent(integration, params, methodName, AuditDataType.externalRequest);
+
     try {
       const apiUrl = this.getUrl(integration);
-      this.debugRequest(integration, params);
-
       const response = await lastValueFrom(
         this.httpService.post<CMResponseArray<PatientScheduleResponse>>(`${apiUrl}/${route}`, undefined, {
           headers,
@@ -539,8 +559,11 @@ export class CmApiService {
     isRetry?: boolean,
   ): Promise<CMResponsePlain<AppointmentValueResponse>> {
     try {
+      const methodName = 'getAppointmentValue';
+      this.debugRequest(integration, payload, methodName);
+      this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
+
       const apiUrl = this.getUrl(integration);
-      this.debugRequest(integration, payload);
 
       const response = await lastValueFrom(
         this.httpService.post<CMResponsePlain<AppointmentResponse>>(
@@ -555,6 +578,7 @@ export class CmApiService {
       );
 
       if (!this.handleResponseError(integration, response, payload, 'getAppointmentValue')) {
+        this.dispatchAuditEvent(integration, response.data, methodName, AuditDataType.externalResponse);
         return response.data?.[0];
       }
     } catch (error) {
@@ -570,10 +594,11 @@ export class CmApiService {
   ): Promise<CMResponseArray<ConfirmAppointmentResponse>> {
     const methodName = 'confirmAppointment';
 
+    this.debugRequest(integration, params, methodName);
+    this.dispatchAuditEvent(integration, params, methodName, AuditDataType.externalRequest);
+
     try {
       const apiUrl = this.getUrl(integration);
-      this.debugRequest(integration, params);
-
       const response = await lastValueFrom(
         this.httpService.post<CMResponseArray<ConfirmAppointmentResponse>>(
           `${apiUrl}/confirmas/ConfirmarAgendamento`,
@@ -612,10 +637,12 @@ export class CmApiService {
     isRetry?: boolean,
     ignoreException = false,
   ): Promise<CMResponseArray<FollowUpAppointmentsResponse>> {
+    const methodName = 'getFollowUpPatientAppointments';
+    this.debugRequest(integration, data, methodName);
+    this.dispatchAuditEvent(integration, data, methodName, AuditDataType.externalRequest);
+
     try {
       const apiUrl = this.getUrl(integration);
-      this.debugRequest(integration, data);
-
       const response = await lastValueFrom(
         this.httpService.post<CMResponseArray<FollowUpAppointmentsResponse>>(
           `${apiUrl}/agendamentoonlines/ListarPossiveisRetornos`,
@@ -638,6 +665,7 @@ export class CmApiService {
           ignoreException,
         )
       ) {
+        this.dispatchAuditEvent(integration, response.data, methodName, AuditDataType.externalResponse);
         return response.data?.[0];
       }
     } catch (error) {

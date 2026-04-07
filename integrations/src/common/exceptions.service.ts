@@ -1,4 +1,7 @@
 import { BadRequestException, HttpException, HttpStatus, Logger } from '@nestjs/common';
+import * as contextService from 'request-context';
+import { CtxMetadata } from './interfaces/ctx-metadata';
+import { sanitizeObject } from './helpers/safe-json.helper';
 
 export class CustomBadRequestException extends BadRequestException {}
 
@@ -17,34 +20,84 @@ export interface HttpDefaultError {
 const loggerError = new Logger('HTTP_ERROR');
 const loggerInternal = new Logger('INTERNAL_ERROR');
 
-const INTERNAL_ERROR_THROWER = (location: string = '', err: any, omitLog?: boolean, payload?: any) => {
+interface ErrorContext {
+  location?: string;
+  integrationId?: string;
+  workspaceId?: string;
+  conversationId?: string;
+}
+
+const getRequestContext = (): CtxMetadata | null => {
+  try {
+    return contextService.get('req:default-headers');
+  } catch {
+    return null;
+  }
+};
+
+const formatErrorLog = (context: ErrorContext, err: any, payload?: any) => {
+  const metadata = getRequestContext();
+  const errorStack = err?.stack || new Error().stack;
+
+  const logContext = {
+    timestamp: new Date().toISOString(),
+    location: context.location,
+    integrationId: context.integrationId,
+    workspaceId: metadata?.workspaceId || context.workspaceId,
+    conversationId: metadata?.conversationId || context.conversationId,
+  };
+
+  const errorData = err?.response?.data || err?.data || err;
+  const sanitizedData = sanitizeObject(errorData);
+
+  return {
+    context: logContext,
+    error: {
+      message: err?.message || err,
+      data: sanitizedData,
+      statusCode: err?.response?.status || err?.statusCode,
+      stack: String(errorStack ?? '')
+        .split('')
+        .slice(0, 1_000)
+        .join(''),
+    },
+    payload: payload ? sanitizeObject(payload) : undefined,
+  };
+};
+
+const INTERNAL_ERROR_THROWER = (
+  location: string = '',
+  err: any,
+  omitLog?: boolean,
+  payload?: any,
+  context?: ErrorContext,
+) => {
   if (err instanceof CustomBadRequestException || err instanceof HttpException) {
     throw err;
   }
 
   if (!omitLog) {
-    loggerInternal.error(`${location}`);
-    loggerInternal.error(err);
-    console.error(err);
-
-    if (payload) {
-      loggerInternal.error(payload);
-    }
+    const errorLog = formatErrorLog({ ...context, location }, err, payload);
+    loggerInternal.error(JSON.stringify(errorLog, null, 2));
   }
   throw Exceptions.INTERNAL_ERROR(location, err);
 };
 
-const HTTP_ERROR_THROWER = (statusCode: number, err: any, type?: HttpErrorOrigin, omitLog?: boolean, payload?: any) => {
+const HTTP_ERROR_THROWER = (
+  statusCode: number,
+  err: any,
+  type?: HttpErrorOrigin,
+  omitLog?: boolean,
+  payload?: any,
+  context?: ErrorContext,
+) => {
   if (err instanceof HttpException) {
     throw err;
   }
 
   if (!omitLog) {
-    loggerError.error(err);
-
-    if (payload) {
-      loggerError.error(payload);
-    }
+    const errorLog = formatErrorLog({ ...context }, err, payload);
+    loggerError.error(JSON.stringify(errorLog, null, 2));
   }
   throw Exceptions.HTTP_ERROR(statusCode, err, type);
 };
@@ -88,4 +141,11 @@ const throwNotImplementedException = (serviceName: string, methodName: string) =
   );
 };
 
-export { Exceptions, INTERNAL_ERROR_THROWER, HTTP_ERROR_THROWER, getErrorType, throwNotImplementedException };
+export {
+  Exceptions,
+  INTERNAL_ERROR_THROWER,
+  HTTP_ERROR_THROWER,
+  getErrorType,
+  throwNotImplementedException,
+  ErrorContext,
+};

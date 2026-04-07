@@ -225,14 +225,17 @@ export class AmigoService implements IIntegratorService {
         patient_id: Number(patient?.code),
         event_id: Number(procedure?.code),
         insurance_id: Number(insurance?.code),
-        place_id: Number(organizationUnit?.code),
+        place_id: Number(organizationUnit?.code || ''),
         user_id: Number(doctor?.code),
-        start_date: moment(appointment.appointmentDate).add(3, 'hours').format(),
+        start_date: integration.rules?.useAmigoApiV2
+          ? moment(appointment.appointmentDate).format()
+          : moment(appointment.appointmentDate).add(3, 'hours').format(),
       };
 
       const result = await this.amigoApiService.createSchedule(integration, payload);
 
-      if (result?.consultaAgendada) {
+      const success = result != null && (integration.rules?.useAmigoApiV2 ? true : result.consultaAgendada !== false);
+      if (success) {
         return {
           appointmentDate: appointment.appointmentDate,
           duration: appointment.duration,
@@ -241,9 +244,7 @@ export class AmigoService implements IIntegratorService {
         };
       }
 
-      if (!result?.consultaAgendada) {
-        throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, result.message);
-      }
+      throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, result?.message);
     } catch (error) {
       throw INTERNAL_ERROR_THROWER(this.createSchedule.name, error);
     }
@@ -284,7 +285,7 @@ export class AmigoService implements IIntegratorService {
         integration,
         this.amigoHelpersService.filterBlankParams({
           event_id: filter?.procedure?.code,
-          insurance_id: filter?.insurance?.code,
+          insurance_id: integration.rules?.useAmigoApiV2 ? filter?.insurancePlan?.code : filter?.insurance?.code,
           place_id: filter?.organizationUnit?.code,
           specialty: filter?.speciality?.code,
         }),
@@ -296,7 +297,7 @@ export class AmigoService implements IIntegratorService {
       ? [{ id: filter.doctor?.code, name: filter.doctor?.name }]
       : await listDoctors();
     const promises = doctorsToFilter.map(async (doctor) => {
-      const responseDates = await this.amigoApiService.listAvailableSchedulerByDoctor(integration, {
+      let responseDates = await this.amigoApiService.listAvailableSchedulerByDoctor(integration, {
         userId: doctor.id,
         event_id: filter.procedure.code,
       });
@@ -305,7 +306,7 @@ export class AmigoService implements IIntegratorService {
         const response = await this.amigoApiService.listAvailableSchedulerByDoctor(integration, {
           userId: doctor.id,
           event_id: filter.procedure.code,
-          insurance_id: filter.insurance?.code,
+          insurance_id: integration.rules?.useAmigoApiV2 ? filter?.insurancePlan?.code : filter?.insurance?.code,
           place_id: filter.organizationUnit?.code,
           date,
         });

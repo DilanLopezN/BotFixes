@@ -16,24 +16,10 @@ import { castObjectIdToString } from '../../../common/helpers/cast-objectid';
 
 @Injectable()
 export class ApiService {
-  private readonly logger = new Logger(Logger.name);
-
   constructor(
     private readonly httpService: HttpService,
     private readonly auditService: AuditService,
   ) {}
-
-  private debugRequest(integration: IntegrationDocument, payload: any) {
-    if (!integration.debug) {
-      return;
-    }
-
-    const envKey = integration.environment === IntegrationEnvironment.test ? '-TEST' : '';
-    this.logger.debug(
-      `${castObjectIdToString(integration._id)}:${integration.name}:BOTDESIGNER${envKey}-debug`,
-      payload,
-    );
-  }
 
   private dispatchAuditEvent(integration: IntegrationDocument, data: any, identifier: string, dataType: AuditDataType) {
     this.auditService.sendAuditEvent({
@@ -95,14 +81,13 @@ export class ApiService {
 
       return response.data;
     } catch (error) {
-      throw HTTP_ERROR_THROWER(HttpStatus.BAD_GATEWAY, error, HttpErrorOrigin.API_ERROR);
+      throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, error, HttpErrorOrigin.API_ERROR);
     }
   }
 
   public async sendMessage(integration: IntegrationDocument, payload: SendActiveMessageData): Promise<OkResponse> {
     const methodName = this.sendMessage.name;
     try {
-      this.debugRequest(integration, payload);
       this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
       const response = await lastValueFrom(
@@ -123,7 +108,6 @@ export class ApiService {
   ): Promise<OkResponse> {
     const methodName = this.sendTrackedMessage.name;
     try {
-      this.debugRequest(integration, payload);
       this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
       const response = await lastValueFrom(

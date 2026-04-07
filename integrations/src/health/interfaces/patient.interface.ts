@@ -15,6 +15,7 @@ interface Patient {
   height?: number;
   weight?: number;
   skinColor?: string;
+  protocol?: string;
   data?: {
     // paciente na tuotempo tem um id que não é o mesmo de dentro do sistema do hospital.
     // retorna em um outro campo, que é armazenado aqui

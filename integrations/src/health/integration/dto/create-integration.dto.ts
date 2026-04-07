@@ -159,6 +159,10 @@ export class IntegrationRulesDto {
   @IsOptional()
   [IntegrationRules.doNotAllowSameHourScheduling]?: boolean;
 
+  @IsBoolean()
+  @IsOptional()
+  [IntegrationRules.doNotAllowSameDayForProcedureWithLaterality]?: boolean;
+
   @IsNumber()
   @IsOptional()
   [IntegrationRules.minutesAfterAppointmentCanSchedule]?: number;
@@ -166,6 +170,14 @@ export class IntegrationRulesDto {
   @IsBoolean()
   @IsOptional()
   [IntegrationRules.useInsuranceSuggestion]?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  [IntegrationRules.useScheduleSuggestion]?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  [IntegrationRules.enableIgnoreChoosedDoctor]?: boolean;
 
   @IsBoolean()
   @IsOptional()
@@ -182,6 +194,10 @@ export class IntegrationRulesDto {
   @IsBoolean()
   @IsOptional()
   [IntegrationRules.useClinuxApiV2]?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  [IntegrationRules.useAmigoApiV2]?: boolean;
 
   @IsBoolean()
   @IsOptional()
@@ -219,6 +235,22 @@ export class IntegrationRulesDto {
   @IsBoolean()
   @IsOptional()
   [IntegrationRules.useListInAllSteps]?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  [IntegrationRules.useCachedEntitiesFromErp]?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  [IntegrationRules.showArrivalTimeMessage]?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  [IntegrationRules.replaceScheduleDateToArrivalDate]?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  [IntegrationRules.allowDuplicateSchedules]?: boolean;
 }
 
 export class IntegrationMessagesDto {
@@ -369,6 +401,10 @@ export class IntegrationSchedulingDto implements Scheduling {
   @IsOptional()
   @Type(() => IntegrationSchedulingConfig)
   config?: IntegrationSchedulingConfig;
+
+  @IsOptional()
+  @IsBoolean()
+  active?: boolean;
 }
 
 export class RecoverAccessProtocolDto {

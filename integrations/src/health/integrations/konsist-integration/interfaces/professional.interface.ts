@@ -1,6 +1,6 @@
 // ========== REQUEST INTERFACES ==========
 
-export interface KonsistMedicoAgendamentoRequest {
+export interface KonsistDoctorScheduleRequest {
   idconvenio: number;
   codigoprocedimento: string;
   nascimentopaciente: string; // format: date
@@ -9,14 +9,14 @@ export interface KonsistMedicoAgendamentoRequest {
   idespecialidade?: number;
 }
 
-export interface KonsistMedicoPacienteRequest {
+export interface KonsistDoctorPatientRequest {
   idmedico: number;
   idpaciente: number;
 }
 
 // ========== RESPONSE INTERFACES ==========
 
-export interface KonsistMedicoResponse {
+export interface KonsistListDoctorResponse {
   id: number;
   nome?: string;
   crm?: string;
@@ -24,7 +24,7 @@ export interface KonsistMedicoResponse {
   podemarcaratendido?: boolean;
 }
 
-export interface KonsistCamposUsuarioRetorno {
+export interface KonsistLoggedUserResponse {
   id_usuario: number;
   id_medico_usuario: number;
   versao_api: string;

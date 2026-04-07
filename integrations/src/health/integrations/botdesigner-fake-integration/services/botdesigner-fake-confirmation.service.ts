@@ -68,17 +68,67 @@ export class BotdesignerFakeConfirmationService {
       },
       '4': {
         guidance:
-          'Traga a carteira de vacinação da criança e histórico de alergias. Para bebês, traga fraldas e mamadeira.',
+          'Traga exames de imagem recentes (Raio-X, Ressonância). Use roupas confortáveis para facilitar movimentação.',
       },
       '5': {
-        guidance: 'Evite relações sexuais 24h antes do exame. Traga absorvente para possível sangramento pós-exame.',
+        guidance:
+          'Realize jejum de 8 horas antes da consulta caso haja necessidade de exames laboratoriais. Traga exames anteriores.',
       },
       '6': {
         guidance:
-          'Traga exames de imagem recentes (Raio-X, Ressonância). Use roupas confortáveis para facilitar movimentação.',
+          'Traga todos os exames e relatórios médicos anteriores. Anote todos os sintomas e medicamentos em uso.',
       },
       '7': {
+        guidance: 'Evite relações sexuais 24h antes do exame. Traga absorvente para possível sangramento pós-exame.',
+      },
+      '15': {
+        guidance:
+          'Traga a carteira de vacinação da criança e histórico de alergias. Para bebês, traga fraldas e mamadeira.',
+      },
+      '16': {
         guidance: 'Não use lentes de contato no dia do exame. Traga óculos de sol para o pós-consulta.',
+      },
+      '17': {
+        guidance:
+          'Evite o uso de brincos ou piercings nas orelhas no dia da consulta. Traga exames auditivos anteriores se houver.',
+      },
+      '18': {
+        guidance: 'Traga exames laboratoriais recentes (PSA, urina). Beba bastante água antes da consulta.',
+      },
+      '19': {
+        guidance:
+          'Traga relatórios de acompanhamento psicológico anteriores e lista de medicamentos em uso. Anote mudanças de humor recentes.',
+      },
+      '20': {
+        guidance:
+          'Realize jejum de 8 horas caso haja solicitação de exames. Traga exames de endoscopia e colonoscopia anteriores.',
+      },
+      '21': {
+        guidance: 'Traga exames de imagem do tórax recentes. Evite fumar nas 24h anteriores à consulta.',
+      },
+      '22': {
+        guidance:
+          'Traga exames laboratoriais recentes (fator reumatoide, VHS, PCR). Anote articulações com dor ou inchaço.',
+      },
+      '26': {
+        guidance:
+          'Traga lista completa de medicamentos em uso, exames recentes e relatórios de outros especialistas. Venha acompanhado se possível.',
+      },
+      '27': {
+        guidance:
+          'Traga carteira de vacinação atualizada, resultados de exames laboratoriais recentes e histórico de viagens.',
+      },
+      '28': {
+        guidance:
+          'Traga exames de função renal recentes (creatinina, ureia, urina). Anote volume urinário diário e medicamentos em uso.',
+      },
+      '29': {
+        guidance:
+          'Traga hemograma completo recente e outros exames de sangue. Informe histórico familiar de doenças hematológicas.',
+      },
+      '30': {
+        guidance:
+          'Realize jejum de 8 horas antes da consulta. Traga exames de imagem e laboratoriais recentes relacionados ao motivo da consulta.',
       },
     };
 
@@ -236,10 +286,6 @@ export class BotdesignerFakeConfirmationService {
             integrationId: integration._id,
             entitiesFilter: scheduleCorrelation,
             targetFlowTypes: [FlowSteps.confirmActive],
-            filters: {
-              patientBornDate: schedule.patientBornDate,
-              patientCpf: schedule.patientCpf,
-            },
           });
 
           if (actions?.length) {

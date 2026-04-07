@@ -1,5 +1,5 @@
 import { HttpService } from '@nestjs/axios';
-import { HttpStatus, Injectable, Logger } from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
 import { lastValueFrom } from 'rxjs';
 import * as Sentry from '@sentry/node';
 import { HttpErrorOrigin, HTTP_ERROR_THROWER } from '../../../../common/exceptions.service';
@@ -81,7 +81,6 @@ export interface PatientDataToAuth {
 
 @Injectable()
 export class SuporteInformaticaApiService {
-  private readonly logger = new Logger(SuporteInformaticaApiService.name);
   constructor(
     private readonly httpService: HttpService,
     private readonly sentryErrorHandlerService: SentryErrorHandlerService,
@@ -238,20 +237,6 @@ export class SuporteInformaticaApiService {
     return defaultPayload;
   }
 
-  private debugRequest(integration: IntegrationDocument, payload: Record<string, unknown>) {
-    if (!integration.debug) {
-      return;
-    }
-
-    const payloadCopy = { ...payload };
-
-    if (payloadCopy?.Token) {
-      delete payloadCopy.Token;
-    }
-
-    this.logger.debug(`${integration._id}:${integration.name}:SI-debug`, payloadCopy);
-  }
-
   public async doPatientLogin(
     integration: IntegrationDocument,
     data: SIDoPatientLoginRequest,
@@ -262,7 +247,6 @@ export class SuporteInformaticaApiService {
     const headers = await this.getHeaders(integration);
     const apiUrl = await this.getApiUrl(integration);
 
-    this.debugRequest(integration, payload);
     this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
     try {
@@ -292,7 +276,6 @@ export class SuporteInformaticaApiService {
     const headers = await this.getHeaders(integration);
     const apiUrl = await this.getApiUrl(integration);
 
-    this.debugRequest(integration, payload);
     this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
     try {
@@ -326,7 +309,6 @@ export class SuporteInformaticaApiService {
     const headers = await this.getHeaders(integration);
     const apiUrl = await this.getApiUrl(integration);
 
-    this.debugRequest(integration, payload);
     this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
     try {
@@ -361,8 +343,6 @@ export class SuporteInformaticaApiService {
     const headers = await this.getHeaders(integration);
     const apiUrl = await this.getApiUrl(integration);
 
-    this.debugRequest(integration, payload);
-
     try {
       const response = await lastValueFrom(
         this.httpService.post<SIGetPatientDataResponse>(`${apiUrl}/api/webApiAOL/BuscaDadosPessoa`, payload, headers),
@@ -389,8 +369,6 @@ export class SuporteInformaticaApiService {
     const headers = await this.getHeaders(integration);
     const apiUrl = await this.getApiUrl(integration);
 
-    this.debugRequest(integration, payload);
-
     try {
       const response = await lastValueFrom(
         this.httpService.post<SIInsurancesResponse>(`${apiUrl}/api/webApiAOL/buscaConvenios`, payload, headers),
@@ -416,8 +394,6 @@ export class SuporteInformaticaApiService {
     const payload = { ...data, ...defaultData };
     const headers = await this.getHeaders(integration);
     const apiUrl = await this.getApiUrl(integration);
-
-    this.debugRequest(integration, payload);
 
     try {
       const response = await lastValueFrom(
@@ -449,8 +425,6 @@ export class SuporteInformaticaApiService {
     const headers = await this.getHeaders(integration);
     const apiUrl = await this.getApiUrl(integration);
 
-    this.debugRequest(integration, payload);
-
     try {
       const response = await lastValueFrom(
         this.httpService.post<SIAppointmentTypesResponse>(
@@ -481,8 +455,7 @@ export class SuporteInformaticaApiService {
     const headers = await this.getHeaders(integration);
     const apiUrl = await this.getApiUrl(integration);
 
-    this.debugRequest(integration, payload);
-
+    this.dispatchAuditEvent(integration, payload, 'listProfessionalTypes', AuditDataType.externalRequest);
     try {
       const response = await lastValueFrom(
         this.httpService.post<SIProfessionalTypesResponse>(
@@ -513,8 +486,6 @@ export class SuporteInformaticaApiService {
     const headers = await this.getHeaders(integration);
     const apiUrl = await this.getApiUrl(integration);
 
-    this.debugRequest(integration, payload);
-
     try {
       const response = await lastValueFrom(
         this.httpService.post<SISpecialitiesResponse>(`${apiUrl}/api/webApiAOL/buscaEspecialidades`, payload, headers),
@@ -541,8 +512,6 @@ export class SuporteInformaticaApiService {
     const headers = await this.getHeaders(integration);
     const apiUrl = await this.getApiUrl(integration);
 
-    this.debugRequest(integration, payload);
-
     try {
       const response = await lastValueFrom(
         this.httpService.post<SILocalResponse>(`${apiUrl}/api/Local/BuscaPorId`, payload, headers),
@@ -567,8 +536,6 @@ export class SuporteInformaticaApiService {
     const payload = { ...defaultData };
     const headers = await this.getHeaders(integration);
     const apiUrl = await this.getApiUrl(integration);
-
-    this.debugRequest(integration, payload);
 
     try {
       const response = await lastValueFrom(
@@ -595,8 +562,6 @@ export class SuporteInformaticaApiService {
     const payload = { ...data, ...defaultData };
     const headers = await this.getHeaders(integration);
     const apiUrl = await this.getApiUrl(integration);
-
-    this.debugRequest(integration, payload);
 
     try {
       const response = await lastValueFrom(
@@ -627,8 +592,6 @@ export class SuporteInformaticaApiService {
     const payload = { ...data, ...defaultData };
     const headers = await this.getHeaders(integration);
     const apiUrl = await this.getApiUrl(integration);
-
-    this.debugRequest(integration, payload);
 
     try {
       const response = await lastValueFrom(
@@ -661,7 +624,6 @@ export class SuporteInformaticaApiService {
     const headers = await this.getHeaders(integration);
     const apiUrl = await this.getApiUrl(integration);
 
-    this.debugRequest(integration, payload);
     this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
     try {
@@ -696,7 +658,6 @@ export class SuporteInformaticaApiService {
     const headers = await this.getHeaders(integration);
     const apiUrl = await this.getApiUrl(integration);
 
-    this.debugRequest(integration, payload);
     this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
     try {
@@ -731,7 +692,6 @@ export class SuporteInformaticaApiService {
     const headers = await this.getHeaders(integration);
     const apiUrl = await this.getApiUrl(integration);
 
-    this.debugRequest(integration, payload);
     this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
     try {
@@ -766,7 +726,6 @@ export class SuporteInformaticaApiService {
     const headers = await this.getHeaders(integration);
     const apiUrl = await this.getApiUrl(integration);
 
-    this.debugRequest(integration, payload);
     this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
     try {
@@ -801,7 +760,6 @@ export class SuporteInformaticaApiService {
     const headers = await this.getHeaders(integration);
     const apiUrl = await this.getApiUrl(integration);
 
-    this.debugRequest(integration, payload);
     this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
     try {
@@ -836,7 +794,6 @@ export class SuporteInformaticaApiService {
     const headers = await this.getHeaders(integration);
     const apiUrl = await this.getApiUrl(integration);
 
-    this.debugRequest(integration, payload);
     this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
     try {
@@ -871,7 +828,6 @@ export class SuporteInformaticaApiService {
     const headers = await this.getHeaders(integration);
     const apiUrl = await this.getApiUrl(integration);
 
-    this.debugRequest(integration, payload);
     this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
     try {
@@ -905,8 +861,6 @@ export class SuporteInformaticaApiService {
     const headers = await this.getHeaders(integration);
     const apiUrl = await this.getApiUrl(integration);
 
-    this.debugRequest(integration, payload);
-
     try {
       const response = await lastValueFrom(
         this.httpService.post<SIProceduresResponse>(
@@ -936,8 +890,6 @@ export class SuporteInformaticaApiService {
     const payload = { ...data, ...defaultData };
     const headers = await this.getHeaders(integration);
     const apiUrl = await this.getApiUrl(integration);
-
-    this.debugRequest(integration, payload);
 
     try {
       const response = await lastValueFrom(
@@ -969,7 +921,6 @@ export class SuporteInformaticaApiService {
     const headers = await this.getHeaders(integration);
     const apiUrl = await this.getApiUrl(integration);
 
-    this.debugRequest(integration, payload);
     this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
     try {
@@ -1002,8 +953,6 @@ export class SuporteInformaticaApiService {
     const payload = { ...data, ...defaultData };
     const headers = await this.getHeaders(integration);
     const apiUrl = await this.getApiUrl(integration);
-
-    this.debugRequest(integration, payload);
 
     try {
       const response = await lastValueFrom(

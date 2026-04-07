@@ -1,4 +1,5 @@
 import { forwardRef, Inject, Injectable } from '@nestjs/common';
+import { Readable } from 'stream';
 import { DownloadMedicalReportTokenData, DownloadTokenData } from '../interfaces/download-token.interface';
 import * as jwt from 'jsonwebtoken';
 import { IntegratorService } from '../../integrator/service/integrator.service';
@@ -36,6 +37,7 @@ export class SchedulingDownloadReportService {
     medicalReportCode?: string,
     medicalReportExamCode?: string,
     isExternal?: boolean,
+    customData?: unknown,
   ): string {
     const data: DownloadMedicalReportTokenData = {
       integrationId,
@@ -45,6 +47,7 @@ export class SchedulingDownloadReportService {
       medicalReportCode,
       medicalReportExamCode,
       isExternal,
+      customData,
     };
 
     return jwt.sign(data, process.env.SCHEDULING_DOWNLOAD_REPORT_JWT_SECRET_KEY, {
@@ -60,6 +63,7 @@ export class SchedulingDownloadReportService {
     medicalReportCode?: string,
     medicalReportExamCode?: string,
     isExternal?: boolean,
+    data?: unknown,
     isRedirect?: boolean,
   ): string {
     const accessToken = this.registerMedicalReportDownloadToken(
@@ -70,12 +74,13 @@ export class SchedulingDownloadReportService {
       medicalReportCode,
       medicalReportExamCode,
       isExternal,
+      data,
     );
     const baseUrl = this.getBaseUrl();
     return `${baseUrl}/integration/${integrationId}/download-report/medical-report?token=${accessToken}&isRedirect=${!!isRedirect}`;
   }
 
-  public async downloadMedicalReport(integrationId: string, data: DownloadMedicalReportTokenData): Promise<Buffer> {
+  public async downloadMedicalReport(integrationId: string, data: DownloadMedicalReportTokenData): Promise<Readable> {
     return await this.integratorService.downloadMedicalReport(integrationId, data);
   }
 

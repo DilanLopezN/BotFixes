@@ -1116,14 +1116,6 @@ export class DoctoraliaService implements IIntegratorService {
             };
           }
 
-          // Rede primavera
-          if (
-            appointment?.notice &&
-            ['65b5429ac731a7aabfe84a1a', '65ba83002cbb9186212fd7ba'].includes(castObjectIdToString(integration._id))
-          ) {
-            replacedAppointment.guidance = appointment?.notice;
-          }
-
           replacedAppointments.push(replacedAppointment);
         }
       }
@@ -1464,19 +1456,6 @@ export class DoctoraliaService implements IIntegratorService {
 
         if (preparation) {
           response.guidance = preparation;
-        }
-
-        // Por enquanto fixo até descobrir se é padrão retornar dado aqui
-        try {
-          if (
-            description &&
-            !response.guidance &&
-            ['60e5bad284370800076626fc', '65b5429ac731a7aabfe84a1a'].includes(castObjectIdToString(integration._id))
-          ) {
-            response.guidance = description;
-          }
-        } catch (error) {
-          console.log('Error on get description', integration._id);
         }
 
         return response;

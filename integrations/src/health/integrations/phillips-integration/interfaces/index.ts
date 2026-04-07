@@ -260,6 +260,7 @@ export interface PhillipsInsurance {
   insuranceDescription: string;
   typeOfInsurance: string;
   active: string;
+  webSchedule?: boolean; // true = habilitado para agendamento web
   inclusionDate?: string;
   day?: number;
   referenceDate?: string;

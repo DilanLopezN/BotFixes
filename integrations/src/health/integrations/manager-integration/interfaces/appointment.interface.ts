@@ -114,6 +114,7 @@ interface ManagerAvailableSchedulesResponse {
       data: string;
       horarios: {
         horario: string;
+        horaChegada: string;
         recurso: number;
         aparelho: number;
         duracao: number;

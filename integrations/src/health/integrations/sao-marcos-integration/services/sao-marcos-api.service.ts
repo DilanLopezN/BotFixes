@@ -1,5 +1,5 @@
 import { HttpService } from '@nestjs/axios';
-import { HttpStatus, Injectable, Logger } from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
 import { lastValueFrom } from 'rxjs';
 import { HttpErrorOrigin, HTTP_ERROR_THROWER } from '../../../../common/exceptions.service';
 import {
@@ -56,8 +56,6 @@ const httpsAgent = new https.Agent({
 
 @Injectable()
 export class SaoMarcosApiService {
-  private readonly logger = new Logger(SaoMarcosApiService.name);
-
   constructor(
     private readonly httpService: HttpService,
     private readonly sentryErrorHandlerService: SentryErrorHandlerService,
@@ -76,14 +74,6 @@ export class SaoMarcosApiService {
         return Promise.reject(error);
       },
     );
-  }
-
-  private debugRequest(integration: IntegrationDocument, payload: any, funcName: string) {
-    if (!integration.debug) {
-      return;
-    }
-
-    this.logger.debug(`${integration._id}:${integration.name}:SAO-MARCOS-debug:${funcName}`, payload);
   }
 
   private dispatchAuditEvent(integration: IntegrationDocument, data: any, identifier: string, dataType: AuditDataType) {
@@ -134,7 +124,6 @@ export class SaoMarcosApiService {
 
   public async getOrganizationUnits(integration: IntegrationDocument): Promise<SaoMarcosOrganizationUnitsResponse[]> {
     try {
-      this.debugRequest(integration, {}, this.getOrganizationUnits.name);
       this.dispatchAuditEvent(integration, {}, this.getOrganizationUnits.name, AuditDataType.externalRequest);
 
       const response = await lastValueFrom(
@@ -166,7 +155,6 @@ export class SaoMarcosApiService {
     payload: SaoMarcosInsurancesParamsRequest,
   ): Promise<SaoMarcosInsurancesResponse[]> {
     try {
-      this.debugRequest(integration, payload, this.getInsurances.name);
       this.dispatchAuditEvent(integration, payload, this.getInsurances.name, AuditDataType.externalRequest);
 
       const response = await lastValueFrom(
@@ -193,7 +181,6 @@ export class SaoMarcosApiService {
     payload: SaoMarcosInsurancePlansParamsRequest,
   ): Promise<SaoMarcosInsurancePlansResponse[]> {
     try {
-      this.debugRequest(integration, payload, this.getInsurancePlans.name);
       this.dispatchAuditEvent(integration, payload, this.getInsurancePlans.name, AuditDataType.externalRequest);
 
       const response = await lastValueFrom(
@@ -223,7 +210,6 @@ export class SaoMarcosApiService {
     payload: SaoMarcosSpecialitiesParamsRequest,
   ): Promise<SaoMarcosSpecialitiesResponse[]> {
     try {
-      this.debugRequest(integration, payload, this.getSpecialities.name);
       this.dispatchAuditEvent(integration, payload, this.getSpecialities.name, AuditDataType.externalRequest);
 
       const response = await lastValueFrom(
@@ -253,7 +239,6 @@ export class SaoMarcosApiService {
     payload: SaoMarcosProceduresParamsRequest,
   ): Promise<SaoMarcosProceduresResponse[]> {
     try {
-      this.debugRequest(integration, payload, this.getProcedures.name);
       this.dispatchAuditEvent(integration, payload, this.getProcedures.name, AuditDataType.externalRequest);
 
       const response = await lastValueFrom(
@@ -280,7 +265,6 @@ export class SaoMarcosApiService {
 
   public async getAppointmentTypes(integration: IntegrationDocument): Promise<SaoMarcosAppointmentTypeResponse[]> {
     try {
-      this.debugRequest(integration, {}, this.getAppointmentTypes.name);
       this.dispatchAuditEvent(integration, {}, this.getAppointmentTypes.name, AuditDataType.externalRequest);
 
       const response = await lastValueFrom(
@@ -312,7 +296,6 @@ export class SaoMarcosApiService {
     payload: SaoMarcosDoctorsParamsRequest,
   ): Promise<SaoMarcosDoctorsResponse[]> {
     try {
-      this.debugRequest(integration, payload, this.getDoctors.name);
       this.dispatchAuditEvent(integration, payload, this.getDoctors.name, AuditDataType.externalRequest);
 
       const response = await lastValueFrom(
@@ -342,7 +325,6 @@ export class SaoMarcosApiService {
     payload: SaoMarcosCreatePatient,
   ): Promise<SaoMarcosCreatePatienResponse> {
     try {
-      this.debugRequest(integration, payload, this.createPatient.name);
       this.dispatchAuditEvent(integration, payload, this.createPatient.name, AuditDataType.externalRequest);
 
       const response = await lastValueFrom(
@@ -381,7 +363,6 @@ export class SaoMarcosApiService {
     payload: SaoMarcosUpdatePatient,
   ): Promise<SaoMarcosUpdatePatientResponse> {
     try {
-      this.debugRequest(integration, payload, this.updatePatient.name);
       this.dispatchAuditEvent(integration, payload, this.updatePatient.name, AuditDataType.externalRequest);
 
       const response = await lastValueFrom(
@@ -407,7 +388,6 @@ export class SaoMarcosApiService {
     patientCpf: string,
   ): Promise<SaoMarcosGetPatientResponse> {
     try {
-      this.debugRequest(integration, { patientCpf }, this.getPatientByCpf.name);
       this.dispatchAuditEvent(integration, { patientCpf }, this.getPatientByCpf.name, AuditDataType.externalRequest);
 
       const response = await lastValueFrom(
@@ -443,7 +423,6 @@ export class SaoMarcosApiService {
     patientCode: string,
   ): Promise<SaoMarcosGetPatientResponse> {
     try {
-      this.debugRequest(integration, { patientCode }, this.getPatientByCode.name);
       this.dispatchAuditEvent(integration, { patientCode }, this.getPatientByCode.name, AuditDataType.externalRequest);
 
       const response = await lastValueFrom(
@@ -479,7 +458,6 @@ export class SaoMarcosApiService {
     payload: SaoMarcosCancelSchedule,
   ): Promise<SaoMarcosCancelScheduleResponse> {
     try {
-      this.debugRequest(integration, payload, this.cancelSchedule.name);
       this.dispatchAuditEvent(integration, payload, this.cancelSchedule.name, AuditDataType.externalRequest);
 
       const response = await lastValueFrom(
@@ -505,7 +483,6 @@ export class SaoMarcosApiService {
     payload: SaoMarcosCreateSchedule,
   ): Promise<SaoMarcosCreateScheduleResponse> {
     try {
-      this.debugRequest(integration, payload, this.createSchedule.name);
       this.dispatchAuditEvent(integration, payload, this.createSchedule.name, AuditDataType.externalRequest);
 
       const response = await lastValueFrom(
@@ -531,7 +508,6 @@ export class SaoMarcosApiService {
     payload: SaoMarcosReschedule,
   ): Promise<SaoMarcosRescheduleResponse> {
     try {
-      this.debugRequest(integration, payload, this.reschedule.name);
       this.dispatchAuditEvent(integration, payload, this.reschedule.name, AuditDataType.externalRequest);
 
       const response = await lastValueFrom(
@@ -557,7 +533,6 @@ export class SaoMarcosApiService {
     payload: SaoMarcosPatientSchedules,
   ): Promise<SaoMarcosPatientSchedulesResponse[]> {
     try {
-      this.debugRequest(integration, payload, this.getPatientSchedules.name);
       this.dispatchAuditEvent(integration, payload, this.getPatientSchedules.name, AuditDataType.externalRequest);
 
       const response = await lastValueFrom(
@@ -593,7 +568,6 @@ export class SaoMarcosApiService {
     payload: SaoMarcosAvailableSchedules,
   ): Promise<SaoMarcosAvailableSchedulesResponse[]> {
     try {
-      this.debugRequest(integration, payload, this.getAvailableSchedules.name);
       this.dispatchAuditEvent(integration, payload, this.getAvailableSchedules.name, AuditDataType.externalRequest);
 
       const response = await lastValueFrom(
@@ -624,7 +598,6 @@ export class SaoMarcosApiService {
     payload: SaoMarcoListSchedules,
   ): Promise<SaoMarcoListSchedulesResponse[]> {
     try {
-      this.debugRequest(integration, payload, this.listSchedules.name);
       this.dispatchAuditEvent(integration, payload, this.listSchedules.name, AuditDataType.externalRequest);
 
       const response = await lastValueFrom(
@@ -651,7 +624,6 @@ export class SaoMarcosApiService {
     payload: SaoMarcosConfirmSchedulePayload,
   ): Promise<SaoMarcosConfirmScheduleResponse> {
     try {
-      this.debugRequest(integration, payload, this.confirmSchedule.name);
       this.dispatchAuditEvent(integration, payload, this.confirmSchedule.name, AuditDataType.externalRequest);
 
       const { externalId } = payload;

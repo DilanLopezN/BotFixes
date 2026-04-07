@@ -58,7 +58,7 @@ export class MatrixListSchedulesCachedService {
 
   @Cron('*/20 6-20 * * *')
   async preloadCache() {
-    if (!shouldRunCron()) {
+    if (!shouldRunCron() || process.env.NODE_ENV === 'local') {
       return;
     }
 
@@ -112,10 +112,6 @@ export class MatrixListSchedulesCachedService {
 
       for (let i = 0; i < promises.length; i += concurrencyLimit) {
         const chunk = promises.slice(i, i + concurrencyLimit);
-        this.logger.debug(
-          `Processando chunk ${Math.floor(i / concurrencyLimit) + 1}/${Math.ceil(promises.length / concurrencyLimit)} (${chunk.length} operações)`,
-        );
-
         const chunkResults = await Promise.allSettled(chunk);
         results.push(...chunkResults);
 

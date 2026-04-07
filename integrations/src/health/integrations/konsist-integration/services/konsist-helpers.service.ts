@@ -6,25 +6,29 @@ import { AppointmentStatus } from '../../../interfaces/appointment.interface';
 import { CorrelationFilter } from '../../../interfaces/correlation-filter.interface';
 import { formatPhone } from '../../../../common/helpers/format-phone';
 import {
-  KonsistDadosPacienteResponse,
-  KonsistAgendaHorarioRetorno,
-  KonsistAgendamentoResponse,
-  KonsistAgendamentoItem,
-  KonsistIncluirPacienteRequest,
-  KonsistContato,
+  KonsistPatientDataResponse,
+  KonsistScheduledHourResponse,
+  KonsistListSchedulesResponse,
+  KonsistScheduleItem,
+  KonsistCreatePatientRequest,
+  KonsistContact,
 } from '../interfaces';
-
+import { Types } from 'mongoose';
+import { Entity, EntityDocument } from 'health/entities/schema';
+import { EntitiesService } from '../../../entities/services/entities.service';
+import { EntityType } from 'health/interfaces/entity.interface';
 @Injectable()
 export class KonsistHelpersService {
   private readonly logger = new Logger(KonsistHelpersService.name);
   private readonly dateFormat = 'YYYY-MM-DD';
   private readonly dateTimeFormat = 'YYYY-MM-DDTHH:mm:ss';
+  constructor(private readonly entitiesService: EntitiesService) {}
 
   /**
    * Transforma paciente do Konsist para formato padrão
    * Interface KonsistDadosPacienteResponse: idpaciente, nomeregistro, nomesocial, nascimento, sexo
    */
-  public replacePatient(paciente: KonsistIncluirPacienteRequest): Patient {
+  public replacePatient(paciente: KonsistCreatePatientRequest): Patient {
     if (!paciente) return null;
 
     return {
@@ -39,7 +43,7 @@ export class KonsistHelpersService {
     };
   }
 
-  replaceKonsistPatientToPatient(paciente: KonsistDadosPacienteResponse): Patient {
+  replaceKonsistPatientToPatient(paciente: KonsistPatientDataResponse): Patient {
     return {
       code: String(paciente.idpaciente),
       name: paciente.nomeregistro || paciente.nomesocial,
@@ -55,7 +59,7 @@ export class KonsistHelpersService {
    * Transforma paciente completo do Konsist (com contatos) para formato padrão
    * KonsistContato tem: descricao e conteudo (não ddd/numero)
    */
-  public replacePatientWithContacts(paciente: KonsistAgendamentoResponse): Patient {
+  public replacePatientWithContacts(paciente: KonsistListSchedulesResponse): Patient {
     if (!paciente) return null;
 
     let phone = '';
@@ -191,7 +195,7 @@ export class KonsistHelpersService {
   /**
    * Transforma horário disponível do Konsist para RawAppointment
    */
-  public transformAvailableSlot(slot: KonsistAgendaHorarioRetorno, filters: CorrelationFilter): RawAppointment {
+  public transformAvailableSlot(slot: KonsistScheduledHourResponse, filters: CorrelationFilter): RawAppointment {
     const dateTime = this.combineDateTime(slot.data, slot.hora);
 
     return {
@@ -210,21 +214,17 @@ export class KonsistHelpersService {
   /**
    * Transforma agendamento do Konsist para RawAppointment
    */
-  public transformAppointment(
-    agendamento: KonsistAgendamentoItem,
-    _paciente: KonsistAgendamentoResponse,
-  ): RawAppointment {
+  public async transformAppointment(
+    agendamento: KonsistScheduleItem,
+    _paciente: KonsistListSchedulesResponse,
+    integrationId: Types.ObjectId,
+  ): Promise<RawAppointment> {
     const dateTime = this.combineDateTime(agendamento.agendamento_data, agendamento.agendamento_hora);
 
-    return {
+    const schedule: RawAppointment = {
       appointmentCode: String(agendamento.agendamento_chave),
       appointmentDate: dateTime,
       duration: '-1',
-      doctorId: '-1',
-      organizationUnitId: '1',
-      specialityId: '-1',
-      insuranceId: '-1',
-      procedureId: agendamento.agendamento_codigo_procedimento || '-1',
       status: this.mapAppointmentStatus(agendamento.agendamento_status),
       data: {
         medico: agendamento.agendamento_medico,
@@ -236,16 +236,137 @@ export class KonsistHelpersService {
         telefone: agendamento.empresa_telefone,
       },
     };
-  }
 
+    const defaultData: Partial<EntityDocument> = {
+      canSchedule: false,
+      canReschedule: false,
+      canCancel: true,
+      canConfirmActive: false,
+      canConfirmPassive: true,
+      canView: true,
+    };
+
+    try {
+      // Busca médico pelo nome
+      if (agendamento.agendamento_medico) {
+        const doctor = await this.entitiesService.getEntity(
+          EntityType.doctor,
+          { name: agendamento.agendamento_medico } as Partial<Entity>,
+          integrationId,
+        );
+
+        if (doctor) {
+          schedule.doctorId = doctor.code;
+        } else {
+          schedule.doctorDefault = {
+            code: '-1',
+            name: agendamento.agendamento_medico,
+            friendlyName: agendamento.agendamento_medico,
+            ...defaultData,
+          };
+        }
+      }
+
+      // Busca especialidade pelo nome
+      if (agendamento.agendamento_especialidade) {
+        const speciality = await this.entitiesService.getEntity(
+          EntityType.speciality,
+          { name: agendamento.agendamento_especialidade } as Partial<Entity>,
+          integrationId,
+        );
+
+        if (speciality) {
+          schedule.specialityId = speciality.code;
+        } else {
+          schedule.specialityDefault = {
+            code: '-1',
+            name: agendamento.agendamento_especialidade,
+            friendlyName: agendamento.agendamento_especialidade,
+            ...defaultData,
+          };
+        }
+      }
+
+      // Busca procedimento pelo nome
+      if (agendamento.agendamento_procedimento) {
+        const procedure = await this.entitiesService.getEntity(
+          EntityType.procedure,
+          { name: agendamento.agendamento_procedimento } as Partial<Entity>,
+          integrationId,
+        );
+
+        if (procedure) {
+          schedule.procedureId = procedure.code;
+        } else {
+          schedule.procedureDefault = {
+            code: agendamento.agendamento_codigo_procedimento || '-1',
+            name: agendamento.agendamento_procedimento,
+            friendlyName: agendamento.agendamento_procedimento,
+            ...defaultData,
+          };
+        }
+      }
+
+      // Busca unidade pelo nome
+      if (agendamento.empresa_unidade) {
+        const organizationUnit = await this.entitiesService.getEntity(
+          EntityType.organizationUnit,
+          { name: agendamento.empresa_unidade } as Partial<Entity>,
+          integrationId,
+        );
+
+        if (organizationUnit) {
+          schedule.organizationUnitId = organizationUnit.code;
+        } else {
+          schedule.organizationUnitDefault = {
+            code: '1',
+            name: agendamento.empresa_unidade,
+            friendlyName: agendamento.empresa_unidade,
+            ...defaultData,
+          };
+        }
+      }
+    } catch (error) {
+      this.logger.error('KonsistHelpersService.transformAppointment', error);
+    }
+
+    return schedule;
+  }
   /**
    * Combina data e hora em ISO string
    */
   private combineDateTime(date?: string, time?: string): string {
-    if (!date) return '';
+    // Se a data não vier, não há como formar um DateTime válido
+    if (!date || typeof date !== 'string') {
+      return '';
+    }
 
-    const dateTime = time ? `${date} ${time}` : date;
-    return moment(dateTime, 'YYYY-MM-DD HH:mm').toISOString();
+    // Normaliza entradas
+    const normalizedDate = date.trim();
+    const normalizedTime = typeof time === 'string' ? time.trim() : undefined;
+
+    // Define o formato esperado explicitamente
+    const format = normalizedTime ? 'YYYY-MM-DD HH:mm' : 'YYYY-MM-DD';
+
+    // Monta a string final
+    const dateTime = normalizedTime ? `${normalizedDate} ${normalizedTime}` : normalizedDate;
+
+    // Parsing estrito para evitar "datas mágicas"
+    const parsed = moment(dateTime, format, true);
+
+    // Validação obrigatória antes de qualquer conversão
+    if (!parsed.isValid()) {
+      // Falha silenciosa e segura: não quebra o fluxo da aplicação
+      return '';
+    }
+
+    // Conversão segura para ISO
+    try {
+      return parsed.toISOString();
+    } catch {
+      // Garantia adicional contra qualquer falha inesperada
+      return '';
+    }
   }
 
   /**
@@ -267,45 +388,6 @@ export class KonsistHelpersService {
    */
   public formatTimeForKonsist(date: Date | string): string {
     return moment(date).format('HH:mm');
-  }
-
-  /**
-   * Valida CPF (apenas formato, não dígitos verificadores)
-   */
-  public validateCPF(cpf: string): boolean {
-    if (!cpf) return false;
-    const cleanCPF = cpf.replace(/\D/g, '');
-    return cleanCPF.length === 11;
-  }
-
-  /**
-   * Formata telefone para o padrão do Konsist
-   */
-  public formatPhoneForKonsist(phone: string): { ddi?: string; ddd: string; numero: string } | null {
-    if (!phone) return null;
-
-    const cleanPhone = phone.replace(/\D/g, '');
-
-    if (cleanPhone.length < 10) return null;
-
-    // Com DDI (ex: 5511999999999)
-    if (cleanPhone.length === 13) {
-      return {
-        ddi: cleanPhone.substring(0, 2),
-        ddd: cleanPhone.substring(2, 4),
-        numero: cleanPhone.substring(4),
-      };
-    }
-
-    // Sem DDI (ex: 11999999999)
-    if (cleanPhone.length >= 10) {
-      return {
-        ddd: cleanPhone.substring(0, 2),
-        numero: cleanPhone.substring(2),
-      };
-    }
-
-    return null;
   }
 
   /**

@@ -44,18 +44,20 @@ import { AuditService } from '../../../audit/services/audit.service';
 import { CredentialsHelper } from '../../../credentials/credentials.service';
 import { NetpacsCredentialsResponse } from '../interfaces/credentials';
 import { castObjectIdToString } from '../../../../common/helpers/cast-objectid';
+import { NetpacsServiceHelpersService } from './netpacs-helpers.service';
 
 type ParamsType = { [key: string]: string | number | boolean };
 
 @Injectable()
 export class NetpacsApiService {
-  private logger = new Logger(NetpacsApiService.name);
+  private readonly logger = new Logger(NetpacsApiService.name);
 
   constructor(
     private readonly httpService: HttpService,
     private readonly sentryErrorHandlerService: SentryErrorHandlerService,
     private readonly auditService: AuditService,
     private readonly credentialsHelper: CredentialsHelper,
+    private readonly netpacsServiceHelpersService: NetpacsServiceHelpersService,
   ) {
     this.httpService.axiosRef.interceptors.request.use(
       async function (config) {
@@ -70,12 +72,13 @@ export class NetpacsApiService {
     );
   }
 
-  private debugRequest(integration: IntegrationDocument, payload: any) {
-    if (!integration.debug) {
-      return;
-    }
+  private debugRequest(integration: IntegrationDocument, payload: any, funcName?: string) {
+    if (!integration || (!integration.debug && process.env.NODE_ENV !== 'local')) return;
 
-    this.logger.debug(`${integration._id}:${integration.name}:NETPACS-debug`, payload);
+    const base = `${integration._id}:${integration.name}:${IntegrationType.NETPACS}-debug`;
+    const label = funcName ? `${base}:${funcName}` : base;
+
+    this.logger.debug(label, payload);
   }
 
   private async getHeaders(integration: IntegrationDocument) {
@@ -131,9 +134,10 @@ export class NetpacsApiService {
   }
 
   public async getPatientByCode(integration: IntegrationDocument, code: string): Promise<GetPatientResponse> {
-    this.debugRequest(integration, { code });
-
+    const methodName = 'getPatientByCode';
+    this.debugRequest(integration, { code }, methodName);
     try {
+      this.debugRequest(integration, { code }, 'getPatientByCode');
       const request = await lastValueFrom(
         this.httpService.get<GetPatientResponse>(await this.getApiUrl(integration, `/netris/api/pacientes/${code}`), {
           ...(await this.getHeaders(integration)),
@@ -146,7 +150,7 @@ export class NetpacsApiService {
 
       return request?.data;
     } catch (error) {
-      this.handleResponseError(integration, error, { code }, 'getPatientByCode');
+      this.handleResponseError(integration, error, { code }, methodName);
       if (error?.response?.status === HttpStatus.NO_CONTENT) {
         throw HTTP_ERROR_THROWER(HttpStatus.NOT_FOUND, 'User not found', undefined, true);
       }
@@ -160,9 +164,10 @@ export class NetpacsApiService {
   }
 
   public async getPatientByCpf(integration: IntegrationDocument, cpf: string): Promise<GetPatientResponse[]> {
-    this.debugRequest(integration, { cpf });
-
+    const methodName = 'getPatientByCpf';
+    this.debugRequest(integration, { cpf }, methodName);
     try {
+      this.debugRequest(integration, { cpf }, 'getPatientByCpf');
       const request = await lastValueFrom(
         this.httpService.get<GetPatientResponse[]>(await this.getApiUrl(integration, '/netris/api/pacientes'), {
           ...(await this.getHeaders(integration)),
@@ -178,7 +183,7 @@ export class NetpacsApiService {
 
       return request?.data;
     } catch (error) {
-      this.handleResponseError(integration, error, { cpf }, 'getPatientByCpf');
+      this.handleResponseError(integration, error, { cpf }, methodName);
       if (error?.response?.status === HttpStatus.NO_CONTENT) {
         throw HTTP_ERROR_THROWER(HttpStatus.NOT_FOUND, 'User not found', undefined, true);
       }
@@ -196,9 +201,10 @@ export class NetpacsApiService {
     payload: CreatePatientRequest,
   ): Promise<CreatePacientResponse> {
     const methodName = 'createPatient';
-    this.debugRequest(integration, payload);
+    this.debugRequest(integration, payload, methodName);
 
     try {
+      this.debugRequest(integration, payload, methodName);
       const response = await lastValueFrom(
         this.httpService.post<CreatePacientResponse>(
           await this.getApiUrl(integration, '/netris/api/pacientes'),
@@ -231,9 +237,10 @@ export class NetpacsApiService {
   }
 
   public async getBranches1(integration: IntegrationDocument, params?: ParamsType): Promise<BranchesResponse[]> {
-    this.debugRequest(integration, params);
-
+    const methodName = 'getBranches1';
+    this.debugRequest(integration, params, methodName);
     try {
+      this.debugRequest(integration, params, 'getBranches');
       const request = await lastValueFrom(
         this.httpService.get<BranchesResponse[]>(await this.getApiUrl(integration, '/netris/api/filiais'), {
           ...(await this.getHeaders(integration)),
@@ -243,7 +250,7 @@ export class NetpacsApiService {
 
       return request?.data;
     } catch (error) {
-      this.handleResponseError(integration, error, params, 'getBranches');
+      this.handleResponseError(integration, error, params, methodName);
       throw HTTP_ERROR_THROWER(
         error?.response?.status || HttpStatus.BAD_REQUEST,
         error?.response?.data || error,
@@ -257,9 +264,10 @@ export class NetpacsApiService {
     params?: ParamsType,
     ignoreException?: boolean,
   ): Promise<UnitResponse[]> {
-    this.debugRequest(integration, params);
-
+    const methodName = 'listUnits';
+    this.debugRequest(integration, params, methodName);
     try {
+      this.debugRequest(integration, params, 'listUnits');
       const request = await lastValueFrom(
         this.httpService.get<UnitResponse[]>(await this.getApiUrl(integration, '/netris/api/unidades'), {
           ...(await this.getHeaders(integration)),
@@ -269,7 +277,7 @@ export class NetpacsApiService {
 
       return request?.data;
     } catch (error) {
-      this.handleResponseError(integration, error, params, 'listUnits', ignoreException);
+      this.handleResponseError(integration, error, params, methodName, ignoreException);
       throw HTTP_ERROR_THROWER(
         error?.response?.status || HttpStatus.BAD_REQUEST,
         error?.response?.data || error,
@@ -279,9 +287,10 @@ export class NetpacsApiService {
   }
 
   public async getProcedures(integration: IntegrationDocument, params?: ParamsType): Promise<ProceduresResponse[]> {
-    this.debugRequest(integration, params);
-
+    const methodName = 'getProcedures';
+    this.debugRequest(integration, params, methodName);
     try {
+      this.debugRequest(integration, params, 'getProcedures');
       const request = await lastValueFrom(
         this.httpService.get<ProceduresResponse[]>(await this.getApiUrl(integration, '/netris/api/procedimentos'), {
           ...(await this.getHeaders(integration)),
@@ -291,7 +300,7 @@ export class NetpacsApiService {
 
       return request?.data;
     } catch (error) {
-      this.handleResponseError(integration, error, params, 'getProcedures');
+      this.handleResponseError(integration, error, params, methodName);
       throw HTTP_ERROR_THROWER(
         error?.response?.status || HttpStatus.BAD_REQUEST,
         error?.response?.data || error,
@@ -304,10 +313,12 @@ export class NetpacsApiService {
     integration: IntegrationDocument,
     params?: ParamsType,
   ): Promise<ProceduresResponse[]> {
-    this.debugRequest(integration, params);
+    const methodName = 'getProceduresByInsurance';
+    this.debugRequest(integration, params, methodName);
     const { id_plano_convenio, ...otherParams } = params;
 
     try {
+      this.debugRequest(integration, params, 'getProceduresByInsurance');
       if (params.id_plano_convenio) {
         const request = await lastValueFrom(
           this.httpService.get<ProceduresResponse[]>(
@@ -323,7 +334,7 @@ export class NetpacsApiService {
 
       return [];
     } catch (error) {
-      this.handleResponseError(integration, error, params, 'getProcedures');
+      this.handleResponseError(integration, error, params, methodName);
       throw HTTP_ERROR_THROWER(
         error?.response?.status || HttpStatus.BAD_REQUEST,
         error?.response?.data || error,
@@ -333,9 +344,10 @@ export class NetpacsApiService {
   }
 
   public async getProcedure(integration: IntegrationDocument, procedureId: number): Promise<ProceduresResponse> {
-    this.debugRequest(integration, { procedureId });
-
+    const methodName = 'getProcedure';
+    this.debugRequest(integration, { procedureId }, methodName);
     try {
+      this.debugRequest(integration, { procedureId }, 'getProcedure');
       const request = await lastValueFrom(
         this.httpService.get<ProceduresResponse>(
           await this.getApiUrl(integration, `/netris/api/procedimentos/${procedureId}`),
@@ -347,7 +359,7 @@ export class NetpacsApiService {
 
       return request?.data;
     } catch (error) {
-      this.handleResponseError(integration, error, { procedureId }, 'getProcedure');
+      this.handleResponseError(integration, error, { procedureId }, methodName);
       throw HTTP_ERROR_THROWER(
         error?.response?.status || HttpStatus.BAD_REQUEST,
         error?.response?.data || error,
@@ -357,9 +369,10 @@ export class NetpacsApiService {
   }
 
   public async getModalities(integration: IntegrationDocument, params?: ParamsType): Promise<ModalitiesResponse[]> {
-    this.debugRequest(integration, params);
-
+    const methodName = 'getModalities';
+    this.debugRequest(integration, params, methodName);
     try {
+      this.debugRequest(integration, params, 'getModalities');
       const request = await lastValueFrom(
         this.httpService.get<ModalitiesResponse[]>(await this.getApiUrl(integration, '/netris/api/modalidades'), {
           ...(await this.getHeaders(integration)),
@@ -369,7 +382,7 @@ export class NetpacsApiService {
 
       return request?.data;
     } catch (error) {
-      this.handleResponseError(integration, error, params, 'getModalities');
+      this.handleResponseError(integration, error, params, methodName);
       throw HTTP_ERROR_THROWER(
         error?.response?.status || HttpStatus.BAD_REQUEST,
         error?.response?.data || error,
@@ -379,9 +392,10 @@ export class NetpacsApiService {
   }
 
   public async getInsurances(integration: IntegrationDocument, params?: ParamsType): Promise<InsurancesResponse[]> {
-    this.debugRequest(integration, params);
-
+    const methodName = 'getInsurances';
+    this.debugRequest(integration, params, methodName);
     try {
+      this.debugRequest(integration, params, 'getInsurances');
       const request = await lastValueFrom(
         this.httpService.get<InsurancesResponse[]>(await this.getApiUrl(integration, '/netris/api/convenios'), {
           ...(await this.getHeaders(integration)),
@@ -391,7 +405,7 @@ export class NetpacsApiService {
 
       return request?.data;
     } catch (error) {
-      this.handleResponseError(integration, error, params, 'getInsurances');
+      this.handleResponseError(integration, error, params, methodName);
       throw HTTP_ERROR_THROWER(
         error?.response?.status || HttpStatus.BAD_REQUEST,
         error?.response?.data || error,
@@ -404,9 +418,10 @@ export class NetpacsApiService {
     integration: IntegrationDocument,
     params?: ParamsType,
   ): Promise<InsurancePlanResponse[]> {
-    this.debugRequest(integration, params);
-
+    const methodName = 'getInsurancePlans';
+    this.debugRequest(integration, params, methodName);
     try {
+      this.debugRequest(integration, params, 'getInsurancePlans');
       const request = await lastValueFrom(
         this.httpService.get<InsurancePlanResponse[]>(
           await this.getApiUrl(integration, '/netris/api/plano-convenios'),
@@ -419,7 +434,7 @@ export class NetpacsApiService {
 
       return request?.data;
     } catch (error) {
-      this.handleResponseError(integration, error, params, 'getInsurancePlans');
+      this.handleResponseError(integration, error, params, methodName);
       throw HTTP_ERROR_THROWER(
         error?.response?.status || HttpStatus.BAD_REQUEST,
         error?.response?.data || error,
@@ -429,9 +444,10 @@ export class NetpacsApiService {
   }
 
   public async getDoctors(integration: IntegrationDocument, params?: ParamsType): Promise<DoctorsResponse[]> {
-    this.debugRequest(integration, params);
-
+    const methodName = 'getDoctors';
+    this.debugRequest(integration, params, methodName);
     try {
+      this.debugRequest(integration, params, 'getDoctors');
       const request = await lastValueFrom(
         this.httpService.get<DoctorsResponse[]>(await this.getApiUrl(integration, '/netris/api/medicos'), {
           ...(await this.getHeaders(integration)),
@@ -441,7 +457,7 @@ export class NetpacsApiService {
 
       return request?.data;
     } catch (error) {
-      this.handleResponseError(integration, error, params, 'getDoctors');
+      this.handleResponseError(integration, error, params, methodName);
       throw HTTP_ERROR_THROWER(
         error?.response?.status || HttpStatus.BAD_REQUEST,
         error?.response?.data || error,
@@ -454,9 +470,10 @@ export class NetpacsApiService {
     integration: IntegrationDocument,
     params?: ParamsType,
   ): Promise<ProfessionalsResponse[]> {
-    this.debugRequest(integration, params);
-
+    const methodName = 'getProfessionals';
+    this.debugRequest(integration, params, methodName);
     try {
+      this.debugRequest(integration, params, 'getProfessionals');
       const request = await lastValueFrom(
         this.httpService.get<ProfessionalsResponse[]>(await this.getApiUrl(integration, '/netris/api/profissionais'), {
           ...(await this.getHeaders(integration)),
@@ -466,7 +483,7 @@ export class NetpacsApiService {
 
       return request?.data;
     } catch (error) {
-      this.handleResponseError(integration, error, params, 'getProfessionals');
+      this.handleResponseError(integration, error, params, methodName);
       throw HTTP_ERROR_THROWER(
         error?.response?.status || HttpStatus.BAD_REQUEST,
         error?.response?.data || error,
@@ -480,8 +497,7 @@ export class NetpacsApiService {
     params: SchedulesRequestParams,
   ): Promise<SchedulesResponse[][]> {
     const methodName = 'getSchedules';
-
-    this.debugRequest(integration, params);
+    this.debugRequest(integration, params, methodName);
     this.dispatchAuditEvent(integration, params, methodName, AuditDataType.externalRequest);
 
     try {
@@ -510,9 +526,9 @@ export class NetpacsApiService {
     payload: CancelAttendanceRequest,
   ): Promise<void> {
     const methodName = 'cancelAttendance';
-    this.debugRequest(integration, payload);
-
+    this.debugRequest(integration, { attendanceId, payload }, methodName);
     try {
+      this.debugRequest(integration, { attendanceId, payload }, methodName);
       const response = await lastValueFrom(
         this.httpService.patch<void>(
           await this.getApiUrl(integration, `/netris/api/atendimentos/${attendanceId}/cancelar`),
@@ -526,6 +542,11 @@ export class NetpacsApiService {
       this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;
     } catch (error) {
+      // Se for erro esperado, não envia ao Sentry e retorna sucesso
+      if (this.netpacsServiceHelpersService.isExpectedAttendanceError(error)) {
+        return;
+      }
+
       this.handleResponseError(integration, error, { attendanceId, payload }, methodName);
       throw HTTP_ERROR_THROWER(
         error?.response?.status || HttpStatus.BAD_REQUEST,
@@ -541,7 +562,7 @@ export class NetpacsApiService {
     payload: UpdateAttendanceStatusRequest,
   ): Promise<void> {
     const methodName = 'updateAttendanceStatus';
-    this.debugRequest(integration, payload);
+    this.debugRequest(integration, { attendanceId, payload }, methodName);
     this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
     try {
@@ -558,6 +579,11 @@ export class NetpacsApiService {
       this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;
     } catch (error) {
+      // Se for erro esperado, não envia ao Sentry e retorna sucesso
+      if (this.netpacsServiceHelpersService.isExpectedAttendanceError(error)) {
+        return;
+      }
+
       this.handleResponseError(integration, error, { attendanceId, payload }, methodName);
       throw HTTP_ERROR_THROWER(
         error?.response?.status || HttpStatus.BAD_REQUEST,
@@ -568,9 +594,10 @@ export class NetpacsApiService {
   }
 
   public async getAttendance(integration: IntegrationDocument, attendanceId: string): Promise<AttendanceResponse> {
-    this.debugRequest(integration, { attendanceId });
-
+    const methodName = 'getAttendance';
+    this.debugRequest(integration, { attendanceId }, methodName);
     try {
+      this.debugRequest(integration, { attendanceId }, 'getAttendance');
       const request = await lastValueFrom(
         this.httpService.get<AttendanceResponse>(
           await this.getApiUrl(integration, `/netris/api/atendimentos/${attendanceId}`),
@@ -582,7 +609,7 @@ export class NetpacsApiService {
 
       return request?.data;
     } catch (error) {
-      this.handleResponseError(integration, error, { attendanceId }, 'getAttendance');
+      this.handleResponseError(integration, error, { attendanceId }, methodName);
       throw HTTP_ERROR_THROWER(
         error?.response?.status || HttpStatus.BAD_REQUEST,
         error?.response?.data || error,
@@ -595,9 +622,10 @@ export class NetpacsApiService {
     integration: IntegrationDocument,
     params: AttendancesRequestParams,
   ): Promise<AttendanceResponse[]> {
-    this.debugRequest(integration, params);
-
+    const methodName = 'getAttendances';
+    this.debugRequest(integration, params, methodName);
     try {
+      this.debugRequest(integration, params, 'getAttendances');
       const request = await lastValueFrom(
         this.httpService.get<AttendanceResponse[]>(await this.getApiUrl(integration, '/netris/api/atendimentos'), {
           ...(await this.getHeaders(integration)),
@@ -607,7 +635,7 @@ export class NetpacsApiService {
 
       return request?.data;
     } catch (error) {
-      this.handleResponseError(integration, error, params, 'getAttendances');
+      this.handleResponseError(integration, error, params, methodName);
       throw HTTP_ERROR_THROWER(
         error?.response?.status || HttpStatus.BAD_REQUEST,
         error?.response?.data || error,
@@ -620,9 +648,10 @@ export class NetpacsApiService {
     integration: IntegrationDocument,
     params: AttendancesRequestParams,
   ): Promise<AttendanceResponse[]> {
-    this.debugRequest(integration, params);
-
+    const methodName = 'getLostAttendances';
+    this.debugRequest(integration, params, methodName);
     try {
+      this.debugRequest(integration, params, 'getLostAttendances');
       const request = await lastValueFrom(
         this.httpService.get<AttendanceResponse[]>(
           await this.getApiUrl(integration, '/netris/api/atendimentos/pacienteFaltou'),
@@ -635,7 +664,7 @@ export class NetpacsApiService {
 
       return request?.data;
     } catch (error) {
-      this.handleResponseError(integration, error, params, 'getLostAttendances');
+      this.handleResponseError(integration, error, params, methodName);
       throw HTTP_ERROR_THROWER(
         error?.response?.status || HttpStatus.BAD_REQUEST,
         error?.response?.data || error,
@@ -649,34 +678,52 @@ export class NetpacsApiService {
     payload: CreateScheduleRequest[],
   ): Promise<CreateScheduleResponse> {
     const methodName = 'createSchedule';
-
-    this.debugRequest(integration, payload);
+    this.debugRequest(integration, payload, methodName);
     this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
-    try {
-      const response = await lastValueFrom(
-        this.httpService.post<CreateScheduleResponse>(
-          await this.getApiUrl(integration, '/netris/api/horarios'),
-          payload,
-          {
-            ...(await this.getHeaders(integration)),
-          },
-        ),
-      );
+    const maxRetries = 2;
 
-      this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
-      return response?.data;
-    } catch (error) {
-      this.handleResponseError(integration, error, payload, methodName);
-      if (error?.response?.data?.message.includes('ocupado')) {
-        throw HTTP_ERROR_THROWER(HttpStatus.CONFLICT, 'Filled schedule', HttpErrorOrigin.INTEGRATION_ERROR);
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const response = await lastValueFrom(
+          this.httpService.post<CreateScheduleResponse>(
+            await this.getApiUrl(integration, '/netris/api/horarios'),
+            payload,
+            {
+              ...(await this.getHeaders(integration)),
+              timeout: 30_000,
+            },
+          ),
+        );
+
+        this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
+        return response?.data;
+      } catch (error) {
+        this.handleResponseError(integration, error, payload, `${methodName} - attempt ${attempt}/${maxRetries}`);
+
+        if (error?.response?.data?.message?.includes('ocupado')) {
+          throw HTTP_ERROR_THROWER(HttpStatus.CONFLICT, 'Filled schedule', HttpErrorOrigin.INTEGRATION_ERROR);
+        }
+
+        const isTimeout = error?.code === 'ECONNABORTED' || error?.message?.includes('timeout');
+
+        if (!isTimeout || attempt === maxRetries) {
+          throw HTTP_ERROR_THROWER(
+            error?.response?.status || HttpStatus.BAD_REQUEST,
+            error?.response?.data || error,
+            HttpErrorOrigin.INTEGRATION_ERROR,
+          );
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 1000));
       }
-      throw HTTP_ERROR_THROWER(
-        error?.response?.status || HttpStatus.BAD_REQUEST,
-        error?.response?.data || error,
-        HttpErrorOrigin.INTEGRATION_ERROR,
-      );
     }
+
+    throw HTTP_ERROR_THROWER(
+      HttpStatus.INTERNAL_SERVER_ERROR,
+      'Unexpected error in createSchedule',
+      HttpErrorOrigin.INTEGRATION_ERROR,
+    );
   }
 
   public async updatePatient(
@@ -684,9 +731,10 @@ export class NetpacsApiService {
     payload: UpdatePatientRequest,
     patientCode: string,
   ): Promise<UpdatePacientResponse> {
-    this.debugRequest(integration, payload);
-
+    const methodName = 'updatePatient';
+    this.debugRequest(integration, { patientCode, payload }, methodName);
     try {
+      this.debugRequest(integration, { patientCode, payload }, 'updatePatient');
       const request = await lastValueFrom(
         this.httpService.put<CreatePacientResponse>(
           await this.getApiUrl(integration, `/netris/api/pacientes/${patientCode}`),
@@ -712,9 +760,10 @@ export class NetpacsApiService {
     integration: IntegrationDocument,
     params: ParamsType,
   ): Promise<ProceduresResponse[]> {
-    this.debugRequest(integration, params);
-
+    const methodName = 'listProceduresByDoctor';
+    this.debugRequest(integration, params, methodName);
     try {
+      this.debugRequest(integration, params, 'listProceduresByDoctor');
       const request = await lastValueFrom(
         this.httpService.get<ProceduresResponse[]>(
           await this.getApiUrl(integration, `/netris/api/procedimentos/medico/${params.doctorCode}`),
@@ -727,7 +776,7 @@ export class NetpacsApiService {
 
       return request?.data;
     } catch (error) {
-      this.handleResponseError(integration, error, params, 'listProceduresByDoctor');
+      this.handleResponseError(integration, error, params, methodName);
       throw HTTP_ERROR_THROWER(
         error?.response?.status || HttpStatus.BAD_REQUEST,
         error?.response?.data || error,
@@ -741,7 +790,7 @@ export class NetpacsApiService {
     params: GroupedSchedulesResponseParams,
   ): Promise<GroupedSchedulesResponse[]> {
     const methodName = 'listGroupedSchedules';
-    this.debugRequest(integration, params);
+    this.debugRequest(integration, params, methodName);
     this.dispatchAuditEvent(integration, params, methodName, AuditDataType.externalRequest);
 
     try {
@@ -758,7 +807,7 @@ export class NetpacsApiService {
       this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;
     } catch (error) {
-      this.handleResponseError(integration, error, params, 'listGroupedSchedules');
+      this.handleResponseError(integration, error, params, methodName);
       throw HTTP_ERROR_THROWER(
         error?.response?.status || HttpStatus.BAD_REQUEST,
         error?.response?.data || error,
@@ -771,9 +820,10 @@ export class NetpacsApiService {
     integration: IntegrationDocument,
     params: GetProcedureValueParams,
   ): Promise<GetProcedureValueResponse> {
-    this.debugRequest(integration, params);
-
+    const methodName = 'getProcedureValue';
+    this.debugRequest(integration, params, methodName);
     try {
+      this.debugRequest(integration, params, 'getProcedureValue');
       const request = await lastValueFrom(
         this.httpService.get<GetProcedureValueResponse>(
           await this.getApiUrl(integration, '/netris/api/consultarPreco'),
@@ -786,7 +836,7 @@ export class NetpacsApiService {
 
       return request?.data;
     } catch (error) {
-      this.handleResponseError(integration, error, params, 'getProcedureValue');
+      this.handleResponseError(integration, error, params, methodName);
       throw HTTP_ERROR_THROWER(
         error?.response?.status || HttpStatus.BAD_REQUEST,
         error?.response?.data || error,
@@ -800,8 +850,7 @@ export class NetpacsApiService {
     data: FollowUpAppointmentsRequestParams,
   ): Promise<Array<FollowUpAppointmentsResponse>> {
     const methodName = 'getFollowUpPatientAppointments';
-
-    this.debugRequest(integration, data);
+    this.debugRequest(integration, data, methodName);
     this.dispatchAuditEvent(integration, data, methodName, AuditDataType.externalRequest);
 
     try {

@@ -1,10 +1,10 @@
-export interface KonsistTelefone {
+export interface KonsistPhone {
   ddi?: string;
   ddd?: string;
   numero?: string;
 }
 
-export interface KonsistContato {
+export interface KonsistContact {
   descricao?: string;
   conteudo?: string;
 }

@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsDefined, IsObject, IsOptional, IsString, ValidateNested } from 'class-validator';
+import { Patient } from '../../interfaces/patient.interface';
 
 class ProcedureDto {
   @IsString()
@@ -70,6 +71,23 @@ class SpecialityDto {
   code: string;
 }
 
+class PartialPatientDto implements Partial<Patient> {
+  @IsString()
+  @IsOptional()
+  @ApiProperty()
+  cpf?: string;
+
+  @IsString()
+  @IsOptional()
+  @ApiProperty({ example: '1985-11-14' })
+  bornDate?: string;
+
+  @IsString()
+  @IsOptional()
+  @ApiProperty()
+  code?: string;
+}
+
 export class AppointmentValueDto {
   @IsDefined()
   @ApiProperty({ type: InsuranceDto })
@@ -117,6 +135,12 @@ export class AppointmentValueDto {
   @IsString()
   @ApiProperty()
   scheduleCode?: string;
+
+  @IsOptional()
+  @ApiProperty()
+  @ValidateNested()
+  @Type(() => PartialPatientDto)
+  patient?: PartialPatientDto;
 
   @IsOptional()
   @IsObject()

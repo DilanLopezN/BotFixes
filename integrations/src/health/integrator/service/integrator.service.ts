@@ -1,5 +1,6 @@
-import { HttpStatus, Injectable, Logger, NotImplementedException } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable, Logger, NotImplementedException } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
+import { Readable } from 'stream';
 import * as fuzzy from 'fast-fuzzy';
 import * as crypto from 'crypto';
 import * as Sentry from '@sentry/node';
@@ -34,6 +35,7 @@ import {
 import { CacheService } from '../../../core/cache/cache.service';
 import { IExternalEntity } from '../../api/interfaces/entity.interface';
 import { EntitiesSuggestionService } from '../../entities-suggestions/entitites-suggestion.service';
+import { ScheduleSuggestionService } from '../../entities-suggestions/schedule-suggestion.service';
 import {
   AppointmentTypeEntityDocument,
   DoctorEntityDocument,
@@ -111,6 +113,7 @@ import {
   PatientFilters,
   PatientFollowUpSchedules,
   PatientSchedules,
+  PatientSchedulesByCpf,
   PatientSuggestedInsurances,
   Reschedule,
   UpdatePatient,
@@ -128,7 +131,9 @@ import {
   PatientUploadFile,
   DocumentUploadFileType,
   ExtractType,
+  SendAuthorizationInsuranceData,
 } from '../interfaces';
+import { FutureSchedule, ListFutureSchedulesParams } from '../interfaces/future-schedules.interface';
 import { PreloadPatientData } from '../interfaces/preload-patient-data.interface';
 import { IntegratorValidatorsService } from '../validators/integrator-validators.service';
 import { IntegratorTriggersService, TriggerType } from './integrator-triggers.service';
@@ -153,10 +158,14 @@ import { ReportProcessorService } from '../../report-processor/services/report-p
 import { ExtractedSchedule } from '../../schedules/interfaces/extracted-schedule.interface';
 import { SchedulingLinks } from '../../scheduling/entities/scheduling-links.entity';
 import { BotdesignerFakeService } from '../../integrations/botdesigner-fake-integration/services/botdesigner-fake.service';
+import { StenciService } from '../../integrations/stenci-integration/services/stenci.service';
+import { ShiftService } from '../../integrations/shift-integration/services/shift.service';
 import { PatientSchedulesToUploadFile } from '../interfaces/patient-schedules-to-upload-file.interface';
 import { ValidateDoctorData } from '../interfaces/validate-doctor.interface';
+import { ScheduleSuggestionParams } from '../../entities-suggestions/interfaces/schedule-suggestion.interface';
 import { ProdoctorService } from '../../../health/integrations/prodoctor-integration/services/prodoctor.service';
 import { KonsistService } from '../../../health/integrations/konsist-integration/services/konsist.service';
+import { PhillipsService } from '../../../health/integrations/phillips-integration/services/phillips.service';
 
 @Injectable()
 export class IntegratorService {
@@ -175,6 +184,7 @@ export class IntegratorService {
     private readonly integrationCacheUtilsService: IntegrationCacheUtilsService,
     private readonly rulesHandlerService: RulesHandlerService,
     private readonly entitiesSuggestionService: EntitiesSuggestionService,
+    private readonly scheduleSuggestionService: ScheduleSuggestionService,
     private readonly schedulingLinksService: SchedulingLinksService,
     private readonly reportProcessorService: ReportProcessorService,
   ) {}
@@ -194,7 +204,7 @@ export class IntegratorService {
     }
 
     if (!integration.enabled) {
-      throw HTTP_ERROR_THROWER(HttpStatus.BAD_GATEWAY, 'Disabled integration', undefined, true);
+      throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, 'Disabled integration', undefined, true);
     }
 
     switch (integration?.type) {
@@ -300,6 +310,18 @@ export class IntegratorService {
           integration,
         };
 
+      case IntegrationType.STENCI:
+        return {
+          service: this.moduleRef.get<StenciService>(StenciService, { strict: false }),
+          integration,
+        };
+
+      case IntegrationType.SHIFT:
+        return {
+          service: this.moduleRef.get<ShiftService>(ShiftService, { strict: false }),
+          integration,
+        };
+
       case IntegrationType.PRODOCTOR:
         return {
           service: this.moduleRef.get<ProdoctorService>(ProdoctorService, { strict: false }),
@@ -311,9 +333,14 @@ export class IntegratorService {
           service: this.moduleRef.get<KonsistService>(KonsistService, { strict: false }),
           integration,
         };
+      case IntegrationType.PHILLIPS:
+        return {
+          service: this.moduleRef.get<PhillipsService>(PhillipsService, { strict: false }),
+          integration,
+        };
 
       default:
-        throw HTTP_ERROR_THROWER(HttpStatus.BAD_GATEWAY, 'Invalid integration');
+        throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, 'Invalid integration');
     }
   }
 
@@ -324,7 +351,7 @@ export class IntegratorService {
     try {
       return await this.getIntegration(integrationId);
     } catch (error) {
-      return INTERNAL_ERROR_THROWER('IntegratorService', error);
+      throw INTERNAL_ERROR_THROWER('IntegratorService', error);
     }
   }
 
@@ -362,7 +389,6 @@ export class IntegratorService {
           true,
         );
       }
-
       return {
         ...patient,
         bornDate: moment.utc(patient.bornDate).startOf('day').format('YYYY-MM-DDTHH:mm:ss'),
@@ -495,13 +521,13 @@ export class IntegratorService {
 
     // Manager faz muitas requests de horário, pois o range de busca é 7 dias
     // então limito em código para não dar problema
-    if (
-      [IntegrationType.MANAGER].includes(integration.type) &&
-      (integration.rules?.limitUntilDaySearchAppointments > 50 ||
-        integration.rules?.limitUntilDaySearchAppointmentsWithDoctor > 50)
-    ) {
-      limitUntilDay = 50;
-    }
+    // if (
+    //   [IntegrationType.MANAGER].includes(integration.type) &&
+    //   (integration.rules?.limitUntilDaySearchAppointments > 50 ||
+    //     integration.rules?.limitUntilDaySearchAppointmentsWithDoctor > 50)
+    // ) {
+    //   limitUntilDay = 50;
+    // }
 
     if (availableSchedules.untilDay > limitUntilDay) {
       availableSchedules.untilDay = limitUntilDay;
@@ -667,7 +693,9 @@ export class IntegratorService {
 
       return result;
     } catch (error) {
-      this.integrationCacheUtilsService.removeAvailableSchedulesCache(integration).then();
+      void this.integrationCacheUtilsService.removeAvailableSchedulesCache(integration).catch((err) => {
+        this.logger.warn('IntegratorService.removeAvailableSchedulesCache', err);
+      });
       throw error;
     }
   }
@@ -872,6 +900,45 @@ export class IntegratorService {
     return orderBy(schedulesWithActions || [], 'appointmentDate', 'asc');
   }
 
+  async getPatientSchedulesByCpf(
+    integrationId: string,
+    patientSchedules: PatientSchedulesByCpf,
+  ): Promise<Appointment[]> {
+    try {
+      const patient = await this.getPatient(integrationId, {
+        cpf: patientSchedules.patientCpf,
+        bornDate: patientSchedules.patientBornDate,
+        name: patientSchedules.patientName,
+        phone: patientSchedules.patientPhone,
+      });
+
+      if (!patient?.code) {
+        return [];
+      }
+
+      return await this.getPatientSchedules(integrationId, {
+        patientCode: patient.code,
+        patientCpf: patient.cpf,
+        patientName: patient.name,
+        patientPhone: patient.phone || patientSchedules.patientPhone,
+        patientBornDate: patient.bornDate,
+        startDate: patientSchedules.startDate,
+        endDate: patientSchedules.endDate,
+        target: patientSchedules.target,
+        returnGuidance: patientSchedules.returnGuidance,
+        ignoreFlowExecution: patientSchedules.ignoreFlowExecution,
+        specialityCode: patientSchedules.specialityCode,
+        organizationUnitLocationCode: patientSchedules.organizationUnitLocationCode,
+      });
+    } catch (error) {
+      if (error?.status === HttpStatus.NOT_FOUND || error?.statusCode === HttpStatus.NOT_FOUND) {
+        return [];
+      }
+
+      throw error;
+    }
+  }
+
   async getPatientFollowUpSchedules(
     integrationId: string,
     patientSchedules: PatientFollowUpSchedules,
@@ -955,51 +1022,88 @@ export class IntegratorService {
     return await service?.extractAllEntities(integration);
   }
 
-  async synchronizeEntities(integrationId: string, entityType?: EntityType): Promise<OkResponse> {
-    const { integration } = await this.validateIntegration(integrationId);
-    const client = this.cacheService.getClient('general');
-    const cacheKeyPattern = `SYNC_ALL:${integrationId}`;
-    const entitiesToSync = entityType ? [entityType] : integration.entitiesToSync;
+  private async cleanSyncCache(
+    integration: IntegrationDocument,
+    processedEntityTypes: string[],
+    cacheKeyPattern: string,
+  ): Promise<void> {
+    try {
+      const client = this.cacheService.getClient('general');
+      const keysToDelete = processedEntityTypes.map((entityType) => `${cacheKeyPattern}:${entityType}`);
 
-    const syncData: { [entityType: string]: IExternalEntity[] } = {};
-
-    for (const entityType of entitiesToSync) {
-      const data = await client.get(`${cacheKeyPattern}:${entityType}`);
-
-      let entities: IExternalEntity[] = [];
-
-      try {
-        entities = JSON.parse(data) as IExternalEntity[];
-      } catch (error) {
-        Sentry.captureEvent({
-          message: `ERROR:INTEGRATOR:${integrationId}:synchronizeEntities`,
-          extra: {
-            integrationId: integrationId,
-            error: error,
-          },
-        });
-
-        continue;
-      }
-
-      if (entities?.length) {
-        syncData[entityType] = entities;
+      if (keysToDelete.length) {
+        await client.unlink(...keysToDelete);
       }
 
       const processedEntitiesKeyPattern = `${integration.type}:${castObjectIdToString(integration._id)}:processedEntities*`;
-      await this.cacheService.removeKeysByPattern(processedEntitiesKeyPattern);
-      await this.cacheService.removeKeysByPattern(`${cacheKeyPattern}:${entityType}`, undefined, 'general');
+      void this.cacheService.removeKeysByPattern(processedEntitiesKeyPattern).catch(() => {});
+    } catch (error) {
+      this.logger.warn(`cleanSyncCache error: ${error?.message}`);
     }
+  }
 
-    if (Object.keys(syncData).length) {
-      await this.entitiesService.syncEntities(integration, syncData);
+  async synchronizeEntities(integrationId: string, entityType?: EntityType): Promise<OkResponse> {
+    try {
+      const { integration } = await this.validateIntegration(integrationId);
+      const client = this.cacheService.getClient('general');
+      const cacheKeyPattern = `SYNC_ALL:${integrationId}`;
+      const entitiesToSync = entityType ? [entityType] : integration.entitiesToSync;
+
+      const syncData: { [entityType: string]: IExternalEntity[] } = {};
+      const processedEntityTypes: string[] = [];
+
+      for (const entityType of entitiesToSync) {
+        const data = await client.get(`${cacheKeyPattern}:${entityType}`);
+
+        let entities: IExternalEntity[] = [];
+
+        try {
+          entities = JSON.parse(data) as IExternalEntity[];
+        } catch (error) {
+          Sentry.captureEvent({
+            message: `ERROR:INTEGRATOR:${integrationId}:synchronizeEntities-for`,
+            extra: {
+              integrationId: integrationId,
+              error: error,
+            },
+          });
+
+          continue;
+        }
+
+        if (entities?.length) {
+          syncData[entityType] = entities;
+        }
+
+        processedEntityTypes.push(entityType);
+      }
+
+      if (Object.keys(syncData).length) {
+        await this.entitiesService.syncEntities(integration, syncData);
+      }
+
+      // Limpa cache em background (não bloqueia a resposta)
+      void this.cleanSyncCache(integration, processedEntityTypes, cacheKeyPattern).catch((err: Error) => {
+        this.logger.warn(`synchronizeEntities.cleanSyncCache error: ${err?.message}`);
+      });
+
+      if (entityType === EntityType.procedure) {
+        void this.reportProcessorService.importRagProcedures(integration).catch((err) => {
+          this.logger.error('IntegratorService.synchronizeEntities.importRagProcedures', err);
+        });
+      }
+
+      return { ok: true };
+    } catch (error) {
+      Sentry.captureEvent({
+        message: `ERROR:INTEGRATOR:${integrationId}:synchronizeEntities`,
+        extra: {
+          integrationId: integrationId,
+          error: error,
+        },
+      });
+      return { ok: false };
     }
-
-    if (entityType === EntityType.procedure) {
-      void this.reportProcessorService.importRagProcedures(integration).then();
-    }
-
-    return { ok: true };
   }
 
   async getEntityListByText(integrationId: string, entityListText: EntityListText): Promise<EntityListTextResponse> {
@@ -1312,7 +1416,7 @@ export class IntegratorService {
   }
 
   async matchFlowsFromFilters(integrationId: string, matchFlows: MatchFlowsFromFilters): Promise<FlowAction[]> {
-    const { targetFlowType, filters, patientBornDate, periodOfDay, patientSex, patientCpf, trigger } = matchFlows;
+    const { targetFlowType, filters, periodOfDay, patientBornDate, patientSex, patientCpf, trigger } = matchFlows;
 
     if (Object.values(FlowSteps).includes(targetFlowType)) {
       const result = await this.flowService.matchFlowsAndGetActions({
@@ -1320,8 +1424,8 @@ export class IntegratorService {
         entitiesFilter: filters,
         targetFlowTypes: [targetFlowType],
         filters: {
-          patientBornDate,
           periodOfDay,
+          patientBornDate,
           patientSex,
           patientCpf,
         },
@@ -1362,7 +1466,9 @@ export class IntegratorService {
       if (reschedule?.patient.code) {
         await this.integrationCacheUtilsService.removePatientSchedulesCache(integration, reschedule.patient.code);
       }
-    } catch (error) {}
+    } catch (error) {
+      throw INTERNAL_ERROR_THROWER('IntegratorService', error);
+    }
 
     return result;
   }
@@ -1402,7 +1508,7 @@ export class IntegratorService {
     const { service, integration } = await this.validateIntegration(integrationId);
 
     if (moment(data.startDate).startOf('day').valueOf() > moment(data.endDate).valueOf()) {
-      throw HTTP_ERROR_THROWER(HttpStatus.BAD_GATEWAY, 'IntegratorService.listSchedulesToConfirm: Invalid endDate');
+      throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, 'IntegratorService.listSchedulesToConfirm: Invalid endDate');
     }
 
     if (!service.listSchedulesToConfirm) {
@@ -1639,7 +1745,7 @@ export class IntegratorService {
 
     const formattedBornDate = moment.utc(Number(bornDate)).startOf('day').format('YYYY-MM-DD');
 
-    Promise.all([
+    void Promise.allSettled([
       this.getPatient(integrationId, {
         bornDate: formattedBornDate,
         code: erpCode,
@@ -1652,7 +1758,9 @@ export class IntegratorService {
         patientBornDate: formattedBornDate,
         patientPhone: phone,
       }),
-    ]).then();
+    ]).catch((err) => {
+      this.logger?.warn('IntegratorService.preloadPatientData', err);
+    });
   }
 
   async listPatientSuggestedInsurances(
@@ -1707,7 +1815,7 @@ export class IntegratorService {
     return await service.validateDoctor(integration, data);
   }
 
-  async downloadMedicalReport(integrationId: string, data: DownloadMedicalReportTokenData): Promise<Buffer> {
+  async downloadMedicalReport(integrationId: string, data: DownloadMedicalReportTokenData): Promise<Readable> {
     const { service, integration } = await this.validateIntegration(integrationId);
     return await service.downloadMedicalReport(integration, data);
   }
@@ -1942,5 +2050,76 @@ export class IntegratorService {
   async importProceduresEmbeddings(integrationId: string): Promise<OkResponse> {
     const { integration } = await this.validateIntegration(integrationId);
     return await this.reportProcessorService.importRagProcedures(integration);
+  }
+
+  async getScheduleSuggestions(
+    integrationId: string,
+    suggestionParams: ScheduleSuggestionParams,
+    availableSchedulesFilters: ListAvailableSchedules,
+  ): Promise<ListAvailableSchedulesResponse> {
+    const { integration } = await this.validateIntegration(integrationId);
+
+    const { maxResults, timeRangeHours } = suggestionParams;
+
+    // valores default: máximo 4 sugestões e range de 1 hora do horário do paciente.
+    return await this.scheduleSuggestionService.listPatientSuggestedSchedule(
+      integration,
+      {
+        // quantidade máxima de sugestões a serem exibidas
+        maxResults: maxResults ? parseInt(maxResults as unknown as string) : 2,
+        // timeRangeHours: valor em hora - para minutos, colocar facionário
+        // 0,25 = 15 minutos / 0,5 = 30 minutos
+        timeRangeHours: timeRangeHours ? parseInt(timeRangeHours as unknown as string) : 0.25,
+      },
+      availableSchedulesFilters,
+    );
+  }
+
+  async sendAuthorizationInsuranceData(
+    integrationId: string,
+    data: SendAuthorizationInsuranceData,
+  ): Promise<OkResponse> {
+    const { service, integration } = await this.validateIntegration(integrationId);
+
+    if (!service.sendAuthorizationInsuranceData) {
+      throw HTTP_ERROR_THROWER(
+        HttpStatus.NOT_IMPLEMENTED,
+        'IntegratorService.sendAuthorizationInsuranceData: Not implemented',
+        undefined,
+        true,
+      );
+    }
+
+    return await service.sendAuthorizationInsuranceData(integration, data);
+  }
+
+  async listFutureSchedules(integrationId: string, params: ListFutureSchedulesParams): Promise<FutureSchedule[]> {
+    const { service, integration } = await this.validateIntegration(integrationId);
+
+    if (!service.listFutureSchedules) {
+      throw HTTP_ERROR_THROWER(
+        HttpStatus.NOT_IMPLEMENTED,
+        'IntegratorService.listFutureSchedules: Not implemented',
+        undefined,
+        true,
+      );
+    }
+
+    return await service.listFutureSchedules(integration, params);
+  }
+
+  async cancelFutureSchedule(integrationId: string, scheduleCode: string, erpParams?: any): Promise<OkResponse> {
+    const { service, integration } = await this.validateIntegration(integrationId);
+
+    if (!service.cancelFutureSchedule) {
+      throw HTTP_ERROR_THROWER(
+        HttpStatus.NOT_IMPLEMENTED,
+        'IntegratorService.cancelFutureSchedule: Not implemented',
+        undefined,
+        true,
+      );
+    }
+
+    return await service.cancelFutureSchedule(integration, scheduleCode, erpParams);
   }
 }

@@ -1,4 +1,4 @@
-import { HttpStatus, Injectable, Logger } from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { lastValueFrom } from 'rxjs';
 import * as Sentry from '@sentry/node';
@@ -30,7 +30,6 @@ import { castObjectIdToString } from '../../../../common/helpers/cast-objectid';
 
 @Injectable()
 export class ClinuxApiV2Service {
-  private readonly logger = new Logger(ClinuxApiV2Service.name);
   constructor(
     private readonly httpService: HttpService,
     private readonly sentryErrorHandlerService: SentryErrorHandlerService,
@@ -49,14 +48,6 @@ export class ClinuxApiV2Service {
         return Promise.reject(error);
       },
     );
-  }
-
-  private debugRequest(integration: IntegrationDocument, payload: any) {
-    if (!integration.debug) {
-      return;
-    }
-
-    this.logger.debug(`${integration._id}:${integration.name}:CLINUX-debug`, payload);
   }
 
   private handleResponseError(
@@ -147,7 +138,6 @@ export class ClinuxApiV2Service {
     payload: ClinuxListSchedulesParamsRequest,
   ): Promise<ClinuxSchedule[]> {
     try {
-      this.debugRequest(integration, payload);
       let token = await this.getClinuxIntegrationToken(integration);
 
       if (!token) {
@@ -166,11 +156,15 @@ export class ClinuxApiV2Service {
 
       const apiUrl = await this.getApiUrl(integration);
       const response = await lastValueFrom(
-        this.httpService.post<ClinuxSchedule[]>(`${apiUrl}/se1/doListaConfirmacao?${formData.toString()}`, undefined, {
-          headers: {
-            Authorization: `Bearer ${token}`,
+        this.httpService.post<ClinuxSchedule[]>(
+          `${apiUrl}/dwhomologacao/se1/doListaConfirmacao?${formData.toString()}`,
+          undefined,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
           },
-        }),
+        ),
       );
 
       return response.data;
@@ -192,7 +186,6 @@ export class ClinuxApiV2Service {
 
     try {
       const requestParams = await this.getDefaultRequestParams(integration, params);
-      this.debugRequest(integration, requestParams);
 
       const apiUrl = await this.getApiUrl(integration);
       const response = await lastValueFrom(
@@ -225,7 +218,6 @@ export class ClinuxApiV2Service {
 
     try {
       const requestParams = await this.getDefaultRequestParams(integration, params);
-      this.debugRequest(integration, requestParams);
 
       const apiUrl = await this.getApiUrl(integration);
       const response = await lastValueFrom(
@@ -257,7 +249,7 @@ export class ClinuxApiV2Service {
     try {
       const apiUrl = await this.getApiUrl(integration);
       const response = await lastValueFrom(
-        this.httpService.get<AuthResponse[]>(`${apiUrl}/se1/doFuncionarioLogin`, {
+        this.httpService.get<AuthResponse[]>(`${apiUrl}/dwclinux/se1/doFuncionarioLogin`, {
           params: {
             id: username,
             pw: password,
@@ -283,7 +275,6 @@ export class ClinuxApiV2Service {
   ): Promise<ClinuxProcedureGuidanceResponse[]> {
     try {
       const requestParams = await this.getDefaultRequestParams(integration, payload);
-      this.debugRequest(integration, payload);
 
       const apiUrl = await this.getApiUrl(integration);
       const response = await lastValueFrom(

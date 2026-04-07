@@ -15,10 +15,24 @@ interface PatientSchedules {
   organizationUnitLocationCode?: string;
 }
 
+interface PatientSchedulesByCpf {
+  startDate?: number;
+  endDate?: number;
+  target?: PatientSchedulesTarget;
+  patientCpf: string;
+  patientBornDate: string;
+  patientName?: string;
+  patientPhone?: string;
+  returnGuidance?: boolean;
+  ignoreFlowExecution?: boolean;
+  specialityCode?: string;
+  organizationUnitLocationCode?: string;
+}
+
 type PatientSchedulesTarget =
   | FlowSteps.cancel
   | FlowSteps.reschedule
   | FlowSteps.confirmPassive
   | FlowSteps.listPatientSchedules;
 
-export { PatientSchedules, PatientSchedulesTarget };
+export { PatientSchedules, PatientSchedulesByCpf, PatientSchedulesTarget };

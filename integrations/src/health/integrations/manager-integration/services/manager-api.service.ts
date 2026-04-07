@@ -70,7 +70,6 @@ interface PatientDataToAuth {
 @Injectable()
 export class ManagerApiService {
   private readonly logger = new Logger(ManagerApiService.name);
-
   constructor(
     private readonly httpService: HttpService,
     private readonly sentryErrorHandlerService: SentryErrorHandlerService,
@@ -89,6 +88,15 @@ export class ManagerApiService {
         return Promise.reject(error);
       },
     );
+  }
+
+  private debugRequest(integration: IntegrationDocument, payload: any, funcName?: string) {
+    if (!integration?.debug && process.env.NODE_ENV !== 'local') return;
+
+    const base = `${integration._id}:${integration.name}:${IntegrationType.MANAGER}-debug`;
+    const label = funcName ? `${base}:${funcName}` : base;
+
+    this.logger.debug(label, payload);
   }
 
   private async handleResponseError(
@@ -125,14 +133,6 @@ export class ManagerApiService {
       },
       identifier,
     });
-  }
-
-  private debugRequest(integration: IntegrationDocument, payload: any, funcName: string) {
-    if (!integration.debug) {
-      return;
-    }
-
-    this.logger.debug(`${integration._id}:${integration.name}:MANAGER-debug`, payload);
   }
 
   private async getApiUrl(integration: IntegrationDocument, url: string): Promise<string> {
@@ -251,7 +251,7 @@ export class ManagerApiService {
     try {
       payload = cleanseObject(payload);
     } catch (error) {}
-    this.debugRequest(integration, payload, this.createPatient.name);
+    this.debugRequest(integration, payload, methodName);
     this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
     try {
@@ -288,7 +288,7 @@ export class ManagerApiService {
       payload = cleanseObject(payload);
     } catch (error) {}
 
-    this.debugRequest(integration, payload, this.updatePatient.name);
+    this.debugRequest(integration, { payload, patient }, methodName);
     this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
     try {
@@ -323,7 +323,7 @@ export class ManagerApiService {
     try {
       params = cleanseObject(params);
     } catch (error) {}
-    this.debugRequest(integration, params, this.listPatientSchedules.name);
+    this.debugRequest(integration, params, methodName);
     this.dispatchAuditEvent(integration, params, methodName, AuditDataType.externalRequest);
 
     try {
@@ -363,7 +363,7 @@ export class ManagerApiService {
   ): Promise<ManagerCancelScheduleResponse> {
     const methodName = 'cancelSchedule';
 
-    this.debugRequest(integration, { scheduleCode }, this.cancelSchedule.name);
+    this.debugRequest(integration, { scheduleCode }, methodName);
     this.dispatchAuditEvent(integration, { scheduleCode }, methodName, AuditDataType.externalRequest);
 
     try {
@@ -396,7 +396,7 @@ export class ManagerApiService {
   ): Promise<ManagerConfirmScheduleResponse> {
     const methodName = 'confirmSchedule';
 
-    this.debugRequest(integration, { scheduleCode }, this.confirmSchedule.name);
+    this.debugRequest(integration, { scheduleCode }, methodName);
     this.dispatchAuditEvent(integration, { scheduleCode }, methodName, AuditDataType.externalRequest);
 
     try {
@@ -433,7 +433,7 @@ export class ManagerApiService {
       params = cleanseObject(params);
     } catch (error) {}
 
-    this.debugRequest(integration, params, this.getScheduleValue.name);
+    this.debugRequest(integration, params, methodName);
     this.dispatchAuditEvent(integration, params, methodName, AuditDataType.externalRequest);
 
     try {
@@ -468,8 +468,7 @@ export class ManagerApiService {
     ignoreException?: boolean,
   ): Promise<ManagerOrganizationUnitsResponse[]> {
     const methodName = 'listOrganizationUnits';
-
-    this.debugRequest(integration, {}, this.listOrganizationUnits.name);
+    this.debugRequest(integration, {}, methodName);
     this.dispatchAuditEvent(integration, {}, methodName, AuditDataType.externalRequest);
 
     try {
@@ -512,7 +511,7 @@ export class ManagerApiService {
       params = cleanseObject(params);
     } catch (error) {}
 
-    this.debugRequest(integration, params, this.listInsurances.name);
+    this.debugRequest(integration, params, methodName);
     this.dispatchAuditEvent(integration, params, methodName, AuditDataType.externalRequest);
 
     try {
@@ -555,7 +554,7 @@ export class ManagerApiService {
       params = cleanseObject(params);
     } catch (error) {}
 
-    this.debugRequest(integration, params, this.listInsurancePlans.name);
+    this.debugRequest(integration, params, methodName);
     this.dispatchAuditEvent(integration, params, methodName, AuditDataType.externalRequest);
 
     try {
@@ -595,7 +594,7 @@ export class ManagerApiService {
       params = cleanseObject(params);
     } catch (error) {}
 
-    this.debugRequest(integration, params, this.listDoctors.name);
+    this.debugRequest(integration, params, methodName);
     this.dispatchAuditEvent(integration, params, methodName, AuditDataType.externalRequest);
 
     try {
@@ -638,7 +637,7 @@ export class ManagerApiService {
       params = cleanseObject(params);
     } catch (error) {}
 
-    this.debugRequest(integration, params, this.getResourceDoctorDetails.name);
+    this.debugRequest(integration, params, methodName);
     this.dispatchAuditEvent(integration, params, methodName, AuditDataType.externalRequest);
 
     try {
@@ -672,8 +671,7 @@ export class ManagerApiService {
     isRetry?: boolean,
   ): Promise<ManagerAppointmentTypeResponse[]> {
     const methodName = 'listAppointmentTypes';
-
-    this.debugRequest(integration, {}, this.listAppointmentTypes.name);
+    this.debugRequest(integration, {}, methodName);
     this.dispatchAuditEvent(integration, {}, methodName, AuditDataType.externalRequest);
 
     try {
@@ -708,7 +706,7 @@ export class ManagerApiService {
       params = cleanseObject(params);
     } catch (error) {}
 
-    this.debugRequest(integration, params, this.listSpecialities.name);
+    this.debugRequest(integration, params, methodName);
     this.dispatchAuditEvent(integration, params, methodName, AuditDataType.externalRequest);
 
     try {
@@ -751,7 +749,7 @@ export class ManagerApiService {
       params = cleanseObject(params);
     } catch (error) {}
 
-    this.debugRequest(integration, params, this.listProcedures.name);
+    this.debugRequest(integration, params, methodName);
     this.dispatchAuditEvent(integration, params, methodName, AuditDataType.externalRequest);
 
     try {
@@ -794,7 +792,7 @@ export class ManagerApiService {
       params = cleanseObject(params);
     } catch (error) {}
 
-    this.debugRequest(integration, params, this.listProceduresExams.name);
+    this.debugRequest(integration, params, methodName);
     this.dispatchAuditEvent(integration, params, methodName, AuditDataType.externalRequest);
 
     try {
@@ -837,7 +835,7 @@ export class ManagerApiService {
       params = cleanseObject(params);
     } catch (error) {}
 
-    this.debugRequest(integration, params, this.listProceduresExamsGroups.name);
+    this.debugRequest(integration, params, methodName);
     this.dispatchAuditEvent(integration, params, methodName, AuditDataType.externalRequest);
 
     try {
@@ -880,7 +878,7 @@ export class ManagerApiService {
       payload = cleanseObject(payload);
     } catch (error) {}
 
-    this.debugRequest(integration, payload, this.listAvailableSchedules.name);
+    this.debugRequest(integration, payload, methodName);
     this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
     try {
@@ -918,7 +916,7 @@ export class ManagerApiService {
       payload = cleanseObject(payload);
     } catch (error) {}
 
-    this.debugRequest(integration, payload, this.createSchedule.name);
+    this.debugRequest(integration, { payload, patient }, methodName);
     this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
     try {
@@ -972,7 +970,7 @@ export class ManagerApiService {
       payload = cleanseObject(payload);
     } catch (error) {}
 
-    this.debugRequest(integration, payload, this.createScheduleExam.name);
+    this.debugRequest(integration, { payload, patient }, methodName);
     this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
     try {
@@ -1017,7 +1015,6 @@ export class ManagerApiService {
 
   public async defaultAuth(integration: IntegrationDocument): Promise<ManagerAuthResponse> {
     const payload = await this.getDefaultAuthPayload(integration);
-    this.debugRequest(integration, {}, this.defaultAuth.name);
 
     try {
       const apiUrl = await this.getApiUrl(integration, '/agendador/auth/login');
@@ -1039,8 +1036,7 @@ export class ManagerApiService {
     payload: ManagerPatientAuthParamsRequest,
     isRetry?: boolean,
   ): Promise<ManagerPatientAuthResponse> {
-    this.debugRequest(integration, {}, this.patientAuth.name);
-
+    this.debugRequest(integration, payload, 'patientAuth');
     try {
       const config = await this.getPublicParams(integration);
       const apiUrl = await this.getApiUrl(integration, '/agendador/auth/gera-token-paciente');
@@ -1073,7 +1069,7 @@ export class ManagerApiService {
   ): Promise<boolean> {
     const methodName = 'checkPatientExists';
 
-    this.debugRequest(integration, params, this.checkPatientExists.name);
+    this.debugRequest(integration, params, methodName);
     this.dispatchAuditEvent(integration, params, methodName, AuditDataType.externalRequest);
 
     try {
@@ -1109,8 +1105,7 @@ export class ManagerApiService {
     isRetry?: boolean,
   ): Promise<ManagerPatientResponse> {
     const methodName = 'getAuthenticatedPatient';
-
-    this.debugRequest(integration, patient, this.getAuthenticatedPatient.name);
+    this.debugRequest(integration, patient, methodName);
     this.dispatchAuditEvent(integration, patient, methodName, AuditDataType.externalRequest);
 
     try {
@@ -1145,8 +1140,7 @@ export class ManagerApiService {
     isRetry?: boolean,
   ): Promise<ManagerPatientFollowUpResponse[]> {
     const methodName = 'listPatientFollowUpSchedules';
-
-    this.debugRequest(integration, { patientCode }, this.listPatientFollowUpSchedules.name);
+    this.debugRequest(integration, { patientCode }, methodName);
     this.dispatchAuditEvent(integration, { patientCode }, methodName, AuditDataType.externalRequest);
 
     try {
@@ -1188,7 +1182,7 @@ export class ManagerApiService {
       payload = cleanseObject(payload);
     } catch (error) {}
 
-    this.debugRequest(integration, payload, this.listFollowUpSchedules.name);
+    this.debugRequest(integration, payload, methodName);
     this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
     try {

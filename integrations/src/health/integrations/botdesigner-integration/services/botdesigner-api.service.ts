@@ -1,5 +1,6 @@
 import { HttpService } from '@nestjs/axios';
-import { HttpStatus, Injectable, Logger } from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
+import { Readable } from 'stream';
 import * as Sentry from '@sentry/node';
 import * as contextService from 'request-context';
 import { lastValueFrom } from 'rxjs';
@@ -93,6 +94,7 @@ import {
   PatientScheduleToUploadFile,
   ListPatientSchedulesToUploadFileFilters,
 } from 'kissbot-health-core';
+import { FutureSchedule, ListFutureSchedulesParams } from '../../../integrator/interfaces/future-schedules.interface';
 import { OkResponse } from '../interface/ok-response';
 import { AuditService } from '../../../audit/services/audit.service';
 import { CredentialsHelper } from '../../../credentials/credentials.service';
@@ -103,8 +105,6 @@ import { castObjectIdToString } from '../../../../common/helpers/cast-objectid';
 
 @Injectable()
 export class BotdesignerApiService {
-  private readonly logger = new Logger(BotdesignerApiService.name);
-
   public constructor(
     private readonly httpService: HttpService,
     private readonly auditService: AuditService,
@@ -169,12 +169,28 @@ export class BotdesignerApiService {
       };
     }
 
-    const { apiToken } = await this.credentialsHelper.getConfig<BotDesignerCredentialsResponse>(integration);
+    const config = await this.credentialsHelper.getConfig<BotDesignerCredentialsResponse>(integration);
+
+    if (!config) {
+      throw HTTP_ERROR_THROWER(
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        { message: 'Invalid integration config' },
+        HttpErrorOrigin.INTEGRATION_ERROR,
+        false,
+        undefined,
+      );
+    }
+
+    const { apiToken } = config;
 
     if (!apiToken) {
-      throw HTTP_ERROR_THROWER(HttpStatus.INTERNAL_SERVER_ERROR, {
-        message: 'Invalid api token',
-      });
+      throw HTTP_ERROR_THROWER(
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        { message: 'Invalid api token' },
+        HttpErrorOrigin.INTEGRATION_ERROR,
+        false,
+        undefined,
+      );
     }
 
     return {
@@ -187,12 +203,28 @@ export class BotdesignerApiService {
       return process.env.DEBUG_BOTDESIGNER_URL;
     }
 
-    const { apiUrl } = await this.credentialsHelper.getConfig<BotDesignerCredentialsResponse>(integration);
+    const config = await this.credentialsHelper.getConfig<BotDesignerCredentialsResponse>(integration);
+
+    if (!config) {
+      throw HTTP_ERROR_THROWER(
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        { message: `invalid integration config: ${integration._id}` },
+        HttpErrorOrigin.INTEGRATION_ERROR,
+        false,
+        undefined,
+      );
+    }
+
+    const { apiUrl } = config;
 
     if (!apiUrl) {
-      throw HTTP_ERROR_THROWER(HttpStatus.INTERNAL_SERVER_ERROR, {
-        message: `invalid api url: ${integration._id}`,
-      });
+      throw HTTP_ERROR_THROWER(
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        { message: `invalid api url: ${integration._id}` },
+        HttpErrorOrigin.INTEGRATION_ERROR,
+        false,
+        undefined,
+      );
     }
 
     return apiUrl;
@@ -255,13 +287,17 @@ export class BotdesignerApiService {
     });
   }
 
-  private debugRequest(integration: IntegrationDocument, payload: any) {
-    if (!integration.debug) {
-      return;
-    }
-
-    const envKey = integration.environment === IntegrationEnvironment.test ? '-TEST' : '';
-    this.logger.debug(`${integration._id}:${integration.name}:BOTDESIGNER${envKey}-debug`, payload);
+  private throwIntegrationError(
+    integration: IntegrationDocument,
+    error: any,
+    methodName: string,
+    statusCode: number = HttpStatus.BAD_REQUEST,
+  ) {
+    throw HTTP_ERROR_THROWER(statusCode, error, HttpErrorOrigin.INTEGRATION_ERROR, false, undefined, {
+      location: `BotdesignerApiService.${methodName}`,
+      integrationId: castObjectIdToString(integration._id),
+      workspaceId: castObjectIdToString(integration.workspaceId),
+    });
   }
 
   public async listOnDutyMedicalScale(integration: IntegrationDocument): Promise<OnDutyMedicalScale[]> {
@@ -270,8 +306,6 @@ export class BotdesignerApiService {
     try {
       const headers = await this.getDefaultHeaders(integration);
       const apiUrl = await this.getApiUrl(integration);
-
-      this.debugRequest(integration, {});
 
       const response = await lastValueFrom(
         this.httpService.post<DefaultResponse<OnDutyMedicalScale[]>>(
@@ -287,7 +321,7 @@ export class BotdesignerApiService {
       return response.data?.data ?? [];
     } catch (error) {
       this.handleResponseException(integration, error, {}, methodName);
-      throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, error, HttpErrorOrigin.INTEGRATION_ERROR);
+      this.throwIntegrationError(integration, error, methodName);
     }
   }
 
@@ -305,7 +339,6 @@ export class BotdesignerApiService {
       const headers = await this.getDefaultHeaders(integration);
       const apiUrl = await this.getApiUrl(integration);
 
-      this.debugRequest(integration, payload);
       this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
       const response = await lastValueFrom(
@@ -322,7 +355,7 @@ export class BotdesignerApiService {
       return response.data?.data ?? [];
     } catch (error) {
       this.handleResponseException(integration, error, payload, methodName);
-      throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, error, HttpErrorOrigin.INTEGRATION_ERROR);
+      this.throwIntegrationError(integration, error, methodName);
     }
   }
 
@@ -337,7 +370,6 @@ export class BotdesignerApiService {
       const headers = await this.getDefaultHeaders(integration);
       const apiUrl = await this.getApiUrl(integration);
 
-      this.debugRequest(integration, payload);
       this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
       const response = await lastValueFrom(
@@ -354,7 +386,7 @@ export class BotdesignerApiService {
       return response.data?.data ?? [];
     } catch (error) {
       this.handleResponseException(integration, error, payload, methodName);
-      throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, error, HttpErrorOrigin.INTEGRATION_ERROR);
+      this.throwIntegrationError(integration, error, methodName);
     }
   }
 
@@ -369,7 +401,6 @@ export class BotdesignerApiService {
       const headers = await this.getDefaultHeaders(integration);
       const apiUrl = await this.getApiUrl(integration);
 
-      this.debugRequest(integration, payload);
       this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
       const response = await lastValueFrom(
@@ -386,7 +417,7 @@ export class BotdesignerApiService {
       return response.data?.data ?? [];
     } catch (error) {
       this.handleResponseException(integration, error, payload, methodName);
-      throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, error, HttpErrorOrigin.INTEGRATION_ERROR);
+      this.throwIntegrationError(integration, error, methodName);
     }
   }
 
@@ -404,7 +435,6 @@ export class BotdesignerApiService {
       const headers = await this.getDefaultHeaders(integration);
       const apiUrl = await this.getApiUrl(integration);
 
-      this.debugRequest(integration, payload);
       this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
       const response = await lastValueFrom(
@@ -421,7 +451,7 @@ export class BotdesignerApiService {
       return response.data?.data ?? [];
     } catch (error) {
       this.handleResponseException(integration, error, payload, methodName);
-      throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, error, HttpErrorOrigin.INTEGRATION_ERROR);
+      this.throwIntegrationError(integration, error, methodName);
     }
   }
 
@@ -436,7 +466,6 @@ export class BotdesignerApiService {
       const headers = await this.getDefaultHeaders(integration);
       const apiUrl = await this.getApiUrl(integration);
 
-      this.debugRequest(integration, payload);
       this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
       const response = await lastValueFrom(
@@ -453,7 +482,7 @@ export class BotdesignerApiService {
       return response.data?.data ?? null;
     } catch (error) {
       this.handleResponseException(integration, error, payload, methodName);
-      throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, error, HttpErrorOrigin.INTEGRATION_ERROR);
+      this.throwIntegrationError(integration, error, methodName);
     }
   }
 
@@ -471,7 +500,6 @@ export class BotdesignerApiService {
       const headers = await this.getDefaultHeaders(integration);
       const apiUrl = await this.getApiUrl(integration);
 
-      this.debugRequest(integration, payload);
       this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
       const response = await lastValueFrom(
@@ -488,7 +516,7 @@ export class BotdesignerApiService {
       return response.data?.data ?? [];
     } catch (error) {
       this.handleResponseException(integration, error, payload, methodName);
-      throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, error, HttpErrorOrigin.INTEGRATION_ERROR);
+      this.throwIntegrationError(integration, error, methodName);
     }
   }
 
@@ -506,7 +534,6 @@ export class BotdesignerApiService {
       const headers = await this.getDefaultHeaders(integration);
       const apiUrl = await this.getApiUrl(integration);
 
-      this.debugRequest(integration, payload);
       this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
       const response = await lastValueFrom(
@@ -523,7 +550,7 @@ export class BotdesignerApiService {
       return response.data?.data ?? [];
     } catch (error) {
       this.handleResponseException(integration, error, {}, methodName);
-      throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, error, HttpErrorOrigin.INTEGRATION_ERROR);
+      this.throwIntegrationError(integration, error, methodName);
     }
   }
 
@@ -541,7 +568,6 @@ export class BotdesignerApiService {
       const headers = await this.getDefaultHeaders(integration);
       const apiUrl = await this.getApiUrl(integration);
 
-      this.debugRequest(integration, payload);
       this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
       const response = await lastValueFrom(
@@ -558,7 +584,7 @@ export class BotdesignerApiService {
       return response.data?.data ?? [];
     } catch (error) {
       this.handleResponseException(integration, error, {}, methodName);
-      throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, error, HttpErrorOrigin.INTEGRATION_ERROR);
+      this.throwIntegrationError(integration, error, methodName);
     }
   }
 
@@ -577,7 +603,6 @@ export class BotdesignerApiService {
       const headers = await this.getDefaultHeaders(integration);
       const apiUrl = await this.getApiUrl(integration);
 
-      this.debugRequest(integration, payload);
       this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
       const response = await lastValueFrom(
@@ -594,7 +619,7 @@ export class BotdesignerApiService {
       return response.data?.data ?? [];
     } catch (error) {
       this.handleResponseException(integration, error, payload, methodName, ignoreException);
-      throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, error, HttpErrorOrigin.INTEGRATION_ERROR);
+      this.throwIntegrationError(integration, error, methodName);
     }
   }
 
@@ -613,7 +638,6 @@ export class BotdesignerApiService {
       const headers = await this.getDefaultHeaders(integration);
       const apiUrl = await this.getApiUrl(integration);
 
-      this.debugRequest(integration, payload);
       this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
       const response = await lastValueFrom(
@@ -630,7 +654,7 @@ export class BotdesignerApiService {
       return response.data?.data ?? [];
     } catch (error) {
       this.handleResponseException(integration, error, payload, methodName, ignoreException);
-      throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, error, HttpErrorOrigin.INTEGRATION_ERROR);
+      this.throwIntegrationError(integration, error, methodName);
     }
   }
 
@@ -648,7 +672,6 @@ export class BotdesignerApiService {
       const headers = await this.getDefaultHeaders(integration);
       const apiUrl = await this.getApiUrl(integration);
 
-      this.debugRequest(integration, payload);
       this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
       const response = await lastValueFrom(
@@ -665,7 +688,7 @@ export class BotdesignerApiService {
       return response.data?.data ?? [];
     } catch (error) {
       this.handleResponseException(integration, error, payload, methodName);
-      throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, error, HttpErrorOrigin.INTEGRATION_ERROR);
+      this.throwIntegrationError(integration, error, methodName);
     }
   }
 
@@ -683,7 +706,6 @@ export class BotdesignerApiService {
       const headers = await this.getDefaultHeaders(integration);
       const apiUrl = await this.getApiUrl(integration);
 
-      this.debugRequest(integration, payload);
       this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
       const response = await lastValueFrom(
@@ -700,7 +722,7 @@ export class BotdesignerApiService {
       return response.data?.data ?? [];
     } catch (error) {
       this.handleResponseException(integration, error, payload, methodName);
-      throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, error, HttpErrorOrigin.INTEGRATION_ERROR);
+      this.throwIntegrationError(integration, error, methodName);
     }
   }
 
@@ -718,7 +740,6 @@ export class BotdesignerApiService {
       const headers = await this.getDefaultHeaders(integration);
       const apiUrl = await this.getApiUrl(integration);
 
-      this.debugRequest(integration, payload);
       this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
       const response = await lastValueFrom(
@@ -735,7 +756,7 @@ export class BotdesignerApiService {
       return response.data?.data ?? [];
     } catch (error) {
       this.handleResponseException(integration, error, payload, methodName);
-      throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, error, HttpErrorOrigin.INTEGRATION_ERROR);
+      this.throwIntegrationError(integration, error, methodName);
     }
   }
 
@@ -750,8 +771,7 @@ export class BotdesignerApiService {
       const headers = await this.getDefaultHeaders(integration);
       const apiUrl = await this.getApiUrl(integration);
 
-      this.debugRequest(integration, payload);
-
+      this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
       const response = await lastValueFrom(
         this.httpService.post<DefaultResponse<OkResponse>>(
           `${apiUrl}/integrator/${this.getIntegrationId(integration)}/confirmSchedule`,
@@ -766,7 +786,7 @@ export class BotdesignerApiService {
       return response.data?.data ?? null;
     } catch (error) {
       this.handleResponseException(integration, error, {}, methodName);
-      throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, error, HttpErrorOrigin.INTEGRATION_ERROR);
+      this.throwIntegrationError(integration, error, methodName);
     }
   }
 
@@ -780,8 +800,8 @@ export class BotdesignerApiService {
     try {
       const headers = await this.getDefaultHeaders(integration);
       const apiUrl = await this.getApiUrl(integration);
-      this.debugRequest(integration, payload);
 
+      this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
       const response = await lastValueFrom(
         this.httpService.post<DefaultResponse<OkResponse>>(
           `${apiUrl}/integrator/${this.getIntegrationId(integration)}/cancelSchedule`,
@@ -796,7 +816,7 @@ export class BotdesignerApiService {
       return response.data?.data ?? null;
     } catch (error) {
       this.handleResponseException(integration, error, payload, methodName);
-      throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, error, HttpErrorOrigin.INTEGRATION_ERROR);
+      this.throwIntegrationError(integration, error, methodName);
     }
   }
 
@@ -810,7 +830,6 @@ export class BotdesignerApiService {
     try {
       const headers = await this.getDefaultHeaders(integration);
       const apiUrl = await this.getApiUrl(integration);
-      this.debugRequest(integration, payload);
 
       const response = await lastValueFrom(
         this.httpService.post<DefaultResponse<Patient>>(
@@ -826,7 +845,7 @@ export class BotdesignerApiService {
       return response.data?.data ?? null;
     } catch (error) {
       this.handleResponseException(integration, error, payload, methodName);
-      throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, error, HttpErrorOrigin.INTEGRATION_ERROR);
+      this.throwIntegrationError(integration, error, methodName);
     }
   }
 
@@ -843,7 +862,7 @@ export class BotdesignerApiService {
     try {
       const headers = await this.getDefaultHeaders(integration);
       const apiUrl = await this.getApiUrl(integration);
-      this.debugRequest(integration, payload);
+
       this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
       const response = await lastValueFrom(
@@ -857,18 +876,18 @@ export class BotdesignerApiService {
       );
 
       if (response?.data?.statusCode === HttpStatus.CONFLICT) {
-        throw HTTP_ERROR_THROWER(HttpStatus.CONFLICT, 'Filled schedule', HttpErrorOrigin.INTEGRATION_ERROR);
+        this.throwIntegrationError(integration, 'Filled schedule', methodName, HttpStatus.CONFLICT);
       }
 
       this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response.data?.data ?? null;
     } catch (error) {
       if (error?.response?.status === HttpStatus.CONFLICT) {
-        throw HTTP_ERROR_THROWER(HttpStatus.CONFLICT, 'Filled schedule', HttpErrorOrigin.INTEGRATION_ERROR);
+        this.throwIntegrationError(integration, 'Filled schedule', methodName, HttpStatus.CONFLICT);
       }
 
       this.handleResponseException(integration, error, payload, methodName);
-      throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, error, HttpErrorOrigin.INTEGRATION_ERROR);
+      this.throwIntegrationError(integration, error, methodName);
     }
   }
 
@@ -885,7 +904,6 @@ export class BotdesignerApiService {
     try {
       const headers = await this.getDefaultHeaders(integration);
       const apiUrl = await this.getApiUrl(integration);
-      this.debugRequest(integration, payload);
       this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
       const response = await lastValueFrom(
@@ -898,19 +916,28 @@ export class BotdesignerApiService {
         ),
       );
 
+      if (response?.data?.statusCode === HttpStatus.BAD_REQUEST) {
+        this.throwIntegrationError(
+          integration,
+          response?.data.error || 'Error creating schedule',
+          methodName,
+          HttpStatus.BAD_REQUEST,
+        );
+      }
+
       if (response?.data?.statusCode === HttpStatus.CONFLICT) {
-        throw HTTP_ERROR_THROWER(HttpStatus.CONFLICT, 'Filled schedule', HttpErrorOrigin.INTEGRATION_ERROR);
+        this.throwIntegrationError(integration, 'Filled schedule', methodName, HttpStatus.CONFLICT);
       }
 
       this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response.data?.data ?? null;
     } catch (error) {
       if (error?.response?.status === HttpStatus.CONFLICT) {
-        throw HTTP_ERROR_THROWER(HttpStatus.CONFLICT, 'Filled schedule', HttpErrorOrigin.INTEGRATION_ERROR);
+        this.throwIntegrationError(integration, 'Filled schedule', methodName, HttpStatus.CONFLICT);
       }
 
       this.handleResponseException(integration, error, payload, methodName);
-      throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, error, HttpErrorOrigin.INTEGRATION_ERROR);
+      this.throwIntegrationError(integration, error, methodName);
     }
   }
 
@@ -924,7 +951,7 @@ export class BotdesignerApiService {
     try {
       const headers = await this.getDefaultHeaders(integration);
       const apiUrl = await this.getApiUrl(integration);
-      this.debugRequest(integration, payload);
+
       this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
       const response = await lastValueFrom(
@@ -938,18 +965,18 @@ export class BotdesignerApiService {
       );
 
       if (response?.data?.statusCode === HttpStatus.CONFLICT) {
-        throw HTTP_ERROR_THROWER(HttpStatus.CONFLICT, 'Filled schedule', HttpErrorOrigin.INTEGRATION_ERROR);
+        this.throwIntegrationError(integration, 'Filled schedule', methodName, HttpStatus.CONFLICT);
       }
 
       this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response.data?.data ?? null;
     } catch (error) {
       if (error?.response?.status === HttpStatus.CONFLICT) {
-        throw HTTP_ERROR_THROWER(HttpStatus.CONFLICT, 'Filled schedule', HttpErrorOrigin.INTEGRATION_ERROR);
+        this.throwIntegrationError(integration, 'Filled schedule', methodName, HttpStatus.CONFLICT);
       }
 
       this.handleResponseException(integration, error, payload, methodName);
-      throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, error, HttpErrorOrigin.INTEGRATION_ERROR);
+      this.throwIntegrationError(integration, error, methodName);
     }
   }
 
@@ -966,7 +993,7 @@ export class BotdesignerApiService {
     try {
       const headers = await this.getDefaultHeaders(integration);
       const apiUrl = await this.getApiUrl(integration);
-      this.debugRequest(integration, payload);
+
       this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
       const response = await lastValueFrom(
@@ -980,18 +1007,18 @@ export class BotdesignerApiService {
       );
 
       if (response?.data?.statusCode === HttpStatus.CONFLICT) {
-        throw HTTP_ERROR_THROWER(HttpStatus.CONFLICT, 'Filled schedule', HttpErrorOrigin.INTEGRATION_ERROR);
+        this.throwIntegrationError(integration, 'Filled schedule', methodName, HttpStatus.CONFLICT);
       }
 
       this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response.data?.data ?? null;
     } catch (error) {
       if (error?.response?.status === HttpStatus.CONFLICT) {
-        throw HTTP_ERROR_THROWER(HttpStatus.CONFLICT, 'Filled schedule', HttpErrorOrigin.INTEGRATION_ERROR);
+        this.throwIntegrationError(integration, 'Filled schedule', methodName, HttpStatus.CONFLICT);
       }
 
       this.handleResponseException(integration, error, payload, methodName);
-      throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, error, HttpErrorOrigin.INTEGRATION_ERROR);
+      this.throwIntegrationError(integration, error, methodName);
     }
   }
 
@@ -1005,7 +1032,6 @@ export class BotdesignerApiService {
     try {
       const headers = await this.getDefaultHeaders(integration);
       const apiUrl = await this.getApiUrl(integration);
-      this.debugRequest(integration, payload);
       this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
       const response = await lastValueFrom(
@@ -1022,7 +1048,7 @@ export class BotdesignerApiService {
       return response.data?.data ?? null;
     } catch (error) {
       this.handleResponseException(integration, error, payload, methodName);
-      throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, error, HttpErrorOrigin.INTEGRATION_ERROR);
+      this.throwIntegrationError(integration, error, methodName);
     }
   }
 
@@ -1036,7 +1062,6 @@ export class BotdesignerApiService {
     try {
       const headers = await this.getDefaultHeaders(integration);
       const apiUrl = await this.getApiUrl(integration);
-      this.debugRequest(integration, payload);
       this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
       const response = await lastValueFrom(
@@ -1053,7 +1078,7 @@ export class BotdesignerApiService {
       return response.data?.data ?? null;
     } catch (error) {
       this.handleResponseException(integration, error, payload, methodName);
-      throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, error, HttpErrorOrigin.INTEGRATION_ERROR);
+      this.throwIntegrationError(integration, error, methodName);
     }
   }
 
@@ -1070,8 +1095,6 @@ export class BotdesignerApiService {
     try {
       const headers = await this.getDefaultHeaders(integration);
       const apiUrl = await this.getApiUrl(integration);
-
-      this.debugRequest(integration, payload);
       this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
       const response = await lastValueFrom(
@@ -1088,7 +1111,7 @@ export class BotdesignerApiService {
       return orderBy(response.data?.data ?? [], 'scheduleDate', 'asc');
     } catch (error) {
       this.handleResponseException(integration, error, payload, methodName);
-      throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, error, HttpErrorOrigin.INTEGRATION_ERROR);
+      this.throwIntegrationError(integration, error, methodName);
     }
   }
 
@@ -1105,8 +1128,6 @@ export class BotdesignerApiService {
     try {
       const headers = await this.getDefaultHeaders(integration);
       const apiUrl = await this.getApiUrl(integration);
-
-      this.debugRequest(integration, payload);
       this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
       const response = await lastValueFrom(
@@ -1123,7 +1144,7 @@ export class BotdesignerApiService {
       return orderBy(response.data?.data ?? [], 'scheduleDate', 'asc');
     } catch (error) {
       this.handleResponseException(integration, error, payload, methodName);
-      throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, error, HttpErrorOrigin.INTEGRATION_ERROR);
+      this.throwIntegrationError(integration, error, methodName);
     }
   }
 
@@ -1140,8 +1161,6 @@ export class BotdesignerApiService {
     try {
       const headers = await this.getDefaultHeaders(integration);
       const apiUrl = await this.getApiUrl(integration);
-
-      this.debugRequest(integration, payload);
       this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
       const response = await lastValueFrom(
@@ -1158,7 +1177,7 @@ export class BotdesignerApiService {
       return response.data?.data ?? [];
     } catch (error) {
       this.handleResponseException(integration, error, payload, methodName);
-      throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, error, HttpErrorOrigin.INTEGRATION_ERROR);
+      this.throwIntegrationError(integration, error, methodName);
     }
   }
 
@@ -1175,8 +1194,6 @@ export class BotdesignerApiService {
     try {
       const headers = await this.getDefaultHeaders(integration);
       const apiUrl = await this.getApiUrl(integration);
-
-      this.debugRequest(integration, payload);
       this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
       const response = await lastValueFrom(
@@ -1193,7 +1210,7 @@ export class BotdesignerApiService {
       return response.data?.data ?? [];
     } catch (error) {
       this.handleResponseException(integration, error, payload, methodName);
-      throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, error, HttpErrorOrigin.INTEGRATION_ERROR);
+      this.throwIntegrationError(integration, error, methodName);
     }
   }
 
@@ -1210,8 +1227,6 @@ export class BotdesignerApiService {
     try {
       const headers = await this.getDefaultHeaders(integration);
       const apiUrl = await this.getApiUrl(integration);
-
-      this.debugRequest(integration, payload);
       this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
       const response = await lastValueFrom(
@@ -1229,7 +1244,7 @@ export class BotdesignerApiService {
     } catch (error) {
       console.log(error);
       this.handleResponseException(integration, error, payload, methodName);
-      throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, error, HttpErrorOrigin.INTEGRATION_ERROR);
+      this.throwIntegrationError(integration, error, methodName);
     }
   }
 
@@ -1246,8 +1261,6 @@ export class BotdesignerApiService {
     try {
       const headers = await this.getDefaultHeaders(integration);
       const apiUrl = await this.getApiUrl(integration);
-
-      this.debugRequest(integration, payload);
       this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
       const response = await lastValueFrom(
@@ -1266,7 +1279,7 @@ export class BotdesignerApiService {
     } catch (error) {
       console.error(error);
       this.handleResponseException(integration, error, payload, methodName);
-      throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, error, HttpErrorOrigin.INTEGRATION_ERROR);
+      this.throwIntegrationError(integration, error, methodName);
     }
   }
 
@@ -1275,8 +1288,6 @@ export class BotdesignerApiService {
     try {
       const headers = await this.getDefaultHeaders(integration);
       const apiUrl = await this.getApiUrl(integration);
-
-      this.debugRequest(integration, undefined);
       this.dispatchAuditEvent(integration, undefined, methodName, AuditDataType.externalRequest);
 
       const response = await lastValueFrom(
@@ -1294,7 +1305,7 @@ export class BotdesignerApiService {
     } catch (error) {
       console.error(error);
       this.handleResponseException(integration, error, undefined, methodName);
-      throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, error, HttpErrorOrigin.INTEGRATION_ERROR);
+      this.throwIntegrationError(integration, error, methodName);
     }
   }
 
@@ -1311,8 +1322,6 @@ export class BotdesignerApiService {
     try {
       const headers = await this.getDefaultHeaders(integration);
       const apiUrl = await this.getApiUrl(integration);
-
-      this.debugRequest(integration, payload);
       this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
       const response = await lastValueFrom(
@@ -1330,7 +1339,7 @@ export class BotdesignerApiService {
     } catch (error) {
       console.error(error);
       this.handleResponseException(integration, error, payload, methodName);
-      throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, error, HttpErrorOrigin.INTEGRATION_ERROR);
+      this.throwIntegrationError(integration, error, methodName);
     }
   }
 
@@ -1347,8 +1356,6 @@ export class BotdesignerApiService {
     try {
       const headers = await this.getDefaultHeaders(integration);
       const apiUrl = await this.getApiUrl(integration);
-
-      this.debugRequest(integration, payload);
       this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
       const response = await lastValueFrom(
@@ -1366,7 +1373,7 @@ export class BotdesignerApiService {
     } catch (error) {
       console.log(error);
       this.handleResponseException(integration, error, payload, methodName);
-      throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, error, HttpErrorOrigin.INTEGRATION_ERROR);
+      this.throwIntegrationError(integration, error, methodName);
     }
   }
 
@@ -1383,8 +1390,6 @@ export class BotdesignerApiService {
     try {
       const headers = await this.getDefaultHeaders(integration);
       const apiUrl = await this.getApiUrl(integration);
-
-      this.debugRequest(integration, payload);
       this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
       const response = await lastValueFrom(
@@ -1402,7 +1407,7 @@ export class BotdesignerApiService {
     } catch (error) {
       console.log(error);
       this.handleResponseException(integration, error, payload, methodName);
-      throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, error, HttpErrorOrigin.INTEGRATION_ERROR);
+      this.throwIntegrationError(integration, error, methodName);
     }
   }
 
@@ -1419,8 +1424,6 @@ export class BotdesignerApiService {
     try {
       const headers = await this.getDefaultHeaders(integration);
       const apiUrl = await this.getApiUrl(integration);
-
-      this.debugRequest(integration, payload);
       this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
       const response = await lastValueFrom(
@@ -1438,7 +1441,7 @@ export class BotdesignerApiService {
     } catch (error) {
       console.error(error);
       this.handleResponseException(integration, error, payload, methodName);
-      throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, error, HttpErrorOrigin.INTEGRATION_ERROR);
+      this.throwIntegrationError(integration, error, methodName);
     }
   }
 
@@ -1456,7 +1459,6 @@ export class BotdesignerApiService {
       const headers = await this.getDefaultHeaders(integration);
       const apiUrl = await this.getApiUrl(integration);
 
-      this.debugRequest(integration, payload);
       this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
       const response = await lastValueFrom(
@@ -1474,7 +1476,7 @@ export class BotdesignerApiService {
     } catch (error) {
       console.error(error);
       this.handleResponseException(integration, error, payload, methodName);
-      throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, error, HttpErrorOrigin.INTEGRATION_ERROR);
+      this.throwIntegrationError(integration, error, methodName);
     }
   }
 
@@ -1492,7 +1494,6 @@ export class BotdesignerApiService {
       const headers = await this.getDefaultHeaders(integration);
       const apiUrl = await this.getApiUrl(integration);
 
-      this.debugRequest(integration, payload);
       this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
       const response = await lastValueFrom(
@@ -1510,24 +1511,30 @@ export class BotdesignerApiService {
     } catch (error) {
       console.error(error);
       this.handleResponseException(integration, error, payload, methodName);
-      throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, error, HttpErrorOrigin.INTEGRATION_ERROR);
+      this.throwIntegrationError(integration, error, methodName);
     }
   }
 
-  public async downloadS3File(integration: IntegrationDocument, url: string): Promise<Buffer> {
+  public async downloadS3File(integration: IntegrationDocument, url: string): Promise<Readable> {
     const methodName = this.downloadS3File.name;
     try {
-      this.debugRequest(integration, {});
       this.dispatchAuditEvent(integration, {}, methodName, AuditDataType.externalRequest);
 
-      const response = await lastValueFrom(this.httpService.get<any>(url, { responseType: 'arraybuffer' }));
+      const response = await lastValueFrom(this.httpService.get<any>(url, { responseType: 'stream' }));
 
-      this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
-      return Buffer.from(response.data);
+      this.dispatchAuditEvent(integration, { message: 'Stream received' }, methodName, AuditDataType.externalResponse);
+
+      const stream = response.data as Readable;
+
+      stream.on('error', (error) => {
+        console.error(`Stream error in ${methodName}:`, error);
+      });
+
+      return stream;
     } catch (error) {
       console.error(error);
       this.handleResponseException(integration, error, {}, methodName);
-      throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, error, HttpErrorOrigin.INTEGRATION_ERROR);
+      this.throwIntegrationError(integration, error, methodName);
     }
   }
 
@@ -1545,7 +1552,6 @@ export class BotdesignerApiService {
       const headers = await this.getDefaultHeaders(integration);
       const apiUrl = await this.getApiUrl(integration);
 
-      this.debugRequest(integration, payload);
       this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
       const response = await lastValueFrom(
@@ -1563,7 +1569,7 @@ export class BotdesignerApiService {
     } catch (error) {
       console.error(error);
       this.handleResponseException(integration, error, payload, methodName);
-      throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, error, HttpErrorOrigin.INTEGRATION_ERROR);
+      this.throwIntegrationError(integration, error, methodName);
     }
   }
 
@@ -1591,7 +1597,7 @@ export class BotdesignerApiService {
     } catch (error) {
       console.error(error);
       this.handleResponseException(integration, error, null, methodName);
-      throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, error, HttpErrorOrigin.INTEGRATION_ERROR);
+      this.throwIntegrationError(integration, error, methodName);
     }
   }
 
@@ -1609,7 +1615,6 @@ export class BotdesignerApiService {
       const headers = await this.getDefaultHeaders(integration);
       const apiUrl = await this.getApiUrl(integration);
 
-      this.debugRequest(integration, payload);
       this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
       const response = await lastValueFrom(
@@ -1627,7 +1632,7 @@ export class BotdesignerApiService {
     } catch (error) {
       console.error(error);
       this.handleResponseException(integration, error, payload, methodName);
-      throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, error, HttpErrorOrigin.INTEGRATION_ERROR);
+      this.throwIntegrationError(integration, error, methodName);
     }
   }
 
@@ -1645,7 +1650,6 @@ export class BotdesignerApiService {
       const headers = await this.getDefaultHeaders(integration);
       const apiUrl = await this.getApiUrl(integration);
 
-      this.debugRequest(integration, payload);
       this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
       const response = await lastValueFrom(
@@ -1663,7 +1667,7 @@ export class BotdesignerApiService {
     } catch (error) {
       console.error(error);
       this.handleResponseException(integration, error, payload, methodName);
-      throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, error, HttpErrorOrigin.INTEGRATION_ERROR);
+      this.throwIntegrationError(integration, error, methodName);
     }
   }
 
@@ -1681,7 +1685,6 @@ export class BotdesignerApiService {
       const headers = await this.getDefaultHeaders(integration);
       const apiUrl = await this.getApiUrl(integration);
 
-      this.debugRequest(integration, payload);
       this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
       const response = await lastValueFrom(
@@ -1699,7 +1702,7 @@ export class BotdesignerApiService {
     } catch (error) {
       console.error(error);
       this.handleResponseException(integration, error, payload, methodName);
-      throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, error, HttpErrorOrigin.INTEGRATION_ERROR);
+      this.throwIntegrationError(integration, error, methodName);
     }
   }
 
@@ -1717,7 +1720,6 @@ export class BotdesignerApiService {
       const headers = await this.getDefaultHeaders(integration);
       const apiUrl = await this.getApiUrl(integration);
 
-      this.debugRequest(integration, payload);
       this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
       const response = await lastValueFrom(
@@ -1735,7 +1737,74 @@ export class BotdesignerApiService {
     } catch (error) {
       console.error(error);
       this.handleResponseException(integration, error, payload, methodName);
-      throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, error, HttpErrorOrigin.INTEGRATION_ERROR);
+      this.throwIntegrationError(integration, error, methodName);
+    }
+  }
+
+  public async sendAuthorizationInsuranceData(
+    integration: IntegrationDocument,
+    payload: { type: string; data: any },
+  ): Promise<OkResponse> {
+    const methodName = this.sendAuthorizationInsuranceData.name;
+    try {
+      payload = cleanseObject(payload);
+    } catch (error) {}
+
+    try {
+      const headers = await this.getDefaultHeaders(integration);
+      const apiUrl = await this.getApiUrl(integration);
+
+      this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
+
+      const response = await lastValueFrom(
+        this.httpService.post<DefaultResponse<OkResponse>>(
+          `${apiUrl}/integrator/${this.getIntegrationId(integration)}/authorization/sendAuthorizationInsuranceData`,
+          payload,
+          {
+            headers,
+          },
+        ),
+      );
+
+      this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
+      return response.data.data;
+    } catch (error) {
+      console.error(error);
+      this.handleResponseException(integration, error, payload, methodName);
+      this.throwIntegrationError(integration, error, methodName);
+    }
+  }
+
+  public async listFutureSchedules(
+    integration: IntegrationDocument,
+    params: ListFutureSchedulesParams,
+  ): Promise<FutureSchedule[]> {
+    const methodName = this.listFutureSchedules.name;
+
+    let payload = cleanseObject(params);
+
+    try {
+      const headers = await this.getDefaultHeaders(integration);
+      const apiUrl = await this.getApiUrl(integration);
+
+      this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
+
+      const response = await lastValueFrom(
+        this.httpService.post<DefaultResponse<FutureSchedule[]>>(
+          `${apiUrl}/integrator/${this.getIntegrationId(integration)}/listFutureSchedules`,
+          payload,
+          {
+            headers,
+          },
+        ),
+      );
+
+      this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
+      return (response.data?.data || []) as FutureSchedule[];
+    } catch (error) {
+      console.error(error);
+      this.handleResponseException(integration, error, payload, methodName);
+      this.throwIntegrationError(integration, error, methodName);
     }
   }
 }

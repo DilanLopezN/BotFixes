@@ -1,0 +1,30 @@
+export interface VapiIntegrationData {
+  integrationId?: string;
+  callId?: string;
+  doctorCode?: string;
+  organizationUnitCode?: string;
+  insuranceCode?: string;
+  procedureCode?: string;
+  specialityCode?: string;
+  appointmentTypeCode?: string;
+  patientCode?: string;
+  patientCpf?: string;
+  patientBornDate?: string;
+  entityType?: string;
+  scheduleCode?: string;
+  scheduleDate?: string;
+  scheduleDuration?: string;
+  insurancePlanCode?: string;
+  insurancePlanCategoryCode?: string;
+  insuranceSubPlanCode?: string;
+  specialityType?: string;
+  typeOfServiceCode?: string;
+  scheduleType?: string;
+  lateralityCode?: string;
+  duration?: string;
+  createSchedule?: boolean;
+  messageSended?: boolean;
+  phoneNumber?: string;
+  apiToken?: string;
+  createdAt?: number;
+}

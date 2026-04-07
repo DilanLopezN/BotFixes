@@ -97,6 +97,12 @@ enum AppointmentSortMethod {
   combineDatePeriodByOrganization = 'combineDatePeriodByOrganization',
   // retorna sem nenhuma manipulação, os primeiros disponíveis
   sequential = 'sequential',
+  // balanceia primeiros horários entre médicos usando fila de prioridade
+  firstEachDoctorBalanced = 'firstEachDoctorBalanced',
+  // balanceia horários entre médicos usando round-robin para distribuição uniforme
+  firstEachDoctorFullyBalanced = 'firstEachDoctorFullyBalanced',
+  // retorna o primeiro horário de cada dia, limitado pelo payload
+  firstEachDay = 'firstEachDay',
 }
 
 export {

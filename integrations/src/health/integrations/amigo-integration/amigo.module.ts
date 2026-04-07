@@ -21,7 +21,6 @@ import { SchedulesModule } from '../../schedules/schedules.module';
   imports: [
     HttpModule.register({
       timeout: 150_000,
-      baseURL: 'https://api.amigocare.com.br/api-chatbot',
     }),
     FlowModule,
     CacheModule,

@@ -133,6 +133,19 @@ export class BotdesignerFakeApiService {
       { code: '5', name: 'Endocrinologia', active: true, canSchedule: true, canView: true, specialityType: 'C' },
       { code: '6', name: 'Clínica Médica', active: true, canSchedule: true, canView: true, specialityType: 'C' },
       { code: '7', name: 'Ginecologia', active: true, canSchedule: true, canView: true, specialityType: 'C' },
+      { code: '15', name: 'Pediatria', active: true, canSchedule: true, canView: true, specialityType: 'C' },
+      { code: '16', name: 'Oftalmologia', active: true, canSchedule: true, canView: true, specialityType: 'C' },
+      { code: '17', name: 'Otorrinolaringologia', active: true, canSchedule: true, canView: true, specialityType: 'C' },
+      { code: '18', name: 'Urologia', active: true, canSchedule: true, canView: true, specialityType: 'C' },
+      { code: '19', name: 'Psiquiatria', active: true, canSchedule: true, canView: true, specialityType: 'C' },
+      { code: '20', name: 'Gastroenterologia', active: true, canSchedule: true, canView: true, specialityType: 'C' },
+      { code: '21', name: 'Pneumologia', active: true, canSchedule: true, canView: true, specialityType: 'C' },
+      { code: '22', name: 'Reumatologia', active: true, canSchedule: true, canView: true, specialityType: 'C' },
+      { code: '26', name: 'Geriatria', active: true, canSchedule: true, canView: true, specialityType: 'C' },
+      { code: '27', name: 'Infectologia', active: true, canSchedule: true, canView: true, specialityType: 'C' },
+      { code: '28', name: 'Nefrologia', active: true, canSchedule: true, canView: true, specialityType: 'C' },
+      { code: '29', name: 'Hematologia', active: true, canSchedule: true, canView: true, specialityType: 'C' },
+      { code: '30', name: 'Cirurgia Geral', active: true, canSchedule: true, canView: true, specialityType: 'C' },
       // Especialidades para Exame (E)
       { code: '8', name: 'Radiologia', active: true, canSchedule: true, canView: true, specialityType: 'E' },
       { code: '9', name: 'Ultrassonografia', active: true, canSchedule: true, canView: true, specialityType: 'E' },
@@ -148,6 +161,9 @@ export class BotdesignerFakeApiService {
       { code: '12', name: 'Laboratório', active: true, canSchedule: true, canView: true, specialityType: 'E' },
       { code: '13', name: 'Ecocardiograma', active: true, canSchedule: true, canView: true, specialityType: 'E' },
       { code: '14', name: 'Endoscopia', active: true, canSchedule: true, canView: true, specialityType: 'E' },
+      { code: '23', name: 'Mamografia', active: true, canSchedule: true, canView: true, specialityType: 'E' },
+      { code: '24', name: 'Densitometria Óssea', active: true, canSchedule: true, canView: true, specialityType: 'E' },
+      { code: '25', name: 'Eletroencefalograma', active: true, canSchedule: true, canView: true, specialityType: 'E' },
     ];
 
     // Filtrar por appointmentType se fornecido
@@ -167,6 +183,19 @@ export class BotdesignerFakeApiService {
       { code: '5', name: 'Particular', active: true, canSchedule: true, canView: true },
       { code: '6', name: 'Assefaz', active: true, canSchedule: true, canView: true },
       { code: '7', name: 'Cassi', active: true, canSchedule: true, canView: true },
+      { code: '8', name: 'Notre Dame Intermédica', active: true, canSchedule: true, canView: true },
+      { code: '9', name: 'Hapvida', active: true, canSchedule: true, canView: true },
+      { code: '10', name: 'Porto Seguro Saúde', active: true, canSchedule: true, canView: true },
+      { code: '11', name: 'Prevent Senior', active: true, canSchedule: true, canView: true },
+      { code: '12', name: 'Medial Saúde', active: true, canSchedule: true, canView: true },
+      { code: '13', name: 'Golden Cross', active: true, canSchedule: true, canView: true },
+      { code: '14', name: 'Cabesp', active: true, canSchedule: true, canView: true },
+      { code: '15', name: 'Geap Saúde', active: true, canSchedule: true, canView: true },
+      { code: '16', name: 'Saúde Caixa', active: true, canSchedule: true, canView: true },
+      { code: '17', name: 'Petrobrás Saúde', active: true, canSchedule: true, canView: true },
+      { code: '18', name: 'Postal Saúde', active: true, canSchedule: true, canView: true },
+      { code: '19', name: 'São Francisco Saúde', active: true, canSchedule: true, canView: true },
+      { code: '20', name: 'Ipsemg', active: true, canSchedule: true, canView: true },
     ];
   }
 
@@ -179,6 +208,19 @@ export class BotdesignerFakeApiService {
       { code: '5', name: 'Pedro Lima', active: true, canSchedule: true, canView: true },
       { code: '6', name: 'Fernanda Ribeiro', active: true, canSchedule: true, canView: true },
       { code: '7', name: 'Daniel Alberto', active: true, canSchedule: true, canView: true },
+      { code: '8', name: 'Ricardo Mendes', active: true, canSchedule: true, canView: true },
+      { code: '9', name: 'Juliana Ferreira', active: true, canSchedule: true, canView: true },
+      { code: '10', name: 'Marcelo Almeida', active: true, canSchedule: true, canView: true },
+      { code: '11', name: 'Patrícia Souza', active: true, canSchedule: true, canView: true },
+      { code: '12', name: 'Roberto Nascimento', active: true, canSchedule: true, canView: true },
+      { code: '13', name: 'Camila Rocha', active: true, canSchedule: true, canView: true },
+      { code: '14', name: 'Gustavo Pereira', active: true, canSchedule: true, canView: true },
+      { code: '15', name: 'Larissa Barbosa', active: true, canSchedule: true, canView: true },
+      { code: '16', name: 'André Martins', active: true, canSchedule: true, canView: true },
+      { code: '17', name: 'Beatriz Cardoso', active: true, canSchedule: true, canView: true },
+      { code: '18', name: 'Rafael Teixeira', active: true, canSchedule: true, canView: true },
+      { code: '19', name: 'Vanessa Araújo', active: true, canSchedule: true, canView: true },
+      { code: '20', name: 'Lucas Moreira', active: true, canSchedule: true, canView: true },
     ];
   }
 
@@ -465,6 +507,187 @@ export class BotdesignerFakeApiService {
         specialityCode: '14',
         specialityType: 'E',
       },
+
+      // Consultas - Novas Especialidades de Consulta (15-22)
+      {
+        code: '36',
+        name: 'Consulta Pediátrica',
+        active: true,
+        canSchedule: true,
+        canView: true,
+        specialityCode: '15',
+        specialityType: 'C',
+      },
+      {
+        code: '37',
+        name: 'Consulta Oftalmológica',
+        active: true,
+        canSchedule: true,
+        canView: true,
+        specialityCode: '16',
+        specialityType: 'C',
+      },
+      {
+        code: '38',
+        name: 'Consulta Otorrinolaringológica',
+        active: true,
+        canSchedule: true,
+        canView: true,
+        specialityCode: '17',
+        specialityType: 'C',
+      },
+      {
+        code: '39',
+        name: 'Consulta Urológica',
+        active: true,
+        canSchedule: true,
+        canView: true,
+        specialityCode: '18',
+        specialityType: 'C',
+      },
+      {
+        code: '40',
+        name: 'Consulta Psiquiátrica',
+        active: true,
+        canSchedule: true,
+        canView: true,
+        specialityCode: '19',
+        specialityType: 'C',
+      },
+      {
+        code: '41',
+        name: 'Consulta Gastroenterológica',
+        active: true,
+        canSchedule: true,
+        canView: true,
+        specialityCode: '20',
+        specialityType: 'C',
+      },
+      {
+        code: '42',
+        name: 'Consulta Pneumológica',
+        active: true,
+        canSchedule: true,
+        canView: true,
+        specialityCode: '21',
+        specialityType: 'C',
+      },
+      {
+        code: '43',
+        name: 'Consulta Reumatológica',
+        active: true,
+        canSchedule: true,
+        canView: true,
+        specialityCode: '22',
+        specialityType: 'C',
+      },
+
+      // Consultas - Especialidades 26-30
+      {
+        code: '50',
+        name: 'Consulta Geriátrica',
+        active: true,
+        canSchedule: true,
+        canView: true,
+        specialityCode: '26',
+        specialityType: 'C',
+      },
+      {
+        code: '51',
+        name: 'Consulta Infectológica',
+        active: true,
+        canSchedule: true,
+        canView: true,
+        specialityCode: '27',
+        specialityType: 'C',
+      },
+      {
+        code: '52',
+        name: 'Consulta Nefrológica',
+        active: true,
+        canSchedule: true,
+        canView: true,
+        specialityCode: '28',
+        specialityType: 'C',
+      },
+      {
+        code: '53',
+        name: 'Consulta Hematológica',
+        active: true,
+        canSchedule: true,
+        canView: true,
+        specialityCode: '29',
+        specialityType: 'C',
+      },
+      {
+        code: '54',
+        name: 'Consulta Cirurgia Geral',
+        active: true,
+        canSchedule: true,
+        canView: true,
+        specialityCode: '30',
+        specialityType: 'C',
+      },
+
+      // Exames - Mamografia (23)
+      {
+        code: '44',
+        name: 'Mamografia Digital Bilateral',
+        active: true,
+        canSchedule: true,
+        canView: true,
+        specialityCode: '23',
+        specialityType: 'E',
+      },
+      {
+        code: '45',
+        name: 'Mamografia com Tomossíntese',
+        active: true,
+        canSchedule: true,
+        canView: true,
+        specialityCode: '23',
+        specialityType: 'E',
+      },
+
+      // Exames - Densitometria Óssea (24)
+      {
+        code: '46',
+        name: 'Densitometria Óssea Coluna',
+        active: true,
+        canSchedule: true,
+        canView: true,
+        specialityCode: '24',
+        specialityType: 'E',
+      },
+      {
+        code: '47',
+        name: 'Densitometria Óssea Fêmur',
+        active: true,
+        canSchedule: true,
+        canView: true,
+        specialityCode: '24',
+        specialityType: 'E',
+      },
+
+      // Exames - Eletroencefalograma (25)
+      {
+        code: '48',
+        name: 'Eletroencefalograma em Vigília',
+        active: true,
+        canSchedule: true,
+        canView: true,
+        specialityCode: '25',
+        specialityType: 'E',
+      },
+      {
+        code: '49',
+        name: 'Eletroencefalograma com Mapeamento',
+        active: true,
+        canSchedule: true,
+        canView: true,
+        specialityCode: '25',
+        specialityType: 'E',
+      },
     ];
 
     if (specialityCode) {
@@ -529,24 +752,26 @@ export class BotdesignerFakeApiService {
     }
 
     let generatedCount = 0;
+    const doctorCodes = doctorCode ? [doctorCode] : ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'];
+    let doctorIndex = 0;
 
     for (let day = 0; day < maxDays && generatedCount < limit; day++) {
       const date = startDate.clone().add(day, 'days');
 
       for (let hour = startHour; hour < endHour && generatedCount < limit; hour++) {
-        // Se doctor específico foi filtrado, usar apenas ele
-        const doctorCodes = doctorCode ? [doctorCode] : ['1', '2', '3', '4', '5'];
+        // Intercalar a cada 30min: slot 0 = HH:00, slot 1 = HH:30
+        for (let slot = 0; slot < 2 && generatedCount < limit; slot++) {
+          const minute = slot * 30;
+          const docCode = doctorCodes[doctorIndex % doctorCodes.length];
+          doctorIndex++;
 
-        for (const docCode of doctorCodes) {
-          if (generatedCount >= limit) break;
-
-          const scheduleDate = date.clone().hour(hour).minute(0).second(0);
+          const scheduleDate = date.clone().hour(hour).minute(minute).second(0);
 
           // Se speciality específica foi filtrada, usar apenas ela
           const scheduleSpecialityCode = specialityCode || ((parseInt(docCode) % 7) + 1).toString();
 
           schedules.push({
-            scheduleCode: `FAKE_${scheduleDate.format('YYYYMMDD')}_${hour}_${docCode}_${nanoid(6)}`,
+            scheduleCode: `FAKE_${scheduleDate.format('YYYYMMDD')}_${hour}${minute}_${docCode}_${nanoid(6)}`,
             scheduleDate: scheduleDate.format('YYYY-MM-DDTHH:mm:ss'),
             duration: 30,
             doctorCode: docCode,
@@ -560,11 +785,7 @@ export class BotdesignerFakeApiService {
 
           generatedCount++;
         }
-
-        if (generatedCount >= limit) break;
       }
-
-      if (generatedCount >= limit) break;
     }
 
     return schedules.slice(0, limit);

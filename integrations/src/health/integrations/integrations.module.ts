@@ -16,9 +16,11 @@ import { MatrixModule } from './matrix-integration/matrix.module';
 import { AmigoModule } from './amigo-integration/amigo.module';
 import { KayserModule } from './kayser-integration/kayser.module';
 import { BotdesignerFakeModule } from './botdesigner-fake-integration/botdesigner-fake.module';
-
+import { StenciModule } from './stenci-integration/stenci.module';
+import { ShiftModule } from './shift-integration/shift.module';
 import { ProdoctorModule } from './prodoctor-integration/prodoctor.module';
 import { KonsistModule } from './konsist-integration/konsist.module';
+import { PhillipsModule } from './phillips-integration/phillips.module';
 
 @Module({
   imports: [
@@ -39,8 +41,11 @@ import { KonsistModule } from './konsist-integration/konsist.module';
     AmigoModule,
     KayserModule,
     BotdesignerFakeModule,
+    StenciModule,
+    ShiftModule,
     ProdoctorModule,
     KonsistModule,
+    PhillipsModule,
   ],
 })
 export class IntegrationsModule {}

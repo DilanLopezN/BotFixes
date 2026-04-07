@@ -1,22 +1,25 @@
+export interface AmigoApiResponse<T> {
+  data: T;
+  status: string;
+}
+
+export interface AmigoOrganizationUnitItem {
+  id: number;
+  name: string;
+  prefix: string;
+  address_address: string;
+  address_number: string;
+  address_district: string;
+  address_city: string;
+  address_state: string;
+  address: string;
+}
+
 export interface AmigoOrganizationUnitsResponse {
-  findUnidades: boolean;
-  message: string;
-  unidadesList: {
-    id: number;
-    name: string;
-    prefix: string;
-    address_address: string;
-    address_number: string;
-    address_district: string;
-    address_city: string;
-    address_state: string;
-    address: string;
-  }[];
+  unidadesList: AmigoOrganizationUnitItem[];
 }
 
 export interface AmigoInsurancesResponse {
-  findConvenio: boolean;
-  message: string;
   conveniosList: {
     id: number;
     name: string;
@@ -30,8 +33,6 @@ export interface AmigoInsuranceParamsRequest {
 }
 
 export interface AmigoInsurancePlansResponse {
-  findPlanos: boolean;
-  message: string;
   planosList: {
     id: number;
     name: string;
@@ -47,7 +48,6 @@ export interface AmigoInsurancePlansParamsRequest {
 }
 
 export interface AmigoDoctorsResponse {
-  findMedicos: boolean;
   medicosList: {
     id: number;
     name: string;
@@ -66,12 +66,10 @@ export interface AmigoDoctorsParamsRequest {
 }
 
 export interface AmigoSpecialitiesResponse {
-  findEspecialidades: boolean;
   specialties: string[];
 }
 
 export interface AmigoProceduresResponse {
-  findEventos: boolean;
   eventsList: {
     id: number;
     name: string;
@@ -89,8 +87,6 @@ export interface AmigoProceduresParamsRequest {
 }
 
 export interface AmigoGetPatientResponse {
-  patientExists: boolean;
-  message: string;
   patient: {
     id: number;
     name: string;
@@ -125,7 +121,6 @@ export interface AmigoCreatePatientResponse {
 }
 
 export interface AmigoListAvailableSchedulerResponse {
-  calendarFound: boolean;
   dates:
     | {
         [key: string]: {
@@ -160,8 +155,6 @@ export interface AmigoListAvailableSchedulerByDoctorResponse {
         hour: string;
       }[]
     | string[];
-  message: string;
-  findHorarios: boolean;
 }
 
 export interface AmigoListAvailableSchedulerByDoctorParamsRequest {
@@ -188,7 +181,8 @@ export interface AmigoCreateScheduleParamsRequest {
 }
 
 export interface AmigoCreateScheduleResponse {
-  consultaAgendada: boolean;
+  /** API v1: indica sucesso. API v2: ausente; sucesso quando result é truthy. */
+  consultaAgendada?: boolean;
   message?: string;
 }
 

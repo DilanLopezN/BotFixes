@@ -21,3 +21,5 @@ export * from './external-insurance.dto';
 export * from './get-patient-query.dto';
 export * from './list-patient-suggested.dto';
 export * from './recover-access-protocol.dto';
+export * from './list-future-schedules.dto';
+export * from './cancel-future-schedule.dto';

@@ -41,7 +41,7 @@ class IntegrationRules {
   @Prop({ type: Boolean, required: false, default: false })
   listConsultationTypesAsProcedure?: boolean;
 
-  @Prop({ type: Boolean, required: false, default: true })
+  @Prop({ type: Boolean, required: false, default: false })
   listOnlyDoctorsWithAvailableSchedules?: boolean;
 
   @Prop({ type: Boolean, required: false, default: false })
@@ -74,19 +74,19 @@ class IntegrationRules {
   @Prop({ type: Boolean, required: false, default: false })
   splitInsuranceIntoInsurancePlansV2?: boolean;
 
-  @Prop({ type: Boolean, required: false, default: true })
+  @Prop({ type: Boolean, required: false, default: false })
   updatePatientEmailBeforeCreateSchedule?: boolean;
 
   @Prop({ type: Boolean, required: false, default: false })
   updatePatientSexBeforeCreateSchedule?: boolean;
 
-  @Prop({ type: Boolean, required: false, default: true })
+  @Prop({ type: Boolean, required: false, default: false })
   updatePatientPhoneBeforeCreateSchedule?: boolean;
 
-  @Prop({ type: Boolean, required: false, default: true })
+  @Prop({ type: Boolean, required: false, default: false })
   usesCorrelation?: boolean;
 
-  @Prop({ type: Boolean, required: false, default: true })
+  @Prop({ type: Boolean, required: false, default: false })
   showFutureSearchInAvailableScheduleList?: boolean;
 
   @Prop({ type: Boolean, required: false, default: false })
@@ -113,7 +113,7 @@ class IntegrationRules {
   @Prop({ type: Number, required: false })
   limitUntilDaySearchAppointmentsWithDoctor?: number;
 
-  @Prop({ type: Boolean, required: false, default: true })
+  @Prop({ type: Boolean, required: false, default: false })
   runInterAppointment?: boolean;
 
   @Prop({ type: Number, required: false })
@@ -143,6 +143,9 @@ class IntegrationRules {
   @Prop({ type: Boolean, required: false, default: false })
   doNotAllowSameHourScheduling?: boolean;
 
+  @Prop({ type: Boolean, required: false, default: false })
+  doNotAllowSameDayForProcedureWithLaterality?: boolean;
+
   @Prop({ type: Number, required: false })
   minutesAfterAppointmentCanSchedule?: number;
 
@@ -153,7 +156,16 @@ class IntegrationRules {
   useDoctorSuggestion?: boolean;
 
   @Prop({ type: Boolean, required: false, default: false })
+  useScheduleSuggestion?: boolean;
+
+  @Prop({ type: Boolean, required: false, default: true })
+  enableIgnoreChoosedDoctor?: boolean;
+
+  @Prop({ type: Boolean, required: false, default: false })
   useClinuxApiV2?: boolean;
+
+  @Prop({ type: Boolean, required: false, default: false })
+  useAmigoApiV2?: boolean;
 
   @Prop({ type: Boolean, required: false, default: false })
   useNetpacsGroupedSchedules?: boolean;
@@ -187,6 +199,18 @@ class IntegrationRules {
 
   @Prop({ type: Boolean, required: false, default: false })
   useReportProcessorAIProcedureDetection?: boolean;
+
+  @Prop({ type: Boolean, required: false, default: true })
+  useCachedEntitiesFromErp?: boolean;
+
+  @Prop({ type: Boolean, required: false, default: false })
+  showArrivalTimeMessage?: boolean;
+
+  @Prop({ type: Boolean, required: false, default: false })
+  replaceScheduleDateToArrivalDate?: boolean;
+
+  @Prop({ type: Boolean, required: false, default: false })
+  allowDuplicateSchedules?: boolean;
 }
 
 @Schema({ versionKey: false, _id: false })

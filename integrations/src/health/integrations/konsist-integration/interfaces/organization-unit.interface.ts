@@ -1,4 +1,4 @@
-export interface KonsistEmpresaResponse {
+export interface KonsisEnterpriseResponse {
   tipo?: string;
   id?: number;
   empresa?: string;

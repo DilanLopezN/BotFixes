@@ -18,6 +18,7 @@ import postgresConfig from './postgres.config';
 import { SchedulesModule } from './schedules/schedules.module';
 import { PatientAcceptanceModule } from './patient-acceptance/patient-acceptance.module';
 import { SchedulingModule } from './scheduling/scheduling.module';
+import { VapiIntegrationModule } from './vapi-integration/vapi-integration.module';
 import { RabbitModule } from '../common/rabbit-module/rabbit.module';
 import { ScheduleNotificationModule } from './schedule-notification/schedule-notification.module';
 import { TokenManagementModule } from './token-management/token-management.module';
@@ -25,6 +26,7 @@ import { ReportProcessorModule } from './report-processor/report-processor.modul
 import { EntitiesEmbeddingModule } from './entities-embedding/entities-embedding.module';
 import { DataSource } from 'typeorm';
 import { DocumentsModule } from './documents/documents.module';
+import { AuthorizatorModule } from './authorizator/authorizator.module';
 
 @Module({
   imports: [
@@ -40,6 +42,7 @@ import { DocumentsModule } from './documents/documents.module';
           max: 20,
           connectionTimeoutMillis: 5_000,
           idleTimeoutMillis: 10_000,
+          application_name: process?.env?.HOSTNAME + '-INTEGRATIONS_CONNECTION',
         },
       }),
       dataSourceFactory: async (options) => {
@@ -62,6 +65,7 @@ import { DocumentsModule } from './documents/documents.module';
           max: 10,
           connectionTimeoutMillis: 5_000,
           idleTimeoutMillis: 10_000,
+          application_name: process?.env?.HOSTNAME + '-ANALYTICS_CONNECTION',
         },
       }),
       inject: [ConfigService],
@@ -77,6 +81,7 @@ import { DocumentsModule } from './documents/documents.module';
           max: 5,
           connectionTimeoutMillis: 5_000,
           idleTimeoutMillis: 10_000,
+          application_name: process?.env?.HOSTNAME + '-BOTDESIGNER_FAKE_CONNECTION',
         },
       }),
       inject: [ConfigService],
@@ -90,11 +95,13 @@ import { DocumentsModule } from './documents/documents.module';
     SchedulesModule,
     PatientAcceptanceModule,
     SchedulingModule,
+    VapiIntegrationModule,
     ScheduleNotificationModule,
     TokenManagementModule,
     ReportProcessorModule,
     EntitiesEmbeddingModule,
     DocumentsModule,
+    AuthorizatorModule,
   ],
 })
 export class HealthModule {}

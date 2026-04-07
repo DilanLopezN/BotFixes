@@ -68,6 +68,7 @@ const httpsAgent = new https.Agent({
 @Injectable()
 export class MatrixApiService {
   private readonly logger = new Logger(MatrixApiService.name);
+
   constructor(
     private readonly httpService: HttpService,
     private readonly sentryErrorHandlerService: SentryErrorHandlerService,
@@ -99,17 +100,18 @@ export class MatrixApiService {
     });
   }
 
-  private debugRequest(integration: IntegrationDocument, payload: any, funcName: string) {
-    if (!integration.debug) {
-      return;
-    }
-
-    this.logger.debug(`${integration._id}:${integration.name}:MATRIX-debug:${funcName}`, payload);
-  }
-
   private async getApiUrl(integration: IntegrationDocument, url: string): Promise<string> {
     const { apiUrl } = await this.credentialsHelper.getConfig<MatrixCredentialsResponse>(integration);
     return `${apiUrl}${url.startsWith('/') ? url : `/${url}`}`;
+  }
+
+  private debugRequest(integration: IntegrationDocument, payload: any, funcName?: string) {
+    if (!integration || (!integration.debug && process.env.NODE_ENV !== 'local')) return;
+
+    const base = `${integration._id}:${integration.name}:${IntegrationType.MATRIX}-debug`;
+    const label = funcName ? `${base}:${funcName}` : base;
+
+    this.logger.debug(label, payload);
   }
 
   public async getLoginToken(integration: IntegrationDocument, ignoreException?: boolean): Promise<string> {
@@ -204,7 +206,7 @@ export class MatrixApiService {
       payload = cleanseObject(payload, { replaceNegativeWithEmptyString: true });
     } catch (error) {}
 
-    this.debugRequest(integration, payload, this.createPatient.name);
+    this.debugRequest(integration, payload, methodName);
 
     try {
       const config = await this.getPublicParams(integration);
@@ -234,6 +236,7 @@ export class MatrixApiService {
     payload: MatrixUpdatePatient,
   ): Promise<MatrixUpdatePatientResponse> {
     const methodName = 'updatePatient';
+    this.debugRequest(integration, payload, methodName);
     this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
     try {
@@ -268,7 +271,8 @@ export class MatrixApiService {
     integration: IntegrationDocument,
     patient: PatientDataToAuth,
   ): Promise<MatrixPatientResponse> {
-    this.debugRequest(integration, patient, this.getMatrixPatient.name);
+    const methodName = 'getMatrixPatient';
+    this.debugRequest(integration, patient, methodName);
 
     try {
       const config = await this.getPublicParams(integration);
@@ -298,6 +302,9 @@ export class MatrixApiService {
     patient: PatientDataToAuth,
     ignoreException?: boolean,
   ): Promise<MatrixPatientResponseV2[]> {
+    const methodName = 'getMatrixPatientWithToken';
+    this.debugRequest(integration, patient, methodName);
+
     try {
       const url = await this.getApiUrl(integration, '/busca-paciente');
       const config = await this.getConfigWithToken(integration);
@@ -325,10 +332,14 @@ export class MatrixApiService {
     payload: RecoverPasswordRequest,
     ignoreException?: boolean,
   ): Promise<RecoverPasswordResponse> {
+    const methodName = 'recoverPassword';
+    this.debugRequest(integration, payload, methodName);
+
     try {
       const url = await this.getApiUrl(integration, '/reinicia-senha');
       const config = await this.getConfigWithToken(integration);
       const request = await lastValueFrom(this.httpService.post<RecoverPasswordResponse>(url, payload, config));
+
       return request?.data ?? undefined;
     } catch (error) {
       await this.handleResponseError(integration, error, payload, this.recoverPassword.name, ignoreException);
@@ -344,7 +355,8 @@ export class MatrixApiService {
     integration: IntegrationDocument,
     ignoreException?: boolean,
   ): Promise<MatrixOrganizationUnitsResponse['unidades']> {
-    this.debugRequest(integration, {}, this.listOrganizationUnits.name);
+    const methodName = 'listOrganizationUnits';
+    this.debugRequest(integration, {}, methodName);
 
     try {
       const config = await this.getPublicParams(integration);
@@ -370,7 +382,8 @@ export class MatrixApiService {
     payload: MatrixOrganizationUnitsPayloadRequest,
     ignoreException?: boolean,
   ): Promise<MatrixOrganizationUnitsResponse['unidades']> {
-    this.debugRequest(integration, {}, this.listOrganizationUnits.name);
+    const methodName = 'listOrganizationUnitsWithParams';
+    this.debugRequest(integration, payload, methodName);
 
     try {
       const config = await this.getPublicParams(integration);
@@ -399,7 +412,8 @@ export class MatrixApiService {
     integration: IntegrationDocument,
     ignoreException?: boolean,
   ): Promise<MatrixInsurancesAndPlansResponse['convenios']> {
-    this.debugRequest(integration, {}, this.listInsurances.name);
+    const methodName = 'listInsurances';
+    this.debugRequest(integration, {}, methodName);
 
     try {
       const config = await this.getPublicParams(integration);
@@ -424,7 +438,8 @@ export class MatrixApiService {
     integration: IntegrationDocument,
     ignoreException?: boolean,
   ): Promise<MatrixInsurancesAndPlansResponse> {
-    this.debugRequest(integration, {}, this.listInsurancePlans.name);
+    const methodName = 'listInsurancePlans';
+    this.debugRequest(integration, {}, methodName);
 
     try {
       const config = await this.getPublicParams(integration);
@@ -450,7 +465,8 @@ export class MatrixApiService {
     payload: MatrixDoctorPayloadRequest,
     ignoreException?: boolean,
   ): Promise<MatrixDoctorResponse['responsaveis']> {
-    this.debugRequest(integration, payload, this.listDoctors.name);
+    const methodName = 'listDoctors';
+    this.debugRequest(integration, payload, methodName);
 
     try {
       const config = await this.getPublicParams(integration);
@@ -475,7 +491,8 @@ export class MatrixApiService {
     integration: IntegrationDocument,
     ignoreException?: boolean,
   ): Promise<MatrixSpecialitiesResponse['setores']> {
-    this.debugRequest(integration, {}, this.listSpecialities.name);
+    const methodName = 'listSpecialities';
+    this.debugRequest(integration, {}, methodName);
 
     try {
       const config = await this.getPublicParams(integration);
@@ -501,7 +518,8 @@ export class MatrixApiService {
     payload: MatrixProceduresPayloadRequest,
     ignoreException?: boolean,
   ): Promise<MatrixProceduresResponse['procedimentos']> {
-    this.debugRequest(integration, payload, this.listProcedures.name);
+    const methodName = 'listProcedures';
+    this.debugRequest(integration, payload, methodName);
 
     try {
       const config = await this.getPublicParams(integration);
@@ -583,7 +601,7 @@ export class MatrixApiService {
       payload = cleanseObject(payload, { replaceNegativeWithEmptyString: true });
     } catch (error) {}
 
-    this.debugRequest(integration, payload, this.blockSchedule.name);
+    this.debugRequest(integration, payload, methodName);
     this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
     try {
@@ -620,7 +638,7 @@ export class MatrixApiService {
       payload = cleanseObject(payload, { replaceNegativeWithEmptyString: true });
     } catch (error) {}
 
-    this.debugRequest(integration, payload, this.createSchedule.name);
+    this.debugRequest(integration, payload, methodName);
     this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
     try {
@@ -651,11 +669,13 @@ export class MatrixApiService {
     integration: IntegrationDocument,
     params: MatrixPatientSchedulesParams,
   ): Promise<MatrixPatientSchedulesResponse['agendamentos']> {
+    const methodName = 'listPatientSchedules';
+
     try {
       params = cleanseObject(params, { replaceNegativeWithEmptyString: true });
     } catch (error) {}
 
-    this.debugRequest(integration, params, this.listPatientSchedules.name);
+    this.debugRequest(integration, params, methodName);
 
     try {
       const config = await this.getPublicParams(integration);
@@ -684,11 +704,13 @@ export class MatrixApiService {
     integration: IntegrationDocument,
     params: MatrixListSchedules,
   ): Promise<MatriListSchedulesDatailedResponse['agendamentosDetalhados']> {
+    const methodName = 'listSchedules';
+
     try {
       params = cleanseObject(params, { replaceNegativeWithEmptyString: true });
     } catch (error) {}
 
-    this.debugRequest(integration, params, this.listSchedules.name);
+    this.debugRequest(integration, params, methodName);
 
     try {
       const config = await this.getPublicParams(integration);
@@ -715,8 +737,7 @@ export class MatrixApiService {
 
   public async cancelSchedule(integration: IntegrationDocument, params: MatrixCancelScheduleParams): Promise<void> {
     const methodName = 'cancelSchedule';
-
-    this.debugRequest(integration, params, this.cancelSchedule.name);
+    this.debugRequest(integration, params, methodName);
     this.dispatchAuditEvent(integration, params, methodName, AuditDataType.externalRequest);
 
     try {
@@ -730,6 +751,21 @@ export class MatrixApiService {
       this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response.data;
     } catch (error) {
+      try {
+        // Identificado com a Marina da tecnolab que sempre que retorna este erro
+        // é porque o agendamento já foi cancelado dentro do erp. Então foi acordado
+        // que ao retornar este erro será tratado como um cancelamento efetuado
+        const errorMessage = error?.response?.data?.erro ?? '';
+        if (typeof errorMessage === 'string' && errorMessage.includes('Não foi possível desmarcar o agendamento.')) {
+          return;
+        }
+      } catch (e) {
+        throw HTTP_ERROR_THROWER(
+          error?.response?.status || HttpStatus.BAD_REQUEST,
+          e,
+          HttpErrorOrigin.INTEGRATION_ERROR,
+        );
+      }
       await this.handleResponseError(integration, error, params, 'cancelSchedule');
       throw HTTP_ERROR_THROWER(
         error?.response?.status || HttpStatus.BAD_REQUEST,
@@ -743,7 +779,8 @@ export class MatrixApiService {
     integration: IntegrationDocument,
     payload: MatrixProcedureDataRequest,
   ): Promise<MatrixProcedureDataResponse[]> {
-    this.debugRequest(integration, {}, this.getProcedureData.name);
+    const methodName = 'getProcedureData';
+    this.debugRequest(integration, payload, methodName);
 
     try {
       const config = await this.getPublicParams(integration);
@@ -770,8 +807,7 @@ export class MatrixApiService {
 
   public async confirmSchedule(integration: IntegrationDocument, params: MatrixConfirmScheduleParams): Promise<void> {
     const methodName = 'confirmSchedule';
-
-    this.debugRequest(integration, params, this.confirmSchedule.name);
+    this.debugRequest(integration, params, methodName);
     this.dispatchAuditEvent(integration, params, methodName, AuditDataType.externalRequest);
 
     try {

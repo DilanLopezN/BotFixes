@@ -1,4 +1,4 @@
-export interface KonsistConvenioResponse {
+export interface KonsistAgreementResponse {
   id?: number;
   codigo?: string;
   nome?: string;

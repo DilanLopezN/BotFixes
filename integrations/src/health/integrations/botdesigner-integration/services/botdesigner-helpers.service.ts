@@ -12,7 +12,7 @@ import { onlyNumbers } from '../../../../common/helpers/format-cpf';
 import { IntegrationDocument } from '../../../integration/schema/integration.schema';
 import { RawAppointment } from '../../../shared/appointment.service';
 import { AppointmentStatus } from '../../../interfaces/appointment.interface';
-import { EntityDocument, TypeOfService } from '../../../entities/schema';
+import { EntityDocument, TypeOfService, TypeOfServiceEntityDocument } from '../../../entities/schema';
 import { Types } from 'mongoose';
 import { castObjectIdToString } from '../../../../common/helpers/cast-objectid';
 import { CorrelationFilter } from '../../../interfaces/correlation-filter.interface';
@@ -455,5 +455,39 @@ export class BotdesignerHelpersService {
     )
       ? 'N'
       : null;
+  }
+
+  public async processTypeOfServiceForPayload(
+    integration: IntegrationDocument,
+    typeOfServiceCode: string,
+  ): Promise<{ typeOfServiceCode: string | null; classificationCode: string | null }> {
+    if (!typeOfServiceCode) {
+      return { typeOfServiceCode: null, classificationCode: null };
+    }
+
+    const codeStr = String(typeOfServiceCode);
+    const isNumeric = /^-?\d+$/.test(codeStr);
+    const isValidTypeOfServiceCode = (isNumeric && Number(codeStr) > 0) || !isNumeric;
+
+    const entity = (await this.entitiesService.getEntityByCode(
+      codeStr,
+      EntityType.typeOfService,
+      integration._id,
+    )) as TypeOfServiceEntityDocument;
+
+    // se é custom retorna direto o código pois quando é negativo enviamos direto
+    if (entity?.params?.referenceTypeOfService === TypeOfService.custom) {
+      return { typeOfServiceCode: codeStr, classificationCode: codeStr };
+    }
+
+    if (!isValidTypeOfServiceCode || !entity) {
+      return { typeOfServiceCode: null, classificationCode: null };
+    }
+
+    const classificationCode = entity?.params?.referenceTypeOfService
+      ? this.typeOfServiceToBotdesignerTypeOfService(entity.params.referenceTypeOfService)
+      : null;
+
+    return { typeOfServiceCode: codeStr, classificationCode };
   }
 }

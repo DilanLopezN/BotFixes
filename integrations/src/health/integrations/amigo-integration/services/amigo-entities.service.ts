@@ -150,7 +150,7 @@ export class AmigoEntitiesService {
   ): Promise<IInsurancePlanEntity[]> {
     try {
       let insurances: AmigoInsurancePlansResponse['planosList'];
-      if (params.insuranceId) {
+      if (!integration.rules?.useAmigoApiV2 && params.insuranceId) {
         insurances = await this.apiService.listInsurances(integration, params);
         if (!insurances.length) {
           return [];
@@ -163,7 +163,7 @@ export class AmigoEntitiesService {
       const promises = insurances.map(async (insurance) => {
         const insurancePlans = await this.apiService.listInsurancePlans(integration, {
           ...params,
-          insuranceId: insurance.id,
+          insuranceId: insurance.id || params.insuranceId,
         });
         if (!insurancePlans.length) {
           return null;
@@ -330,7 +330,7 @@ export class AmigoEntitiesService {
           return this.listOrganizationUnits(integration);
 
         case EntityType.insurance:
-          return this.listInsurancePlans(
+          return this[integration.rules?.useAmigoApiV2 ? 'listInsurances' : 'listInsurancePlans'](
             integration,
             this.amigoHelpersService.filterBlankParams({
               place_id: filters?.organizationUnit?.code,

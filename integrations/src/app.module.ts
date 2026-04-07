@@ -25,7 +25,6 @@ import { PrivateModule } from './health/private/private.module';
         autoIndex: false,
         retryAttempts: 10,
         useNewUrlParser: true,
-        minPoolSize: 5,
       }),
       inject: [ConfigService],
     }),

@@ -33,9 +33,18 @@ export class ManagerHelpersService {
     integration: IntegrationDocument,
     appointment: ManagerPatientSchedulesResponse,
   ): Promise<RawAppointment> {
+    // Pode existir horário de chegada
+    const scheduleDateArrival = appointment.horaChegada
+      ? this.formatDate(appointment.data, appointment.horaChegada)
+      : undefined;
+
     const schedule: RawAppointment = {
       appointmentCode: String(appointment.handle),
-      appointmentDate: appointment.data,
+      // Se quiser exibir horário de chegada ao invés do horário original do agendamento. - pedido USUY
+      appointmentDate:
+        scheduleDateArrival && integration.rules.replaceScheduleDateToArrivalDate
+          ? scheduleDateArrival
+          : appointment.data,
       status: AppointmentStatus.scheduled,
       duration: '0',
       // @TODO: indentificar como saber se devo retornar recurso ou medico
@@ -46,6 +55,10 @@ export class ManagerHelpersService {
       appointmentTypeId: String(appointment.servico?.tipo),
       canCancel: false,
       canConfirm: false,
+      data: {
+        scheduleDateArrival,
+        scheduleDate: appointment.data,
+      },
     };
 
     if (appointment.unidadeFilial?.handle) {
@@ -165,6 +178,10 @@ export class ManagerHelpersService {
       }
     }
 
+    if (managerPatient?.protocolo) {
+      patient.protocol = String(managerPatient.protocolo);
+    }
+
     return patient;
   }
 
@@ -228,6 +245,12 @@ export class ManagerHelpersService {
         activeSchedules.push(
           ...(schedules?.filter(
             (managerSchedule) => ![29, 43, 39, 9, 33, 8, 5, 35].includes(managerSchedule?.situacao?.handle),
+          ) ?? []),
+        );
+      } else if (castObjectIdToString(integration._id) === '659c36e3b5ff911073db9cc1') {
+        activeSchedules.push(
+          ...(schedules?.filter(
+            (managerSchedule) => ![67, 88, 96, 8, 78, 36, 7, 105, 48, 91].includes(managerSchedule?.situacao?.handle),
           ) ?? []),
         );
       } else {

@@ -10,10 +10,12 @@ import {
   Post,
   Query,
   Res,
+  StreamableFile,
   UseGuards,
   ValidationPipe,
 } from '@nestjs/common';
 import { Response } from 'express';
+import { Readable } from 'stream';
 import { ObjectIdPipe } from '../../../common/pipes/objectId.pipe';
 import { StringPipe } from '../../../common/pipes/string.pipe';
 import { decodeToken } from '../../../common/helpers/decode-token';
@@ -99,11 +101,12 @@ export class SchedulingDownloadReportController {
   @UseGuards(SchedulingDownloadReportAuthGuard)
   @Get('medical-report')
   async downloadMedicalReport(
-    @Res() res: Response,
+    @Res({ passthrough: true }) res: Response,
     @Param('integrationId', ObjectIdPipe) integrationId: string,
     @Query('token', StringPipe) token: string,
     @Query('isRedirect', BooleandPipe) isRedirect: boolean,
-  ): Promise<void> {
+    @Query('download', BooleandPipe) download: boolean = true,
+  ): Promise<StreamableFile | void> {
     const data = decodeToken<DownloadMedicalReportTokenData>(
       token,
       process.env.SCHEDULING_DOWNLOAD_REPORT_JWT_SECRET_KEY,
@@ -135,21 +138,35 @@ export class SchedulingDownloadReportController {
 
     if (isRedirect) {
       res.redirect(result as string);
-    } else {
-      const buffer = result as Buffer;
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Length', buffer.length);
-      res.setHeader(
-        'Content-Disposition',
-        `attachment; filename=Laudo${
-          (data.scheduleCode ? '_' + data.scheduleCode : '') +
-          (data.medicalReportExamCode ? '_' + data.medicalReportExamCode : '') +
-          (data.medicalReportCode ? '_' + data.medicalReportCode : '')
-        }.pdf`,
-      );
-
-      res.end(buffer);
+      return;
     }
+
+    const stream = result as Readable;
+
+    if (!stream) {
+      throw new BadRequestException({
+        type: 'error',
+        messages: {
+          pt: 'Não foi possível obter o laudo médico',
+        },
+      });
+    }
+
+    const filename = `Laudo${
+      (data.scheduleCode ? '_' + data.scheduleCode : '') +
+      (data.medicalReportExamCode ? '_' + data.medicalReportExamCode : '') +
+      (data.medicalReportCode ? '_' + data.medicalReportCode : '')
+    }.pdf`;
+
+    // Se download=true, força o download. Se download=false, abre no navegador (inline)
+    const disposition = download ? 'attachment' : 'inline';
+
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `${disposition}; filename=${filename}`,
+    });
+
+    return new StreamableFile(stream);
   }
 
   @HttpCode(HttpStatus.OK)

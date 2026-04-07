@@ -20,6 +20,7 @@ enum IntegrationType {
   SHIFT = 'SHIFT',
   PRODOCTOR = 'PRODOCTOR',
   KONSIST = 'KONSIST',
+  PHILLIPS = 'PHILLIPS',
 }
 
 export { IntegrationType };

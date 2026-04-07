@@ -18,7 +18,7 @@ import { CredentialsModule } from '../../credentials/credentials.module';
   imports: [
     // @docs: https://documenter.getpostman.com/view/12008590/UVXbseHs#a12ecc6d-3133-4e9f-a3e5-854efe7dff8a
     HttpModule.register({
-      timeout: 60_000,
+      timeout: 75_000,
     }),
     EntitiesModule,
     FlowModule,

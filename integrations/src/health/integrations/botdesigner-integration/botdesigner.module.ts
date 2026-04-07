@@ -18,6 +18,7 @@ import { CredentialsModule } from '../../credentials/credentials.module';
 import { IntegrationModule } from '../../integration/integration.module';
 import { ApiModule } from '../../api/api.module';
 import { SchedulingModule } from '../../scheduling/scheduling.module';
+import { PublicModule } from './public/public.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { SchedulingModule } from '../../scheduling/scheduling.module';
     ApiModule,
     CredentialsModule,
     SchedulingModule,
+    PublicModule,
   ],
   providers: [
     BotdesignerService,

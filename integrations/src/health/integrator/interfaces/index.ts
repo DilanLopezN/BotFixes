@@ -23,3 +23,4 @@ export * from './download-document.interface';
 export * from './create-patient.interface';
 export * from './extracted-schedule-notification.interface';
 export * from './documents';
+export * from './send-authorization-insurance-data.interface';

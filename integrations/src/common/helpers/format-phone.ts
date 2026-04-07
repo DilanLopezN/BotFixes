@@ -20,6 +20,10 @@ export const formatPhone = (phone: string, removeDDI?: boolean): string => {
 };
 
 export const convertPhoneNumber = (phone: string): string => {
+  if (!phone) {
+    return '';
+  }
+
   phone = phone.replace(/\D/g, '');
 
   if (phone.length === 13 || !phone) {
@@ -45,6 +49,10 @@ export const convertPhoneNumber = (phone: string): string => {
 };
 
 export const getNumberWithout9 = (number: string): string => {
+  if (!number) {
+    return '';
+  }
+
   if (number.length == 13 && number.startsWith('55')) {
     const firstPart = number.slice(0, 4);
     const secondPart = number.slice(5);
@@ -54,6 +62,10 @@ export const getNumberWithout9 = (number: string): string => {
 };
 
 export const getNumberWith9 = (number: string): string => {
+  if (!number) {
+    return number;
+  }
+
   if (number.length == 12 && number.startsWith('55')) {
     return number.slice(0, 4) + '9' + number.slice(-8);
   }

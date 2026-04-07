@@ -271,6 +271,16 @@ export class ManagerService implements IIntegratorService {
   async createSchedule(integration: IntegrationDocument, createSchedule: CreateSchedule): Promise<Appointment> {
     const { appointment, appointmentType } = createSchedule;
 
+    //  o replaceScheduleDateToArrivalDate permite exibir o horário de chegada, ao invés do horário original
+    // na hora de criar o agendamento na MANAGER, precisa voltar para o horário original
+    if (
+      appointment?.data?.scheduleDateArrival &&
+      appointment?.data?.scheduleDate &&
+      integration?.rules?.replaceScheduleDateToArrivalDate
+    ) {
+      appointment.appointmentDate = moment.utc(appointment.data.scheduleDate).toISOString();
+    }
+
     try {
       let response: ManagerCreateScheduleResponse;
 
@@ -384,7 +394,7 @@ export class ManagerService implements IIntegratorService {
         }
       }
     } catch (error) {
-      throw HTTP_ERROR_THROWER(HttpStatus.BAD_GATEWAY, error);
+      throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, error);
     }
 
     const { fromDay } = availableSchedules;
@@ -833,11 +843,20 @@ export class ManagerService implements IIntegratorService {
                       resourceDate.horario,
                     );
 
+                    // Pode existir horário de chegada
+                    const scheduleDateArrival = resourceDate?.horaChegada
+                      ? this.managerHelpersService.formatDate(resourceAvailability.data, resourceDate.horaChegada)
+                      : undefined;
+
                     const schedule: RawAppointment = {
                       ...defaultScheduleData,
                       appointmentCode: scheduleDate,
                       duration: String(resourceDate.duracao),
-                      appointmentDate: scheduleDate,
+                      // Se quiser exibir horário de chegada ao invés do horário original do agendamento. - pedido USUY
+                      appointmentDate:
+                        scheduleDateArrival && integration.rules.replaceScheduleDateToArrivalDate
+                          ? scheduleDateArrival
+                          : scheduleDate,
                       status: AppointmentStatus.scheduled,
                       doctorId,
                       doctorDefault: {
@@ -847,6 +866,8 @@ export class ManagerService implements IIntegratorService {
                       } as Partial<IDoctorEntity>,
                       organizationUnitId: String(resourceDate.unidadeFilial ?? -1),
                       data: {
+                        scheduleDateArrival,
+                        scheduleDate,
                         type: 1,
                         handleRecursoMedicoResponsavel: String(resource.handleRecursoMedicoResponsavel),
                         handle: String(resource.handle),
@@ -882,6 +903,11 @@ export class ManagerService implements IIntegratorService {
                     resourceDate.horario,
                   );
 
+                  // Pode existir horário de chegada
+                  const scheduleDateArrival = resourceDate?.horaChegada
+                    ? this.managerHelpersService.formatDate(resourceAvailability.data, resourceDate.horaChegada)
+                    : undefined;
+
                   let doctor = doctorsMap[String(resourceDate.handleMedicoRespEscala)];
                   let doctorOrResource = doctorsMap[String(resource.handle)];
 
@@ -900,7 +926,11 @@ export class ManagerService implements IIntegratorService {
                       ...defaultScheduleData,
                       appointmentCode: scheduleDate,
                       duration: String(resourceDate.duracao),
-                      appointmentDate: scheduleDate,
+                      // Se quiser exibir horário de chegada ao invés do horário original do agendamento. - pedido USUY
+                      appointmentDate:
+                        scheduleDateArrival && integration.rules.replaceScheduleDateToArrivalDate
+                          ? scheduleDateArrival
+                          : scheduleDate,
                       status: AppointmentStatus.scheduled,
                       doctorId,
                       doctorDefault: {
@@ -910,6 +940,8 @@ export class ManagerService implements IIntegratorService {
                       } as Partial<IDoctorEntity>,
                       organizationUnitId: String(resourceDate.unidadeFilial ?? -1),
                       data: {
+                        scheduleDateArrival,
+                        scheduleDate,
                         type: 1,
                         handleRecursoMedicoResponsavel: doctorId,
                         handle: resourceDate.recurso,

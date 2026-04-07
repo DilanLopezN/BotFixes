@@ -45,6 +45,8 @@ import { ExtractedSchedule } from '../../../schedules/interfaces/extracted-sched
 import { groupBy } from 'lodash';
 import { OkResponse } from '../../../../common/interfaces/ok-response.interface';
 import { castObjectIdToString } from '../../../../common/helpers/cast-objectid';
+import { GetScheduleByIdData } from '../../../integrator/interfaces/get-schedule-by-id.interface';
+import { Schedules } from '../../../schedules/entities/schedules.entity';
 
 @Injectable()
 export class NetpacsConfirmationService {
@@ -73,7 +75,9 @@ export class NetpacsConfirmationService {
 
     const isNoShowRecover = erpParams?.EXTRACT_TYPE === ExtractType.recover_lost_schedule;
 
-    if (erpParams?.listConfirmed) {
+    if (erpParams?.idMotivoSituacaoList?.length > 0) {
+      requestFilters.listIdSituacao = erpParams.idMotivoSituacaoList;
+    } else if (erpParams?.listConfirmed) {
       requestFilters.listIdSituacao = [2, 3]; //Lista 'a confirmar' e 'confirmados'
     } else {
       requestFilters.idSituacao = 2; //Lista somente a confirmar
@@ -112,7 +116,22 @@ export class NetpacsConfirmationService {
       page++;
     } while (response?.length >= requestFilters.limit);
 
-    return await this.transformNetpacsSchedulesToExtractedSchedules(integration, schedules);
+    // Aplica filtros de modalidade
+    let filteredSchedules = schedules;
+
+    if (erpParams?.omitModalityIds?.length > 0) {
+      filteredSchedules = filteredSchedules.filter(
+        (schedule) => !erpParams.omitModalityIds.map(String).includes(String(schedule.idModalidade)),
+      );
+    }
+
+    if (erpParams?.includeModalityIds?.length > 0) {
+      filteredSchedules = filteredSchedules.filter((schedule) =>
+        erpParams.includeModalityIds.map(String).includes(String(schedule.idModalidade)),
+      );
+    }
+
+    return await this.transformNetpacsSchedulesToExtractedSchedules(integration, filteredSchedules);
   }
 
   private async transformNetpacsSchedulesToExtractedSchedules(
@@ -273,10 +292,6 @@ export class NetpacsConfirmationService {
           integrationId: integration._id,
           entitiesFilter: scheduleCorrelation,
           targetFlowTypes: [FlowSteps.confirmActive],
-          filters: {
-            patientBornDate: moment(schedule.patientBornDate).format('YYYY-MM-DD'),
-            patientCpf: schedule.patientCpf,
-          },
         });
 
         if (actions?.length) {
@@ -368,10 +383,6 @@ export class NetpacsConfirmationService {
           integrationId: integration._id,
           entitiesFilter: correlation,
           targetFlowTypes: [FlowSteps.confirmActive],
-          filters: {
-            patientBornDate: schedule.patientBornDate,
-            patientCpf: schedule.patientCpf,
-          },
           trigger: FlowTriggerType.active_confirmation_confirm,
         });
 
@@ -493,10 +504,6 @@ export class NetpacsConfirmationService {
           integrationId: integration._id,
           entitiesFilter: correlation,
           targetFlowTypes: [FlowSteps.confirmActive],
-          filters: {
-            patientBornDate: schedule.patientBornDate,
-            patientCpf: schedule.patientCpf,
-          },
           trigger: FlowTriggerType.active_confirmation_confirm,
         });
 
@@ -551,19 +558,20 @@ export class NetpacsConfirmationService {
       scheduleId,
     );
 
-    try {
-      const idMotivoSituacao = erpParams?.idMotivoSituacao || 1;
-      const payload: CancelAttendanceRequest = {
-        idMotivoSituacao,
-      };
-      await this.netpacsApiService.cancelAttendance(integration, schedule.scheduleCode, payload);
-      await this.schedulesService.buildCancelSchedule(integration, schedule.scheduleCode, scheduleId);
+    const idMotivoSituacao = erpParams?.idMotivoSituacao || 1;
+    const payload: CancelAttendanceRequest = {
+      idMotivoSituacao,
+    };
 
-      return { ok: true };
+    try {
+      await this.netpacsApiService.cancelAttendance(integration, schedule.scheduleCode, payload);
     } catch (error) {
       console.error(error);
       throw INTERNAL_ERROR_THROWER('NetpacsConfirmationService.cancelSchedule', error);
     }
+
+    await this.schedulesService.buildCancelSchedule(integration, schedule.scheduleCode, scheduleId);
+    return { ok: true };
   }
 
   public async confirmSchedule(
@@ -581,19 +589,8 @@ export class NetpacsConfirmationService {
     try {
       await this.netpacsApiService.updateAttendanceStatus(integration, schedule.scheduleCode, payload);
     } catch (error) {
-      const isAlreadyConfirmed =
-        error?.response?.error?.message?.includes('O Atendimento já se encontra na situação que deseja alterar.') ||
-        error?.response?.error?.message?.includes(
-          'encontra-se na situação de Cancelado. A situação não pode ser alterada.',
-        ) ||
-        error?.response?.error?.message?.includes(
-          'A situação não pode ser alterada, pois existe uma regra de atendimento',
-        );
-
-      if (!isAlreadyConfirmed) {
-        console.error(error);
-        throw INTERNAL_ERROR_THROWER('NetpacsConfirmationService.confirmSchedule', error);
-      }
+      console.error(error);
+      throw INTERNAL_ERROR_THROWER('NetpacsConfirmationService.confirmSchedule', error);
     }
 
     await this.schedulesService.buildConfirmSchedule(integration, schedule.scheduleCode, scheduleId);
@@ -621,6 +618,18 @@ export class NetpacsConfirmationService {
     } catch (error) {
       console.error(error);
       throw INTERNAL_ERROR_THROWER('NetpacsConfirmationService.validateScheduleData', error);
+    }
+  }
+
+  async getConfirmationScheduleById(integration: IntegrationDocument, data: GetScheduleByIdData): Promise<Schedules> {
+    try {
+      return await this.schedulesService.getScheduleByCodeOrId(
+        castObjectIdToString(integration._id),
+        null,
+        data.scheduleId,
+      );
+    } catch (error) {
+      throw INTERNAL_ERROR_THROWER('NetpacsConfirmationService.getConfirmationScheduleById', error);
     }
   }
 }

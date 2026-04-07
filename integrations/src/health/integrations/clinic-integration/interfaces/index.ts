@@ -4,6 +4,7 @@ export * from './base-register.interface';
 export * from './auth.interface';
 export * from './entities.interface';
 export * from './confirmation-cancel-erp-params.interface';
+export * from './list-confirmation-erp-params.interface';
 
 interface ClinicResponse<T> {
   result: T;

@@ -1,5 +1,5 @@
 import { HttpService } from '@nestjs/axios';
-import { HttpStatus, Injectable, Logger } from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
 import { HttpErrorOrigin, HTTP_ERROR_THROWER } from '../../../../common/exceptions.service';
 import * as Sentry from '@sentry/node';
 import {
@@ -45,8 +45,6 @@ import { castObjectIdToString } from '../../../../common/helpers/cast-objectid';
 
 @Injectable()
 export class TdsaApiService {
-  private logger = new Logger(TdsaApiService.name);
-
   constructor(
     private readonly httpService: HttpService,
     private readonly sentryErrorHandlerService: SentryErrorHandlerService,
@@ -64,14 +62,6 @@ export class TdsaApiService {
         return Promise.reject(error);
       },
     );
-  }
-
-  private debugRequest(integration: IntegrationDocument, payload: Record<any, any>) {
-    if (!integration.debug) {
-      return;
-    }
-
-    this.logger.debug(`${integration._id}:${integration.name}:SI-debug`, payload);
   }
 
   private dispatchAuditEvent(integration: IntegrationDocument, data: any, identifier: string, dataType: AuditDataType) {
@@ -135,11 +125,10 @@ export class TdsaApiService {
     const methodName = 'getPatient';
     const payload = { CPF: cpf, Id: code };
 
-    this.debugRequest(integration, payload);
     this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
     if (!cpf && !code) {
-      throw HTTP_ERROR_THROWER(HttpStatus.BAD_GATEWAY, 'Invalid patient params');
+      throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, 'Invalid patient params');
     }
 
     try {
@@ -172,7 +161,6 @@ export class TdsaApiService {
 
   public async createPatient(integration: IntegrationDocument, payload: TdsaCreatedPatient): Promise<number> {
     const methodName = 'createPatient';
-    this.debugRequest(integration, payload);
     this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
     try {
@@ -210,7 +198,6 @@ export class TdsaApiService {
   public async updatePatient(integration: IntegrationDocument, payload: TdsaUpdatePatient): Promise<number> {
     const methodName = 'updatePatient';
     this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
-    this.debugRequest(integration, payload);
 
     try {
       const response = await lastValueFrom(
@@ -240,8 +227,6 @@ export class TdsaApiService {
     integration: IntegrationDocument,
     ignoreException?: boolean,
   ): Promise<OrganizationUnitsResponse[]> {
-    this.debugRequest(integration, {});
-
     const methodName = 'getOrganizationUnits';
     this.dispatchAuditEvent(integration, {}, methodName, AuditDataType.externalRequest);
 
@@ -273,8 +258,6 @@ export class TdsaApiService {
     integration: IntegrationDocument,
     body?: InsurancesParamsRequest,
   ): Promise<InsurancesResponse[]> {
-    this.debugRequest(integration, body ?? {});
-
     const methodName = 'getInsurances';
     this.dispatchAuditEvent(integration, body ?? {}, methodName, AuditDataType.externalRequest);
 
@@ -301,8 +284,6 @@ export class TdsaApiService {
   }
 
   public async getDoctors(integration: IntegrationDocument, body?: DoctorsParamsRequest): Promise<DoctorsResponse[]> {
-    this.debugRequest(integration, body ?? {});
-
     const methodName = 'getDoctors';
     this.dispatchAuditEvent(integration, body ?? {}, methodName, AuditDataType.externalRequest);
 
@@ -332,8 +313,6 @@ export class TdsaApiService {
     integration: IntegrationDocument,
     body?: ProceduresParamsRequest,
   ): Promise<ProceduresResponse[]> {
-    this.debugRequest(integration, body ?? {});
-
     const methodName = 'getProcedures';
     this.dispatchAuditEvent(integration, body ?? {}, methodName, AuditDataType.externalRequest);
 
@@ -363,8 +342,6 @@ export class TdsaApiService {
     integration: IntegrationDocument,
     body?: SpecialitiesParamsRequest,
   ): Promise<SpecialitiesResponse[]> {
-    this.debugRequest(integration, body ?? {});
-
     const methodName = 'getSpecialities';
     this.dispatchAuditEvent(integration, body, methodName, AuditDataType.externalRequest);
 
@@ -394,8 +371,6 @@ export class TdsaApiService {
     integration: IntegrationDocument,
     body?: InsurancePlansParamsRequest,
   ): Promise<InsurancePlansResponse[]> {
-    this.debugRequest(integration, body ?? {});
-
     const methodName = 'getInsurancePlans';
     this.dispatchAuditEvent(integration, body ?? {}, methodName, AuditDataType.externalRequest);
 
@@ -425,8 +400,6 @@ export class TdsaApiService {
     integration: IntegrationDocument,
     body: TdsaAppointmentValueRequest,
   ): Promise<string> {
-    this.debugRequest(integration, body ?? {});
-
     const methodName = 'getAppointmentValue';
     this.dispatchAuditEvent(integration, body, methodName, AuditDataType.externalRequest);
 
@@ -458,8 +431,6 @@ export class TdsaApiService {
     integration: IntegrationDocument,
     patientCode: string,
   ): Promise<TdsaPatientAppointment[]> {
-    this.debugRequest(integration, { patientCode });
-
     const methodName = 'getPatientSchedules';
     this.dispatchAuditEvent(integration, { patientCode }, methodName, AuditDataType.externalRequest);
 
@@ -493,7 +464,6 @@ export class TdsaApiService {
 
   public async createSchedule(integration: IntegrationDocument, payload: TdsaCreateScheduleRequest): Promise<number> {
     const methodName = 'createSchedule';
-    this.debugRequest(integration, payload);
     this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
     try {
@@ -521,8 +491,6 @@ export class TdsaApiService {
   }
 
   public async cancelSchedule(integration: IntegrationDocument, scheduleId: number): Promise<number> {
-    this.debugRequest(integration, { scheduleId });
-
     const methodName = 'cancelSchedule';
     this.dispatchAuditEvent(integration, { scheduleId }, methodName, AuditDataType.externalRequest);
 
@@ -555,8 +523,6 @@ export class TdsaApiService {
   }
 
   public async confirmSchedule(integration: IntegrationDocument, scheduleId: number): Promise<number> {
-    this.debugRequest(integration, { scheduleId });
-
     const methodName = 'confirmSchedule';
     this.dispatchAuditEvent(integration, { scheduleId }, methodName, AuditDataType.externalRequest);
 
@@ -592,8 +558,6 @@ export class TdsaApiService {
     integration: IntegrationDocument,
     payload: TdsaListAvailableSchedulesRequest,
   ): Promise<TdsaListAvailableSchedules[]> {
-    this.debugRequest(integration, payload);
-
     const methodName = 'listAvailableSchedules';
     this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
@@ -622,8 +586,6 @@ export class TdsaApiService {
   }
 
   public async lockSchedule(integration: IntegrationDocument, payload: TdsaLockScheduleRequest): Promise<number> {
-    this.debugRequest(integration, payload);
-
     const methodName = 'lockSchedule';
     this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
@@ -656,8 +618,6 @@ export class TdsaApiService {
   }
 
   public async unLockSchedule(integration: IntegrationDocument, scheduleId: number): Promise<number> {
-    this.debugRequest(integration, { scheduleId });
-
     const methodName = 'unLockSchedule';
     this.dispatchAuditEvent(integration, { scheduleId }, methodName, AuditDataType.externalRequest);
 
@@ -693,8 +653,6 @@ export class TdsaApiService {
     integration: IntegrationDocument,
     payload: TdsaListSchedulesParamsRequest,
   ): Promise<TdsaSchedule[]> {
-    this.debugRequest(integration, payload);
-
     const methodName = 'listSchedules';
     this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
@@ -721,8 +679,6 @@ export class TdsaApiService {
   }
 
   public async getGuidance(integration: IntegrationDocument, procedureCode: string): Promise<TdsaGuidance> {
-    this.debugRequest(integration, { procedureCode });
-
     const methodName = 'getGuidance';
     this.dispatchAuditEvent(integration, { procedureCode }, methodName, AuditDataType.externalRequest);
 

@@ -1,5 +1,5 @@
 import { HttpService } from '@nestjs/axios';
-import { HttpStatus, Injectable, Logger } from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
 import { HttpErrorOrigin, HTTP_ERROR_THROWER } from '../../../../common/exceptions.service';
 import { IntegrationDocument } from '../../../integration/schema/integration.schema';
 import { IntegrationEnvironment } from '../../../integration/interfaces/integration.interface';
@@ -47,8 +47,6 @@ const defaultParamsEntities = {
 
 @Injectable()
 export class DoctoraliaApiService {
-  private readonly logger = new Logger(DoctoraliaApiService.name);
-
   constructor(
     private readonly httpService: HttpService,
     private readonly sentryErrorHandlerService: SentryErrorHandlerService,
@@ -123,13 +121,6 @@ export class DoctoraliaApiService {
     };
   }
 
-  private debugRequest(integration: IntegrationDocument, payload: any, funcName: string) {
-    if (!(integration as any).debug) {
-      return;
-    }
-    this.logger.debug(`${integration._id}:${integration.name}:DOCTORALIA-debug:${funcName}`, payload);
-  }
-
   public async getProcedures(
     integration: IntegrationDocument,
     params?: ParamsType,
@@ -138,7 +129,6 @@ export class DoctoraliaApiService {
       params = cleanseObject(params);
     } catch (error) {}
 
-    this.debugRequest(integration, params, this.getProcedures.name);
     this.dispatchAuditEvent(integration, params, this.getProcedures.name, AuditDataType.externalRequest);
 
     const codeIntegration = await this.getCodeIntegration(integration);
@@ -177,7 +167,6 @@ export class DoctoraliaApiService {
       params = cleanseObject(params);
     } catch (error) {}
 
-    this.debugRequest(integration, params, this.getResources.name);
     this.dispatchAuditEvent(integration, params, this.getResources.name, AuditDataType.externalRequest);
 
     const codeIntegration = await this.getCodeIntegration(integration);
@@ -249,7 +238,6 @@ export class DoctoraliaApiService {
       params = cleanseObject(params);
     } catch (error) {}
 
-    this.debugRequest(integration, params, this.getSpecialities.name);
     this.dispatchAuditEvent(integration, params, this.getSpecialities.name, AuditDataType.externalRequest);
 
     const codeIntegration = await this.getCodeIntegration(integration);
@@ -287,7 +275,6 @@ export class DoctoraliaApiService {
       params = cleanseObject(params);
     } catch (error) {}
 
-    this.debugRequest(integration, params, this.getInsurances.name);
     this.dispatchAuditEvent(integration, params, this.getInsurances.name, AuditDataType.externalRequest);
 
     const codeIntegration = await this.getCodeIntegration(integration);
@@ -326,7 +313,6 @@ export class DoctoraliaApiService {
       params = cleanseObject(params);
     } catch (error) {}
 
-    this.debugRequest(integration, params, this.getAreas.name);
     this.dispatchAuditEvent(integration, params, this.getAreas.name, AuditDataType.externalRequest);
 
     const codeIntegration = await this.getCodeIntegration(integration);
@@ -360,7 +346,6 @@ export class DoctoraliaApiService {
     integration: IntegrationDocument,
     code: string,
   ): Promise<DoctoraliaResponsePlain<DoctoraliaGetPatientResponse>> {
-    this.debugRequest(integration, { code }, this.getPatientByCode.name);
     this.dispatchAuditEvent(integration, { code }, this.getPatientByCode.name, AuditDataType.externalRequest);
 
     const codeIntegration = await this.getCodeIntegration(integration);
@@ -397,8 +382,6 @@ export class DoctoraliaApiService {
     cpf: string,
   ): Promise<DoctoraliaResponseArray<DoctoraliaGetPatientResponse[]>> {
     const methodName = 'getPatientByCpf';
-
-    this.debugRequest(integration, { cpf }, methodName);
     this.dispatchAuditEvent(integration, { cpf }, methodName, AuditDataType.externalRequest);
 
     const codeIntegration = await this.getCodeIntegration(integration);
@@ -439,8 +422,6 @@ export class DoctoraliaApiService {
     payload: DoctoraliaCreatePatientRequest,
   ): Promise<DoctoraliaResponsePlain<DoctoraliaCreatePatientResponse>> {
     const methodName = 'createPatient';
-
-    this.debugRequest(integration, payload, methodName);
     this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
     const codeIntegration = await this.getCodeIntegration(integration);
@@ -488,8 +469,6 @@ export class DoctoraliaApiService {
     patientCode: string,
   ): Promise<DoctoraliaResponsePlain<string>> {
     const methodName = 'updatePatient';
-
-    this.debugRequest(integration, payload, methodName);
     this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
     const codeIntegration = await this.getCodeIntegration(integration);
@@ -527,8 +506,6 @@ export class DoctoraliaApiService {
     payload: DoctoraliaAvailableSchedules,
   ): Promise<DoctoraliaResponseArray<AppointmentResponse>> {
     const methodName = 'getAppointments';
-
-    this.debugRequest(integration, payload, methodName);
 
     try {
       payload = cleanseObject(payload);
@@ -570,8 +547,6 @@ export class DoctoraliaApiService {
     payload: DoctoraliaCreateAppointmentRequest,
   ): Promise<DoctoraliaResponsePlain<string>> {
     const methodName = 'createAppointment';
-
-    this.debugRequest(integration, payload, methodName);
     this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
     try {
@@ -623,7 +598,6 @@ export class DoctoraliaApiService {
     integration: IntegrationDocument,
     patientCode: string,
   ): Promise<DoctoraliaResponseArray<DoctoraliaConfirmedAppointmentResponse[]>> {
-    this.debugRequest(integration, { patientCode }, this.getPatientSchedules.name);
     this.dispatchAuditEvent(integration, { patientCode }, this.getPatientSchedules.name, AuditDataType.externalRequest);
 
     const codeIntegration = await this.getCodeIntegration(integration);
@@ -666,8 +640,6 @@ export class DoctoraliaApiService {
     appointmentId: string,
   ): Promise<DoctoraliaResponsePlain<string>> {
     const methodName = 'cancelAppointment';
-
-    this.debugRequest(integration, { appointmentId }, methodName);
     this.dispatchAuditEvent(integration, { appointmentId }, methodName, AuditDataType.externalRequest);
 
     const codeIntegration = await this.getCodeIntegration(integration);
@@ -698,8 +670,6 @@ export class DoctoraliaApiService {
     payload: DoctoraliaUpdateAppointmentRequest,
   ): Promise<DoctoraliaResponsePlain<string>> {
     const methodName = 'updateAppointment';
-
-    this.debugRequest(integration, payload, methodName);
 
     try {
       payload = cleanseObject(payload);

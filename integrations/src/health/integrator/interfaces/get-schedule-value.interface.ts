@@ -1,3 +1,5 @@
+import { InitialPatient } from './patient.interface';
+
 export interface GetScheduleValue {
   insurance: {
     planCode: string;
@@ -27,4 +29,5 @@ export interface GetScheduleValue {
   };
   scheduleCode?: string;
   data?: any;
+  patient?: InitialPatient;
 }

@@ -189,13 +189,19 @@ enum IntegrationRules {
   doNotAllowSameDayAndProcedureScheduling = 'doNotAllowSameDayAndProcedureScheduling',
   // Se a regra estiver ativa não permite que paciente agende para o mesmo horário outro agendamento.
   doNotAllowSameHourScheduling = 'doNotAllowSameHourScheduling',
+  // Se a regra estiver ativa, não permite agendar o mesmo procedimento com lateralidade
+  doNotAllowSameDayForProcedureWithLaterality = 'doNotAllowSameDayForProcedureWithLaterality',
   // Se a regra doNotAllowSameHourScheduling estiver ativa, agenda à partir do tempo em minutos definido
   minutesAfterAppointmentCanSchedule = 'minutesAfterAppointmentCanSchedule',
   // ativação de steps de _suggestion
   useInsuranceSuggestion = 'useInsuranceSuggestion',
   useDoctorSuggestion = 'useDoctorSuggestion',
+  useScheduleSuggestion = 'useScheduleSuggestion',
+  enableIgnoreChoosedDoctor = 'enableIgnoreChoosedDoctor',
   // filtro alternativo Clinux
   useClinuxApiV2 = 'useClinuxApiV2',
+  // Amigo: quando ativo usa API v2 (Bearer token, rotas /places, /insurances, etc.)
+  useAmigoApiV2 = 'useAmigoApiV2',
   useScheduledSending = 'useScheduledSending',
   doNotCancelBefore24hours = 'doNotCancelBefore24hours',
   useNetpacsGroupedSchedules = 'useNetpacsGroupedSchedules',
@@ -210,6 +216,15 @@ enum IntegrationRules {
   useListInAllSteps = 'useListInAllSteps',
   useReportProcessorAISpecialityAndProcedureDetection = 'useReportProcessorAISpecialityAndProcedureDetection',
   useReportProcessorAIProcedureDetection = 'useReportProcessorAIProcedureDetection',
+  // Quando ativo (default true) usa entidades cacheadas do ERP ao invés de buscar novamente.
+  // Para integrações antigas sem essa flag, o comportamento padrão é true.
+  // Apenas ignora o cache quando explicitamente configurado como false.
+  useCachedEntitiesFromErp = 'useCachedEntitiesFromErp',
+  showArrivalTimeMessage = 'showArrivalTimeMessage',
+  replaceScheduleDateToArrivalDate = 'replaceScheduleDateToArrivalDate',
+  // Quando ativo, permite que horários com timestamps iguais de médicos diferentes sejam exibidos.
+  // Indicado para uso com o sortMethod `sequential`.
+  allowDuplicateSchedules = 'allowDuplicateSchedules',
 }
 
 export type { IIntegration, Routines, Scheduling };

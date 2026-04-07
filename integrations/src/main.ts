@@ -15,14 +15,66 @@ collectDefaultMetrics({
 });
 
 if (process.env.NODE_ENV == 'production') {
-  new Sentry.init({
-    tracesSampleRate: 0.7,
+  Sentry.init({
     dsn: 'https://c8ee1df6b13c406aa8e813032a504077@o55573.ingest.sentry.io/5774465',
+    environment: process.env.NODE_ENV || 'production',
+    tracesSampleRate: 0.2,
+    sampleRate: 0.1,
+    maxBreadcrumbs: 10,
+    attachStacktrace: true,
+    integrations: [
+      Sentry.httpIntegration(),
+      Sentry.onUncaughtExceptionIntegration({
+        exitEvenIfOtherHandlersAreRegistered: false,
+      }),
+      Sentry.onUnhandledRejectionIntegration({
+        mode: 'warn',
+      }),
+    ],
+    ignoreErrors: ['ECONNRESET', 'ECONNREFUSED', 'ETIMEDOUT', 'ENOTFOUND', 'AbortError', 'Request aborted', 'canceled'],
+    beforeSend(event) {
+      if (event?.request?.headers) {
+        delete event.request.headers['authorization'];
+      }
+
+      return event;
+    },
   });
 }
 
 process.on('uncaughtException', function (err) {
-  console.log('Caught exception: ', err);
+  console.error('Uncaught Exception:', err);
+
+  if (process.env.NODE_ENV === 'production') {
+    Sentry.captureException(err, {
+      level: 'fatal',
+      tags: {
+        handler: 'uncaughtException',
+      },
+    });
+
+    Sentry.flush(2000)
+      .then(() => {
+        process.exit(1);
+      })
+      .catch((flushErr) => {
+        console.error('Sentry flush failed:', flushErr);
+        process.exit(1);
+      });
+  }
+});
+
+process.on('unhandledRejection', function (reason, promise) {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+
+  if (process.env.NODE_ENV === 'production') {
+    Sentry.captureException(reason, {
+      level: 'error',
+      tags: {
+        handler: 'unhandledRejection',
+      },
+    });
+  }
 });
 
 async function bootstrap() {
@@ -38,9 +90,6 @@ async function bootstrap() {
     allowedHeaders: '*',
     preflightContinue: false,
   });
-
-  app.use(Sentry.Handlers.requestHandler());
-  app.use(Sentry.Handlers.errorHandler());
 
   app.use(contextService.middleware('request'));
   app.use(function (req: Request, _, next: NextFunction) {

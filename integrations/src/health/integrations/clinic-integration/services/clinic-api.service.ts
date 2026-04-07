@@ -73,14 +73,6 @@ export class ClinicApiService {
     );
   }
 
-  private debugRequest(integration: IntegrationDocument, payload: any, _: string) {
-    if (!integration.debug) {
-      return;
-    }
-
-    this.logger.debug(`${integration._id}:${integration.name}:${IntegrationType.CLINIC}-debug`, payload);
-  }
-
   private async handleResponseError(
     integration: IntegrationDocument,
     error: any,
@@ -147,7 +139,6 @@ export class ClinicApiService {
 
   public async defaultAuth(integration: IntegrationDocument): Promise<ClinicAuthResponse> {
     const funcName = this.defaultAuth.name;
-    this.debugRequest(integration, null, funcName);
 
     const { apiUsername: username, apiPassword: password } =
       await this.credentialsHelper.getConfig<ClinicCredentialsResponse>(integration);
@@ -181,7 +172,6 @@ export class ClinicApiService {
     integration: IntegrationDocument,
     params: ClinicPatientParams,
   ): Promise<ClinicResponseArray<ClinicPatientResponse>> {
-    this.debugRequest(integration, params, this.getPatient.name);
     this.dispatchAuditEvent(integration, params, this.getPatient.name, AuditDataType.externalRequest);
 
     try {
@@ -210,7 +200,6 @@ export class ClinicApiService {
     integration: IntegrationDocument,
     patientCode: string,
   ): Promise<ClinicResponse<ClinicSinglePatientResponse>> {
-    this.debugRequest(integration, { patientCode }, this.getSinglePatient.name);
     this.dispatchAuditEvent(integration, { patientCode }, this.getSinglePatient.name, AuditDataType.externalRequest);
 
     try {
@@ -242,7 +231,6 @@ export class ClinicApiService {
     payload: ClinicCreatePatient,
   ): Promise<ClinicResponse<ClinicCreatePatientResponse>> {
     const funcName = this.createPatient.name;
-    this.debugRequest(integration, payload, funcName);
     this.dispatchAuditEvent(integration, payload, funcName, AuditDataType.externalRequest);
 
     try {
@@ -269,7 +257,7 @@ export class ClinicApiService {
     data: ClinicConfirmSchedule,
   ): Promise<ClinicResponse<void>> {
     const funcName = this.confirmSchedule.name;
-    this.debugRequest(integration, data, funcName);
+
     this.dispatchAuditEvent(integration, data, funcName, AuditDataType.externalRequest);
 
     try {
@@ -311,7 +299,7 @@ export class ClinicApiService {
     data: ClinicCancelSchedule,
   ): Promise<ClinicResponse<void>> {
     const funcName = this.cancelSchedule.name;
-    this.debugRequest(integration, data, funcName);
+
     this.dispatchAuditEvent(integration, data, funcName, AuditDataType.externalRequest);
 
     try {
@@ -353,7 +341,7 @@ export class ClinicApiService {
     data: ClinicCancelSchedule,
   ): Promise<ClinicResponse<void>> {
     const funcName = this.updateToCanceledSchedule.name;
-    this.debugRequest(integration, data, funcName);
+
     this.dispatchAuditEvent(integration, data, funcName, AuditDataType.externalRequest);
 
     try {
@@ -385,7 +373,7 @@ export class ClinicApiService {
 
   public async listInsurances(integration: IntegrationDocument): Promise<ClinicResponseArray<ClinicInsuranceResponse>> {
     const funcName = this.listInsurances.name;
-    this.debugRequest(integration, {}, funcName);
+
     this.dispatchAuditEvent(integration, {}, funcName, AuditDataType.externalRequest);
 
     try {
@@ -412,7 +400,7 @@ export class ClinicApiService {
     ignoreException?: boolean,
   ): Promise<ClinicResponseArray<ClinicOrganizationUnitResponse>> {
     const funcName = this.listOrganizationUnits.name;
-    this.debugRequest(integration, {}, funcName);
+
     this.dispatchAuditEvent(integration, {}, funcName, AuditDataType.externalRequest);
 
     try {
@@ -439,7 +427,7 @@ export class ClinicApiService {
     params: ClinicDoctorParamsRequest,
   ): Promise<ClinicResponseArray<ClinicDoctorResponse>> {
     const funcName = this.listDoctors.name;
-    this.debugRequest(integration, params, funcName);
+
     this.dispatchAuditEvent(integration, params, funcName, AuditDataType.externalRequest);
 
     try {
@@ -469,7 +457,7 @@ export class ClinicApiService {
     params: ClinicSpecialitiesParamsRequest,
   ): Promise<ClinicResponseArray<ClinicSpecialitiesResponse>> {
     const funcName = this.listSpecialities.name;
-    this.debugRequest(integration, params, funcName);
+
     this.dispatchAuditEvent(integration, params, funcName, AuditDataType.externalRequest);
 
     try {
@@ -500,7 +488,7 @@ export class ClinicApiService {
     data: ClinicListAvailableScheduleData,
   ): Promise<ClinicResponseArray<ClinicAvailableSchedule>> {
     const funcName = this.listAvailableSchedules.name;
-    this.debugRequest(integration, { params, data }, funcName);
+
     this.dispatchAuditEvent(integration, { params, data }, funcName, AuditDataType.externalRequest);
 
     try {
@@ -534,7 +522,6 @@ export class ClinicApiService {
     data: ClinicCreateScheduleData,
   ): Promise<ClinicResponse<ClinicCreateScheduleResponse>> {
     const funcName = this.createSchedule.name;
-    this.debugRequest(integration, { payload, data }, funcName);
     this.dispatchAuditEvent(integration, { payload, data }, funcName, AuditDataType.externalRequest);
 
     try {
@@ -564,7 +551,7 @@ export class ClinicApiService {
     params: ClinicListSchedulesParams,
   ): Promise<ClinicResponseArray<ClinicSchedule>> {
     const funcName = this.listSchedules.name;
-    this.debugRequest(integration, params, funcName);
+
     this.dispatchAuditEvent(integration, params, funcName, AuditDataType.externalRequest);
     try {
       const config = await this.getDefaultConfig(integration);
@@ -596,7 +583,7 @@ export class ClinicApiService {
     params: { booking_id: string },
   ): Promise<ClinicResponse<ClinicSchedule>> {
     const funcName = this.getOneSchedule.name;
-    this.debugRequest(integration, params, funcName);
+
     this.dispatchAuditEvent(integration, params, funcName, AuditDataType.externalRequest);
     try {
       const config = await this.getDefaultConfig(integration);
@@ -627,7 +614,7 @@ export class ClinicApiService {
     data: ClinicDoctorSpecialityDataRequest,
   ): Promise<ClinicResponse<ClinicDoctorSpecialityResponse>> {
     const funcName = this.getDoctor.name;
-    this.debugRequest(integration, data, funcName);
+
     this.dispatchAuditEvent(integration, data, funcName, AuditDataType.externalRequest);
 
     try {
@@ -653,7 +640,7 @@ export class ClinicApiService {
     integration: IntegrationDocument,
   ): Promise<ClinicResponse<ClinicOrganizationUnitAddressResponse>> {
     const funcName = this.listOrganizationUnitAddress.name;
-    this.debugRequest(integration, {}, funcName);
+
     this.dispatchAuditEvent(integration, {}, funcName, AuditDataType.externalRequest);
 
     try {
@@ -679,7 +666,7 @@ export class ClinicApiService {
     integration: IntegrationDocument,
   ): Promise<ClinicResponseArray<ClinicConsultationTypesResponse>> {
     const funcName = this.listConsultationTypes.name;
-    this.debugRequest(integration, {}, funcName);
+
     this.dispatchAuditEvent(integration, {}, funcName, AuditDataType.externalRequest);
 
     try {

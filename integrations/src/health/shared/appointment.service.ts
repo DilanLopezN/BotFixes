@@ -125,21 +125,45 @@ export class AppointmentService {
     const appointmentsBetweenPeriod = this.filterPeriodOfDay(integration, filters, appointments);
     const appointmentsBetweenDayOfWeek = this.filterDayOfWeek(integration, filters, appointmentsBetweenPeriod);
     const newAppointments = this.prepareAppointments(integration, appointmentsBetweenDayOfWeek);
-    const validAppointments = this.sortAppointments(this.removeDuplicates(newAppointments));
+    const validAppointments = integration?.rules?.allowDuplicateSchedules
+      ? this.sortAppointments(newAppointments)
+      : this.sortAppointments(this.removeDuplicates(newAppointments));
+
+    if (filters.sortMethod === AppointmentSortMethod.firstEachDay) {
+      const appointments = this.getAppointmentsByFirstEachDay(filters, validAppointments);
+      return { appointments, metadata: null };
+    }
+
+    // método de balanceamento por médico, primeiros de cada médico (com desempate randomico) e depois horários sequenciais para preencher o restante
+    if (filters.sortMethod === AppointmentSortMethod.firstEachDoctorBalanced) {
+      const appointments = this.getAppointmentsByDoctorBalanced(integration, filters, validAppointments);
+      return { appointments, metadata: null };
+    }
+
+    // métodos de balanceamento por médico, primeiros de cada médico (com desempate randomico) e depois usa Fila de Prioridade Balanceada para preencher o restante
+    if (filters.sortMethod === AppointmentSortMethod.firstEachDoctorFullyBalanced) {
+      const appointments = this.getAppointmentsByDoctorFullyBalanced(integration, filters, validAppointments);
+      return { appointments, metadata: null };
+    }
 
     if (appointments.length <= filters.limit) {
       const appointments = this.convertAppointments(validAppointments);
       return { appointments, metadata: { numberOfSchedulesLessThanLimit: true } };
     }
 
-    if (!filters.randomize || filters.sortMethod === AppointmentSortMethod.sequential) {
+    if (filters.sortMethod === AppointmentSortMethod.sequential) {
       const appointments = this.convertAppointments(validAppointments.slice(0, filters.limit));
       return { appointments, metadata: null };
     }
 
     if (filters.sortMethod === AppointmentSortMethod.default) {
-      const appointments = this.convertAppointments(shuffle(validAppointments).slice(0, filters.limit));
-      return { appointments, metadata: null };
+      if (filters.randomize) {
+        const appointments = this.convertAppointments(shuffle(validAppointments).slice(0, filters.limit));
+        return { appointments, metadata: null };
+      } else {
+        const appointments = this.convertAppointments(validAppointments.slice(0, filters.limit));
+        return { appointments, metadata: null };
+      }
     }
 
     if (filters.sortMethod === AppointmentSortMethod.firstEachHourDay) {
@@ -328,6 +352,298 @@ export class AppointmentService {
     return this.convertAppointments(flattenedAppointments);
   }
 
+  private getAppointmentsByDoctorBalanced(
+    integration: IIntegration,
+    { limit, periodOfDay }: AppointmentsFilter,
+    appointments: PreAppointment[],
+  ): RawAppointment[] {
+    const resolvedPeriod: PeriodEnum = this.getPeriodOfDay(periodOfDay);
+
+    // Agrupa todos os horários (filtrados por período) por médico já ordenados
+    const appointmentsPerDoctor: { [doctorCode: string]: PreAppointment[] } = {};
+    for (const appointment of appointments) {
+      if (resolvedPeriod !== PeriodEnum.ANY) {
+        const period = this.getPeriodFromAppointmentDate(integration, appointment);
+        if (period !== resolvedPeriod) continue;
+      }
+
+      // Tipado Any para acessar doctorDefault e doctorId que só existem em RawAppointment
+      const raw = appointment as any;
+      const doctorCode =
+        appointment.doctor?.code?.toString() ||
+        raw.doctorDefault?.code?.toString() ||
+        raw.doctorId?.toString() ||
+        'unknown';
+
+      if (!appointmentsPerDoctor[doctorCode]) {
+        appointmentsPerDoctor[doctorCode] = [];
+      }
+      appointmentsPerDoctor[doctorCode].push(appointment);
+    }
+
+    // Ordena os horários de cada médico (mais cedo primeiro)
+    Object.values(appointmentsPerDoctor).forEach((preAppointment) =>
+      preAppointment.sort((a, b) => a.appointmentDate.diff(b.appointmentDate)),
+    );
+
+    // Primeiro: pega o primeiro horário (mais cedo) de cada médico
+    const firstByDoctor: PreAppointment[] = Object.values(appointmentsPerDoctor).map(
+      (preAppointment) => preAppointment[0],
+    );
+
+    // Empate de timestamps idênticos: mantém apenas um aleatório por instante
+    const timeBuckets = new Map<string, PreAppointment[]>();
+    for (const appointment of firstByDoctor) {
+      const key = appointment.appointmentDate.toISOString();
+      const dateIndexed = timeBuckets.get(key);
+      if (dateIndexed) dateIndexed.push(appointment);
+      else timeBuckets.set(key, [appointment]);
+    }
+
+    const appointmentSelection: PreAppointment[] = [];
+    for (const [, appointmentArray] of timeBuckets) {
+      // se não tiver empate, seleciona
+      if (appointmentArray.length === 1) {
+        appointmentSelection.push(appointmentArray[0]);
+      }
+      // se tiver horário empatado - escolha randômica
+      else {
+        const randomIndex = Math.floor(Math.random() * appointmentArray.length);
+        appointmentSelection.push(appointmentArray[randomIndex]);
+      }
+    }
+
+    // Se já atingiu o limite, encerra
+    if (appointmentSelection.length >= limit) {
+      appointmentSelection.sort((a, b) => a.appointmentDate.diff(b.appointmentDate));
+      return this.convertAppointments(appointmentSelection.slice(0, limit));
+    }
+
+    // Complemento: adiciona horários extras dos médicos já selecionados,
+    // depois horários dos médicos que perderam no empate (se existirem),
+    // até preencher o limit.
+    const usedDates = new Set(appointmentSelection.map((a) => a.appointmentDate.toISOString()));
+    const usedDoctors = new Set(
+      appointmentSelection.map((appointment) => {
+        const raw = appointment as any;
+        return (
+          appointment.doctor?.code?.toString() ||
+          raw.doctorDefault?.code?.toString() ||
+          raw.doctorId?.toString() ||
+          'unknown'
+        );
+      }),
+    );
+
+    // Médicos que foram descartados no empate (não apareceram em appointmentSelection)
+    const unusedDoctors: string[] = [];
+    for (const [dateKey, appointmentArray] of timeBuckets) {
+      if (appointmentArray.length > 1) {
+        // Verifica quais não entraram
+        const kept = appointmentSelection.find((a) => a.appointmentDate.toISOString() === dateKey);
+        const keptDoctorCode =
+          kept?.doctor?.code?.toString() ||
+          (kept as any)?.doctorDefault?.code?.toString() ||
+          (kept as any)?.doctorId?.toString() ||
+          'unknown';
+        for (const candidate of appointmentArray) {
+          const candidateDoctorCode =
+            candidate.doctor?.code?.toString() ||
+            (candidate as any).doctorDefault?.code?.toString() ||
+            (candidate as any).doctorId?.toString() ||
+            'unknown';
+          if (candidateDoctorCode !== keptDoctorCode) {
+            unusedDoctors.push(candidateDoctorCode);
+          }
+        }
+      }
+    }
+
+    const result: PreAppointment[] = [...appointmentSelection];
+
+    // 1) Adiciona horários extras dos médicos já presentes
+    for (const doctorCode of usedDoctors) {
+      if (result.length >= limit) break;
+      const list = appointmentsPerDoctor[doctorCode];
+      if (!list) continue;
+      for (let i = 1; i < list.length && result.length < limit; i++) {
+        const appt = list[i];
+        const iso = appt.appointmentDate.toISOString();
+        if (usedDates.has(iso)) continue;
+        usedDates.add(iso);
+        result.push(appt);
+      }
+    }
+
+    // 2) Se ainda não completou, adiciona horários dos médicos que perderam no empate
+    for (const doctorCode of unusedDoctors) {
+      if (result.length >= limit) break;
+      const list = appointmentsPerDoctor[doctorCode];
+      if (!list) continue;
+      for (let i = 0; i < list.length && result.length < limit; i++) {
+        const appt = list[i];
+        const iso = appt.appointmentDate.toISOString();
+        if (usedDates.has(iso)) continue;
+        usedDates.add(iso);
+        result.push(appt);
+      }
+    }
+
+    // 3) Se ainda faltar e houver outros médicos (não usados nem perdidos), completa
+    for (const [doctorCode, appointmentArray] of Object.entries(appointmentsPerDoctor)) {
+      if (result.length >= limit) break;
+      if (usedDoctors.has(doctorCode) || unusedDoctors.includes(doctorCode)) continue;
+      for (const appt of appointmentArray) {
+        if (result.length >= limit) break;
+        const iso = appt.appointmentDate.toISOString();
+        if (usedDates.has(iso)) continue;
+        usedDates.add(iso);
+        result.push(appt);
+      }
+    }
+
+    result.sort((a, b) => a.appointmentDate.diff(b.appointmentDate));
+    return this.convertAppointments(result.slice(0, limit));
+  }
+
+  private getAppointmentsByDoctorFullyBalanced(
+    integration: IIntegration,
+    { limit, periodOfDay }: AppointmentsFilter,
+    appointments: PreAppointment[],
+  ): RawAppointment[] {
+    const resolvedPeriod: PeriodEnum = this.getPeriodOfDay(periodOfDay);
+
+    // Agrupa todos os horários por médico, filtrando por período se necessário
+    const appointmentsPerDoctor: { [doctorCode: string]: PreAppointment[] } = {};
+    for (const appointment of appointments) {
+      if (resolvedPeriod !== PeriodEnum.ANY) {
+        const period = this.getPeriodFromAppointmentDate(integration, appointment);
+        if (period !== resolvedPeriod) continue;
+      }
+
+      const raw = appointment as any;
+      const doctorCode =
+        appointment.doctor?.code?.toString() ||
+        raw.doctorDefault?.code?.toString() ||
+        raw.doctorId?.toString() ||
+        'unknown';
+
+      if (!appointmentsPerDoctor[doctorCode]) {
+        appointmentsPerDoctor[doctorCode] = [];
+      }
+      appointmentsPerDoctor[doctorCode].push(appointment);
+    }
+
+    // Ordena os horários de cada médico cronologicamente
+    Object.values(appointmentsPerDoctor).forEach((doctorAppointments) =>
+      doctorAppointments.sort((a, b) => a.appointmentDate.diff(b.appointmentDate)),
+    );
+
+    // FASE 1: Pega o primeiro horário de cada médico
+    const firstByDoctor: PreAppointment[] = Object.values(appointmentsPerDoctor).map(
+      (doctorAppointments) => doctorAppointments[0],
+    );
+
+    // Resolve empates de timestamps: mantém apenas um aleatório por instante
+    const timeBuckets = new Map<string, PreAppointment[]>();
+    for (const appointment of firstByDoctor) {
+      const key = appointment.appointmentDate.toISOString();
+      const dateIndexed = timeBuckets.get(key);
+      if (dateIndexed) dateIndexed.push(appointment);
+      else timeBuckets.set(key, [appointment]);
+    }
+
+    const getDoctorCode = (appointment: PreAppointment): string => {
+      const raw = appointment as any;
+      return (
+        appointment.doctor?.code?.toString() ||
+        raw.doctorDefault?.code?.toString() ||
+        raw.doctorId?.toString() ||
+        'unknown'
+      );
+    };
+
+    const result: PreAppointment[] = [];
+    const usedDates = new Set<string>();
+
+    // Contagem de contribuições por médico e índice do próximo horário disponível
+    const contributions: { [doctorCode: string]: number } = {};
+    const doctorIndexes: { [doctorCode: string]: number } = {};
+
+    for (const doctorCode of Object.keys(appointmentsPerDoctor)) {
+      contributions[doctorCode] = 0;
+      doctorIndexes[doctorCode] = 0;
+    }
+
+    // Processa os buckets da Fase 1: registra o vencedor e descarta duplicatas de timestamp
+    for (const [, appointmentArray] of timeBuckets) {
+      const randomIndex = appointmentArray.length === 1 ? 0 : Math.floor(Math.random() * appointmentArray.length);
+      const winner = appointmentArray[randomIndex];
+      const winnerCode = getDoctorCode(winner);
+
+      result.push(winner);
+      usedDates.add(winner.appointmentDate.toISOString());
+      contributions[winnerCode]++;
+      doctorIndexes[winnerCode] = 1; // próximo horário do vencedor começa no índice 1
+    }
+
+    // Se já atingiu o limite, encerra
+    if (result.length >= limit) {
+      result.sort((a, b) => a.appointmentDate.diff(b.appointmentDate));
+      return this.convertAppointments(result.slice(0, limit));
+    }
+
+    // FASE 2: Fila de prioridade balanceada
+    // A cada slot: entre os médicos com menos contribuições, escolhe o que tem o próximo horário mais cedo
+    while (result.length < limit) {
+      // Filtra médicos que ainda têm horários disponíveis
+      const activeDoctors = Object.keys(appointmentsPerDoctor).filter(
+        (dc) => doctorIndexes[dc] < appointmentsPerDoctor[dc].length,
+      );
+
+      if (activeDoctors.length === 0) break;
+
+      // Encontra a contagem mínima entre os médicos ativos
+      const minContribution = Math.min(...activeDoctors.map((dc) => contributions[dc]));
+
+      // Filtra apenas os médicos elegíveis (com contagem mínima)
+      const eligibleDoctors = activeDoctors.filter((dc) => contributions[dc] === minContribution);
+
+      // Entre os elegíveis, escolhe o próximo horário mais cedo (descartando timestamps já usados)
+      let chosen: PreAppointment | null = null;
+      let chosenDoctor: string | null = null;
+
+      for (const dc of eligibleDoctors) {
+        // Avança o índice enquanto o horário atual já foi usado
+        while (
+          doctorIndexes[dc] < appointmentsPerDoctor[dc].length &&
+          usedDates.has(appointmentsPerDoctor[dc][doctorIndexes[dc]].appointmentDate.toISOString())
+        ) {
+          doctorIndexes[dc]++;
+        }
+
+        if (doctorIndexes[dc] >= appointmentsPerDoctor[dc].length) continue;
+
+        const candidate = appointmentsPerDoctor[dc][doctorIndexes[dc]];
+
+        if (!chosen || candidate.appointmentDate.isBefore(chosen.appointmentDate)) {
+          chosen = candidate;
+          chosenDoctor = dc;
+        }
+      }
+
+      if (!chosen || !chosenDoctor) break;
+
+      result.push(chosen);
+      usedDates.add(chosen.appointmentDate.toISOString());
+      contributions[chosenDoctor]++;
+      doctorIndexes[chosenDoctor]++;
+    }
+
+    result.sort((a, b) => a.appointmentDate.diff(b.appointmentDate));
+    return this.convertAppointments(result.slice(0, limit));
+  }
+
   private getAppointmentsByDayPeriod(
     integration: IIntegration,
     { limit, periodOfDay }: AppointmentsFilter,
@@ -436,6 +752,37 @@ export class AppointmentService {
         break;
       }
     }
+
+    return this.convertAppointments(result);
+  }
+
+  private getAppointmentsByFirstEachDay(
+    { limit }: AppointmentsFilter,
+    appointments: PreAppointment[],
+  ): RawAppointment[] {
+    const resolvedAppointments: { [key: string]: PreAppointment } = {};
+    let resolvedAppointmentsCount = 0;
+
+    for (const appointment of appointments) {
+      const appointmentDate = appointment.appointmentDate.format('YYYY-MM-DD');
+
+      // Se ainda não temos um horário para esse dia, ou se este é mais cedo que o existente
+      if (!resolvedAppointments[appointmentDate]) {
+        resolvedAppointments[appointmentDate] = appointment;
+        resolvedAppointmentsCount += 1;
+      }
+
+      // Como os appointments já vêm ordenados por data (sortAppointments),
+      // o primeiro de cada dia será sempre o mais cedo
+      // Portanto, só precisamos verificar se já existe um para aquele dia
+
+      if (resolvedAppointmentsCount === limit) {
+        break;
+      }
+    }
+
+    // Converte o objeto em array e ordena por data
+    const result = Object.values(resolvedAppointments).sort((a, b) => a.appointmentDate.diff(b.appointmentDate));
 
     return this.convertAppointments(result);
   }

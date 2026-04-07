@@ -148,9 +148,16 @@ export class RulesHandlerService {
         doNotAllowSameDayScheduling = false,
         doNotAllowSameDayAndDoctorScheduling = false,
         doNotAllowSameHourScheduling = false,
+        doNotAllowSameDayForProcedureWithLaterality = false,
         minutesAfterAppointmentCanSchedule = 60,
       } = integration.rules ?? {};
-      const filterSchedules = doNotAllowSameDayScheduling || doNotAllowSameDayAndDoctorScheduling;
+
+      // Pode-se realizar filtragem quando não é sugestão de horários ou quando há regras de bloqueio
+      // Inclui doNotAllowSameHourScheduling para que a filtragem por horário
+      // também ative o fluxo de verificação de agendamentos do paciente
+      const filterSchedules =
+        !availableSchedules?.isSuggestionRequest &&
+        (doNotAllowSameDayScheduling || doNotAllowSameDayAndDoctorScheduling || doNotAllowSameHourScheduling);
 
       if (!replacedAppointments?.length) {
         return { replacedAppointments, metadata };
@@ -233,14 +240,30 @@ export class RulesHandlerService {
               patientSchedule?.procedure?.code &&
               groupedSchedules[patientScheduleDate]?.length
             ) {
-              const shouldDeleteDateSchedule =
+              // se for o mesmo procedimento, remove o dia todo
+              let shouldDeleteDateSchedule =
                 patientSchedule?.procedure?.code.toString() ===
                 groupedSchedules[patientScheduleDate]?.[0]?.procedureId?.toString();
+
+              // se a integração for Matrix e regra permitir lateralidade (e tiver lateralidade) - mantem horario
+              if (integration.type === IntegrationType.MATRIX && !doNotAllowSameDayForProcedureWithLaterality) {
+                // não temos lateralidade no agendamento do paciente, então deixamos agendar sem comparar lateralidade
+                // apenas verificamos se tem lateralidade nos horarios ofertados
+                // Debito Tecnico: quando horario do paciente tiver lateralidade, realizar a comparação entre lateralidades
+                const hasLaterality = !!groupedSchedules[patientScheduleDate][0]?.data?.codigoRegiaoColeta;
+
+                if (hasLaterality) shouldDeleteDateSchedule = false;
+              }
 
               if (shouldDeleteDateSchedule) {
                 delete groupedSchedules[patientScheduleDate];
               }
-            } else {
+            } else if (doNotAllowSameDayScheduling) {
+              // Remove todos os horários do dia apenas quando doNotAllowSameDayScheduling está ativo.
+              // Usa doNotAllowSameDayScheduling ao invés de !doNotAllowSameHourScheduling para garantir
+              // que a regra mais restritiva (bloquear o dia inteiro) prevaleça quando ambas estão ativas,
+              // e que quando apenas doNotAllowSameHourScheduling está ativo, os horários fora do intervalo
+              // mínimo (já filtrados acima) permaneçam disponíveis.
               delete groupedSchedules[patientScheduleDate];
             }
           });

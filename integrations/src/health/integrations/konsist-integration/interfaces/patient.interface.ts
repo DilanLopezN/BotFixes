@@ -1,15 +1,15 @@
-import { KonsistTelefone, KonsistContato } from './common.interface';
+import { KonsistPhone, KonsistContact } from './common.interface';
 
 // ========== REQUEST INTERFACES ==========
 
-export interface KonsistListarPacienteRequest {
+export interface KonsistListPatientsRequest {
   nome?: string;
   cpf?: string;
   rg?: string;
   email?: string;
 }
 
-export interface KonsistIncluirPacienteRequest {
+export interface KonsistCreatePatientRequest {
   nome: string;
   cpf: string;
   datanascimento: string; // format: date
@@ -19,12 +19,12 @@ export interface KonsistIncluirPacienteRequest {
   planoconvenio?: string;
   matriculaconvenio?: string;
   email?: string;
-  telefone?: KonsistTelefone;
+  telefone?: KonsistPhone;
 }
 
 // ========== RESPONSE INTERFACES ==========
 
-export interface KonsistDadosPacienteResponse {
+export interface KonsistPatientDataResponse {
   idpaciente?: number;
   nomeregistro?: string;
   nomesocial?: string;
@@ -36,11 +36,11 @@ export interface KonsistDadosPacienteResponse {
   plano?: string;
 }
 
-export interface KonsistPacienteResponse {
+export interface KonsistPatientResponse {
   idpaciente?: number;
   paciente?: string;
   telefone?: string;
-  contatos?: KonsistContato[];
+  contatos?: KonsistContact[];
 }
 
 export interface KonsistCreatePatientResponse {

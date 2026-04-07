@@ -1,4 +1,5 @@
 import { HttpStatus, Injectable, Logger } from '@nestjs/common';
+import { Readable } from 'stream';
 import {
   ListAvailableSchedulesFilters,
   Reschedule,
@@ -31,6 +32,7 @@ import {
   PatientSchedule,
 } from 'kissbot-health-core';
 import * as moment from 'moment';
+import * as Sentry from '@sentry/node';
 import { HTTP_ERROR_THROWER, HttpErrorOrigin, INTERNAL_ERROR_THROWER } from '../../../../common/exceptions.service';
 import { OkResponse } from '../../../../common/interfaces/ok-response.interface';
 import {
@@ -79,6 +81,7 @@ import {
   AgentUploadFile,
   PatientUploadFile,
 } from '../../../integrator/interfaces';
+import { FutureSchedule, ListFutureSchedulesParams } from '../../../integrator/interfaces/future-schedules.interface';
 import {
   Appointment,
   AppointmentSortMethod,
@@ -88,7 +91,11 @@ import {
   MinifiedAppointments,
 } from '../../../interfaces/appointment.interface';
 import { ConfirmationSchedule } from '../../../interfaces/confirmation-schedule.interface';
-import { CorrelationFilter, CorrelationFilterByKey } from '../../../interfaces/correlation-filter.interface';
+import {
+  CorrelationFilter,
+  CorrelationFilterByKey,
+  CorrelationFilterByKeys,
+} from '../../../interfaces/correlation-filter.interface';
 import { EntityType, EntityTypes, IDoctorEntity, SpecialityTypes } from '../../../interfaces/entity.interface';
 import { OnDutyMedicalScale } from '../../../interfaces/on-duty-medical-scale.interface';
 import { Patient } from '../../../interfaces/patient.interface';
@@ -127,6 +134,7 @@ import { AuditDataType } from '../../../audit/audit.interface';
 import { PatientSchedulesToUploadFile } from '../../../integrator/interfaces/patient-schedules-to-upload-file.interface';
 import { formatHeight } from '../../../../common/helpers/format-height';
 import { formatWeight } from '../../../../common/helpers/format-weight';
+import { OrganizationUnitData } from '../interface/entities';
 
 @Injectable()
 export class BotdesignerService implements IIntegratorService {
@@ -261,28 +269,13 @@ export class BotdesignerService implements IIntegratorService {
         payload.data.patientWeight = patient.weight || null;
       }
 
-      if (typeOfService?.code) {
-        const codeStr = String(typeOfService.code);
+      const typeOfServiceResult = await this.botdesignerHelpersService.processTypeOfServiceForPayload(
+        integration,
+        typeOfService?.code,
+      );
 
-        const isNumeric = /^-?\d+$/.test(codeStr);
-        const isValid = (isNumeric && Number(codeStr) > 0) || !isNumeric;
-
-        if (isValid) {
-          payload.data.typeOfServiceCode = codeStr;
-
-          const entity: TypeOfServiceEntityDocument = await this.entitiesService.getEntityByCode(
-            codeStr,
-            EntityType.typeOfService,
-            integration._id,
-          );
-
-          if (entity?.params?.referenceTypeOfService) {
-            payload.data.classificationCode = this.botdesignerHelpersService.typeOfServiceToBotdesignerTypeOfService(
-              entity.params.referenceTypeOfService,
-            );
-          }
-        }
-      }
+      payload.data.typeOfServiceCode = typeOfServiceResult.typeOfServiceCode;
+      payload.data.classificationCode = typeOfServiceResult.classificationCode || payload.data.classificationCode;
 
       const result = await this.botdesignerApiService.createSchedule(integration, payload);
 
@@ -379,20 +372,13 @@ export class BotdesignerService implements IIntegratorService {
         payload.data.patientWeight = patient.weight || null;
       }
 
-      if (typeOfService?.code && Number.isInteger(Number(typeOfService.code)) && Number(typeOfService.code) >= 0) {
-        payload.data.typeOfServiceCode = typeOfService.code;
-        const entity: TypeOfServiceEntityDocument = await this.entitiesService.getEntityByCode(
-          typeOfService.code,
-          EntityType.typeOfService,
-          integration._id,
-        );
+      const typeOfServiceResult = await this.botdesignerHelpersService.processTypeOfServiceForPayload(
+        integration,
+        typeOfService?.code,
+      );
 
-        if (entity?.params?.referenceTypeOfService) {
-          payload.data.classificationCode = this.botdesignerHelpersService.typeOfServiceToBotdesignerTypeOfService(
-            entity.params.referenceTypeOfService,
-          );
-        }
-      }
+      payload.data.typeOfServiceCode = typeOfServiceResult.typeOfServiceCode;
+      payload.data.classificationCode = typeOfServiceResult.classificationCode || payload.data.classificationCode;
 
       const result = await this.botdesignerApiService.createScheduleExam(integration, payload);
 
@@ -634,7 +620,7 @@ export class BotdesignerService implements IIntegratorService {
 
     if (dateLimit && moment(payload.params.startDate).valueOf() > moment(dateLimit).valueOf()) {
       throw HTTP_ERROR_THROWER(
-        HttpStatus.BAD_GATEWAY,
+        HttpStatus.BAD_REQUEST,
         {
           message: `dateLimit effect : initialDate ${payload.params.startDate}`,
         },
@@ -746,7 +732,7 @@ export class BotdesignerService implements IIntegratorService {
         }
       }
     } catch (error) {
-      throw HTTP_ERROR_THROWER(HttpStatus.BAD_GATEWAY, error);
+      throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, error);
     }
 
     const metadata: AvailableSchedulesMetadata = {
@@ -862,7 +848,8 @@ export class BotdesignerService implements IIntegratorService {
     integration: IntegrationDocument,
     scheduleValue: InternalGetScheduleValue,
   ): Promise<AppointmentValue> {
-    const { insurance, procedure, doctor, organizationUnit, scheduleCode, speciality, appointmentType } = scheduleValue;
+    const { insurance, procedure, doctor, organizationUnit, scheduleCode, speciality, appointmentType, patient } =
+      scheduleValue;
 
     const procedureData = this.botdesignerHelpersService.getCompositeProcedureCode(integration, procedure?.code);
     const specialityData = this.botdesignerHelpersService.getCompositeSpecialityCode(
@@ -888,7 +875,7 @@ export class BotdesignerService implements IIntegratorService {
         insuranceCategoryCode: insuranceCategoryData?.code || null,
         procedureCode: procedureData?.code || null,
         appointmentTypeCode: appointmentType?.code || null,
-        patientCode: '',
+        patientCode: patient?.code || null,
         scheduleCode: scheduleCode || null,
         classificationCode: null,
         doctorCode: doctor?.code || null,
@@ -897,6 +884,9 @@ export class BotdesignerService implements IIntegratorService {
         typeOfServiceCode: null,
       },
     };
+
+    // Keep backward compatibility with older health-core typings while still sending patientCpf when available.
+    (payload.data as any).patientCpf = patient?.cpf || null;
 
     try {
       const data = await this.botdesignerApiService.getScheduleValue(integration, payload);
@@ -1271,6 +1261,7 @@ export class BotdesignerService implements IIntegratorService {
           procedure,
           speciality,
           appointmentType,
+          typeOfService,
         },
       } = reschedule;
 
@@ -1328,6 +1319,14 @@ export class BotdesignerService implements IIntegratorService {
       if (patient.weight) {
         payload.data.patientWeight = patient.weight || null;
       }
+
+      const typeOfServiceResult = await this.botdesignerHelpersService.processTypeOfServiceForPayload(
+        integration,
+        typeOfService?.code,
+      );
+
+      payload.data.typeOfServiceCode = typeOfServiceResult.typeOfServiceCode;
+      payload.data.classificationCode = typeOfServiceResult.classificationCode || payload.data.classificationCode;
 
       const result = await this.botdesignerApiService.reschedule(integration, payload);
 
@@ -1390,7 +1389,7 @@ export class BotdesignerService implements IIntegratorService {
         data: {
           scheduleCodeToUpdate: scheduleToCancelCode,
           patientCode: patient.code,
-          doctorCode: doctor.code,
+          doctorCode: doctor?.code || null,
           duration: 0,
           insuranceCode: insurance.code,
           scheduleDate: appointmentDate,
@@ -1797,8 +1796,9 @@ export class BotdesignerService implements IIntegratorService {
         identifier: 'REPORT_SENDING_AFTER_RABBITMQ',
       });
       const integration = await this.integrationService.getOne(reportSendingEvents[0].integrationId);
-      const { apiToken } = integration?.reportConfig;
-      if (!apiToken && !integration.scheduling.active) {
+      const { apiToken } = integration?.reportConfig || {};
+
+      if (!apiToken || !integration.scheduling?.active) {
         throw Error('Need integration apiToken and scheduling is active');
       }
 
@@ -1859,6 +1859,10 @@ export class BotdesignerService implements IIntegratorService {
             },
             {
               name: 'URL_0',
+              value: message.URL_0,
+            },
+            {
+              name: 'link_0',
               value: message.URL_0,
             },
           ],
@@ -1991,7 +1995,7 @@ export class BotdesignerService implements IIntegratorService {
   public async downloadMedicalReport(
     integration: IntegrationDocument,
     data: DownloadMedicalReportTokenData,
-  ): Promise<Buffer> {
+  ): Promise<Readable> {
     try {
       if (!data.medicalReportCode || !(data.scheduleCode && data.medicalReportExamCode)) {
         throw HTTP_ERROR_THROWER(HttpStatus.NOT_FOUND, 'required id, schedule code or modality', undefined, true);
@@ -2001,14 +2005,14 @@ export class BotdesignerService implements IIntegratorService {
           scheduleCode: data.scheduleCode,
         },
       });
-      const bufferFile: Buffer = await this.botdesignerApiService.downloadS3File(integration, url);
+      const stream = await this.botdesignerApiService.downloadS3File(integration, url);
       await this.botdesignerApiService.updateReportSending(integration, {
         params: {
           type: UpdateReportSendingType.DOWNLOADED,
           valuesToUpdate: [data.patientErpCode],
         },
       });
-      return bufferFile;
+      return stream;
     } catch (error) {
       this.logger.error(error);
     }
@@ -2194,5 +2198,181 @@ export class BotdesignerService implements IIntegratorService {
     data: ListSchedulesToConfirmV2,
   ): Promise<ExtractedSchedule[]> {
     return await this.botdesignerConfirmationService.listSchedulesToActiveSending(integration, data);
+  }
+
+  async sendAuthorizationInsuranceData(
+    integration: IntegrationDocument,
+    data: { type: string; data: any },
+  ): Promise<OkResponse> {
+    try {
+      return await this.botdesignerApiService.sendAuthorizationInsuranceData(integration, data);
+    } catch (error) {
+      throw INTERNAL_ERROR_THROWER('BotdesignerService.sendAuthorizationInsuranceData', error);
+    }
+  }
+
+  async listFutureSchedules(
+    integration: IntegrationDocument,
+    params: ListFutureSchedulesParams,
+  ): Promise<FutureSchedule[]> {
+    try {
+      const schedules = await this.botdesignerApiService.listFutureSchedules(integration, params);
+
+      if (!schedules.length) {
+        return schedules;
+      }
+
+      const correlationsKeys: { [key: string]: Set<string> } = {};
+
+      for (const futureSchedule of schedules) {
+        const schedule = futureSchedule;
+        const scheduleMap = {
+          [EntityType.appointmentType]: schedule.appointmentTypeCode,
+          [EntityType.doctor]: schedule.doctorCode,
+          [EntityType.insurance]: schedule.insuranceCode,
+          [EntityType.insurancePlan]: schedule.insurancePlanCode,
+          [EntityType.organizationUnit]: schedule.organizationUnitCode,
+          [EntityType.speciality]: this.botdesignerHelpersService.createCompositeSpecialityCode(
+            integration,
+            schedule.specialityCode,
+            schedule.appointmentTypeCode,
+          ),
+          [EntityType.procedure]: schedule.procedureCode
+            ? this.botdesignerHelpersService.createCompositeProcedureCode(
+                integration,
+                schedule.procedureCode,
+                schedule.specialityCode,
+                schedule.appointmentTypeCode,
+                null,
+                schedule.laterality,
+              )
+            : null,
+        };
+
+        Object.keys(scheduleMap).forEach((entityType) => {
+          const entityCode = scheduleMap[entityType];
+
+          if (entityCode) {
+            if (!correlationsKeys[entityType]) {
+              correlationsKeys[entityType] = new Set();
+            }
+
+            correlationsKeys[entityType].add(entityCode);
+          }
+        });
+      }
+
+      const correlationsKeysData: CorrelationFilterByKeys = Object.keys(EntityType).reduce((acc, key) => {
+        if (correlationsKeys[key]?.size) {
+          acc[key] = Array.from(correlationsKeys[key]);
+        }
+        return acc;
+      }, {});
+
+      // cria um objeto em memória com as entidades encontradas em todos os agendamentos
+      // para não ir no mongo consultar diversas vezes o mesmo registro
+      const correlationData: { [entityType: string]: { [entityCode: string]: EntityDocument } } =
+        await this.entitiesService.createCorrelationDataKeys(correlationsKeysData, integration._id);
+
+      for (const futureSchedule of schedules) {
+        const schedule = futureSchedule;
+        const scheduleCorrelation: { [entityType: string]: EntityDocument } = {};
+        const scheduleMap = {
+          [EntityType.appointmentType]: schedule.appointmentTypeCode,
+          [EntityType.doctor]: schedule.doctorCode,
+          [EntityType.insurance]: schedule.insuranceCode,
+          [EntityType.insurancePlan]: schedule.insurancePlanCode,
+          [EntityType.organizationUnit]: schedule.organizationUnitCode,
+          [EntityType.speciality]: this.botdesignerHelpersService.createCompositeSpecialityCode(
+            integration,
+            schedule.specialityCode,
+            schedule.appointmentTypeCode,
+          ),
+          [EntityType.procedure]: schedule.procedureCode
+            ? this.botdesignerHelpersService.createCompositeProcedureCode(
+                integration,
+                schedule.procedureCode,
+                schedule.specialityCode,
+                schedule.appointmentTypeCode,
+                null,
+                schedule.laterality,
+              )
+            : null,
+        };
+
+        Object.keys(scheduleMap).forEach((entityType) => {
+          const entityCode = scheduleMap[entityType];
+          scheduleCorrelation[entityType] = correlationData[entityType]?.[entityCode];
+        });
+
+        const { organizationUnit, procedure, appointmentType, doctor, speciality, insurance, insurancePlan } =
+          scheduleCorrelation;
+
+        // Popula os campos de nome e código usando as entidades encontradas
+        if (organizationUnit) {
+          schedule.organizationUnitName = organizationUnit.friendlyName || schedule.organizationUnitName;
+          schedule.organizationUnitCode = organizationUnit.code || schedule.organizationUnitCode;
+          schedule.organizationUnitAddress =
+            (organizationUnit.data as OrganizationUnitData)?.address || schedule.organizationUnitAddress;
+        }
+
+        if (procedure) {
+          schedule.procedureName = procedure.friendlyName || schedule.procedureName;
+          schedule.procedureCode = procedure.code || schedule.procedureCode;
+        }
+
+        if (appointmentType) {
+          schedule.appointmentTypeName = appointmentType.friendlyName || schedule.appointmentTypeName;
+          schedule.appointmentTypeCode = appointmentType.code || schedule.appointmentTypeCode;
+        }
+
+        if (doctor) {
+          schedule.doctorName = doctor.name || schedule.doctorName;
+          schedule.doctorCode = doctor.code || schedule.doctorCode;
+        }
+
+        if (speciality) {
+          schedule.specialityName = speciality.friendlyName || schedule.specialityName;
+          schedule.specialityCode = speciality.code || schedule.specialityCode;
+        }
+
+        if (insurance) {
+          schedule.insuranceName = insurance.name || schedule.insuranceName;
+          schedule.insuranceCode = insurance.code || schedule.insuranceCode;
+        }
+
+        if (insurancePlan) {
+          schedule.insurancePlanName = insurancePlan.name || schedule.insurancePlanName;
+          schedule.insurancePlanCode = insurancePlan.code || schedule.insurancePlanCode;
+        }
+      }
+
+      return schedules;
+    } catch (error) {
+      Sentry.captureEvent({
+        message: `ERROR:INTEGRATION:BOTDESIGNER:${integration._id}:listFutureSchedules`,
+        extra: {
+          integrationId: integration._id,
+          error: error,
+        },
+      });
+      throw INTERNAL_ERROR_THROWER('BotdesignerService.listFutureSchedules', error);
+    }
+  }
+
+  async cancelFutureSchedule(
+    integration: IntegrationDocument,
+    scheduleCode: string,
+    erpParams?: any,
+  ): Promise<OkResponse> {
+    try {
+      const payload: any = {
+        scheduleCode,
+        erpParams,
+      };
+      return await this.botdesignerApiService.cancelSchedule(integration, payload);
+    } catch (error) {
+      throw INTERNAL_ERROR_THROWER('BotdesignerService.cancelFutureSchedule', error);
+    }
   }
 }

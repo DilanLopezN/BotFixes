@@ -248,8 +248,7 @@ export class KonsistEntitiesService {
         name: resource.nome?.trim(),
         data: {
           crm: resource.crm,
-          local: resource.local,
-          podemarcaratendido: resource.podemarcaratendido,
+          podemarcaratendido: resource.podemarcaratendido, // necessario para validação posterior
         },
       }));
     } catch (error) {
@@ -274,11 +273,8 @@ export class KonsistEntitiesService {
         ...defaultData,
         code: String(resource.id),
         name: resource.nome?.trim(),
-        activeErp: resource.status === 'A' || resource.status === 'ativo' || !resource.status,
         data: {
           codigo: resource.codigo,
-          reduzido: resource.reduzido,
-          cnpj: resource.num_cnpj,
         },
       }));
     } catch (error) {
@@ -305,20 +301,6 @@ export class KonsistEntitiesService {
           ...defaultData,
           code: String(resource.id),
           name: resource.empresa?.trim(),
-          canSchedule: true,
-          data: {
-            tipo: resource.tipo,
-            cnpj: resource.cnpj,
-            endereco: resource.endereco,
-            numero: resource.numero,
-            bairro: resource.bairro,
-            cep: resource.cep,
-            ddd: resource.ddd,
-            fone: resource.fone,
-            site: resource.site,
-            localizacao: resource.localizacao,
-            complemento: resource.complemento,
-          },
         }));
     } catch (error) {
       this.logger.error('KonsistEntitiesService.listOrganizationUnits', error);
@@ -346,8 +328,6 @@ export class KonsistEntitiesService {
         code: String(resource.id || resource.codigo),
         name: resource.nome?.trim() || resource.descricao?.trim(),
         specialityType: SpecialityTypes.C,
-        canSchedule: true,
-        canView: true,
       }));
     } catch (error) {
       this.logger.error('KonsistEntitiesService.listSpecialities', error);
@@ -386,7 +366,6 @@ export class KonsistEntitiesService {
         name: resource.nome?.trim() || resource.descricao?.trim(),
         specialityType: SpecialityTypes.C,
         specialityCode: requestFilters?.especialidade_id ? String(requestFilters.especialidade_id) : '-1',
-        canSchedule: true,
         data: {
           tipo: resource.tipo,
           valor: resource.valor,

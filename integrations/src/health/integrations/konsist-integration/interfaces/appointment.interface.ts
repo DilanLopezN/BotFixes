@@ -1,8 +1,8 @@
-import { KonsistContato } from './common.interface';
+import { KonsistContact } from './common.interface';
 
 // ========== REQUEST INTERFACES ==========
 
-export interface KonsistAgendaRequest {
+export interface KonsistListScheduleRequest {
   idMedico: number;
   data: string; // format: date
   qtdDias: number;
@@ -10,7 +10,7 @@ export interface KonsistAgendaRequest {
   mostrarHVazio?: number;
 }
 
-export interface KonsistAgendaHorarioRequest {
+export interface KonsistScheduleHourRequest {
   idmedico: number;
   idconvenio: number;
   codigoprocedimento: string;
@@ -22,7 +22,7 @@ export interface KonsistAgendaHorarioRequest {
   idespecialidade?: number;
 }
 
-export interface KonsistPeriodoAgendamentoRequest {
+export interface KonsistSchedulePeriodRequest {
   datai: string; // format: date
   dataf: string; // format: date
   idpaciente?: number;
@@ -30,7 +30,7 @@ export interface KonsistPeriodoAgendamentoRequest {
   status?: string; // C=Confirmado, L=chegou, D=Desmarcado, F=Faltou, A=Atendido, M=Atendido Medico
 }
 
-export interface KonsistPreAgendamentoRequest {
+export interface KonsistPreSchedulingRequest {
   origem?: number; // 0=Konsist, 1=Parceiros
   chave: number;
   idpaciente: number;
@@ -50,7 +50,7 @@ export interface KonsistStatusRequest {
   emailusuario?: string;
 }
 
-export interface KonsistProtocoloStatusRequest {
+export interface KonsistProtocolStatusRequest {
   datasolicitacao?: string; // format: date
   protocolo?: string;
   cpfpaciente?: string;
@@ -60,7 +60,7 @@ export interface KonsistProtocoloStatusRequest {
 
 // ========== RESPONSE INTERFACES ==========
 
-export interface KonsistAgendaRetorno {
+export interface KonsistListSchedulesResponse {
   _id: number;
   name?: string;
   convenio?: string;
@@ -82,12 +82,12 @@ export interface KonsistAgendaRetorno {
   usuario_confirmou?: string;
 }
 
-export interface KonsistAgendamentoMarcacao {
+export interface KonsistScheduleDemarcation {
   codigo?: string;
   descricao?: string;
 }
 
-export interface KonsistAgendamentoItem {
+export interface KonsistScheduleItem {
   agendamento_chave?: number;
   agendamento_medico?: string;
   agendamento_especialidade?: string;
@@ -99,13 +99,13 @@ export interface KonsistAgendamentoItem {
   agendamento_status?: string;
   agendamento_categoria?: string;
   agendamento_status_personalizado?: string;
-  agendamento_marcacao?: KonsistAgendamentoMarcacao[];
+  agendamento_marcacao?: KonsistScheduleDemarcation[];
   empresa_unidade?: string;
   empresa_endereco?: string;
   empresa_telefone?: string;
 }
 
-export interface KonsistAgendamentoResponse {
+export interface KonsistListSchedulesResponse {
   id: number;
   nome: string;
   cpf: string;
@@ -113,18 +113,18 @@ export interface KonsistAgendamentoResponse {
   email: string;
   datanascimento: string;
   telefone?: string;
-  contatos?: KonsistContato[];
-  agendamento?: KonsistAgendamentoItem[];
+  contatos?: KonsistContact[];
+  agendamento?: KonsistScheduleItem[];
 }
 
-export interface KonsistAgendaHorarioRetorno {
+export interface KonsistScheduledHourResponse {
   chave: number;
   idmedico: number;
   data: string; // format: date
   hora: string;
 }
 
-export interface KonsistProtocoloStatusRetorno {
+export interface KonsistProtocolStatusResponse {
   id?: number;
   protocolo?: string;
   datasolicitacao?: string; // format: date
@@ -148,7 +148,7 @@ export interface KonsistProtocoloStatusRetorno {
   observacao?: string;
 }
 
-export interface KonsistRetornoAlteracaoStatus {
+export interface KonsistStatusChangeResponse {
   chave: number;
   statusalterado: boolean;
   erroalteracaostatus?: string;

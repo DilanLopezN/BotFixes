@@ -1,4 +1,5 @@
 import { BadRequestException, HttpStatus, Injectable } from '@nestjs/common';
+import { Readable } from 'stream';
 import * as moment from 'moment';
 import { HttpErrorOrigin, HTTP_ERROR_THROWER, INTERNAL_ERROR_THROWER } from '../../../../common/exceptions.service';
 import { formatCurrency } from '../../../../common/helpers/format-currency';
@@ -1879,7 +1880,7 @@ export class ClinuxService implements IIntegratorService {
   public async downloadMedicalReport(
     integration: IntegrationDocument,
     data: DownloadMedicalReportTokenData,
-  ): Promise<Buffer> {
+  ): Promise<Readable> {
     const paramError = {
       type: 'error',
       messages: {

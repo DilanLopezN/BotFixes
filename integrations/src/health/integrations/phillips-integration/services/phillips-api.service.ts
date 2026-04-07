@@ -38,6 +38,7 @@ import {
   PhillipsParamsType,
 } from '../interfaces';
 import { IntegrationType } from '../../../../health/interfaces/integration-types';
+import { AxiosError, isAxiosError } from 'axios';
 
 @Injectable()
 export class PhillipsApiService {
@@ -123,6 +124,14 @@ export class PhillipsApiService {
     };
   }
 
+  private getBaseHeaders(): { headers: Record<string, string> } {
+    return {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    };
+  }
+
   private async getApiUrl(integration: IntegrationDocument, endpoint: string): Promise<string> {
     const { apiUrl } = await this.credentialsHelper.getConfig<PhillipsCredentialsResponse>(integration);
     return `${apiUrl}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
@@ -144,7 +153,7 @@ export class PhillipsApiService {
         this.httpService.get<PhillipsListSchedulesResponse>(
           await this.getApiUrl(integration, '/api/schedules/consultation'),
           {
-            ...(await this.getHeaders(integration)),
+            ...(await this.getBaseHeaders()),
             params,
           },
         ),
@@ -153,12 +162,18 @@ export class PhillipsApiService {
       this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;
     } catch (error) {
-      this.handleResponseError(integration, error, params, methodName);
-      throw HTTP_ERROR_THROWER(
-        error?.response?.status || HttpStatus.BAD_REQUEST,
-        error?.response?.data || error,
-        HttpErrorOrigin.INTEGRATION_ERROR,
-      );
+      if (isAxiosError(error)) {
+        this.handleResponseError(integration, error, params, methodName);
+
+        throw HTTP_ERROR_THROWER(
+          error.response?.status || HttpStatus.BAD_REQUEST,
+          error.response?.data || error.message,
+          HttpErrorOrigin.INTEGRATION_ERROR,
+        );
+      }
+
+      // fallback para erros não-Axios
+      throw HTTP_ERROR_THROWER(HttpStatus.INTERNAL_SERVER_ERROR, error, HttpErrorOrigin.INTEGRATION_ERROR);
     }
   }
 
@@ -167,7 +182,7 @@ export class PhillipsApiService {
 
   public async getPatient(
     integration: IntegrationDocument,
-    code: string,
+    code?: string,
     params?: PhillipsParamsType,
   ): Promise<PhillipsNaturalPerson> {
     const methodName = 'getPatient';
@@ -175,8 +190,12 @@ export class PhillipsApiService {
     this.dispatchAuditEvent(integration, { code, ...params }, methodName, AuditDataType.externalRequest);
 
     try {
+      // Busca por código: /api/natural-person/{code}
+      // Busca por CPF: /api/natural-person?taxpayer-id=XXX (via params)
+      const endpoint = code ? `/api/natural-person/${code}` : '/api/natural-person';
+
       const response = await lastValueFrom(
-        this.httpService.get<PhillipsNaturalPerson>(await this.getApiUrl(integration, `/api/natural-person/${code}`), {
+        this.httpService.get<PhillipsNaturalPerson>(await this.getApiUrl(integration, endpoint), {
           ...(await this.getHeaders(integration)),
           ...(params && { params }),
         }),
@@ -185,12 +204,18 @@ export class PhillipsApiService {
       this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;
     } catch (error) {
-      this.handleResponseError(integration, error, { code, ...params }, methodName);
-      throw HTTP_ERROR_THROWER(
-        error?.response?.status || HttpStatus.BAD_REQUEST,
-        error?.response?.data || error,
-        HttpErrorOrigin.INTEGRATION_ERROR,
-      );
+      if (isAxiosError(error)) {
+        this.handleResponseError(integration, error, params, methodName);
+
+        throw HTTP_ERROR_THROWER(
+          error.response?.status || HttpStatus.BAD_REQUEST,
+          error.response?.data || error,
+          HttpErrorOrigin.INTEGRATION_ERROR,
+        );
+      }
+
+      // fallback para erros não-Axios
+      throw HTTP_ERROR_THROWER(HttpStatus.INTERNAL_SERVER_ERROR, error, HttpErrorOrigin.INTEGRATION_ERROR);
     }
   }
 
@@ -211,7 +236,7 @@ export class PhillipsApiService {
           await this.getApiUrl(integration, '/api/natural-person'),
           payload,
           {
-            ...(await this.getHeaders(integration)),
+            ...(await this.getBaseHeaders()),
           },
         ),
       );
@@ -219,12 +244,18 @@ export class PhillipsApiService {
       this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;
     } catch (error) {
-      this.handleResponseError(integration, error, payload, methodName);
-      throw HTTP_ERROR_THROWER(
-        error?.response?.status || HttpStatus.BAD_REQUEST,
-        error?.response?.data || error,
-        HttpErrorOrigin.INTEGRATION_ERROR,
-      );
+      if (isAxiosError(error)) {
+        this.handleResponseError(integration, error, {}, methodName);
+
+        throw HTTP_ERROR_THROWER(
+          error.response?.status || HttpStatus.BAD_REQUEST,
+          error.response?.data || error.message,
+          HttpErrorOrigin.INTEGRATION_ERROR,
+        );
+      }
+
+      // fallback para erros não-Axios
+      throw HTTP_ERROR_THROWER(HttpStatus.INTERNAL_SERVER_ERROR, error, HttpErrorOrigin.INTEGRATION_ERROR);
     }
   }
 
@@ -241,7 +272,7 @@ export class PhillipsApiService {
         this.httpService.get<PhillipsEstablishment[]>(
           await this.getApiUrl(integration, '/api/establishments/actives'),
           {
-            ...(await this.getHeaders(integration)),
+            ...(await this.getBaseHeaders()),
           },
         ),
       );
@@ -249,19 +280,24 @@ export class PhillipsApiService {
       this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;
     } catch (error) {
-      this.handleResponseError(integration, error, undefined, methodName);
-      throw HTTP_ERROR_THROWER(
-        error?.response?.status || HttpStatus.BAD_REQUEST,
-        error?.response?.data || error,
-        HttpErrorOrigin.INTEGRATION_ERROR,
-      );
+      if (isAxiosError(error)) {
+        this.handleResponseError(integration, error, {}, methodName);
+
+        throw HTTP_ERROR_THROWER(
+          error.response?.status || HttpStatus.BAD_REQUEST,
+          error.response?.data || error.message,
+          HttpErrorOrigin.INTEGRATION_ERROR,
+        );
+      }
+
+      // fallback para erros não-Axios
+      throw HTTP_ERROR_THROWER(HttpStatus.INTERNAL_SERVER_ERROR, error, HttpErrorOrigin.INTEGRATION_ERROR);
     }
   }
 
   // ========== A4 - LIST MEDICAL SPECIALTIES ==========
   // GET /api/medicalSpecialties/actives
   // GET /api/medicalSpecialties/{code}
-
   public async getSpecialities(
     integration: IntegrationDocument,
     params?: PhillipsParamsType,
@@ -270,87 +306,108 @@ export class PhillipsApiService {
     this.debugRequest(integration, params ?? {});
     this.dispatchAuditEvent(integration, params ?? {}, methodName, AuditDataType.externalRequest);
 
+    // Se vier medicalSpecialtyCode nos params, busca por código específico
+    const endpoint = params?.medicalSpecialtyCode
+      ? `/api/medicalSpecialties/${params.medicalSpecialtyCode}`
+      : '/api/medicalSpecialties/actives';
+
+    // Remove medicalSpecialtyCode dos query params — já está na URL
+    const { medicalSpecialtyCode, ...queryParams } = params ?? {};
+
     try {
       const response = await lastValueFrom(
-        this.httpService.get<PhillipsMedicalSpecialty[]>(
-          await this.getApiUrl(integration, '/api/medicalSpecialties/actives'),
+        this.httpService.get<PhillipsMedicalSpecialty | PhillipsMedicalSpecialty[]>(
+          await this.getApiUrl(integration, endpoint),
           {
-            ...(await this.getHeaders(integration)),
-            ...(params && { params }),
+            ...this.getBaseHeaders(),
+            ...(Object.keys(queryParams).length && { params: queryParams }),
           },
         ),
+      );
+
+      const data = Array.isArray(response?.data) ? response.data : [response.data];
+
+      this.dispatchAuditEvent(integration, data, methodName, AuditDataType.externalResponse);
+      return data;
+    } catch (error) {
+      if (isAxiosError(error)) {
+        this.handleResponseError(integration, error, params, methodName);
+        throw HTTP_ERROR_THROWER(
+          error.response?.status || HttpStatus.BAD_REQUEST,
+          error.response?.data || error.message,
+          HttpErrorOrigin.INTEGRATION_ERROR,
+        );
+      }
+
+      throw HTTP_ERROR_THROWER(HttpStatus.INTERNAL_SERVER_ERROR, error, HttpErrorOrigin.INTEGRATION_ERROR);
+    }
+  }
+
+  // ========== A5 - LIST ALL ACTIVE INSURANCES ==========
+  // GET /api/insurances/actives
+
+  public async listInsurances(
+    integration: IntegrationDocument,
+    params?: PhillipsParamsType,
+  ): Promise<PhillipsInsurance[]> {
+    const methodName = 'listInsurances';
+    this.debugRequest(integration, params ?? {});
+    this.dispatchAuditEvent(integration, params ?? {}, methodName, AuditDataType.externalRequest);
+
+    try {
+      const response = await lastValueFrom(
+        this.httpService.get<PhillipsInsurance[]>(await this.getApiUrl(integration, '/api/insurances/actives'), {}),
       );
 
       this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;
     } catch (error) {
-      this.handleResponseError(integration, error, params, methodName);
-      throw HTTP_ERROR_THROWER(
-        error?.response?.status || HttpStatus.BAD_REQUEST,
-        error?.response?.data || error,
-        HttpErrorOrigin.INTEGRATION_ERROR,
-      );
+      if (isAxiosError(error)) {
+        this.handleResponseError(integration, error, params, methodName);
+
+        throw HTTP_ERROR_THROWER(
+          error.response?.status || HttpStatus.BAD_REQUEST,
+          error.response?.data || error.message,
+          HttpErrorOrigin.INTEGRATION_ERROR,
+        );
+      }
+
+      // fallback para erros não-Axios
+      throw HTTP_ERROR_THROWER(HttpStatus.INTERNAL_SERVER_ERROR, error, HttpErrorOrigin.INTEGRATION_ERROR);
     }
   }
 
-  public async getSpecialityByCode(integration: IntegrationDocument, code: number): Promise<PhillipsMedicalSpecialty> {
-    const methodName = 'getSpecialityByCode';
-    this.debugRequest(integration, { code });
-    this.dispatchAuditEvent(integration, { code }, methodName, AuditDataType.externalRequest);
-
-    try {
-      const response = await lastValueFrom(
-        this.httpService.get<PhillipsMedicalSpecialty>(
-          await this.getApiUrl(integration, `/api/medicalSpecialties/${code}`),
-          {
-            ...(await this.getHeaders(integration)),
-          },
-        ),
-      );
-
-      this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
-      return response?.data;
-    } catch (error) {
-      this.handleResponseError(integration, error, { code }, methodName);
-      throw HTTP_ERROR_THROWER(
-        error?.response?.status || HttpStatus.BAD_REQUEST,
-        error?.response?.data || error,
-        HttpErrorOrigin.INTEGRATION_ERROR,
-      );
-    }
-  }
-
-  // ========== A5 - LIST INSURANCES ==========
+  // ========== A5b - GET INSURANCE BY CODE ==========
   // GET /api/insurances/insuranceCode?insuranceCode=X
 
-  public async getInsurances(
-    integration: IntegrationDocument,
-    params: PhillipsParamsType,
-  ): Promise<PhillipsInsurance | PhillipsInsurance[]> {
-    const methodName = 'getInsurances';
-    this.debugRequest(integration, params);
-    this.dispatchAuditEvent(integration, params, methodName, AuditDataType.externalRequest);
+  public async getInsuranceByCode(integration: IntegrationDocument, insuranceCode: number): Promise<PhillipsInsurance> {
+    const methodName = 'getInsuranceByCode';
+    this.debugRequest(integration, { insuranceCode });
+    this.dispatchAuditEvent(integration, { insuranceCode }, methodName, AuditDataType.externalRequest);
 
     try {
       const response = await lastValueFrom(
-        this.httpService.get<PhillipsInsurance | PhillipsInsurance[]>(
-          await this.getApiUrl(integration, '/api/insurances/insuranceCode'),
-          {
-            ...(await this.getHeaders(integration)),
-            params,
-          },
-        ),
+        this.httpService.get<PhillipsInsurance>(await this.getApiUrl(integration, '/api/insurances/insuranceCode'), {
+          ...(await this.getBaseHeaders()),
+          params: { insuranceCode },
+        }),
       );
 
       this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;
     } catch (error) {
-      this.handleResponseError(integration, error, params, methodName);
-      throw HTTP_ERROR_THROWER(
-        error?.response?.status || HttpStatus.BAD_REQUEST,
-        error?.response?.data || error,
-        HttpErrorOrigin.INTEGRATION_ERROR,
-      );
+      if (isAxiosError(error)) {
+        this.handleResponseError(integration, error, {}, methodName);
+
+        throw HTTP_ERROR_THROWER(
+          error.response?.status || HttpStatus.BAD_REQUEST,
+          error.response?.data || error.message,
+          HttpErrorOrigin.INTEGRATION_ERROR,
+        );
+      }
+
+      // fallback para erros não-Axios
+      throw HTTP_ERROR_THROWER(HttpStatus.INTERNAL_SERVER_ERROR, error, HttpErrorOrigin.INTEGRATION_ERROR);
     }
   }
 
@@ -370,7 +427,7 @@ export class PhillipsApiService {
         this.httpService.get<PhillipsActivePhysician[]>(
           await this.getApiUrl(integration, '/api/schedules/integrated-schedule/active-physicians/'),
           {
-            ...(await this.getHeaders(integration)),
+            ...(await this.getBaseHeaders()),
             params,
           },
         ),
@@ -379,12 +436,18 @@ export class PhillipsApiService {
       this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;
     } catch (error) {
-      this.handleResponseError(integration, error, params, methodName);
-      throw HTTP_ERROR_THROWER(
-        error?.response?.status || HttpStatus.BAD_REQUEST,
-        error?.response?.data || error,
-        HttpErrorOrigin.INTEGRATION_ERROR,
-      );
+      if (isAxiosError(error)) {
+        this.handleResponseError(integration, error, params, methodName);
+
+        throw HTTP_ERROR_THROWER(
+          error.response?.status || HttpStatus.BAD_REQUEST,
+          error.response?.data || error.message,
+          HttpErrorOrigin.INTEGRATION_ERROR,
+        );
+      }
+
+      // fallback para erros não-Axios
+      throw HTTP_ERROR_THROWER(HttpStatus.INTERNAL_SERVER_ERROR, error, HttpErrorOrigin.INTEGRATION_ERROR);
     }
   }
 
@@ -407,7 +470,7 @@ export class PhillipsApiService {
           await this.getApiUrl(integration, `/api/schedules/consultation/${sequence}/status`),
           payload,
           {
-            ...(await this.getHeaders(integration)),
+            ...(await this.getBaseHeaders()),
           },
         ),
       );
@@ -415,12 +478,18 @@ export class PhillipsApiService {
       this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;
     } catch (error) {
-      this.handleResponseError(integration, error, auditPayload, methodName);
-      throw HTTP_ERROR_THROWER(
-        error?.response?.status || HttpStatus.BAD_REQUEST,
-        error?.response?.data || error,
-        HttpErrorOrigin.INTEGRATION_ERROR,
-      );
+      if (isAxiosError(error)) {
+        this.handleResponseError(integration, error, {}, methodName);
+
+        throw HTTP_ERROR_THROWER(
+          error.response?.status || HttpStatus.BAD_REQUEST,
+          error.response?.data || error.message,
+          HttpErrorOrigin.INTEGRATION_ERROR,
+        );
+      }
+
+      // fallback para erros não-Axios
+      throw HTTP_ERROR_THROWER(HttpStatus.INTERNAL_SERVER_ERROR, error, HttpErrorOrigin.INTEGRATION_ERROR);
     }
   }
 
@@ -440,7 +509,7 @@ export class PhillipsApiService {
         this.httpService.get<PhillipsListExamsScheduleResponse>(
           await this.getApiUrl(integration, '/api/schedules/exams/consultation'),
           {
-            ...(await this.getHeaders(integration)),
+            ...(await this.getBaseHeaders()),
             params,
           },
         ),
@@ -449,12 +518,18 @@ export class PhillipsApiService {
       this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;
     } catch (error) {
-      this.handleResponseError(integration, error, params, methodName);
-      throw HTTP_ERROR_THROWER(
-        error?.response?.status || HttpStatus.BAD_REQUEST,
-        error?.response?.data || error,
-        HttpErrorOrigin.INTEGRATION_ERROR,
-      );
+      if (isAxiosError(error)) {
+        this.handleResponseError(integration, error, params, methodName);
+
+        throw HTTP_ERROR_THROWER(
+          error.response?.status || HttpStatus.BAD_REQUEST,
+          error.response?.data || error.message,
+          HttpErrorOrigin.INTEGRATION_ERROR,
+        );
+      }
+
+      // fallback para erros não-Axios
+      throw HTTP_ERROR_THROWER(HttpStatus.INTERNAL_SERVER_ERROR, error, HttpErrorOrigin.INTEGRATION_ERROR);
     }
   }
 
@@ -474,7 +549,7 @@ export class PhillipsApiService {
         this.httpService.get<PhillipsListProceduresResponse>(
           await this.getApiUrl(integration, '/api/internalProcedures/actives'),
           {
-            ...(await this.getHeaders(integration)),
+            ...(await this.getBaseHeaders()),
             params,
           },
         ),
@@ -483,12 +558,18 @@ export class PhillipsApiService {
       this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;
     } catch (error) {
-      this.handleResponseError(integration, error, params, methodName);
-      throw HTTP_ERROR_THROWER(
-        error?.response?.status || HttpStatus.BAD_REQUEST,
-        error?.response?.data || error,
-        HttpErrorOrigin.INTEGRATION_ERROR,
-      );
+      if (isAxiosError(error)) {
+        this.handleResponseError(integration, error, params, methodName);
+
+        throw HTTP_ERROR_THROWER(
+          error.response?.status || HttpStatus.BAD_REQUEST,
+          error.response?.data || error.message,
+          HttpErrorOrigin.INTEGRATION_ERROR,
+        );
+      }
+
+      // fallback para erros não-Axios
+      throw HTTP_ERROR_THROWER(HttpStatus.INTERNAL_SERVER_ERROR, error, HttpErrorOrigin.INTEGRATION_ERROR);
     }
   }
 
@@ -508,7 +589,7 @@ export class PhillipsApiService {
         this.httpService.get<PhillipsProcedure>(
           await this.getApiUrl(integration, '/api/internalProcedures/internalProcedureCode/'),
           {
-            ...(await this.getHeaders(integration)),
+            ...(await this.getBaseHeaders()),
             params: { internalProcedureCode },
           },
         ),
@@ -517,12 +598,18 @@ export class PhillipsApiService {
       this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;
     } catch (error) {
-      this.handleResponseError(integration, error, { internalProcedureCode }, methodName);
-      throw HTTP_ERROR_THROWER(
-        error?.response?.status || HttpStatus.BAD_REQUEST,
-        error?.response?.data || error,
-        HttpErrorOrigin.INTEGRATION_ERROR,
-      );
+      if (isAxiosError(error)) {
+        this.handleResponseError(integration, error, {}, methodName);
+
+        throw HTTP_ERROR_THROWER(
+          error.response?.status || HttpStatus.BAD_REQUEST,
+          error.response?.data || error.message,
+          HttpErrorOrigin.INTEGRATION_ERROR,
+        );
+      }
+
+      // fallback para erros não-Axios
+      throw HTTP_ERROR_THROWER(HttpStatus.INTERNAL_SERVER_ERROR, error, HttpErrorOrigin.INTEGRATION_ERROR);
     }
   }
 
@@ -545,7 +632,7 @@ export class PhillipsApiService {
           await this.getApiUrl(integration, `/api/schedules/exams/${sequence}/status`),
           payload,
           {
-            ...(await this.getHeaders(integration)),
+            ...(await this.getBaseHeaders()),
           },
         ),
       );
@@ -553,12 +640,18 @@ export class PhillipsApiService {
       this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;
     } catch (error) {
-      this.handleResponseError(integration, error, auditPayload, methodName);
-      throw HTTP_ERROR_THROWER(
-        error?.response?.status || HttpStatus.BAD_REQUEST,
-        error?.response?.data || error,
-        HttpErrorOrigin.INTEGRATION_ERROR,
-      );
+      if (isAxiosError(error)) {
+        this.handleResponseError(integration, error, {}, methodName);
+
+        throw HTTP_ERROR_THROWER(
+          error.response?.status || HttpStatus.BAD_REQUEST,
+          error.response?.data || error.message,
+          HttpErrorOrigin.INTEGRATION_ERROR,
+        );
+      }
+
+      // fallback para erros não-Axios
+      throw HTTP_ERROR_THROWER(HttpStatus.INTERNAL_SERVER_ERROR, error, HttpErrorOrigin.INTEGRATION_ERROR);
     }
   }
 
@@ -578,7 +671,7 @@ export class PhillipsApiService {
         this.httpService.get<PhillipsAvailableConsultationResponse>(
           await this.getApiUrl(integration, '/api/schedules/consultation/available'),
           {
-            ...(await this.getHeaders(integration)),
+            ...(await this.getBaseHeaders()),
             params,
           },
         ),
@@ -587,12 +680,18 @@ export class PhillipsApiService {
       this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;
     } catch (error) {
-      this.handleResponseError(integration, error, params, methodName);
-      throw HTTP_ERROR_THROWER(
-        error?.response?.status || HttpStatus.BAD_REQUEST,
-        error?.response?.data || error,
-        HttpErrorOrigin.INTEGRATION_ERROR,
-      );
+      if (isAxiosError(error)) {
+        this.handleResponseError(integration, error, params, methodName);
+
+        throw HTTP_ERROR_THROWER(
+          error.response?.status || HttpStatus.BAD_REQUEST,
+          error.response?.data || error.message,
+          HttpErrorOrigin.INTEGRATION_ERROR,
+        );
+      }
+
+      // fallback para erros não-Axios
+      throw HTTP_ERROR_THROWER(HttpStatus.INTERNAL_SERVER_ERROR, error, HttpErrorOrigin.INTEGRATION_ERROR);
     }
   }
 
@@ -613,7 +712,7 @@ export class PhillipsApiService {
           await this.getApiUrl(integration, '/api/schedules/consultation/book-time'),
           payload,
           {
-            ...(await this.getHeaders(integration)),
+            ...(await this.getBaseHeaders()),
           },
         ),
       );
@@ -621,12 +720,18 @@ export class PhillipsApiService {
       this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;
     } catch (error) {
-      this.handleResponseError(integration, error, payload, methodName);
-      throw HTTP_ERROR_THROWER(
-        error?.response?.status || HttpStatus.BAD_REQUEST,
-        error?.response?.data || error,
-        HttpErrorOrigin.INTEGRATION_ERROR,
-      );
+      if (isAxiosError(error)) {
+        this.handleResponseError(integration, error, {}, methodName);
+
+        throw HTTP_ERROR_THROWER(
+          error.response?.status || HttpStatus.BAD_REQUEST,
+          error.response?.data || error.message,
+          HttpErrorOrigin.INTEGRATION_ERROR,
+        );
+      }
+
+      // fallback para erros não-Axios
+      throw HTTP_ERROR_THROWER(HttpStatus.INTERNAL_SERVER_ERROR, error, HttpErrorOrigin.INTEGRATION_ERROR);
     }
   }
 
@@ -646,7 +751,7 @@ export class PhillipsApiService {
         this.httpService.get<PhillipsAvailableExamsResponse>(
           await this.getApiUrl(integration, '/api/schedules/exams/available'),
           {
-            ...(await this.getHeaders(integration)),
+            ...(await this.getBaseHeaders()),
             params,
           },
         ),
@@ -655,12 +760,18 @@ export class PhillipsApiService {
       this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
       return response?.data;
     } catch (error) {
-      this.handleResponseError(integration, error, params, methodName);
-      throw HTTP_ERROR_THROWER(
-        error?.response?.status || HttpStatus.BAD_REQUEST,
-        error?.response?.data || error,
-        HttpErrorOrigin.INTEGRATION_ERROR,
-      );
+      if (isAxiosError(error)) {
+        this.handleResponseError(integration, error, params, methodName);
+
+        throw HTTP_ERROR_THROWER(
+          error.response?.status || HttpStatus.BAD_REQUEST,
+          error.response?.data || error.message,
+          HttpErrorOrigin.INTEGRATION_ERROR,
+        );
+      }
+
+      // fallback para erros não-Axios
+      throw HTTP_ERROR_THROWER(HttpStatus.INTERNAL_SERVER_ERROR, error, HttpErrorOrigin.INTEGRATION_ERROR);
     }
   }
 
@@ -682,8 +793,15 @@ export class PhillipsApiService {
     throw HTTP_ERROR_THROWER(HttpStatus.NOT_IMPLEMENTED, 'Phillips getAppointmentValue not implemented yet');
   }
 
-  public async getPatientSchedules(integration: IntegrationDocument, patientCode: string): Promise<any> {
-    throw HTTP_ERROR_THROWER(HttpStatus.NOT_IMPLEMENTED, 'Phillips getPatientSchedules not implemented yet');
+  // ========== GET PATIENT SCHEDULES ==========
+  // GET /api/schedules/consultation?naturalPersonCode={patientCode}
+  // Reutiliza listSchedulesConsultation com filtro por paciente
+
+  public async getPatientSchedules(
+    integration: IntegrationDocument,
+    params: PhillipsParamsType,
+  ): Promise<PhillipsListSchedulesResponse> {
+    return this.listSchedulesConsultation(integration, params);
   }
 
   public async cancelSchedule(integration: IntegrationDocument, scheduleCode: number): Promise<any> {

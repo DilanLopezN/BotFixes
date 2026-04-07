@@ -1,5 +1,5 @@
 import { HttpService } from '@nestjs/axios';
-import { HttpStatus, Injectable, Logger } from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
 import * as Sentry from '@sentry/node';
 import { AxiosRequestConfig } from 'axios';
 import * as contextService from 'request-context';
@@ -56,8 +56,6 @@ import { castObjectIdToString } from '../../../../common/helpers/cast-objectid';
 
 @Injectable()
 export class DrMobileApiService {
-  private readonly logger = new Logger(DrMobileApiService.name);
-
   constructor(
     private readonly httpService: HttpService,
     private readonly sentryErrorHandlerService: SentryErrorHandlerService,
@@ -117,14 +115,6 @@ export class DrMobileApiService {
     }
   }
 
-  private debugRequest(integration: IntegrationDocument, payload: any) {
-    if (!integration.debug) {
-      return;
-    }
-
-    this.logger.debug(`${integration._id}:${integration.name}:DR_MOBILE-debug`, payload);
-  }
-
   private async getDefaultAuthPayload(integration: IntegrationDocument): Promise<DrMobileAuthParamsRequest> {
     const { apiUsername: username, apiPassword: password } =
       await this.credentialsHelper.getConfig<DrMobileCredentialsResponse>(integration);
@@ -180,8 +170,6 @@ export class DrMobileApiService {
     const methodName = 'createPatient';
     const { codeIntegration } = await this.credentialsHelper.getConfig<DrMobileCredentialsResponse>(integration);
 
-    this.debugRequest(integration, payload);
-
     try {
       const config = await this.getAxiosConfig(integration);
       const response = await lastValueFrom(
@@ -203,7 +191,6 @@ export class DrMobileApiService {
     integration: IntegrationDocument,
     payload: DrMobileGetPatientRequest,
   ): Promise<DrMobilePatient> {
-    this.debugRequest(integration, payload);
     const { codeIntegration } = await this.credentialsHelper.getConfig<DrMobileCredentialsResponse>(integration);
 
     try {
@@ -237,7 +224,6 @@ export class DrMobileApiService {
       data = cleanseObject(data);
     } catch (error) {}
 
-    this.debugRequest(integration, data);
     this.dispatchAuditEvent(integration, data, methodName, AuditDataType.externalRequest);
 
     try {
@@ -269,7 +255,6 @@ export class DrMobileApiService {
       params = cleanseObject(params);
     } catch (error) {}
 
-    this.debugRequest(integration, params);
     this.dispatchAuditEvent(integration, params, methodName, AuditDataType.externalRequest);
 
     try {
@@ -293,7 +278,6 @@ export class DrMobileApiService {
     integration: IntegrationDocument,
     params: DrMobileOrganizationUnitsParamsRequest,
   ): Promise<DrMobileOrganizationUnit[]> {
-    this.debugRequest(integration, params);
     const { codeIntegration } = await this.credentialsHelper.getConfig<DrMobileCredentialsResponse>(integration);
 
     try {
@@ -324,7 +308,6 @@ export class DrMobileApiService {
     integration: IntegrationDocument,
     params: DrMobileDoctorsParamsRequest,
   ): Promise<DrMobileDoctor[]> {
-    this.debugRequest(integration, params);
     const { codeIntegration } = await this.credentialsHelper.getConfig<DrMobileCredentialsResponse>(integration);
 
     try {
@@ -352,7 +335,6 @@ export class DrMobileApiService {
     integration: IntegrationDocument,
     params: DrMobileDoctorsByUnitParamsRequest,
   ): Promise<DrMobileDoctor[]> {
-    this.debugRequest(integration, params);
     const { organizationUnitCode, insuranceCode, specialityCode } = params;
     const { codeIntegration } = await this.credentialsHelper.getConfig<DrMobileCredentialsResponse>(integration);
 
@@ -391,7 +373,6 @@ export class DrMobileApiService {
       payload = cleanseObject(payload);
     } catch (error) {}
 
-    this.debugRequest(integration, payload);
     this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
     try {
@@ -427,7 +408,6 @@ export class DrMobileApiService {
       payload = cleanseObject(payload);
     } catch (error) {}
 
-    this.debugRequest(integration, payload);
     this.dispatchAuditEvent(integration, payload, methodName, AuditDataType.externalRequest);
 
     try {
@@ -450,7 +430,6 @@ export class DrMobileApiService {
   }
 
   public async listInsurances(integration: IntegrationDocument): Promise<DrMobileInsurancesResponse[]> {
-    this.debugRequest(integration, {});
     const { codeIntegration } = await this.credentialsHelper.getConfig<DrMobileCredentialsResponse>(integration);
 
     try {
@@ -474,7 +453,6 @@ export class DrMobileApiService {
     integration: IntegrationDocument,
     ignoreException?: boolean,
   ): Promise<DrMobileSpeciality[]> {
-    this.debugRequest(integration, {});
     const { codeIntegration } = await this.credentialsHelper.getConfig<DrMobileCredentialsResponse>(integration);
 
     try {
@@ -498,7 +476,6 @@ export class DrMobileApiService {
     integration: IntegrationDocument,
     params: DrMobileProceduresParamsRequest,
   ): Promise<DrMobileProceduresResponse[]> {
-    this.debugRequest(integration, {});
     const { codeIntegration } = await this.credentialsHelper.getConfig<DrMobileCredentialsResponse>(integration);
 
     try {
@@ -525,7 +502,6 @@ export class DrMobileApiService {
     integration: IntegrationDocument,
     params: DrMobileInsurancePlansParamsRequest,
   ): Promise<DrMobileInsurancePlansResponse[]> {
-    this.debugRequest(integration, params);
     const { codeIntegration } = await this.credentialsHelper.getConfig<DrMobileCredentialsResponse>(integration);
 
     try {
@@ -556,7 +532,6 @@ export class DrMobileApiService {
     integration: IntegrationDocument,
     params: DrMobileInsuranceSubPlansParamsRequest,
   ): Promise<DrMobileInsuranceSubPlansResponse[]> {
-    this.debugRequest(integration, params);
     const { codeIntegration } = await this.credentialsHelper.getConfig<DrMobileCredentialsResponse>(integration);
 
     try {
@@ -587,7 +562,6 @@ export class DrMobileApiService {
     integration: IntegrationDocument,
     params: DrMobilePatientSchedules,
   ): Promise<DrMobilePatientSchedulesResponse> {
-    this.debugRequest(integration, params);
     const { codeIntegration } = await this.credentialsHelper.getConfig<DrMobileCredentialsResponse>(integration);
 
     try {
@@ -619,7 +593,6 @@ export class DrMobileApiService {
     integration: IntegrationDocument,
     params: DrMobileListSchedulesParams,
   ): Promise<DrMobileScheduleConfirmation[]> {
-    this.debugRequest(integration, params);
     const { codeIntegration } = await this.credentialsHelper.getConfig<DrMobileCredentialsResponse>(integration);
 
     try {

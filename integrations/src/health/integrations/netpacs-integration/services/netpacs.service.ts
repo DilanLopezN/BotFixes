@@ -87,7 +87,7 @@ import { FlowAction, FlowActionElement, FlowSteps } from '../../../flow/interfac
 import { IntegrationCacheUtilsService } from '../../../integration-cache-utils/integration-cache-utils.service';
 import { UpdatePatient } from '../../../integrator/interfaces/update-patient.interface';
 import { defaultAppointmentTypes, defaultTypesOfService } from '../../../entities/default-entities';
-import { castObjectId, castObjectIdToString } from '../../../../common/helpers/cast-objectid';
+import { castObjectId } from '../../../../common/helpers/cast-objectid';
 import {
   GetScheduleValue,
   ListSchedulesToConfirmV2,
@@ -103,6 +103,9 @@ import { NetpacsServiceHelpersService } from './netpacs-helpers.service';
 import { formatCurrency } from '../../../../common/helpers/format-currency';
 import { EntitiesFiltersService } from '../../../shared/entities-filters.service';
 import { convertPhoneNumber, formatPhone } from '../../../../common/helpers/format-phone';
+import { GetScheduleByIdData } from '../../../integrator/interfaces/get-schedule-by-id.interface';
+import { Schedules } from '../../../schedules/entities/schedules.entity';
+import { RulesHandlerService } from '../../../rules-handler/rules-handler.service';
 
 type RequestParams = { [key: string]: any };
 
@@ -117,6 +120,7 @@ export class NetpacsService implements IIntegratorService {
     private readonly appointmentService: AppointmentService,
     private readonly flowService: FlowService,
     private readonly integrationCacheUtilsService: IntegrationCacheUtilsService,
+    private readonly rulesHandlerService: RulesHandlerService,
   ) {}
 
   private async getOrganizationUnits(
@@ -962,17 +966,18 @@ export class NetpacsService implements IIntegratorService {
   }
 
   public async cancelSchedule(integration: IntegrationDocument, cancelSchedule: CancelSchedule): Promise<OkResponse> {
-    try {
-      const { appointmentCode: scheduleCode } = cancelSchedule;
-      const payload: CancelAttendanceRequest = {
-        idMotivoSituacao: 1,
-      };
+    const { appointmentCode: scheduleCode } = cancelSchedule;
+    const payload: CancelAttendanceRequest = {
+      idMotivoSituacao: 1,
+    };
 
+    try {
       await this.netpacsApiService.cancelAttendance(integration, scheduleCode, payload);
-      return { ok: true };
     } catch (error) {
       throw error;
     }
+
+    return { ok: true };
   }
 
   public async confirmSchedule(
@@ -985,15 +990,7 @@ export class NetpacsService implements IIntegratorService {
     try {
       await this.netpacsApiService.updateAttendanceStatus(integration, scheduleCode, payload);
     } catch (error) {
-      const isAlreadyConfirmed =
-        error?.response?.error?.message?.includes('O Atendimento já se encontra na situação que deseja alterar.') ||
-        error?.response?.error?.message?.includes(
-          'encontra-se na situação de Cancelado. A situação não pode ser alterada.',
-        );
-
-      if (!isAlreadyConfirmed) {
-        throw error;
-      }
+      throw error;
     }
 
     return { ok: true };
@@ -1249,7 +1246,7 @@ export class NetpacsService implements IIntegratorService {
       const data: SchedulesResponse[] = schedulesAvailable.flat();
 
       const doctorsSet = new Set([]);
-      const replacedAppointments: RawAppointment[] = [];
+      let replacedAppointments: RawAppointment[] = [];
 
       data?.forEach((app) => doctorsSet.add(app.idMedico));
 
@@ -1306,6 +1303,24 @@ export class NetpacsService implements IIntegratorService {
         }
       });
 
+      let metadata = {};
+
+      try {
+        // Aplica regras de filtragem de horários concorrentes baseadas nas rules da integração.
+        // A filtragem é genérica para todas as integrações via RulesHandlerService,
+        // evitando validações hardcoded no createSchedule de cada integração.
+        ({ replacedAppointments, metadata } = await this.rulesHandlerService.removeSchedulesFilteredBySameDayRules(
+          integration,
+          availableSchedules,
+          replacedAppointments,
+          metadata,
+          false,
+          this.getMinifiedPatientSchedules.bind(this),
+        ));
+      } catch (error) {
+        console.error(error);
+      }
+
       const { appointments: randomizedAppointments, metadata: partialMetadata } =
         await this.appointmentService.getAppointments(
           integration,
@@ -1320,12 +1335,11 @@ export class NetpacsService implements IIntegratorService {
         );
 
       const validSchedules = await this.appointmentService.transformSchedules(integration, randomizedAppointments);
-      return { schedules: validSchedules, metadata: { ...partialMetadata } };
+      return { schedules: validSchedules, metadata: { ...metadata, ...partialMetadata } };
     } catch (error) {
       throw error;
     }
   }
-
   public async splitGetAvailableSchedulesGrouped(
     integration: IntegrationDocument,
     availableSchedules: ListAvailableSchedules,
@@ -1439,7 +1453,7 @@ export class NetpacsService implements IIntegratorService {
       let data = await this.splitGetAvailableSchedulesGrouped(integration, availableSchedules, params);
 
       const doctorsSet = new Set([]);
-      const replacedAppointments: RawAppointment[] = [];
+      let replacedAppointments: RawAppointment[] = [];
 
       const tempSchedules: RawAppointment[] = [];
 
@@ -1507,6 +1521,24 @@ export class NetpacsService implements IIntegratorService {
         }
       });
 
+      let metadata = {};
+
+      try {
+        // Aplica regras de filtragem de horários concorrentes baseadas nas rules da integração.
+        // A filtragem é genérica para todas as integrações via RulesHandlerService,
+        // evitando validações hardcoded no createSchedule de cada integração.
+        ({ replacedAppointments, metadata } = await this.rulesHandlerService.removeSchedulesFilteredBySameDayRules(
+          integration,
+          availableSchedules,
+          replacedAppointments,
+          metadata,
+          false,
+          this.getMinifiedPatientSchedules.bind(this),
+        ));
+      } catch (error) {
+        console.error(error);
+      }
+
       const { appointments: randomizedAppointments, metadata: partialMetadata } =
         await this.appointmentService.getAppointments(
           integration,
@@ -1521,7 +1553,7 @@ export class NetpacsService implements IIntegratorService {
         );
 
       const validSchedules = await this.appointmentService.transformSchedules(integration, randomizedAppointments);
-      return { schedules: validSchedules, metadata: { ...partialMetadata } };
+      return { schedules: validSchedules, metadata: { ...metadata, ...partialMetadata } };
     } catch (error) {
       throw INTERNAL_ERROR_THROWER('NetpacsService.getAvailableSchedulesGrouped', error);
     }
@@ -1672,14 +1704,28 @@ export class NetpacsService implements IIntegratorService {
   async reschedule(integration: IntegrationDocument, reschedule: Reschedule): Promise<Appointment> {
     const { scheduleToCancelCode, scheduleToCreate, patient } = reschedule;
 
-    try {
-      // busca agendamentos do paciente para pegar dados de qual será cancelado
-      const patientAppointments = await this.getPatientSchedules(integration, { patientCode: patient.code });
-      const appointmentToCancel = patientAppointments.find(
-        (appointment) => appointment.appointmentCode == scheduleToCancelCode,
-      );
+    // quando pedido de reagendamento vem do resgate de paciente faltoso (no-show) ou confirmação de agendamento
+    // não é necessário cancelar pelo reagendamento pois é feito antes.
+    const shouldCancelAppointment = !scheduleToCreate?.data?.doNotCancelPreviousAppointment;
 
-      if (!appointmentToCancel) {
+    try {
+      let appointmentToCancel: Appointment = null;
+
+      try {
+        // busca agendamentos do paciente para pegar dados de qual será cancelado
+        const patientAppointments = await this.getPatientSchedules(integration, { patientCode: patient.code });
+        appointmentToCancel = patientAppointments.find(
+          (appointment) => appointment.appointmentCode == scheduleToCancelCode,
+        );
+      } catch (error) {
+        throw INTERNAL_ERROR_THROWER('NetpacsService.reschedule', {
+          ...error,
+          message: 'Error on trying to get patient schedules',
+        });
+      }
+
+      // Lança erro se era NECESSÁRIO cancelar o agendamento mas não o encontrou
+      if (!appointmentToCancel && shouldCancelAppointment) {
         throw INTERNAL_ERROR_THROWER('NetpacsService.reschedule', {
           message: 'Invalid appointment code to cancel',
         });
@@ -1698,41 +1744,44 @@ export class NetpacsService implements IIntegratorService {
         );
       }
 
-      const { procedure, appointmentCode, speciality } = appointmentToCancel;
+      // Se encontrou o agendamento, cacela, senão pode duplicar agendamentos
+      if (appointmentToCancel) {
+        const { procedure, appointmentCode, speciality } = appointmentToCancel;
 
-      // após criar novo agendamento, cancela o anterior
-      const cancelSchedulePayload = {
-        appointmentCode,
-        patientCode: patient.code,
-        procedure: {
-          code: null,
-          specialityCode: procedure.specialityCode || speciality?.code,
-          specialityType: procedure.specialityType || speciality?.specialityType,
-        },
-      };
-      const canceledOldAppointment = await this.cancelSchedule(integration, cancelSchedulePayload);
-
-      // caso o cancelamento do agendamento anterior falhe, cancela o que foi gerado no inicio do fluxo
-      if (!canceledOldAppointment.ok) {
-        const { appointmentCode, procedure, speciality } = createdAppointment;
-
-        await this.cancelSchedule(integration, {
+        // após criar novo agendamento, cancela o anterior
+        const cancelSchedulePayload = {
           appointmentCode,
           patientCode: patient.code,
           procedure: {
-            code: procedure.code || null,
+            code: null,
             specialityCode: procedure.specialityCode || speciality?.code,
             specialityType: procedure.specialityType || speciality?.specialityType,
           },
-        });
+        };
+        const canceledOldAppointment = await this.cancelSchedule(integration, cancelSchedulePayload);
 
-        throw HTTP_ERROR_THROWER(
-          HttpStatus.BAD_REQUEST,
-          {
-            message: 'Error on cancel old appointment',
-          },
-          HttpErrorOrigin.INTEGRATION_ERROR,
-        );
+        // caso o cancelamento do agendamento anterior falhe, cancela o que foi gerado no inicio do fluxo
+        if (!canceledOldAppointment.ok) {
+          const { appointmentCode, procedure, speciality } = createdAppointment;
+
+          await this.cancelSchedule(integration, {
+            appointmentCode,
+            patientCode: patient.code,
+            procedure: {
+              code: procedure.code || null,
+              specialityCode: procedure.specialityCode || speciality?.code,
+              specialityType: procedure.specialityType || speciality?.specialityType,
+            },
+          });
+
+          throw HTTP_ERROR_THROWER(
+            HttpStatus.BAD_REQUEST,
+            {
+              message: 'Error on cancel old appointment',
+            },
+            HttpErrorOrigin.INTEGRATION_ERROR,
+          );
+        }
       }
 
       return createdAppointment;
@@ -1846,5 +1895,9 @@ export class NetpacsService implements IIntegratorService {
     } catch (error) {
       throw HTTP_ERROR_THROWER(HttpStatus.BAD_REQUEST, error, HttpErrorOrigin.INTEGRATION_ERROR);
     }
+  }
+
+  async getConfirmationScheduleById(integration: IntegrationDocument, data: GetScheduleByIdData): Promise<Schedules> {
+    return await this.netpacsConfirmationService.getConfirmationScheduleById(integration, data);
   }
 }

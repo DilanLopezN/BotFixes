@@ -11,11 +11,12 @@ import { NetpacsServiceHelpersService } from './services/netpacs-helpers.service
 import { SchedulesModule } from '../../schedules/schedules.module';
 import { AuditModule } from '../../audit/audit.module';
 import { CredentialsModule } from '../../credentials/credentials.module';
+import { RulesHandlerModule } from '../../rules-handler/rules-handler.module';
 
 @Module({
   imports: [
     HttpModule.register({
-      timeout: 45_000,
+      timeout: 75_000,
     }),
     EntitiesModule,
     FlowModule,
@@ -24,6 +25,7 @@ import { CredentialsModule } from '../../credentials/credentials.module';
     AuditModule,
     SchedulesModule,
     CredentialsModule,
+    RulesHandlerModule,
   ],
   providers: [NetpacsService, NetpacsApiService, NetpacsConfirmationService, NetpacsServiceHelpersService],
 })

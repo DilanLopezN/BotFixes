@@ -79,6 +79,7 @@ enum FlowSteps {
   reason = 'reason',
   confirmPassive = 'confirmPassive',
   appointmentValue = 'appointmentValue',
+  scheduleSuggestion = 'scheduleSuggestion',
 }
 
 enum FlowTriggerType {

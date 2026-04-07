@@ -37,7 +37,7 @@ export class S3Service {
     });
   }
 
-  async getSignedUrl({ bucketName, key, expiresIn = 3600 }: S3GetSignedUrlOptions): Promise<string> {
+  async getSignedUrl({ bucketName, key, expiresIn = 86_400 }: S3GetSignedUrlOptions): Promise<string> {
     const command = new GetObjectCommand({
       Bucket: bucketName,
       Key: key,
