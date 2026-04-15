@@ -24,13 +24,15 @@ import {
 import { PhillipsApiService } from './phillips-api.service';
 import { PATIENT_CACHE_EXPIRATION } from '../../../integration-cache-utils/cache-expirations';
 import { PhillipsHelpersService } from './phillips-helpers.service';
-import { PhillipsEntitiesService } from './phillips-entities.service';
+
 import { AppointmentService, RawAppointment } from '../../../../health/shared/appointment.service';
 import moment from 'moment';
 import { PhillipsParamsType } from '../interfaces';
 import { ConfirmationSchedule } from 'health/interfaces/confirmation-schedule.interface';
 import { MatchFlowsConfirmationDto } from 'health/integrator/dto';
 import { FlowAction, FlowActionElement } from 'health/flow/interfaces/flow.interface';
+
+import { PhillipsEntitiesService } from './phillips-entities.service';
 import { PhillipsConfirmationService } from './phillips-confirmation.service';
 
 @Injectable()

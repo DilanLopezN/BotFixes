@@ -9,6 +9,9 @@ import { CredentialsModule } from '../../credentials/credentials.module';
 import { SchedulesModule } from '../../schedules/schedules.module';
 import { PhillipsApiService } from './services/phillips-api.service';
 import { PhillipsService } from './services/phillips.service';
+import { PhillipsEntitiesService } from './services/phillips-entities.service';
+import { PhillipsHelpersService } from './services/phillips-helpers.service';
+import { PhillipsConfirmationService } from './services/phillips-confirmation.service';
 
 @Module({
   imports: [
@@ -27,9 +30,9 @@ import { PhillipsService } from './services/phillips.service';
   providers: [
     PhillipsService,
     PhillipsApiService,
-    //PhillipsEntitiesService,
-    //PhillipsHelpersService,
-    // PhillipsConfirmationService - TODO,
+    PhillipsEntitiesService,
+    PhillipsHelpersService,
+    PhillipsConfirmationService,
   ],
 
   exports: [PhillipsService],

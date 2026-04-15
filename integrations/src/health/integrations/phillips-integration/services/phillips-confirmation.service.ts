@@ -30,7 +30,12 @@ import { castObjectIdToString } from '../../../../common/helpers/cast-objectid';
 import { GetScheduleByIdData } from '../../../integrator/interfaces/get-schedule-by-id.interface';
 import { Schedules } from '../../../schedules/entities/schedules.entity';
 import { PhillipsConfirmationErpParams } from '../interfaces/confirmation';
-import { PhillipsConsultationSchedule, PhillipsListSchedulesParams } from '../interfaces';
+import {
+  PhillipsConsultationSchedule,
+  PhillipsExamSchedule,
+  PhillipsListSchedulesParams,
+  PhillipsParamsType,
+} from '../interfaces';
 
 @Injectable()
 export class PhillipsConfirmationService {
@@ -42,108 +47,183 @@ export class PhillipsConfirmationService {
     private readonly schedulesService: SchedulesService,
   ) {}
 
+  // ========== EXTRAÇÃO DE AGENDAMENTOS ==========
+
   private async listSchedulesToConfirmData(
     integration: IntegrationDocument,
     data: ListSchedulesToConfirmV2<PhillipsConfirmationErpParams>,
   ): Promise<ExtractedSchedule[]> {
     const { startDate, endDate } = data;
+    const erpParams: PhillipsConfirmationErpParams = data.erpParams as PhillipsConfirmationErpParams;
 
     const maxResults = 100;
+    const initialDate = moment(startDate).format('YYYY-MM-DD');
+    const finalDate = moment(endDate).format('YYYY-MM-DD');
 
-    const requestFilters: PhillipsListSchedulesParams = {
-      page: 1,
-      maxResults,
-      initialDate: moment(startDate).format('YYYY-MM-DD'),
-      endDate: moment(endDate).format('YYYY-MM-DD'),
-    };
+    // ========== CONSULTAS (paginado) ==========
+    const consultationSchedules: PhillipsConsultationSchedule[] = [];
 
-    const schedules: PhillipsConsultationSchedule[] = [];
-    let response: PhillipsConsultationSchedule[];
-    let page = 1;
+    try {
+      let page = 1;
+      let response: PhillipsConsultationSchedule[];
 
-    do {
-      const result = await this.phillipsApiService.listSchedules(integration, {
-        ...requestFilters,
-        page,
-      });
+      do {
+        const result = await this.phillipsApiService
+          .listSchedulesConsultation(integration, {
+            initialDate,
+            endDate: finalDate,
+            page,
+            maxResults,
+          } as PhillipsParamsType)
+          .catch(() => ({ results: [] }));
 
-      response = result?.results ?? [];
+        response = result?.results ?? [];
 
-      if (response?.length > 0) {
-        response.forEach((schedule) => {
-          const scheduleDate = schedule.consultationScheduleEmbeddedDate?.scheduleDate;
-
-          if (
-            moment(scheduleDate).valueOf() >= moment(startDate).valueOf() &&
-            moment(scheduleDate).valueOf() <= moment(endDate).valueOf()
-          ) {
-            schedules.push(schedule);
-          }
+        console.log('DEBUG dates', {
+          startDate,
+          endDate,
+          startMs: moment(startDate).valueOf(),
+          endMs: moment(endDate).valueOf(),
+          firstScheduleDate: response?.[0]?.consultationScheduleEmbeddedDate?.scheduleDate,
+          firstScheduleMs: moment(response?.[0]?.consultationScheduleEmbeddedDate?.scheduleDate).valueOf(),
+          responseLength: response?.length,
         });
-      }
-      page++;
-    } while (response?.length >= maxResults);
 
-    return this.transformPhillipsSchedulesToExtractedSchedules(integration, schedules);
+        if (response?.length > 0) {
+          response.forEach((schedule) => {
+            const scheduleDate = schedule.consultationScheduleEmbeddedDate?.scheduleDate;
+
+            if (
+              moment.utc(scheduleDate).startOf('day').valueOf() >= moment(startDate).startOf('day').valueOf() &&
+              moment.utc(scheduleDate).startOf('day').valueOf() <= moment(endDate).startOf('day').valueOf()
+            ) {
+              consultationSchedules.push(schedule);
+            }
+          });
+        }
+
+        page++;
+      } while (response?.length >= maxResults);
+    } catch (error) {
+      // Se consultas falhar, continua com exames
+      console.error('PhillipsConfirmationService.listSchedulesToConfirmData: Error fetching consultations', error);
+    }
+
+    // ========== EXAMES (paginado) ==========
+    const examSchedules: PhillipsExamSchedule[] = [];
+
+    try {
+      let page = 1;
+      let response: PhillipsExamSchedule[];
+
+      do {
+        const result = await this.phillipsApiService
+          .listExamsSchedule(integration, {
+            initialDate,
+            endDate: finalDate,
+            page,
+            maxResults,
+          } as PhillipsParamsType)
+          .catch(() => ({ results: [] }));
+
+        response = result?.results ?? [];
+
+        if (response?.length > 0) {
+          response.forEach((schedule) => {
+            const scheduleDate = schedule.timeSlotDate;
+
+            if (
+              moment.utc(scheduleDate).startOf('day').valueOf() >= moment(startDate).startOf('day').valueOf() &&
+              moment.utc(scheduleDate).startOf('day').valueOf() <= moment(endDate).startOf('day').valueOf()
+            ) {
+              examSchedules.push(schedule);
+            }
+          });
+        }
+
+        page++;
+      } while (response?.length >= maxResults);
+    } catch (error) {
+      // Se exames falhar, continua com consultas
+      console.error('PhillipsConfirmationService.listSchedulesToConfirmData: Error fetching exams', error);
+    }
+
+    // ========== MERGE ==========
+    const extractedConsultations = this.transformConsultationsToExtractedSchedules(integration, consultationSchedules);
+    const extractedExams = this.transformExamsToExtractedSchedules(integration, examSchedules);
+
+    return [...extractedConsultations, ...extractedExams];
   }
 
-  private transformPhillipsSchedulesToExtractedSchedules(
+  // ========== TRANSFORM CONSULTATIONS ==========
+
+  private transformConsultationsToExtractedSchedules(
     _integration: IntegrationDocument,
     schedules: PhillipsConsultationSchedule[],
   ): ExtractedSchedule[] {
-    return schedules?.map((schedule) => {
-      const doctorCode = schedule.scheduleCode?.professional?.naturalPersonCode
-        ? String(schedule.scheduleCode.professional.naturalPersonCode)
-        : undefined;
+    return (
+      schedules?.map((schedule) => {
+        const patientPhones = [schedule.phoneNumber, schedule.patient?.phoneNumber].filter(
+          (phone): phone is string => !!phone,
+        );
 
-      const specialityCode = schedule.scheduleCode?.specialty?.code
-        ? String(schedule.scheduleCode.specialty.code)
-        : undefined;
-
-      // Na resposta da Phillips, o insurance vem dentro de scheduleCode ou no root — ajustar conforme interface real
-      const insuranceCode = (schedule as any)?.insurance?.insuranceCode
-        ? String((schedule as any).insurance.insuranceCode)
-        : undefined;
-
-      const organizationUnitCode = schedule.scheduleCode?.establishmentCode?.id
-        ? String(schedule.scheduleCode.establishmentCode.id)
-        : undefined;
-
-      const patientPhones: string[] = [];
-      if (schedule.phoneNumber) {
-        // phoneNumber vem no formato "M: (54)992098412 " — extrair apenas números
-        const cleanPhone = schedule.phoneNumber.replace(/[^\d]/g, '');
-        if (cleanPhone) {
-          patientPhones.push(cleanPhone);
-        }
-      }
-      if (schedule.patient?.phoneNumber) {
-        const cleanPhone = String(schedule.patient.phoneNumber).replace(/[^\d]/g, '');
-        if (cleanPhone && !patientPhones.includes(cleanPhone)) {
-          patientPhones.push(cleanPhone);
-        }
-      }
-
-      return {
-        doctorCode,
-        insuranceCode,
-        procedureCode: '',
-        organizationUnitCode,
-        specialityCode,
-        appointmentTypeCode: '',
-        scheduleCode: String(schedule.sequence),
-        scheduleDate: schedule.consultationScheduleEmbeddedDate?.scheduleDate,
-        patient: {
-          email: schedule.email || null,
-          code: schedule.patient?.naturalPersonCode ? String(schedule.patient.naturalPersonCode) : null,
-          name: schedule.patientName || schedule.patient?.name || null,
-          phones: patientPhones,
-          cpf: schedule.patient?.taxPayerId || null,
-          bornDate: schedule.patient?.birthDate ? moment(schedule.patient.birthDate).format('YYYY-MM-DD') : null,
-        },
-      } as ExtractedSchedule;
-    });
+        return {
+          doctorCode: schedule.scheduleCode?.physician?.naturalPersonCode
+            ? String(schedule.scheduleCode.physician.naturalPersonCode)
+            : '',
+          insuranceCode: '',
+          procedureCode: '',
+          organizationUnitCode: schedule.scheduleCode?.establishmentCode?.id
+            ? String(schedule.scheduleCode.establishmentCode.id)
+            : '',
+          specialityCode: schedule.scheduleCode?.specialty?.code ? String(schedule.scheduleCode.specialty.code) : '',
+          appointmentTypeCode: '',
+          scheduleCode: String(schedule.sequence),
+          scheduleDate: schedule.consultationScheduleEmbeddedDate?.scheduleDate ?? '',
+          patient: {
+            code: schedule.patient?.naturalPersonCode ? String(schedule.patient.naturalPersonCode) : '',
+            name: schedule.patientName || schedule.patient?.name || '',
+            phones: patientPhones,
+            cpf: schedule.patient?.taxPayerId || '',
+            bornDate: schedule.patient?.birthDate ? moment(schedule.patient.birthDate).format('YYYY-MM-DD') : '',
+          },
+        };
+      }) ?? []
+    );
   }
+
+  // ========== TRANSFORM EXAMS ==========
+
+  private transformExamsToExtractedSchedules(
+    _integration: IntegrationDocument,
+    schedules: PhillipsExamSchedule[],
+  ): ExtractedSchedule[] {
+    return (
+      schedules?.map((schedule) => {
+        const patientPhones = [schedule.phoneNumber].filter((phone): phone is string => !!phone);
+
+        return {
+          doctorCode: schedule.physician ? String(schedule.physician) : '',
+          insuranceCode: schedule.insuranceCode ? String(schedule.insuranceCode) : '',
+          procedureCode: schedule.procedureCode ? String(schedule.procedureCode) : '',
+          organizationUnitCode: schedule.establishmentCode ? String(schedule.establishmentCode) : '',
+          specialityCode: '',
+          appointmentTypeCode: '',
+          scheduleCode: String(schedule.sequence),
+          scheduleDate: schedule.timeSlotDate ?? '',
+          patient: {
+            code: schedule.naturalPersonCode ? String(schedule.naturalPersonCode) : '',
+            name: schedule.patientName || '',
+            phones: patientPhones,
+            cpf: schedule.taxPayerId || '',
+            bornDate: schedule.patientBirthDate ? moment(schedule.patientBirthDate).format('YYYY-MM-DD') : '',
+          },
+        };
+      }) ?? []
+    );
+  }
+
+  // ========== LIST SCHEDULES TO CONFIRM ==========
 
   async listSchedulesToConfirm(
     integration: IntegrationDocument,
@@ -195,6 +275,8 @@ export class PhillipsConfirmationService {
       return acc;
     }, {});
 
+    // cria um objeto em memória com as entidades encontradas em todos os agendamentos
+    // para não ir no mongo consultar diversas vezes o mesmo registro
     const correlationData: { [entityType: string]: { [entityCode: string]: EntityDocument } } =
       await this.entitiesService.createCorrelationDataKeys(correlationsKeysData, integration._id);
 
@@ -207,6 +289,8 @@ export class PhillipsConfirmationService {
         scheduleCorrelation[entityType] = correlationData[entityType]?.[entityCode];
       });
 
+      // valida através das entidades se pode confirmar `canConfirmActive`
+      // se não encontrar a entidade considera true
       const canConfirmActive = Object.values(scheduleCorrelation)
         .filter((entity) => !!entity)
         .every((entity) => entity.canConfirmActive);
@@ -300,6 +384,8 @@ export class PhillipsConfirmationService {
     return result;
   }
 
+  // ========== MATCH FLOWS ==========
+
   public async matchFlowsConfirmation(
     integration: IntegrationDocument,
     data: MatchFlowsConfirmation,
@@ -310,6 +396,9 @@ export class PhillipsConfirmationService {
       throw INTERNAL_ERROR_THROWER('PhillipsConfirmationService.matchFlowsConfirmation', error);
     }
   }
+
+  // ========== CANCEL SCHEDULE ==========
+  // Padrão Netpacs: API call dentro do try/catch, buildCancelSchedule FORA do try/catch
 
   public async cancelSchedule(
     integration: IntegrationDocument,
@@ -322,16 +411,24 @@ export class PhillipsConfirmationService {
     );
 
     try {
-      await this.phillipsApiService.confirmSchedule(integration, Number(schedule.scheduleCode));
-
-      await this.schedulesService.buildCancelSchedule(integration, schedule.scheduleCode, scheduleId);
-
-      return { ok: true };
+      await this.phillipsApiService.updateConsultationStatus(integration, Number(schedule.scheduleCode ?? 0), {
+        confirmationStatusIntegration: 'S',
+        status: 'CANCELLED',
+        reasonStatusChange: 'BOT TEST',
+        // reasonStatusChange: 'Cancelado Via Integração',
+      });
     } catch (error) {
       console.error(error);
       throw INTERNAL_ERROR_THROWER('PhillipsConfirmationService.cancelSchedule', error);
     }
+
+    await this.schedulesService.buildCancelSchedule(integration, schedule.scheduleCode, scheduleId);
+    return { ok: true };
   }
+
+  // ========== CONFIRM SCHEDULE ==========
+  // Padrão Netpacs: API call dentro do try/catch com tratamento de "already confirmed",
+  // buildConfirmSchedule FORA do try/catch
 
   public async confirmSchedule(
     integration: IntegrationDocument,
@@ -344,11 +441,17 @@ export class PhillipsConfirmationService {
     );
 
     try {
-      await this.phillipsApiService.confirmSchedule(integration, Number(schedule.scheduleCode));
+      await this.phillipsApiService.updateConsultationStatus(integration, Number(schedule.scheduleCode ?? 0), {
+        status: 'CONFIRMED',
+        confirmationStatusIntegration: 'CONFIRMED',
+        // reasonStatusChange: 'Confirmado via integração',
+      });
     } catch (error: any) {
-      // Trata caso já esteja confirmado/cancelado — similar ao padrão Netpacs
+      // Trata caso já esteja confirmado/cancelado — padrão Netpacs
       const isAlreadyConfirmed =
-        error?.response?.data?.message?.includes?.('Successfully updated') || error?.response?.status === 400;
+        error?.response?.data?.message?.includes?.('Already confirmed') ||
+        error?.response?.data?.message?.includes?.('Successfully updated') ||
+        error?.response?.data?.message?.includes?.('situação não pode ser alterada');
 
       if (!isAlreadyConfirmed) {
         console.error(error);
@@ -356,26 +459,58 @@ export class PhillipsConfirmationService {
       }
     }
 
-    await this.schedulesService.buildConfirmSchedule(integration, schedule.scheduleCode, scheduleId!);
+    await this.schedulesService.buildConfirmSchedule(integration, schedule.scheduleCode, scheduleId ?? 0);
     return { ok: true };
   }
 
+  // ========== GET SCHEDULE ==========
+
   async getSchedule(integration: IntegrationDocument, scheduleCode: string): Promise<ExtractedSchedule[]> {
-    const result = await this.phillipsApiService.listSchedules(integration, {
-      page: 1,
-      maxResults: 100,
-      initialDate: moment().subtract(1, 'year').format('YYYY-MM-DD'),
-      endDate: moment().add(1, 'month').format('YYYY-MM-DD'),
-    });
+    const initialDate = moment().subtract(1, 'year').format('YYYY-MM-DD');
+    const finalDate = moment().add(1, 'month').format('YYYY-MM-DD');
 
-    const schedule = result?.results?.find((s) => String(s.sequence) === scheduleCode);
+    // Busca em consultas e exames — se uma falhar, continua com a outra
+    const [consultationsResult, examsResult] = await Promise.all([
+      this.phillipsApiService
+        .listSchedulesConsultation(integration, {
+          initialDate,
+          endDate: finalDate,
+          page: 1,
+          maxResults: 100,
+        } as PhillipsParamsType)
+        .catch(() => ({ results: [] })),
+      this.phillipsApiService
+        .listExamsSchedule(integration, {
+          initialDate,
+          endDate: finalDate,
+          page: 1,
+          maxResults: 100,
+        } as PhillipsParamsType)
+        .catch(() => ({ results: [] })),
+    ]);
 
-    if (!schedule) {
-      return [];
+    // Tenta encontrar em consultas
+    const consultationMatch = (consultationsResult?.results ?? []).find(
+      (s: PhillipsConsultationSchedule) => String(s.sequence) === scheduleCode,
+    );
+
+    if (consultationMatch) {
+      return this.transformConsultationsToExtractedSchedules(integration, [consultationMatch]);
     }
 
-    return this.transformPhillipsSchedulesToExtractedSchedules(integration, [schedule]);
+    // Tenta encontrar em exames
+    const examMatch = (examsResult?.results ?? []).find(
+      (s: PhillipsExamSchedule) => String(s.sequence) === scheduleCode,
+    );
+
+    if (examMatch) {
+      return this.transformExamsToExtractedSchedules(integration, [examMatch]);
+    }
+
+    return [];
   }
+
+  // ========== VALIDATE SCHEDULE DATA ==========
 
   public async validateScheduleData(
     integration: IntegrationDocument,
@@ -385,7 +520,7 @@ export class PhillipsConfirmationService {
       const result = await this.schedulesService.validateScheduleData(
         integration,
         scheduleCode ?? '',
-        scheduleId!,
+        scheduleId ?? 0,
         this.getSchedule.bind(this),
       );
 
@@ -395,6 +530,8 @@ export class PhillipsConfirmationService {
       throw INTERNAL_ERROR_THROWER('PhillipsConfirmationService.validateScheduleData', error);
     }
   }
+
+  // ========== GET CONFIRMATION SCHEDULE BY ID ==========
 
   async getConfirmationScheduleById(integration: IntegrationDocument, data: GetScheduleByIdData): Promise<Schedules> {
     try {

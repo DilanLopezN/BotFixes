@@ -280,9 +280,9 @@ export interface PhillipsActivePhysician {
 // ========== A7 - STATUS CONSULTATION (CONFIRM / CANCEL) ==========
 
 export interface PhillipsUpdateConsultationStatusPayload {
-  confirmationStatusIntegration: string;
+  confirmationStatusIntegration?: string;
   status: string; // CONFIRMED | CANCELLED | REVERT_CONFIRMATION
-  reasonStatusChange: string;
+  reasonStatusChange?: string;
 }
 
 export type PhillipsUpdateConsultationStatusResponse = PhillipsGenericResponse;

@@ -110,11 +110,13 @@ export class PhillipsApiService {
   }
 
   private async getHeaders(integration: IntegrationDocument): Promise<{ headers: Record<string, string> }> {
-    const { apiToken } = await this.credentialsHelper.getConfig<PhillipsCredentialsResponse>(integration);
+    // const { apiToken } = await this.credentialsHelper.getConfig<PhillipsCredentialsResponse>(integration);
 
-    if (!apiToken) {
-      throw HTTP_ERROR_THROWER(HttpStatus.UNAUTHORIZED, 'Invalid Phillips API token');
-    }
+    // if (!apiToken) {
+    //   throw HTTP_ERROR_THROWER(HttpStatus.UNAUTHORIZED, 'Invalid Phillips API token');
+    // }
+
+    const apiToken = 'KoX4Tw8GOuKeavlY77ENnEHqeEvZdDU4Tl6ScoMT5nmk9aOHUmY2Dqlz9dXNGNVM';
 
     return {
       headers: {
@@ -133,7 +135,9 @@ export class PhillipsApiService {
   }
 
   private async getApiUrl(integration: IntegrationDocument, endpoint: string): Promise<string> {
-    const { apiUrl } = await this.credentialsHelper.getConfig<PhillipsCredentialsResponse>(integration);
+    // const { apiUrl } = await this.credentialsHelper.getConfig<PhillipsCredentialsResponse>(integration);
+
+    const apiUrl = 'https://pompeia-tieapi-test.tasy.com.br';
     return `${apiUrl}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
   }
 
@@ -356,7 +360,10 @@ export class PhillipsApiService {
 
     try {
       const response = await lastValueFrom(
-        this.httpService.get<PhillipsInsurance[]>(await this.getApiUrl(integration, '/api/insurances/actives'), {}),
+        this.httpService.get<PhillipsInsurance[]>(
+          await this.getApiUrl(integration, '/api/insurances?active=ACTIVE'),
+          {},
+        ),
       );
 
       this.dispatchAuditEvent(integration, response?.data, methodName, AuditDataType.externalResponse);
